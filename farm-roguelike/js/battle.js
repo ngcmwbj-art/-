@@ -4,9 +4,11 @@
    - 画面には触らない。状態 b を変えるだけで、描画は ui/render-battle.js
    - b.fx に「起きたこと」を積むと、描画側が数字の演出などに使う
    ターンの流れ：
-     プレイヤーのターン開始（守り0・エネルギー回復・かかし・5枚引く）
+     プレイヤーのターン開始（守り0・エネルギー回復・状態の効果・鶏の卵・5枚引く）
      → カードを使う
-     → ターン終了：手札を捨てる → 敵の行動 → 作物が1段育つ → 敵の次の行動を決める
+     → ターン終了：手札を捨てる → 敵の行動 → 作物と木が1段育つ（成木は実が1つなる）→ 敵の次の行動を決める
+   畑（plots）：野菜 { crop, growth, stages } / 木 { crop, tree:true, growth, stages, fruits, maxFruits }
+   畜舎（barns）：{ animal, growth, stages, care }  家畜は自然には育たない
    ========================================================= */
 FR.Battle = {
   create(run) {
@@ -31,7 +33,10 @@ FR.Battle = {
       draw: FR.Util.shuffle(rnd, run.deck.map(c => ({ ...c }))),
       hand: [], discard: [], exhaust: [],
       plots: new Array(farmer.plots).fill(null),
+      barns: new Array(farmer.barns || 0).fill(null),
       turn: 0,
+      playedThisTurn: 0,
+      lastHarvested: 0,
       over: false, won: false,
       fx: [],
       log: []
@@ -47,38 +52,56 @@ FR.Battle = {
     b.turn++;
     b.block = 0;
     b.energy = FR.Config.energy;
-    if (b.statuses.scarecrow > 0) {
-      b.fx.push({ kind: 'note', text: 'かかしが追い払う' });
-      FR.Battle.damageEnemy(b, 4);
-      b.statuses.scarecrow--;
+    b.playedThisTurn = 0;
+    // 状態の効果（かかし・ハウス・備え・草生など）
+    for (const id of Object.keys(FR.Statuses)) {
+      const st = FR.Statuses[id];
+      const n = b.statuses[id] || 0;
+      if (n > 0 && st.turnStart) st.turnStart(b, n);
       if (b.over) return;
     }
+    // 育ちきった家畜の毎ターンの効果（鶏の卵）
+    b.barns.forEach(a => {
+      if (!a || a.growth < a.stages) return;
+      const def = FR.Animals[a.animal];
+      if (def.onTurnMature) FR.Effects.run(b, def.onTurnMature);
+    });
     FR.Effects.relicHook(b, 'turnStart');
     FR.Battle.drawCards(b, FR.Config.handSize);
   },
 
   endTurn(b) {
     if (b.over) return;
-    // 手札を捨てる
     b.discard.push(...b.hand);
     b.hand = [];
-    // 敵の行動
     FR.Battle.enemyAct(b);
     if (b.over) return;
-    b.statuses.netted = 0;
-    // 作物が育つ
+    for (const id of Object.keys(FR.Statuses)) {
+      if (FR.Statuses[id].clearAtTurnEnd) b.statuses[id] = 0;
+    }
     FR.Battle.growAll(b, 1, true);
     FR.Battle.chooseIntent(b);
     FR.Battle.startTurn(b);
   },
 
   // ── カード ─────────────────────────────────
+  NEEDS: {
+    emptyPlot:     { test: b => b.plots.some(p => !p), reason: '空いた区画がない' },
+    ripeCrop:      { test: b => FR.Battle.hasHarvestable(b), reason: '収穫できるものがない' },
+    anyCrop:       { test: b => b.plots.some(p => p && ((!p.tree && p.growth >= 1) || (p.tree && p.fruits > 0))), reason: '1段以上育った作物がない' },
+    tree:          { test: b => FR.Battle.treeCount(b) > 0, reason: '木が植わっていない' },
+    emptyBarn:     { test: b => b.barns.some(a => !a), reason: b => b.barns.length ? '空いた畜舎がない' : '畜舎がない' },
+    animal:        { test: b => FR.Battle.animalCount(b) > 0, reason: '家畜がいない' },
+    matureAnimal:  { test: b => b.barns.some(a => a && a.growth >= a.stages), reason: '出荷できる家畜がいない' },
+    cropInDiscard: { test: b => b.discard.some(c => FR.cardView(c).type === 'crop'), reason: '捨て札に作物のカードがない' }
+  },
+
   canPlay(b, inst) {
     const v = FR.cardView(inst);
     if (b.over) return { ok: false, reason: '' };
     if (v.cost > b.energy) return { ok: false, reason: 'エネルギーが足りない' };
-    if (v.needs === 'emptyPlot' && !b.plots.some(p => !p)) return { ok: false, reason: '空いた区画がない' };
-    if (v.needs === 'ripeCrop' && !b.plots.some(p => p && p.growth >= p.stages)) return { ok: false, reason: '実った作物がない' };
+    const need = v.needs && FR.Battle.NEEDS[v.needs];
+    if (need && !need.test(b)) return { ok: false, reason: typeof need.reason === 'function' ? need.reason(b) : need.reason };
     return { ok: true };
   },
 
@@ -91,11 +114,14 @@ FR.Battle = {
     const v = FR.cardView(inst);
     b.energy -= v.cost;
     b.hand.splice(i, 1);
+    b.playedThisTurn++;
     b.log.push(v.name);
     FR.Effects.run(b, v.effects);
     // 常時カードは戦闘の間だけ消える。廃棄カードも同じ
     if (v.type === 'power' || v.exhaust) b.exhaust.push(inst);
     else b.discard.push(inst);
+    // 段取り八分：3枚目・6枚目…で引く
+    if (!b.over && b.statuses.rhythm > 0 && b.playedThisTurn % 3 === 0) FR.Battle.drawCards(b, b.statuses.rhythm);
     return true;
   },
 
@@ -106,14 +132,24 @@ FR.Battle = {
         if (!b.discard.length) return;
         b.draw = FR.Util.shuffle(b.rnd, b.discard);
         b.discard = [];
-        b.fx.push({ kind: 'note', text: '捨て札を山札に戻した' });
       }
       b.hand.push(b.draw.pop());
     }
   },
 
+  fetchFromDiscard(b, type) {
+    if (b.hand.length >= FR.Config.handMax) return;
+    for (let i = b.discard.length - 1; i >= 0; i--) {
+      if (FR.cardView(b.discard[i]).type === type) {
+        b.hand.push(b.discard.splice(i, 1)[0]);
+        return;
+      }
+    }
+  },
+
   // ── 数値の増減 ──────────────────────────────
   damageEnemy(b, amount) {
+    if (b.over || amount <= 0) return;
     const e = b.enemy;
     e.hp = Math.max(0, e.hp - amount);
     b.fx.push({ kind: 'damage', target: 'enemy', text: '-' + amount });
@@ -134,6 +170,7 @@ FR.Battle = {
   },
 
   gainBlock(b, amount) {
+    if (amount <= 0) return;
     b.block += amount;
     b.fx.push({ kind: 'block', target: 'player', text: '守り +' + amount });
   },
@@ -146,41 +183,151 @@ FR.Battle = {
   },
 
   gainGold(b, amount) {
+    if (amount <= 0) return;
     b.run.gold += amount;
     b.run.stats.goldEarned += amount;
     b.fx.push({ kind: 'gold', target: 'player', text: '銭 +' + amount });
   },
 
-  // ── 畑 ────────────────────────────────────
+  // ── 数える ─────────────────────────────────
+  cropCount(b) { return b.plots.filter(p => p).length; },
+  treeCount(b) { return b.plots.filter(p => p && p.tree).length; },
+  fruitCount(b) { return b.plots.reduce((s, p) => s + (p && p.tree ? p.fruits : 0), 0); },
+  animalCount(b) { return b.barns.filter(a => a).length; },
+  isRipe(p) { return p && (p.tree ? p.fruits > 0 : p.growth >= p.stages); },
+  hasHarvestable(b) { return b.plots.some(FR.Battle.isRipe); },
+
+  // ── 畑と木 ─────────────────────────────────
   plant(b, cropId) {
     const i = b.plots.findIndex(p => !p);
     if (i < 0) return;
     const c = FR.Crops[cropId];
-    b.plots[i] = { crop: cropId, growth: 0, stages: c.stages };
-    b.fx.push({ kind: 'plant', plot: i, text: c.name + 'を植えた' });
+    b.plots[i] = c.tree
+      ? { crop: cropId, tree: true, growth: 0, stages: c.stages, fruits: 0, maxFruits: c.maxFruits }
+      : { crop: cropId, growth: 0, stages: c.stages };
+    b.fx.push({ kind: 'plant', plot: i });
   },
 
-  // natural: ターン終了の自然な育ち（地力も効く）
+  // natural: ターン終了の自然な育ち。地力の分だけ多く育つ。成木は育つ代わりに実がなる
   growAll(b, amount, natural) {
-    const soil = b.statuses.soil || 0;
+    const n = amount + (b.statuses.soil || 0);
     b.plots.forEach((p, i) => {
-      if (!p || p.growth >= p.stages) return;
-      const before = p.growth;
-      p.growth = Math.min(p.stages, p.growth + amount + soil);
-      if (p.growth > before) b.fx.push({ kind: 'grow', plot: i, natural: !!natural });
+      if (!p) return;
+      if (p.growth < p.stages) {
+        p.growth = Math.min(p.stages, p.growth + n);
+        b.fx.push({ kind: 'grow', plot: i, natural: !!natural });
+      } else if (p.tree && p.fruits < p.maxFruits) {
+        p.fruits = Math.min(p.maxFruits, p.fruits + n);
+        b.fx.push({ kind: 'grow', plot: i, natural: !!natural });
+      }
     });
   },
 
-  harvestRipe(b) {
+  prune(b, cap, fruit) {
     b.plots.forEach((p, i) => {
-      if (!p || p.growth < p.stages || b.over) return;
+      if (!p || !p.tree) return;
+      p.maxFruits += cap;
+      if (p.growth >= p.stages && fruit) p.fruits = Math.min(p.maxFruits, p.fruits + fruit);
+      b.fx.push({ kind: 'grow', plot: i });
+    });
+  },
+
+  matureTrees(b) {
+    b.plots.forEach((p, i) => {
+      if (!p || !p.tree) return;
+      p.growth = p.stages;
+      p.fruits = Math.max(p.fruits, 1);
+      b.fx.push({ kind: 'grow', plot: i });
+    });
+  },
+
+  // 実った作物と、木の実をすべて収穫する。early なら1段以上育った野菜も（半分の値・効果なし）
+  harvestAll(b, early) {
+    let count = 0;
+    const st = b.statuses;
+    let pickedFruit = false;
+    b.plots.forEach((p, i) => {
+      if (!p || b.over) return;
       const c = FR.Crops[p.crop];
-      b.plots[i] = null;
-      b.run.stats.harvest += c.yield;
-      b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を収穫' });
-      FR.Battle.gainGold(b, c.gold);
-      FR.Effects.run(b, c.onHarvest);
-      FR.Effects.relicHook(b, 'harvest');
+      if (p.tree) {
+        if (p.fruits <= 0) return;
+        const n = p.fruits;
+        p.fruits = 0;
+        pickedFruit = true;
+        const times = st.bigFruit > 0 ? 2 : 1;
+        const ripen = st.ripening || 0;
+        b.fx.push({ kind: 'harvest', plot: i, text: `${c.name}を${n}つ摘んだ` });
+        for (let k = 0; k < n && !b.over; k++) {
+          count++;
+          b.run.stats.harvest += c.fruitYield;
+          FR.Battle.gainGold(b, c.fruitGold + ripen * 3);
+          if (ripen) FR.Battle.gainBlock(b, ripen * 2);
+          for (let t = 0; t < times; t++) FR.Effects.run(b, c.onPick);
+          FR.Effects.relicHook(b, 'pick');
+        }
+        return;
+      }
+      if (p.growth >= p.stages) {
+        b.plots[i] = null;
+        count++;
+        b.run.stats.harvest += c.yield;
+        b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を収穫' });
+        FR.Battle.gainGold(b, c.gold);
+        FR.Effects.run(b, c.onHarvest);
+        FR.Effects.relicHook(b, 'harvest');
+      } else if (early && p.growth >= 1) {
+        b.plots[i] = null;
+        count++;
+        b.run.stats.harvest += Math.floor(c.yield / 2);
+        b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を早どり' });
+        FR.Battle.gainGold(b, Math.floor(c.gold / 2));
+        FR.Effects.relicHook(b, 'harvest');
+      }
+    });
+    if (pickedFruit) st.bigFruit = 0;
+    b.lastHarvested = count;
+  },
+
+  // ── 家畜 ───────────────────────────────────
+  addAnimal(b, animalId, care, grow) {
+    const i = b.barns.findIndex(a => !a);
+    if (i < 0) return;
+    const def = FR.Animals[animalId];
+    b.barns[i] = { animal: animalId, growth: Math.min(def.stages, grow), stages: def.stages, care };
+    b.fx.push({ kind: 'plant', barn: i });
+  },
+
+  feed(b, grow, care) {
+    b.barns.forEach((a, i) => {
+      if (!a) return;
+      a.growth = Math.min(a.stages, a.growth + grow);
+      a.care += care;
+      b.fx.push({ kind: 'grow', barn: i });
+    });
+  },
+
+  // 手入れの合計から格付けを決める（bonus 段だけ上げる）
+  gradeOf(care, bonus) {
+    let idx = 0;
+    FR.Grades.forEach((g, k) => { if (care >= g.care) idx = k; });
+    idx = Math.min(FR.Grades.length - 1, idx + (bonus || 0));
+    return FR.Grades[idx];
+  },
+
+  shipAll(b, gradeBonus) {
+    const contract = 1 + 0.5 * (b.statuses.contract || 0);
+    b.barns.forEach((a, i) => {
+      if (!a || a.growth < a.stages || b.over) return;
+      const def = FR.Animals[a.animal];
+      const g = FR.Battle.gradeOf(a.care, gradeBonus);
+      const gold = Math.round(def.gold * g.mult * contract);
+      b.barns[i] = null;
+      b.run.stats.harvest += Math.round(def.yield * g.mult);
+      b.run.stats.shipped = (b.run.stats.shipped || 0) + 1;
+      b.fx.push({ kind: 'harvest', barn: i, text: `${def.matureName}を出荷 格付け${g.label}` });
+      FR.Battle.gainGold(b, gold);
+      FR.Effects.run(b, def.onShip);
+      FR.Effects.relicHook(b, 'ship');
     });
   },
 
@@ -200,17 +347,22 @@ FR.Battle = {
     if (it.intent === 'attack') return { name: it.name, value: dmg, kind: 'attack' };
     if (it.intent === 'steal') {
       const target = FR.Battle.stealTarget(b);
-      if (target >= 0 && !b.statuses.netted) return { name: it.name, value: '作物', kind: 'steal' };
+      if (target >= 0 && !b.statuses.netted) return { name: it.name, value: b.plots[target].tree ? '実' : '作物', kind: 'steal' };
       return { name: 'つつく', value: dmg, kind: 'attack' };
     }
     if (it.intent === 'buff') return { name: it.name, value: '力+' + it.strength, kind: 'buff' };
     return { name: it.name, value: '', kind: 'other' };
   },
 
+  // 奪う相手：いちばん育った野菜。なければ、いちばん実の多い木
   stealTarget(b) {
     let best = -1;
     b.plots.forEach((p, i) => {
-      if (p && (best < 0 || p.growth > b.plots[best].growth)) best = i;
+      if (p && !p.tree && (best < 0 || p.growth > b.plots[best].growth)) best = i;
+    });
+    if (best >= 0) return best;
+    b.plots.forEach((p, i) => {
+      if (p && p.tree && p.fruits > 0 && (best < 0 || p.fruits > b.plots[best].fruits)) best = i;
     });
     return best;
   },
@@ -225,12 +377,13 @@ FR.Battle = {
     } else if (it.intent === 'steal') {
       const t = FR.Battle.stealTarget(b);
       if (t >= 0 && !b.statuses.netted) {
-        const name = FR.Crops[b.plots[t].crop].name;
-        b.plots[t] = null;
+        const p = b.plots[t];
+        const name = FR.Crops[p.crop].name;
+        if (p.tree) p.fruits--; else b.plots[t] = null;
         b.run.stats.cropsLost++;
-        b.fx.push({ kind: 'stolen', plot: t, text: name + 'を奪われた' });
+        b.fx.push({ kind: 'stolen', plot: t, text: name + (p.tree ? 'の実を奪われた' : 'を奪われた') });
       } else {
-        if (t >= 0) b.fx.push({ kind: 'note', text: 'ネットが作物を守った' });
+        if (t >= 0) b.fx.push({ kind: 'note', text: '覆いが作物を守った' });
         FR.Battle.damagePlayer(b, dmg);
       }
     } else if (it.intent === 'buff') {
@@ -245,14 +398,25 @@ FR.Battle = {
     b.over = true;
     b.won = true;
     const r = b.run;
-    // 畑は戦闘ごとにリセット。実っていた作物は半分の値で自動収穫
+    // 畑と畜舎は戦闘ごとにリセット。実っていた作物・なっていた実・出荷できた家畜は半分の値で引き取り
     let auto = 0;
     b.plots.forEach(p => {
-      if (p && p.growth >= p.stages) {
-        const c = FR.Crops[p.crop];
+      if (!p) return;
+      const c = FR.Crops[p.crop];
+      if (p.tree) {
+        r.stats.harvest += Math.floor(c.fruitYield * p.fruits / 2);
+        auto += Math.floor(c.fruitGold * p.fruits / 2);
+      } else if (p.growth >= p.stages) {
         r.stats.harvest += Math.floor(c.yield / 2);
         auto += Math.floor(c.gold / 2);
       }
+    });
+    b.barns.forEach(a => {
+      if (!a || a.growth < a.stages) return;
+      const def = FR.Animals[a.animal];
+      const g = FR.Battle.gradeOf(a.care, 0);
+      r.stats.harvest += Math.floor(def.yield * g.mult / 2);
+      auto += Math.floor(def.gold * g.mult / 2);
     });
     if (auto) { r.gold += auto; r.stats.goldEarned += auto; }
     b.autoHarvestGold = auto;

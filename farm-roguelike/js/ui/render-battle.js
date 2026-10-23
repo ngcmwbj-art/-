@@ -30,18 +30,37 @@ FR.BattleView = {
     $('b-enemy-str').textContent = e.strength ? `力 +${e.strength}` : '';
     $('b-enemy').classList.toggle('defeated', b.over && b.won);
 
-    // 畑
-    $('b-field').style.gridTemplateColumns = `repeat(${b.plots.length}, minmax(0, 1fr))`;
-    $('b-field').innerHTML = b.plots.map((p, i) => {
+    // 畑と畜舎（同じ1列に並べる。畜舎は屋根つき）
+    const slots = b.plots.length + b.barns.length;
+    $('b-field').style.gridTemplateColumns = `repeat(${slots}, minmax(0, 1fr))`;
+    $('b-field').classList.toggle('many', slots > 3);
+    const plotsHtml = b.plots.map((p, i) => {
       if (!p) return `<div class="plot empty" data-plot="${i}"><small>空き</small></div>`;
       const c = FR.Crops[p.crop];
-      const ripe = p.growth >= p.stages;
-      return `<div class="plot ${ripe ? 'ripe' : ''}" data-plot="${i}">
-        ${FR.Art.img(ripe ? c.art.ripe : c.art.growing, '', c.name)}
+      const mature = p.growth >= p.stages;
+      const ripe = FR.Battle.isRipe(p);
+      let label;
+      if (p.tree) label = mature ? `実 ${p.fruits}/${p.maxFruits}` : `${p.growth}/${p.stages}`;
+      else label = mature ? '実った' : `${p.growth}/${p.stages}`;
+      return `<div class="plot ${ripe ? 'ripe' : ''} ${p.tree ? 'tree' : ''}" data-plot="${i}">
+        ${FR.Art.img(mature ? c.art.ripe : c.art.growing, '', c.name)}
         <span class="crop-name">${E(c.name)}</span>
-        <small>${ripe ? '実った' : p.growth + '/' + p.stages}</small>
+        <small>${label}</small>
       </div>`;
     }).join('');
+    const barnsHtml = b.barns.map((a, i) => {
+      if (!a) return `<div class="barn empty" data-barn="${i}"><small>空き</small></div>`;
+      const def = FR.Animals[a.animal];
+      const mature = a.growth >= a.stages;
+      const g = FR.Battle.gradeOf(a.care, 0);
+      return `<div class="barn ${mature ? 'ripe' : ''}" data-barn="${i}">
+        ${FR.Art.img(mature ? def.art.ripe : def.art.growing, '', def.name)}
+        <span class="crop-name">${E(mature ? def.matureName : def.name)}</span>
+        <span class="grade">${g.label}</span>
+        <small>${mature ? '出荷できる' : a.growth + '/' + a.stages}</small>
+      </div>`;
+    }).join('');
+    $('b-field').innerHTML = plotsHtml + barnsHtml;
 
     // プレイヤー
     $('b-energy').textContent = b.energy;
@@ -69,6 +88,21 @@ FR.BattleView = {
         style: `--rot:${rot.toFixed(1)}deg;--ty:${ty.toFixed(0)}px;--z:${i + 1}`
       });
     }).join('');
+    FR.BattleView.fitHand();
+  },
+
+  // 手札が画面幅に収まるように、カードの重なりを枚数に合わせて決める
+  fitHand() {
+    const hand = document.getElementById('hand');
+    const cards = hand.querySelectorAll('.card');
+    if (!cards.length) return;
+    const n = cards.length;
+    const cw = cards[0].offsetWidth;
+    const avail = hand.clientWidth - 8;
+    const natural = cw * 0.68;   // 重ねたときの、1枚あたりの見える幅（ふつう）
+    const step = n > 1 ? Math.min(natural, (avail - cw) / (n - 1)) : cw;
+    const margin = (step - cw) / 2;
+    cards.forEach(c => { c.style.margin = `0 ${margin}px`; });
   },
 
   // 起きたことの演出
@@ -82,7 +116,9 @@ FR.BattleView = {
         delay += 90;
         if (f.kind === 'damage') FR.BattleView.shake(f.target === 'enemy' ? 'b-enemy-art' : 'b-player');
       } else if (f.kind === 'harvest' || f.kind === 'stolen' || f.kind === 'plant' || f.kind === 'grow') {
-        const el = document.querySelector(`.plot[data-plot="${f.plot}"]`);
+        const el = f.barn !== undefined
+          ? document.querySelector(`.barn[data-barn="${f.barn}"]`)
+          : document.querySelector(`.plot[data-plot="${f.plot}"]`);
         if (el) {
           el.classList.remove('pulse-' + f.kind);
           void el.offsetWidth;

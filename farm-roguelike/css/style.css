@@ -157,6 +157,25 @@ img { -webkit-user-drag: none; }
 .pulse-harvest { animation: harvested .6s ease; }
 .pulse-stolen { animation: stolen .6s ease; }
 
+/* 畜舎：古い板張りと屋根 */
+.barn {
+  height: clamp(54px, 9vh, 84px); border-radius: 2px; position: relative; display: grid; place-items: center; margin-top: 10px;
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 1px, transparent 1px 12px), linear-gradient(180deg, #6a5038, #4a3726);
+  border: 1px solid var(--panel-line);
+}
+.barn::before {
+  content: ""; position: absolute; top: -11px; left: 6%; right: 6%; height: 12px;
+  background: #3a2c20; border: 1px solid var(--panel-line); border-bottom: 0; clip-path: polygon(0 100%, 50% 0, 100% 100%);
+}
+.barn img { width: auto; height: clamp(44px, 7.4vh, 70px); }
+.barn small { position: absolute; bottom: 2px; right: 5px; font-size: 11px; color: #f0dca8; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.barn .crop-name { position: absolute; top: 2px; left: 5px; font-size: 10px; color: var(--panel-text-soft); text-shadow: 0 1px 2px #000; }
+.barn .grade { position: absolute; top: 2px; right: 4px; font-family: var(--mincho); font-weight: 800; font-size: 12px; color: var(--gold); text-shadow: 0 1px 2px #000; }
+.barn.empty small { left: 0; right: 0; text-align: center; bottom: auto; color: rgba(233, 223, 198, .35); font-weight: 500; }
+.barn.ripe { box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(240, 190, 90, .6); }
+.field.many { max-width: 560px; }
+.field.many .crop-name { display: none; }
+
 /* プレイヤー */
 .player { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; }
 .energy {
@@ -206,6 +225,8 @@ img { -webkit-user-drag: none; }
 .card.type-crop .art { background: #cfd6b4; }
 .card.type-growth .art { background: #c9d8c0; }
 .card.type-power .art { background: #d8cba0; }
+.card.type-livestock .art { background: #d9cbb4; }
+.card.type-machine .art { background: #c8c8c0; }
 .card .kind { font-size: calc(var(--cw) * .085); text-align: center; color: var(--ink-soft); letter-spacing: .2em; margin-top: 2px; }
 .card .text { font-size: calc(var(--cw) * .1); line-height: 1.35; text-align: center; padding: 0 calc(var(--cw) * .08) 4px; overflow: hidden; }
 

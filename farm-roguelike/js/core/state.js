@@ -20,7 +20,7 @@ FR.Run = {
       phase: 'battle',         // battle 戦闘 / reward 報酬を選ぶところ / over 終わり
       reward: null,            // 報酬の中身（選んでいる途中で閉じても同じものが出るように保存）
       nextUid: 1,
-      stats: { harvest: 0, goldEarned: 0, damageTaken: 0, battlesWon: 0, cropsLost: 0 }
+      stats: { harvest: 0, goldEarned: 0, damageTaken: 0, battlesWon: 0, cropsLost: 0, shipped: 0 }
     };
     f.deck.forEach(id => FR.Run.addCard(run, id, false));
     return run;

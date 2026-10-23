@@ -8,13 +8,22 @@
 FR.Art = {
   BASE: 'assets/img/art/',
   FILES: {
-    // 敵・家畜
-    crow: 'crow.svg', boar: 'boar.svg', calf: 'calf.svg',
-    // 作物
-    sprout: 'sprout.svg', komatsuna: 'komatsuna.svg', tomato: 'tomato.svg', cabbage: 'cabbage.svg', fruittree: 'fruittree.svg',
-    // 道具・作業
+    // 敵
+    crow: 'crow.svg', boar: 'boar.svg',
+    // 家畜
+    calf: 'calf.svg', piglet: 'piglet.svg', chick: 'chick.svg', hen: 'hen.svg', dog: 'dog.svg',
+    // 野菜
+    sprout: 'sprout.svg', komatsuna: 'komatsuna.svg', tomato: 'tomato.svg', cabbage: 'cabbage.svg',
+    spinach: 'spinach.svg', eggplant: 'eggplant.svg', daikon: 'daikon.svg',
+    // 柑橘
+    sapling: 'sapling.svg', fruittree: 'fruittree.svg', mikantree: 'mikantree.svg', lemontree: 'lemontree.svg',
+    yuzutree: 'yuzutree.svg', dekopontree: 'dekopontree.svg', mikanbox: 'mikanbox.svg', jar: 'jar.svg',
+    // 道具・作業・機械
     weeding: 'weeding.svg', mulch: 'mulch.svg', seeds: 'seeds.svg', basket: 'basket.svg', water: 'water.svg',
-    net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.svg'
+    net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.svg',
+    greenhouse: 'greenhouse.svg', sprayer: 'sprayer.svg', tractor: 'tractor.svg', feed: 'feed.svg',
+    vaccine: 'vaccine.svg', fence: 'fence.svg', truck: 'truck.svg', hay: 'hay.svg', shears: 'shears.svg',
+    firework: 'firework.svg', fan: 'fan.svg', stonewall: 'stonewall.svg', cowbell: 'cowbell.svg'
   },
   FALLBACK: {},
 

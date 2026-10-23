@@ -32,13 +32,30 @@ const App = {
       const r = FR.Relics[btn.dataset.relic];
       FR.Screens.modal(r.name, `<p class="relic-text">${FR.Util.escape(r.text)}</p>`);
     };
+    // 区画・畜舎をタップすると説明
     document.getElementById('b-field').onclick = ev => {
-      const el = ev.target.closest('.plot');
-      if (!el) return;
-      const p = App.battle.plots[+el.dataset.plot];
-      if (!p) { FR.Screens.toast('空いた区画。種まきや苗の植え付けで使う'); return; }
-      const c = FR.Crops[p.crop];
-      FR.Screens.toast(`${c.name}　${p.growth}/${p.stages}段　収穫で${c.harvestText}・銭${c.gold}`);
+      const bt = App.battle;
+      const pe = ev.target.closest('.plot');
+      const be = ev.target.closest('.barn');
+      if (pe) {
+        const p = bt.plots[+pe.dataset.plot];
+        if (!p) { FR.Screens.toast('空いた区画。種まきや苗木の植え付けで使う'); return; }
+        const c = FR.Crops[p.crop];
+        if (p.tree) {
+          FR.Screens.toast(p.growth < p.stages
+            ? `${c.name}の苗木　${p.growth}/${p.stages}段で成木`
+            : `${c.name}　実 ${p.fruits}/${p.maxFruits}　${c.harvestText}・銭${c.fruitGold}`);
+        } else {
+          FR.Screens.toast(`${c.name}　${p.growth}/${p.stages}段　収穫で${c.harvestText}・銭${c.gold}`);
+        }
+      } else if (be) {
+        const a = bt.barns[+be.dataset.barn];
+        if (!a) { FR.Screens.toast('空いた畜舎。子牛導入などで使う'); return; }
+        const def = FR.Animals[a.animal];
+        const g = FR.Battle.gradeOf(a.care, 0);
+        FR.Screens.toast(`${def.name}　${a.growth}/${a.stages}段　手入れ${a.care}（格付け${g.label}・×${g.mult}）　出荷で${def.shipText}`
+          + (def.turnText ? `　育つと${def.turnText}` : ''));
+      }
     };
     FR.HandInput.attach(document.getElementById('hand'), {
       onPlay: uid => App.playCard(uid)
@@ -239,3 +256,5 @@ const App = {
 };
 
 window.addEventListener('DOMContentLoaded', App.init);
+// 画面の向きや大きさが変わったら手札を並べ直す
+window.addEventListener('resize', () => { if (App.battle) FR.BattleView.fitHand(); });
