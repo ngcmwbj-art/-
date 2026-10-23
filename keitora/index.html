@@ -647,6 +647,7 @@ canvas { display: block; width: 100%; height: 100%; }
       }
       else if (k === 'mud') { sweepNoise(0.6, 0.35, 900, 150, 1, 'lowpass'); tone('sine', 220, 45, 0.5, 0.16); for (let i = 0; i < 3; i++) tone('sine', 300 + i * 40, 110, 0.09, 0.08, 0.2 + i * 0.12); }
       else if (k === 'roll') { noise(0.18, 0.16, 400); tone('sine', 140, 60, 0.15, 0.08); }
+      else if (k === 'caw') { noise(0.16, 0.05, 1400, 'bandpass'); tone('sawtooth', 620, 470, 0.16, 0.025); }   // カァ（1回だけ）
       else if (k === 'moo') { tone('triangle', 150, 112, 0.65, 0.12); tone('sine', 300, 225, 0.6, 0.03); }   // モ〜（低く1回だけ）
       else if (k === 'tomato') { tone('sine', 520, 180, 0.12, 0.08); noise(0.06, 0.1, 900, 'lowpass', 0.06); }
       else if (k === 'pop') { noise(0.12, 0.45, 2000); noise(1.2, 0.12, 5000, 'highpass', 0.1); }
@@ -909,7 +910,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
         : easy ? pick([['gap', 50], ['puddle', 30], ['bump', 15]])
-        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0], ['cow', m > 300 ? 7 : 0]]);
+        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0], ['cow', m > 300 ? 7 : 0], ['crow', m > 400 ? 7 : 0]]);
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
         // 500 m を過ぎると、ときどき2段ジャンプ前提の広い穴が混ざる（距離が伸びるほど増える）
@@ -926,6 +927,11 @@ canvas { display: block; width: 100%; height: 100%; }
         const w = Math.max(56, sp * 0.85 * (AIR - bumpWindow(m)) * rr(0.6, 1));
         obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false, lv: levelAt(nextX) });
         nextX += w + spacing() * 0.8 + sp * 0.8;
+      } else if (type === 'crow') {
+        // カラス：この区間は平らな道にしておき、軽トラがここへ来たころに荷台めがけて降りてくる
+        const cx = nextX + sp * 0.5;
+        obs.push({ t: 'crow', x: cx, w: 1, lv: levelAt(cx), state: 'pending', ct: 0, sx: 0, sy: 0, vx: 0, vy: 0 });
+        nextX = cx + sp * 0.6 + spacing();
       } else if (type === 'cow') {
         // 牛：道の上でのそのそ足踏みしている。手前に助走、跳び越えた先にも余裕をとる（すぐ泥の穴にしない）
         const cx = nextX + sp * 0.4 + 60;
@@ -964,7 +970,7 @@ canvas { display: block; width: 100%; height: 100%; }
         obs.push({ t: 'pick', x: px, w: 16, lv: levelAt(px), taken: false });
       }
     }
-    obs = obs.filter(o => (o.t === 'boar' ? (o.state !== 'gone') : (o.x + o.w > cam - 200)));
+    obs = obs.filter(o => (o.t === 'boar' ? (o.state !== 'gone') : o.t === 'crow' ? (o.state === 'pending' ? o.x > cam - 200 : o.state !== 'gone') : (o.x + o.w > cam - 200)));
     while (steps.length > 1 && steps[1].x < cam - 600) steps.shift();
   }
 
@@ -1446,6 +1452,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     updateBoars(dt);
     updateCows(dt);
+    updateCrows(dt);
 
     // 初めて見る障害物は、軽トラを通り過ぎたら説明済みにする
     for (const st of steps) if (st.x < cam + TRUCK_X) seenTypes.add(stepKind(st));
@@ -1524,6 +1531,75 @@ canvas { display: block; width: 100%; height: 100%; }
     emit(1, cam + TRUCK_FRONT - 10, truck.y - 30, { vx: [-20, 30], vy: [-90, -40], life: [0.6, 1.1], r: [4, 8], col: 'rgba(240,240,235,.8)', g: -20 });
   }
 
+  // カラス：右上から荷台めがけて降りてくる。着く瞬間に跳んでいれば追い払える。
+  // 地面にいると積み荷を1個持っていかれる（終わりにはならない）
+  const CROW_T = 1.5;
+  function crowTarget() { return { x: TRUCK_X + 30, y: truck.y - 62 }; }
+  function updateCrows(dt) {
+    for (const o of obs) {
+      if (o.t !== 'crow') continue;
+      if (o.state === 'pending') {
+        if (state !== 'play' || truck.falling || cam + TRUCK_X < o.x - vel * CROW_T) continue;
+        o.state = 'dive'; o.ct = 0;
+        sfx('caw');
+        if (!seenTypes.has('crow')) popup('カラス! ジャンプで追い払え', '#fffbea');
+      } else if (o.state === 'dive') {
+        o.ct += dt;
+        const p = Math.min(1, o.ct / CROW_T), tg = crowTarget();
+        o.sx = W + 30 + (tg.x - W - 30) * p;
+        o.sy = tg.y - 170 + 170 * p * p;          // 軽トラの高さを基準に、上から弧を描いて降りる
+        if (p >= 1) {
+          if (state !== 'play' || truck.dead) { o.state = 'scared'; o.vx = 260; o.vy = -260; continue; }
+          if (!truck.grounded && truck.y < supportY() - 20) {
+            o.state = 'scared'; o.vx = 280; o.vy = -300;
+            popup('カラスを追い払った!', '#f2b33d');
+            setReact('cheer', 0.9);
+          } else {
+            o.state = 'stole'; o.vx = -160; o.vy = -230;
+            if (tomatoes > 0) {
+              tomatoes--; stats.lost++;
+              o.carry = true;
+              popup(`カラスに${cargo.unit}を取られた 残り ${tomatoes} 個`, '#ff8f7a');
+              setReact('oops', 0.6);
+            }
+          }
+        }
+      } else if (o.state === 'scared' || o.state === 'stole') {
+        o.ct += dt;
+        o.sx += o.vx * dt; o.sy += o.vy * dt;
+        if (o.sy < GROUND - 420 || o.sx < -60 || o.sx > W + 60) o.state = 'gone';
+      }
+    }
+  }
+  function drawCrows() {
+    for (const o of obs) {
+      if (o.t !== 'crow' || (o.state !== 'dive' && o.state !== 'scared' && o.state !== 'stole')) continue;
+      // 降りてくる場所を先に知らせる影（近づくほど濃く小さく）
+      if (o.state === 'dive') {
+        const p = Math.min(1, o.ct / CROW_T), gy = groundAt(o.sx + cam) + 1;
+        ctx.fillStyle = `rgba(20,20,20,${0.12 + 0.25 * p})`;
+        ctx.beginPath(); ctx.ellipse(o.sx, gy, 14 - 5 * p, 3, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      drawCrow(o.sx, o.sy, o.state === 'dive' ? -1 : (o.vx > 0 ? 1 : -1), o.ct, o.carry);
+    }
+  }
+  // カラス（dir = -1 で左向き）。羽ばたきは2枚の三角
+  function drawCrow(x, y, dir, t, carry) {
+    const flap = Math.sin(t * 22);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir, 1);
+    ctx.fillStyle = '#1d1d22';
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-10, -3, 5, 0, Math.PI * 2); ctx.fill();          // 頭
+    ctx.beginPath(); ctx.moveTo(8, -1); ctx.lineTo(17, -4); ctx.lineTo(16, 3); ctx.closePath(); ctx.fill();   // しっぽ
+    ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(6, -3); ctx.lineTo(3, -3 - 13 * flap); ctx.closePath(); ctx.fill();  // 羽
+    ctx.fillStyle = '#5c5c66';
+    ctx.beginPath(); ctx.moveTo(-14, -4); ctx.lineTo(-20, -2); ctx.lineTo(-14, -1); ctx.closePath(); ctx.fill();   // くちばし
+    ctx.fillStyle = '#fff'; ctx.fillRect(-12, -5, 1.6, 1.6);
+    if (carry) drawItem(cargo.id === 'calf' ? 'hay' : cargo.id, -16, 6, 0);
+    ctx.restore();
+  }
   // 牛：ぶつかっても終わらず、止まって大きく減速する（牛は首をかしげるだけ）
   function updateCows(dt) {
     for (const o of obs) {
@@ -3276,6 +3352,7 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.restore();
     }
     drawBoars();
+    drawCrows();
     drawParts();
     drawNight();
     drawCallouts();
