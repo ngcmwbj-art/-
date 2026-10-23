@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>戦闘画面の見本</title>
+<!-- 見た目の方向性を確かめるための静的な見本（動きはありません） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ── 色の約束ごと：水彩の淡い色＋焦げ茶のインク ───────────── */
+:root {
+  --sky-top: #8fc3e6;
+  --sky-mid: #cfe6f2;
+  --sky-low: #fbf1d9;
+  --hill-far: #9cc3a4;
+  --hill-mid: #79ad7e;
+  --hill-near: #5d9466;
+  --paper: #f7f0de;
+  --paper-edge: #e6d8b8;
+  --ink: #4a3a2a;
+  --ink-soft: #7a6650;
+  --attack: #e3a28c;   /* 攻撃：夕焼けの朱 */
+  --skill: #9fc6d9;    /* 守り：空の青 */
+  --crop: #b9d38f;     /* 作物：若草 */
+  --energy: #f2c76b;   /* エネルギー：おひさま */
+  --hp: #d9826b;
+  --block: #8fb3cf;
+  --soil: #8a6a4a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  color: var(--ink);
+  background: var(--sky-low);
+  overflow: hidden;
+}
+.title-font { font-family: "Klee One", "Zen Maru Gothic", serif; }
+
+/* ── 背景：空・入道雲・遠い山・草原 ─────────────────────── */
+.scene {
+  position: fixed; inset: 0;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 38%, var(--sky-low) 62%);
+}
+/* 入道雲：重ねた円をぼかして、ふちだけ少しくっきり */
+.cloud { position: absolute; filter: blur(1.5px); }
+.cloud i {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 0%, #fff 55%, #eef3f6 80%, #dfe8ee 100%);
+  box-shadow: inset -6px -10px 18px rgba(150, 175, 200, .35);
+}
+.cloud.a { left: -6%; top: 9%; width: 70%; height: 22%; }
+.cloud.a i:nth-child(1) { left: 0;   top: 45%; width: 38%; height: 55%; }
+.cloud.a i:nth-child(2) { left: 18%; top: 10%; width: 42%; height: 80%; }
+.cloud.a i:nth-child(3) { left: 44%; top: 0;   width: 36%; height: 90%; }
+.cloud.a i:nth-child(4) { left: 64%; top: 38%; width: 30%; height: 60%; }
+.cloud.b { right: -10%; top: 4%; width: 48%; height: 13%; opacity: .9; }
+.cloud.b i:nth-child(1) { left: 0;   top: 35%; width: 45%; height: 65%; }
+.cloud.b i:nth-child(2) { left: 25%; top: 0;   width: 50%; height: 100%; }
+.cloud.b i:nth-child(3) { left: 58%; top: 30%; width: 42%; height: 70%; }
+/* 木もれ日のような光の筋 */
+.rays {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(115deg, rgba(255, 250, 220, .0) 0 40px, rgba(255, 250, 220, .18) 40px 70px, rgba(255, 250, 220, 0) 70px 140px);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 55%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 55%);
+}
+.hills { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 62%; }
+/* 紙の質感：画面全体にうっすらノイズを重ねる */
+.grain {
+  position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  opacity: .22; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .25  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ── レイアウト ─────────────────────────────────────────── */
+.app {
+  position: relative; z-index: 1;
+  height: 100%; max-width: 560px; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto auto auto;
+  padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+  gap: 8px;
+}
+
+/* 上の帯：健康度・資金・季節 */
+.topbar {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(247, 240, 222, .82);
+  border: 2px solid var(--ink); border-radius: 14px 18px 12px 16px / 16px 12px 18px 14px;
+  padding: 6px 10px; font-size: 14px;
+  box-shadow: 0 3px 0 rgba(74, 58, 42, .18);
+}
+.topbar .season { font-size: 16px; font-weight: 600; margin-right: auto; }
+.pill { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; }
+.relics { display: flex; gap: 2px; font-size: 16px; }
+
+/* 敵 */
+.enemy-area { display: grid; place-items: center; align-content: center; gap: 4px; }
+.intent {
+  background: var(--paper); border: 2px solid var(--ink);
+  border-radius: 18px 16px 18px 6px; padding: 3px 12px;
+  font-weight: 700; font-size: 15px; color: #a24a32;
+  box-shadow: 0 2px 0 rgba(74, 58, 42, .2);
+}
+.enemy {
+  width: 128px; height: 128px; display: grid; place-items: center;
+  font-size: 80px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 252, 238, .95) 0%, rgba(255, 248, 225, .6) 55%, transparent 72%);
+  filter: drop-shadow(0 6px 4px rgba(60, 50, 30, .25)) saturate(.85);
+}
+.enemy-name { font-size: 18px; font-weight: 600; }
+.bar {
+  width: 160px; height: 12px; border: 2px solid var(--ink); border-radius: 8px;
+  background: #efe5cc; overflow: hidden; position: relative;
+}
+.bar > b { display: block; height: 100%; background: linear-gradient(180deg, #c98f7c, #a96a57); }
+.bar-label { font-size: 12px; color: var(--ink-soft); }
+
+/* 畑と畜舎 */
+.field {
+  display: grid; grid-template-columns: repeat(3, 1fr) 10px repeat(2, 1fr); gap: 6px;
+  align-items: end;
+}
+.plot {
+  height: 62px; border-radius: 12px 14px 10px 13px;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .08) 0 3px, transparent 3px 9px),
+    linear-gradient(180deg, #9b7856, var(--soil));
+  border: 2px solid var(--ink);
+  display: grid; place-items: center; position: relative;
+  font-size: 30px;
+  box-shadow: inset 0 4px 6px rgba(0, 0, 0, .18);
+}
+.plot small {
+  position: absolute; bottom: 2px; right: 5px; font-size: 11px; color: #fff4d8; font-weight: 700;
+}
+.plot.ripe { box-shadow: inset 0 4px 6px rgba(0, 0, 0, .18), 0 0 0 3px rgba(255, 233, 150, .9), 0 0 14px rgba(255, 220, 120, .8); }
+.barn {
+  height: 62px; border-radius: 10px; border: 2px solid var(--ink);
+  background: linear-gradient(180deg, #e9d3a8, #d5b47f);
+  display: grid; place-items: center; font-size: 30px; position: relative;
+}
+.barn::before { /* 屋根 */
+  content: ""; position: absolute; top: -12px; left: 8%; right: 8%; height: 14px;
+  background: #b35c45; border: 2px solid var(--ink); border-bottom: 0;
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+}
+.barn.empty { color: rgba(74, 58, 42, .35); font-size: 14px; }
+
+/* プレイヤーの状態 */
+.player {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(247, 240, 222, .82); border: 2px solid var(--ink);
+  border-radius: 16px 12px 16px 14px; padding: 6px 10px;
+}
+.energy {
+  width: 46px; height: 46px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, var(--energy) 60%, #d9a43f);
+  border: 2px solid var(--ink); display: grid; place-items: center;
+  font-family: "Klee One", serif; font-size: 22px; font-weight: 600;
+  box-shadow: 0 0 12px rgba(242, 199, 107, .7);
+}
+.hp-wrap { flex: 1; }
+.hp-wrap .bar { width: 100%; }
+.hp-wrap .bar > b { background: linear-gradient(180deg, #e7a08b, var(--hp)); }
+.hp-text { font-size: 13px; display: flex; justify-content: space-between; margin-bottom: 2px; }
+.block { color: #3f6f93; font-weight: 700; }
+.end-turn {
+  font: inherit; font-weight: 700; font-size: 15px; color: var(--ink);
+  background: linear-gradient(180deg, #fff6dc, #f0dfb4);
+  border: 2px solid var(--ink); border-radius: 20px 16px 20px 14px;
+  padding: 10px 14px; box-shadow: 0 3px 0 var(--ink);
+}
+
+/* 手札：紙のカードを扇に並べる */
+.hand { display: flex; justify-content: center; height: 176px; padding-top: 10px; }
+/* 5枚が画面幅に収まるように幅を画面に合わせる */
+.card {
+  width: min(104px, 21vw); height: 156px; flex: none; margin: 0 max(-14px, -2.2vw);
+  background: var(--paper); border: 2px solid var(--ink);
+  border-radius: 12px 14px 11px 13px / 13px 11px 14px 12px;
+  box-shadow: 0 4px 0 rgba(74, 58, 42, .25), 0 8px 14px rgba(60, 45, 25, .18);
+  display: grid; grid-template-rows: 22px 58px auto 1fr; position: relative;
+  transform-origin: 50% 120%;
+}
+.card:nth-child(1) { transform: rotate(-12deg) translateY(16px); }
+.card:nth-child(2) { transform: rotate(-6deg) translateY(4px); }
+.card:nth-child(3) { transform: translateY(-14px); z-index: 2; box-shadow: 0 0 0 3px #fff3c4, 0 10px 20px rgba(60, 45, 25, .3); }
+.card:nth-child(4) { transform: rotate(6deg) translateY(4px); }
+.card:nth-child(5) { transform: rotate(12deg) translateY(16px); }
+.card .cost {
+  position: absolute; top: -10px; left: -10px; width: 30px; height: 30px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, var(--energy) 65%);
+  border: 2px solid var(--ink); display: grid; place-items: center;
+  font-family: "Klee One", serif; font-weight: 600; font-size: 16px;
+}
+.card .name { font-family: "Klee One", serif; font-weight: 600; font-size: 14px; text-align: center; padding-top: 3px; }
+/* 絵の部分：水彩のにじみ */
+.card .art {
+  margin: 0 7px; border-radius: 8px; border: 1.5px solid var(--ink-soft);
+  display: grid; place-items: center; font-size: 34px;
+  filter: saturate(.85);
+}
+.card.attack .art { background: radial-gradient(ellipse at 40% 40%, #fbe3d6 0%, var(--attack) 85%); }
+.card.skill  .art { background: radial-gradient(ellipse at 40% 40%, #e6f2f7 0%, var(--skill) 85%); }
+.card.crop   .art { background: radial-gradient(ellipse at 40% 40%, #eef5dc 0%, var(--crop) 85%); }
+.card .kind { font-size: 10px; text-align: center; color: var(--ink-soft); margin-top: 2px; }
+.card .text { font-size: 11.5px; line-height: 1.35; text-align: center; padding: 2px 6px 0; }
+.card .text b { color: #a24a32; }
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true">
+  <div class="rays"></div>
+  <div class="cloud a"><i></i><i></i><i></i><i></i></div>
+  <div class="cloud b"><i></i><i></i><i></i></div>
+  <!-- 重なる丘：遠いほど淡く青みがかる -->
+  <svg class="hills" viewBox="0 0 400 400" preserveAspectRatio="none">
+    <path d="M0 120 C60 80 110 100 160 90 C220 76 260 60 320 82 C360 96 385 88 400 80 L400 400 L0 400Z" fill="#a9c9c0" opacity=".8"/>
+    <path d="M0 160 C50 130 120 150 180 135 C240 120 300 150 400 130 L400 400 L0 400Z" fill="var(--hill-far)"/>
+    <path d="M0 210 C80 180 140 200 210 188 C280 176 340 205 400 192 L400 400 L0 400Z" fill="var(--hill-mid)"/>
+    <path d="M0 260 C70 240 150 258 230 246 C300 236 350 252 400 244 L400 400 L0 400Z" fill="var(--hill-near)"/>
+    <!-- 遠くの一本木 -->
+    <g transform="translate(300 120)"><rect x="-2" y="0" width="4" height="16" fill="#5b4a35"/><circle cx="0" cy="-4" r="11" fill="#5f8f5f"/><circle cx="-6" cy="0" r="7" fill="#6c9c69"/></g>
+  </svg>
+</div>
+<div class="grain" aria-hidden="true"></div>
+
+<main class="app">
+  <header class="topbar">
+    <span class="season title-font">🌸 春・3日目</span>
+    <span class="pill">🪙 128</span>
+    <span class="relics" title="レリック">👒🪣</span>
+  </header>
+
+  <section class="enemy-area">
+    <div class="intent">🗡️ 7</div>
+    <div class="enemy">🐦‍⬛</div>
+    <div class="enemy-name title-font">カラスの群れ</div>
+    <div class="bar"><b style="width:62%"></b></div>
+    <div class="bar-label">勢い 14 / 22</div>
+  </section>
+
+  <section class="field" aria-label="畑と畜舎">
+    <div class="plot ripe">🥬<small>実った</small></div>
+    <div class="plot">🌱<small>2/3</small></div>
+    <div class="plot"></div>
+    <div></div>
+    <div class="barn">🐂</div>
+    <div class="barn empty">空き</div>
+  </section>
+
+  <section class="player">
+    <div class="energy">3</div>
+    <div class="hp-wrap">
+      <div class="hp-text"><span>農場の健康度 52 / 70</span><span class="block">🛡️ 5</span></div>
+      <div class="bar"><b style="width:74%"></b></div>
+    </div>
+    <button class="end-turn">ターン<br>終了</button>
+  </section>
+
+  <section class="hand" aria-label="手札">
+    <div class="card attack"><span class="cost">1</span><div class="name">除草</div><div class="art">🌿</div><div class="kind">攻撃</div><div class="text">勢いに<b>6</b></div></div>
+    <div class="card skill"><span class="cost">1</span><div class="name">防鳥ネット</div><div class="art">🕸️</div><div class="kind">守り</div><div class="text">守り<b>6</b>。鳥の攻撃をさらに半減</div></div>
+    <div class="card crop"><span class="cost">0</span><div class="name">収穫</div><div class="art">🧺</div><div class="kind">作物</div><div class="text">実った作物を収穫し<b>🪙</b>と効果</div></div>
+    <div class="card crop"><span class="cost">1</span><div class="name">水やり</div><div class="art">💧</div><div class="kind">成長</div><div class="text">作物を<b>1</b>段育てる。カードを1枚引く</div></div>
+    <div class="card attack"><span class="cost">2</span><div class="name">かかし</div><div class="art">🧑‍🌾</div><div class="kind">攻撃</div><div class="text">勢いに<b>4</b>。3ターン毎回<b>4</b></div></div>
+  </section>
+</main>
+</body>
+</html>
