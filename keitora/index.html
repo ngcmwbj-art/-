@@ -901,6 +901,7 @@ canvas { display: block; width: 100%; height: 100%; }
   }
   function generate() {
     while (nextX < cam + W + 900) {
+      const nObs = obs.length, nSteps = steps.length;
       const m = nextX / PX_PER_M;
       const sp = cruise(m);
       const easy = easyRun && m < EASY_M;   // 練習道：イノシシと段差は出さない
@@ -947,6 +948,14 @@ canvas { display: block; width: 100%; height: 100%; }
         const vx0 = rr(170, 300) + Math.min(bx / PX_PER_M * 0.04, 90);
         obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, vx0, leg: 0, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0, lv: levelAt(nextX) });
         nextX = bx + 220 + spacing();
+      }
+      // 道に落ちている積み荷：障害物と障害物のあいだの平らな所に、ときどき置く
+      let endX = 0;
+      for (let i = nObs; i < obs.length; i++) endX = Math.max(endX, obs[i].x + (obs[i].t === 'boar' ? 60 : obs[i].w));
+      for (let i = nSteps; i < steps.length; i++) endX = Math.max(endX, steps[i].x + 30);
+      if (endX && m > 60 && nextX - endX > 120 && rng() < 0.22) {
+        const px = endX + 40 + rng() * (nextX - endX - 100);
+        obs.push({ t: 'pick', x: px, w: 16, lv: levelAt(px), taken: false });
       }
     }
     obs = obs.filter(o => (o.t === 'boar' ? (o.state !== 'gone') : (o.x + o.w > cam - 200)));
@@ -1252,6 +1261,7 @@ canvas { display: block; width: 100%; height: 100%; }
       }
       rk.rival = rivalAhead();
       recordPace();
+      pickUp();
       // 配達スコア：1 m 進むごとに、積んでいるトマトの数だけ加点
       if (m > scoreM) { score += (m - scoreM) * tomatoes; scoreM = m; }
       // エンドレスは 500 m ごとのトマト畑で満杯に積み直す
@@ -2448,6 +2458,16 @@ canvas { display: block; width: 100%; height: 100%; }
       if (o.t === 'puddle') {
         if (sx > W || sx + o.w < 0) return;
         drawPuddle(sx, o.w);
+      } else if (o.t === 'pick') {
+        if (o.taken || sx > W + 10 || sx < -20) return;
+        // 道に落ちている積み荷（影と、少し傾いた1個）
+        ctx.fillStyle = 'rgba(40,30,15,.25)';
+        ctx.beginPath(); ctx.ellipse(sx + 8, GROUND + 0.5, 8, 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.save();
+        ctx.translate(sx + 8, GROUND - 5.5);
+        ctx.rotate(0.3);
+        drawItem(cargo.id === 'calf' ? 'hay' : cargo.id, 0, 0, Math.floor(o.x) % 3);
+        ctx.restore();
       } else if (o.t === 'bump') {
         if (sx > W || sx + o.w < 0) return;
         drawBumps(sx, o.w, o.seed);
@@ -2481,7 +2501,7 @@ canvas { display: block; width: 100%; height: 100%; }
       return;
     }
     for (const o of obs) {
-      if (seenTypes.has(o.t)) continue;
+      if (seenTypes.has(o.t) || !CALLOUTS[o.t]) continue;
       let sx, y;
       if (o.t === 'boar') { if (o.state !== 'run') continue; sx = o.px - cam; y = GROUND - (o.lv || 0) - 58; }
       else { sx = o.x - cam + Math.min(o.w, 160) / 2; y = GROUND - (o.lv || 0) - 44; }
@@ -2711,6 +2731,21 @@ canvas { display: block; width: 100%; height: 100%; }
       load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling, gy: state === 'title' ? GROUND : supportY(),
       driver: driverPose(),
     };
+  }
+  // 落ちている積み荷の上を通ると1個積み戻す（高く跳んでいると取れない。音は鳴らさない）
+  function pickUp() {
+    if (truck.falling || truck.dead) return;
+    for (const o of obs) {
+      if (o.t !== 'pick' || o.taken) continue;
+      if (o.x + o.w < cam + TRUCK_X + 4 || o.x > cam + TRUCK_FRONT - 6) continue;
+      if (truck.y < groundAt(o.x) - 26) continue;
+      o.taken = true;
+      if (tomatoes < TOMATO_MAX) {
+        tomatoes++;
+        popup(`${cargo.unit}を拾った +1`, '#a8e27f');
+      }
+      emit(5, o.x + 8, groundAt(o.x) - 6, { vx: [-40, 60], vy: [-180, -60], life: [0.25, 0.45], r: [1.5, 2.5], col: '#e9e2b8', g: 500 });
+    }
   }
   // ---- 運転手（つがお）の反応：顔は小さくて見えないので、帽子と腕の大きな動きで見せる ----
   let react = { kind: '', t: 0, dur: 1 };
