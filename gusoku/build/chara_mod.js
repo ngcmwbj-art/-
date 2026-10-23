@@ -4,13 +4,28 @@
    so the molt, birth, dream and life systems drive it unchanged.
    ===================================================================== */
 const GRAD=(()=>{const d=new Uint8Array([92,92,92,255,160,160,160,255,215,215,215,255]);const t=new THREE.DataTexture(d,3,1,THREE.RGBAFormat);t.minFilter=t.magFilter=THREE.NearestFilter;t.generateMipmaps=false;t.needsUpdate=true;return t})();
-function toon(col,o){const m=new THREE.MeshToonMaterial(Object.assign({color:col,gradientMap:GRAD},o||{}));addCaustics(m,.12);return m}
+/* High-quality look (same rendering as the realistic version): glossy lacquered shell with clear-coat,
+   soft sheen, fine bump detail from the real shell texture, and full caustics. No cartoon outlines. */
+const HQ=true;
+function charaTex(){if(TEX.cshell)return;
+  // warm mottled albedo (like the real shell's pigment) and a finer, deeper relief
+  const S=256;TEX.cshell=canvasTex(S,(d)=>{for(let y=0;y<S;y++)for(let x=0;x<S;x++){const u=x/S,v=y/S,n=fbm(u*6,v*6,5,6),sp=Math.pow(fbm(u*22+3,v*22+7,3,22),3);
+    const k=.9+.16*n-.2*sp,i=(y*S+x)*4;d[i]=255*Math.min(1,k*1.02);d[i+1]=255*Math.min(1,k*.97);d[i+2]=255*Math.min(1,k*.92);d[i+3]=255}},true);
+  TEX.cshellN=normalTex(heightField(S,(u,v)=>fbm(u*10,v*10,5,10)*.7+Math.pow(fbm(u*40,v*40,2,40),2)*.3),S,6);
+  TEX.cshell.repeat.set(2,2);TEX.cshellN.repeat.set(2,2)}
+function toon(col,o){o=o||{};charaTex();const m=new THREE.MeshPhysicalMaterial(Object.assign({color:col,map:TEX.cshell,roughness:.34,metalness:0,clearcoat:.9,clearcoatRoughness:.14,
+  sheen:.4,sheenColor:new THREE.Color('#ffe3c6'),sheenRoughness:.45,normalMap:TEX.cshellN,normalScale:new THREE.Vector2(.24,.24),clearcoatNormalMap:TEX.cshellN,clearcoatNormalScale:new THREE.Vector2(.12,.12),envMapIntensity:1.5},o));addCaustics(m,.7);return m}
+function clothMat(col){
+  if(!TEX.weaveN){const S=128;TEX.weaveN=normalTex(heightField(S,(u,v)=>{const a=Math.sin(u*TAU*24),b=Math.sin(v*TAU*24);return .5+.25*(Math.sin(v*TAU*24+(a>0?0:Math.PI))*.5+a*.5)*(.6+.4*Math.abs(b))+fbm(u*8,v*8,3,8)*.15}),S,3);TEX.weaveN.repeat.set(6,1)}
+  const m=new THREE.MeshPhysicalMaterial({color:col,roughness:.88,clearcoat:0,sheen:1,sheenColor:new THREE.Color('#ffffff'),sheenRoughness:.75,normalMap:TEX.weaveN,normalScale:new THREE.Vector2(.5,.5),side:THREE.DoubleSide,envMapIntensity:.6});addCaustics(m,.5);return m}
+function softDisc(){if(TEX.blush)return TEX.blush;const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,4,64,64,62);
+  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.55,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);return TEX.blush=new THREE.CanvasTexture(c)}
 const OLC={};
 function olMat(w){if(OLC[w])return OLC[w];const m=new THREE.MeshBasicMaterial({color:'#3f1e0b',side:THREE.BackSide});
   m.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed+=normal*'+(w*1.7).toFixed(4)+';')};m.customProgramCacheKey=()=>'ol'+w;return OLC[w]=m}
 function vc(g,c){if(!g.attributes.color){const n=g.attributes.position.count,a=new Float32Array(n*3).fill(c===undefined?1:c);g.setAttribute('color',new THREE.BufferAttribute(a,3))}return g}
 function mk(geo,mat,parent,pos,rot,ol,opt){const m=new THREE.Mesh(geo,mat);if(pos)m.position.set(pos[0],pos[1],pos[2]);if(rot)m.rotation.set(rot[0],rot[1],rot[2]);
-  m.castShadow=!(opt&&opt.noShadow);parent.add(m);if(ol){const o=new THREE.Mesh(geo,olMat(ol));o.userData.outline=true;o.raycast=()=>{};m.add(o)}if(opt&&opt.keep)m.userData.keep=true;return m}
+  m.castShadow=!(opt&&opt.noShadow);parent.add(m);if(ol&&!HQ){const o=new THREE.Mesh(geo,olMat(ol));o.userData.outline=true;o.raycast=()=>{};m.add(o)}if(opt&&opt.keep)m.userData.keep=true;return m}
 const BC={y:.55,rx:.62,ry:.68,rz:.5};
 function bellyGeo(){
   const g=new THREE.SphereGeometry(1,64,48),p=g.attributes.position,col=[],dark=new THREE.Color(.5,.33,.2),c=new THREE.Color();
@@ -32,10 +47,10 @@ function shieldGeo(){ // cephalic shield over the crown: front edge forms the br
   return gridSolid(72,14,fn,.028,[0,0])}
 function buildIsopod(opt){
   opt=opt||{};
-  const TAN='#a9581f',shellMat=toon(TAN,{vertexColors:true,side:THREE.DoubleSide}),limbMat=toon('#a5561f'),coreMat=toon('#3a1c12');
-  const eyeMat=new THREE.MeshPhysicalMaterial({color:'#160d0b',roughness:.08,clearcoat:1,clearcoatRoughness:.04,emissive:new THREE.Color('#ffffff'),emissiveIntensity:0});
-  const white=new THREE.MeshBasicMaterial({color:'#ffffff'}),blushMat=new THREE.MeshBasicMaterial({color:'#ff7f72',transparent:true,opacity:.85,depthWrite:false});
-  const bandMat=toon('#f6ecda',{side:THREE.DoubleSide}),lineMat=new THREE.MeshBasicMaterial({color:'#5a3216'}),clawMat=toon('#8e4718');
+  const TAN='#a9581f',shellMat=toon(TAN,{vertexColors:true,side:THREE.DoubleSide}),limbMat=toon('#a5561f',{roughness:.46,clearcoat:.5}),coreMat=toon('#3a1c12',{roughness:.6,clearcoat:.2});
+  const eyeMat=new THREE.MeshPhysicalMaterial({color:'#160d0b',roughness:.06,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:1.6,emissive:new THREE.Color('#ffffff'),emissiveIntensity:0});
+  const white=new THREE.MeshBasicMaterial({color:'#ffffff'}),blushMat=new THREE.MeshBasicMaterial({color:'#ff6f66',map:softDisc(),transparent:true,opacity:.85,depthWrite:false});
+  const bandMat=clothMat('#f6ecda'),lineMat=new THREE.MeshStandardMaterial({color:'#4a2810',roughness:.6}),clawMat=toon('#8e4718',{roughness:.28,clearcoat:.95});
   const I={shellBase:new THREE.Color(TAN),limbBase:new THREE.Color('#a5561f'),root:new THREE.Group(),body:new THREE.Group(),joints:[],segs:[],legs:[],ant:[],mouth:[],eyes:[],shellMat,coreMat,limbMat,eyeMat,pleopods:[],oost:[],eggs:[],
     chara:true,focusH:1.25,reach:.8,shedBack:1.5,shedFront:1.3,blink:0,nextBlink:2+rnd()*3};
   I.root.add(I.body);
@@ -111,11 +126,11 @@ function buildIsopod(opt){
   mk(new THREE.TubeGeometry(mc,24,.012,6),lineMat,head,null,null,0,{keep:true,noShadow:true});
   // mouth: opens between the two tusks, below the wavy upper lip — dark red cavity with a pink tongue
   const mo=new THREE.Group();mo.position.set(0,-.25,.46);head.add(mo);mo.scale.set(1,.02,1);I.mouthOpen=mo;
-  const cav=mk(new THREE.SphereGeometry(1,28,18).scale(.13,.135,.04),new THREE.MeshBasicMaterial({color:'#6e1712'}),mo,[0,-.11,0],null,.014,{keep:true,noShadow:true});
-  mk(new THREE.SphereGeometry(1,24,14).scale(.09,.05,.022),new THREE.MeshBasicMaterial({color:'#e86d74'}),mo,[0,-.19,.02],null,0,{keep:true,noShadow:true});
+  const cav=mk(new THREE.SphereGeometry(1,28,18).scale(.13,.135,.04),new THREE.MeshStandardMaterial({color:'#5e130f',roughness:.7}),mo,[0,-.11,0],null,.014,{keep:true,noShadow:true});
+  mk(new THREE.SphereGeometry(1,24,14).scale(.09,.05,.022),new THREE.MeshPhysicalMaterial({color:'#e86d74',roughness:.35,clearcoat:.6,clearcoatRoughness:.2}),mo,[0,-.19,.02],null,0,{keep:true,noShadow:true});
   mk(new THREE.SphereGeometry(1,20,10,0,TAU,0,Math.PI/2).scale(.125,.03,.035),new THREE.MeshBasicMaterial({color:'#4a0f0b'}),mo,[0,-.015,.008],[Math.PI,0,0],0,{keep:true,noShadow:true});
   // cold-sweat drops for the shocked face
-  const dropMat=new THREE.MeshBasicMaterial({color:'#cdeeff',transparent:true,opacity:.95});
+  const dropMat=new THREE.MeshPhysicalMaterial({color:'#cdeeff',roughness:.04,clearcoat:1,transparent:true,opacity:.8,envMapIntensity:1.5});
   I.sweat=[[.05,.3,.46,.2],[.47,.12,.33,-.5],[-.42,.2,.38,.6]].map(([x,y,z,r])=>{const g=new THREE.Group();g.position.set(x,y,z);g.rotation.z=r;head.add(g);
     mk(new THREE.SphereGeometry(.03,14,10),dropMat,g,[0,0,0],null,.006,{keep:true,noShadow:true});const cn=new THREE.ConeGeometry(.026,.06,14);cn.translate(0,.035,0);mk(cn,dropMat,g,null,null,.006,{keep:true,noShadow:true});g.visible=false;return g});
   // tusk-like antennae hanging from under the face
@@ -127,7 +142,7 @@ function buildIsopod(opt){
     I.ant.push({root,chain,s});});
   // angry brows — appear as the dark side takes over
   I.blushMat=blushMat;
-  I.brows=[-1,1].map(s=>{const g=new THREE.CapsuleGeometry(.022,.13,4,10);g.rotateZ(Math.PI/2);const b=mk(g,new THREE.MeshBasicMaterial({color:'#2a120a'}),head,[s*.23,.17,.475],[-.15,0,s*.42],0,{keep:true,noShadow:true});b.visible=false;return b});
+  I.brows=[-1,1].map(s=>{const g=new THREE.CapsuleGeometry(.022,.13,4,10);g.rotateZ(Math.PI/2);const b=mk(g,new THREE.MeshStandardMaterial({color:'#2a120a',roughness:.85}),head,[s*.23,.17,.475],[-.15,0,s*.42],0,{keep:true,noShadow:true});b.visible=false;return b});
   // headband (hachimaki) with a knot and two tails at the back
   I.bandMat=bandMat;
   const band=new THREE.Group();band.position.set(0,.21,-.01);band.rotation.set(-.2,0,.05);head.add(band);I.band=band;
@@ -159,8 +174,8 @@ function buildIsopod(opt){
     vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:'varying vec2 vUv;uniform float uA;void main(){vec2 p=(vUv-.5)*2.;float d=length(p);gl_FragColor=vec4(0.,0.,0.,smoothstep(1.,.15,d)*uA);}'}));
   cs.rotation.x=-Math.PI/2;cs.renderOrder=1;scene.add(cs);I.contact=cs;CONTACTS.push(cs);
-  I.newShellMat=shellMat.clone();addCaustics(I.newShellMat,.12);I.newShellMat.color.set('#e0a573');
-  I.newLimbMat=limbMat.clone();addCaustics(I.newLimbMat,.12);I.newLimbMat.color.set('#dba077');
+  I.newShellMat=shellMat.clone();addCaustics(I.newShellMat,.6);I.newShellMat.color.set('#e0a573');
+  I.newLimbMat=limbMat.clone();addCaustics(I.newLimbMat,.6);I.newLimbMat.color.set('#dba077');
   scene.add(I.root);
   return I;
 }

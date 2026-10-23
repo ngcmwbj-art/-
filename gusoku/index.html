@@ -2819,7 +2819,7 @@ const Col={
 };
 
 /* ---- the creature digs things up */
-function wMat(col,o){o=o||{};if(ISO&&ISO.chara&&typeof toon==='function')return toon(col,o.emissive!==undefined?{emissive:o.emissive}:{});return new THREE.MeshStandardMaterial(Object.assign({color:col,roughness:.6,metalness:0},o))}
+function wMat(col,o){o=o||{};return new THREE.MeshStandardMaterial(Object.assign({color:col,roughness:.6,metalness:0},o))}
 function disposeTree(g){scene.remove(g);g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)[].concat(o.material).forEach(m=>m.dispose())})}
 
 /* ---- visitors: a few simple creatures that drift through the far side of the tank */
