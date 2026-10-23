@@ -106,7 +106,7 @@ const App = {
     list.innerHTML = Object.keys(FR.Farmers).map(id => {
       const f = FR.Farmers[id];
       return `<button class="farmer ${f.enabled ? '' : 'locked'}" data-farmer="${id}" ${f.enabled ? '' : 'disabled'}>
-        <span class="farmer-art">${FR.Art.img(f.art, '', f.name)}</span>
+        <span class="farmer-art">${FR.Art.farmerImg(id, f.name)}</span>
         <span class="farmer-body">
           <span class="farmer-name">${E(f.name)}${f.enabled ? '' : '<em>準備中</em>'}</span>
           <span class="farmer-text">${E(f.text)}</span>
@@ -274,3 +274,9 @@ const App = {
 window.addEventListener('DOMContentLoaded', App.init);
 // 画面の向きや大きさが変わったら手札を並べ直す
 window.addEventListener('resize', () => { if (App.battle) FR.BattleView.fitHand(); });
+// 縦横が変わったら背景を選び直す
+window.matchMedia('(orientation: portrait)').addEventListener('change', () => {
+  const box = document.querySelector('.scene');
+  const cur = document.querySelector('.screen.active');
+  if (box && cur) { delete box.dataset.key; FR.Screens.setBackground(cur.id.replace('screen-', '')); }
+});

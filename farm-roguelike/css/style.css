@@ -93,7 +93,7 @@ img { -webkit-user-drag: none; }
 .farmer:not(.locked):hover, .farmer:not(.locked):focus-visible { border-color: var(--gold); box-shadow: 0 0 14px rgba(232, 194, 122, .35); }
 .farmer.locked { opacity: .5; cursor: default; }
 .farmer-art { flex: none; width: 76px; height: 76px; background: #d9cfb4; border: 1px solid var(--ink); display: grid; place-items: center; }
-.farmer-art img { width: 70px; height: 70px; }
+.farmer-art img { width: 70px; height: 70px; object-fit: contain; object-position: 50% 100%; }
 .farmer-body { display: grid; gap: 4px; }
 .farmer-name { font-family: var(--mincho); font-weight: 800; font-size: 19px; letter-spacing: .1em; }
 .farmer-name em { font-style: normal; font-size: 12px; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--panel-line); color: var(--panel-text-soft); }

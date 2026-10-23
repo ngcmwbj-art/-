@@ -44,11 +44,11 @@
 <script src="../js/core/util.js"></script>
 <script src="../js/ui/art.js"></script>
 <script>
-  FR.Art.BASE = '../assets/img/art/'; FR.Art.CARD_BASE = '../assets/img/cards/'; FR.Art.ENEMY_BASE = '../assets/img/enemies/';
+  FR.Art.BASE = '../assets/img/art/'; FR.Art.CARD_BASE = '../assets/img/cards/'; FR.Art.ENEMY_BASE = '../assets/img/enemies/'; FR.Art.FARMER_BASE = '../assets/img/farmers/';
   const E = FR.Util.escape;
   const tool = { vegetable: '鍬', livestock: '牛追い棒と縄', citrus: '背負い籠と剪定ばさみ' };
   document.getElementById('farmers').innerHTML = Object.entries(FR.Farmers).map(([id, f]) => `
-    <div class="ch"><div class="pic">${FR.Art.img('farmer_' + id, '', f.name)}</div>
+    <div class="ch"><div class="pic">${FR.Art.farmerImg(id, f.name)}</div>
       <div class="info"><span class="name">${E(f.name)}</span>
         <span>${E(f.text)}</span>
         <span><b>健康度</b> ${f.hp}　<b>持ち物</b> ${tool[id]}</span>

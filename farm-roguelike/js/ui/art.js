@@ -44,6 +44,16 @@ FR.Art = {
     return f ? FR.Art.BASE + f : null;
   },
 
+  // 農家の立ち絵：assets/img/farmers/<タイプID>.png があればそれ、なければ今の SVG
+  farmerImg(id, alt) {
+    const svg = FR.Art.BASE + 'farmer_' + id + '.svg';
+    const src = FR.Art.missing[id] ? svg : `${FR.Art.FARMER_BASE}${id}.png`;
+    // 一度見つからなかったら、次からは最初から SVG を使う（毎回読みに行かない）
+    return `<img src="${src}" alt="${FR.Util.escape(alt || '')}" draggable="false" onerror="this.onerror=null;FR.Art.missing['${id}']=1;this.src='${svg}'">`;
+  },
+  FARMER_BASE: 'assets/img/farmers/',
+  missing: {},
+
   // カードの絵：専用の絵があればそれ、なければ道具の絵
   cardImg(v) {
     if (FR.Art.CARDS.has(v.id)) return `<img class="photo" src="${FR.Art.CARD_BASE}${v.id}.jpg" alt="" draggable="false" loading="lazy">`;

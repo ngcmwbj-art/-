@@ -44,7 +44,7 @@ FR.BattleView = {
     }).join('');
 
     // 農家
-    $('b-player-art').innerHTML = FR.Art.img('farmer_' + r.farmerId, '', f.name);
+    $('b-player-art').innerHTML = FR.Art.farmerImg(r.farmerId, f.name);
     $('b-hp-bar').style.width = (100 * r.hp / r.maxHp) + '%';
     $('b-hp-text').textContent = `${r.hp}/${r.maxHp}`;
     $('b-block').textContent = b.block || '';
