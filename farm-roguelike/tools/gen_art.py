@@ -30,6 +30,12 @@ def eye(x, y, r=4.6):
             f'<circle cx="{x+.6}" cy="{y+.5}" r="{r*.58:.1f}" fill="#1c1612"/>'
             f'<circle cx="{x+1.6}" cy="{y-.8}" r="{r*.22:.1f}" fill="#fff"/>')
 
+def eye_s(x, y, r=2.6, iris='#1c1612'):
+    # 写実寄りの小さな目：白目なし、光だけ（シリアスな獣の目）
+    return (f'<circle cx="{x}" cy="{y}" r="{r+.8}" fill="{LINE}"/>'
+            f'<circle cx="{x}" cy="{y}" r="{r}" fill="{iris}"/>'
+            f'<circle cx="{x+r*.35:.1f}" cy="{y-r*.35:.1f}" r="{r*.3:.1f}" fill="#f4ead0"/>')
+
 def svg(name, body):
     s = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">\n'
          f'<!-- {name}：アニメ塗り（tools/gen_art.py で生成） -->\n{body}\n</svg>\n')
@@ -43,9 +49,9 @@ svg('crow',
       hi='<path d="M80 36 C86 33 94 34 97 40" stroke="#6f86b8" stroke-width="3" fill="none" stroke-linecap="round"/>') +
   cel('M38 66 C50 54 72 56 84 74 C70 84 50 82 38 66Z', '#2a3042', '#181c26', off=(-3, -4),
       hi='<path d="M46 64 C56 60 66 62 74 68" stroke="#5b70a0" stroke-width="2.4" fill="none" stroke-linecap="round"/>') +
-  cel('M99 45 L116 51 L99 57 Z', '#e0c48c', '#b99660', off=(-2, -3)) +
+  cel('M96 42 C104 42 112 46 117 52 C110 54 104 57 97 58 Z', '#2a2a2e', '#121214', off=(-2, -3), hi='<path d="M100 45 C106 46 110 48 113 51" stroke="#5a5c66" stroke-width="1.4" fill="none"/>') +
   line('M54 93 L52 106 M52 106 L46 109 M52 106 L57 109 M66 92 L66 105 M66 105 L61 108 M66 105 L71 108', 2.6, '#9a7046') +
-  eye(89, 45, 5.2)
+  eye_s(88, 45, 2.8, '#2a1a10')
 )
 
 # ── キャベツ ─────────────────────────────
@@ -83,7 +89,7 @@ svg('calf',
       '#423936', '#28211f', off=(-5, -6)) +
   cel('M92 62 C94 56 108 56 109 64 C108 71 94 72 92 66Z', '#d8ae96', '#b88c76', off=(-2, -2)) +
   '<circle cx="98" cy="64" r="1.3" fill="#5a3a2c"/><circle cx="104" cy="64" r="1.3" fill="#5a3a2c"/>' +
-  eye(92, 49, 4.2)
+  eye_s(93, 48, 2.6)
 )
 
 # ── 除草：鎌と雑草 ─────────────────────────
@@ -132,14 +138,32 @@ svg('scarecrow',
   line('M58 60 L58 112', 6, LINE) + line('M58 60 L58 112', 3.4, '#a57d50') +
   line('M14 60 L104 60', 6, LINE) + line('M14 60 L104 60', 3.4, '#a57d50') +
   line('M14 60 L6 66 M14 60 L8 53 M104 60 L112 66 M104 60 L110 53', 2.4, '#d8b04a') +
-  cel('M36 54 L80 54 L76 94 L40 94Z', '#6c9ccc', '#4a76a2', off=(-5, -5),
+  cel('M36 54 L80 54 L76 94 L40 94Z', '#55697a', '#3b4a58', off=(-5, -5),
       extra=line('M48 70 L52 74 M64 64 L68 68 M58 82 L62 86', 1.6, '#e8d6a0')) +
-  cel('M43 38 C43 28 73 28 73 38 C73 48 43 48 43 38Z', '#f3e4c2', '#d6bd8e', off=(-3, -3)) +
+  cel('M43 38 C43 28 73 28 73 38 C73 48 43 48 43 38Z', '#cdb88e', '#a08a62', off=(-3, -3)) +
   cel('M30 28 C40 22 76 22 86 28 C76 33 40 33 30 28Z', '#e7c35e', '#c19a36', off=(-2, -2)) +
   cel('M44 26 C44 10 72 10 72 26Z', '#f0d276', '#c9a644', off=(-3, -3),
-      extra='<rect x="40" y="20" width="36" height="5" fill="#c4523e"/>') +
-  '<circle cx="52.5" cy="38" r="2" fill="#3a2c22"/><circle cx="63.5" cy="38" r="2" fill="#3a2c22"/>' +
-  '<circle cx="48.5" cy="42" r="2.6" fill="#ec9c88" opacity=".7"/><circle cx="67.5" cy="42" r="2.6" fill="#ec9c88" opacity=".7"/>' +
-  line('M53 43 C56 45.5 60 45.5 63 43', 1.6)
+      extra='<rect x="40" y="20" width="36" height="5" fill="#6e3a2c"/>') +
+  line('M50 36 L55 39 M55 36 L50 39 M61 36 L66 39 M66 36 L61 39', 1.6) +
+  line('M51 44 L65 44 M53 42.5 L53 45.5 M57 42.5 L57 45.5 M61 42.5 L61 45.5', 1.2)
+)
+# ── イノシシ：黒褐色の剛毛、反り返った牙、肩の盛り上がり ──────────
+svg('boar',
+  line('M34 84 L32 104 M48 88 L48 105 M74 88 L76 105 M88 84 L90 103', 8, LINE) +
+  line('M34 84 L32 102 M48 88 L48 103 M74 88 L76 103 M88 84 L90 101', 5, '#2a211b') +
+  line('M31 104 L35 104 M46 105 L50 105 M74 105 L78 105 M88 103 L92 103', 2.6, '#121010') +
+  line('M16 64 C10 62 8 70 12 74', 2.4) +
+  cel('M16 72 C12 52 30 32 58 30 C72 29 84 36 92 46 L106 58 C111 62 111 70 106 74 L96 78 C88 88 62 94 40 92 C26 90 18 84 16 72Z',
+      '#3b2f27', '#1f1813', off=(-6, -8),
+      hi='<path d="M30 44 C42 36 58 34 72 37" stroke="#6a5544" stroke-width="3" fill="none" stroke-linecap="round"/>') +
+  # 背中のたてがみ（剛毛）
+  '<path d="M26 46 L30 34 L34 42 L39 28 L43 38 L49 24 L53 35 L59 23 L62 34 L68 25 L70 37 L77 30 L77 41 L84 37 L82 46 Z" fill="#1a140f" stroke="' + LINE + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+  line('M34 60 L40 66 M46 56 L52 62 M58 58 L64 64 M40 74 L46 80 M54 72 L60 78', 1.4, '#17110d') +
+  cel('M70 40 L76 28 L82 40Z', '#3b2f27', '#1f1813', off=(-1, -2)) +
+  cel('M100 60 C106 58 114 62 114 68 C114 74 106 76 100 74Z', '#5c4638', '#3a2b22', off=(-2, -2)) +
+  '<circle cx="109" cy="66" r="1.3" fill="#120c08"/><circle cx="109" cy="71" r="1.3" fill="#120c08"/>' +
+  # 牙
+  cel('M96 74 C102 80 110 76 112 66 C108 72 104 74 99 72Z', '#efe6cf', '#c2b494', off=(-1, -1), lw=1.8) +
+  eye_s(88, 52, 2.4, '#7a2e14')
 )
 print('ok')
