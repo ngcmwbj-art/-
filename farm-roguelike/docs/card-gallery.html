@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>カード一覧（絵つき）</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* ゲーム本体の style.css を使い、カードを農家タイプごとに並べるだけのページ */
+  body { overflow: auto; background: #1d1a15; -webkit-user-select: text; user-select: text; }
+  .gallery { padding: 16px; max-width: 1200px; margin: 0 auto; --cw: 120px; }
+  h1 { font-family: var(--mincho); font-weight: 800; letter-spacing: .15em; margin-bottom: 4px; }
+  .lead { color: var(--panel-text-soft); font-size: 13px; margin-bottom: 18px; }
+  h2 { font-family: var(--mincho); font-weight: 800; letter-spacing: .12em; margin: 22px 0 12px; border-bottom: 1px solid var(--panel-line); padding-bottom: 4px; }
+  h2 small { font-size: 13px; color: var(--panel-text-soft); margin-left: 8px; font-weight: 500; }
+  .grid { display: flex; flex-wrap: wrap; gap: 18px 12px; }
+  .item { display: grid; justify-items: center; gap: 4px; }
+  .card { cursor: default; }
+  .rarity { font-size: 11px; color: var(--panel-text-soft); }
+  .rarity.rare { color: var(--gold); }
+  .rarity.uncommon { color: #9fc3e8; }
+</style>
+</head>
+<body>
+<div class="gallery">
+  <h1>カード一覧</h1>
+  <p class="lead">data/cards.js のカードを、ゲームと同じ見た目で並べています（データを変えると自動で変わります）。</p>
+  <div id="list"></div>
+</div>
+<script src="../data/config.js"></script>
+<script src="../data/crops.js"></script>
+<script src="../data/animals.js"></script>
+<script src="../data/cards.js"></script>
+<script src="../js/core/util.js"></script>
+<script src="../js/core/state.js"></script>
+<script src="../js/ui/art.js"></script>
+<script src="../js/ui/render-card.js"></script>
+<script>
+  FR.Art.BASE = '../assets/img/art/';
+  const R = { basic: '初期', common: 'よく出る', uncommon: 'ときどき', rare: 'まれ' };
+  const order = { basic: 0, common: 1, uncommon: 2, rare: 3 };
+  // 一番目の pool で分ける（共有カードは最初に書いたタイプの欄に1回だけ出す）
+  const groups = [['common', '全員共通'], ['vegetable', '野菜農家'], ['livestock', '畜産農家'], ['citrus', '柑橘農家']];
+  document.getElementById('list').innerHTML = groups.map(([key, title]) => {
+    const ids = Object.keys(FR.Cards).filter(id => FR.Cards[id].pool[0] === key)
+      .sort((a, b) => order[FR.Cards[a].rarity] - order[FR.Cards[b].rarity]);
+    return `<h2>${title}<small>${ids.length}枚</small></h2><div class="grid">` + ids.map(id => {
+      const c = FR.Cards[id];
+      return `<div class="item">${FR.renderCard(FR.cardView({ id, uid: 0 }))}<span class="rarity ${c.rarity}">${R[c.rarity]}${c.pool.length > 1 ? '・' + c.pool.slice(1).map(p => ({ vegetable: '野菜', livestock: '畜産', citrus: '柑橘' }[p])).join('・') + 'にも' : ''}</span></div>`;
+    }).join('') + '</div>';
+  }).join('');
+</script>
+</body>
+</html>
