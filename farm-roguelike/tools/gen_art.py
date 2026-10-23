@@ -429,4 +429,61 @@ svg('cowbell',
   cel('M42 26 L78 26 L92 92 L28 92Z', '#b8923a', '#86641e', off=(-5, -5),
       hi='<path d="M48 34 L40 84" stroke="#e8c87a" stroke-width="3" stroke-linecap="round"/>') +
   cel('M52 92 C52 104 68 104 68 92Z', '#5a5e64', '#3a3d42', off=(-1, -1)))
+
+# ════════ 農家（戦闘で左に立つ主人公）════════
+# 右を向いて立つ。菅笠・野良着・脚絆。タイプごとに道具と色が違う
+def svg_tall(name, body):
+    s = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170" width="120" height="170">\n'
+         f'<!-- {name}：アニメ塗り（tools/gen_art.py で生成） -->\n'
+         '<defs><filter id="mute"><feColorMatrix type="saturate" values=".78"/></filter></defs>\n'
+         f'<g filter="url(#mute)">{body}</g>\n</svg>\n')
+    open(os.path.join(OUT, name + '.svg'), 'w').write(s)
+
+SKIN, SKIN_S = '#d4a982', '#a97e5c'
+
+def farmer(name, cloth, cloth_s, scarf, back='', tool='', front_tool=''):
+    body = '<ellipse cx="60" cy="163" rx="30" ry="5" fill="#000" opacity=".3"/>'
+    body += back
+    # 脚（奥・手前）。脚絆は白っぽく巻く
+    body += cel('M48 108 L44 150 L54 151 L58 110Z', '#3a3a40', '#26262c', off=(-2, -2))
+    body += cel('M62 108 L66 150 L76 151 L72 108Z', '#45454c', '#2c2c32', off=(-2, -2),
+                extra=line('M65 128 L74 127 M65 134 L75 133 M66 140 L75 139', 1.3, '#b9b4a4'))
+    body += cel('M42 150 L56 150 L58 157 L40 157Z', '#8a6a46', '#5e462c', off=(-1, -1), lw=1.8)
+    body += cel('M64 150 L78 150 L82 157 L62 157Z', '#8a6a46', '#5e462c', off=(-1, -1), lw=1.8)
+    # 奥の腕
+    body += cel('M44 62 C36 74 36 88 40 98 L47 96 C44 86 46 74 50 66Z', cloth_s, '#1c2030', off=(-1, -1))
+    # 胴（野良着）と帯
+    body += cel('M42 56 C34 72 34 96 38 112 L80 112 C84 96 84 72 76 56 C66 50 52 50 42 56Z', cloth, cloth_s, off=(-6, -4),
+                extra=line('M58 56 L66 84', 1.6, '#1c2030') + '<rect x="36" y="90" width="48" height="8" fill="#6e4a2c"/>' + line('M36 98 L84 98', 1.2, LINE))
+    # 首の手ぬぐい
+    body += cel('M48 52 C54 56 66 56 72 52 L72 58 C66 62 54 62 48 58Z', scarf, '#8a8478', off=(-1, -1), lw=1.6)
+    # 頭（横顔）
+    body += cel('M50 40 C50 28 72 26 74 38 C76 44 74 50 70 54 C64 58 54 56 50 50Z', SKIN, SKIN_S, off=(-3, -2))
+    body += f'<circle cx="68" cy="42" r="1.8" fill="{LINE}"/>' + line('M66 38 L71 37', 1.4) + line('M69 50 L73 49', 1.2, '#7a5a40')
+    # 菅笠（円すい形の笠）
+    body += cel('M24 36 L60 12 L96 34 C80 40 40 42 24 36Z', '#c9a86a', '#9c8048', off=(-3, -3),
+                extra=line('M60 14 L40 38 M60 14 L52 40 M60 14 L68 40 M60 14 L80 38', 1.1, '#8a6e3a'))
+    body += line('M54 40 L56 52 M66 40 L66 52', 1, '#5a4636')
+    body += tool
+    # 手前の腕（道具を持つ）
+    body += cel('M70 62 C80 70 86 78 90 86 L84 90 C80 82 74 76 66 70Z', cloth, cloth_s, off=(-2, -2))
+    body += cel('M84 84 C88 82 94 84 94 90 C92 94 86 94 84 90Z', SKIN, SKIN_S, off=(-1, -1), lw=1.8)
+    body += front_tool
+    svg_tall(name, body)
+
+# 野菜農家：藍の野良着、鍬
+farmer('farmer_vegetable', '#3f4a62', '#2a3246', '#e6e0d0',
+  tool=line('M100 30 L88 132', 5, LINE) + line('M100 30 L88 132', 3, '#a07a4a') +
+       cel('M80 128 L100 132 L98 144 L78 140Z', '#7d858c', '#555c62', off=(-1, -1), lw=1.8))
+# 畜産農家：茶の野良着、牛追い棒と縄
+farmer('farmer_livestock', '#5a4632', '#3c2e20', '#c9b48a',
+  back=line('M30 70 C20 90 26 110 36 118', 3, '#8a6a3a') + line('M30 70 C24 84 26 100 32 110', 1.4, '#b8964e'),
+  tool=line('M106 18 L84 150', 4.4, LINE) + line('M106 18 L84 150', 2.6, '#8a6a46'))
+# 柑橘農家：苔色の野良着、背負い籠、剪定ばさみ
+farmer('farmer_citrus', '#4a5a3a', '#323e26', '#e6e0d0',
+  back=cel('M18 54 L44 52 L42 104 L22 106Z', '#b48a5a', '#86643c', off=(-3, -3),
+           extra=line('M20 66 L44 64 M20 78 L44 76 M21 90 L43 88', 1.4, '#6e5034') +
+           ''.join(f'<circle cx="{x}" cy="{y}" r="5" fill="#e0802a" stroke="{LINE}" stroke-width="1.2"/>' for x, y in [(26, 52), (36, 50)])),
+  front_tool=cel('M92 86 L110 74 L112 78 L94 92Z', '#c9d2d8', '#8f9aa2', off=(-1, -1), lw=1.6) +
+             cel('M92 88 L108 84 L108 88 L94 92Z', '#a8442f', '#7e2a1c', off=(-1, -1), lw=1.4))
 print('ok')

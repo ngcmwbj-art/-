@@ -8,7 +8,7 @@
 FR.Statuses = {
   soil:       { name: '地力', text: '作物と木が育つたびに、この数だけ多く育つ' },
   scarecrow:  { name: 'かかし', text: '毎ターン始めに勢いに4。残りターン数',
-                turnStart(b) { b.fx.push({ kind: 'note', text: 'かかしが追い払う' }); FR.Battle.damageEnemy(b, 4); b.statuses.scarecrow--; } },
+                turnStart(b) { FR.Battle.damageEnemy(b, 4, FR.Battle.randomEnemy(b)); b.statuses.scarecrow--; } },
   netted:     { name: '覆い', text: 'このターン、作物と実を奪われない', clearAtTurnEnd: true },
   greenhouse: { name: 'ハウス', text: '毎ターン始めに、この数だけ守り',
                 turnStart(b, n) { FR.Battle.gainBlock(b, n); } },

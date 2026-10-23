@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 global.window = global;
 const root = path.join(__dirname, '..');
-['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/relics.js', 'data/farmers.js',
+['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/relics.js', 'data/farmers.js',
  'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/score.js']
   .forEach(f => vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }));
 
@@ -38,8 +38,10 @@ function botBattle(run, rnd, played) {
     const playable = b.hand.filter(c => FR.Battle.canPlay(b, c).ok);
     if (playable.length && rnd() < 0.9) {
       const inst = playable[Math.floor(rnd() * playable.length)];
-      const before = b.hand.length;
-      if (!FR.Battle.play(b, inst.uid)) fail('使えるはずのカードが使えない: ' + inst.id);
+      const alive = FR.Battle.aliveEnemies(b);
+      const target = alive[Math.floor(rnd() * alive.length)].uid;
+      if (FR.Battle.needsTarget(b, inst) && FR.Battle.play(b, inst.uid)) fail('狙いなしで1体狙いのカードが使えてしまった: ' + inst.id);
+      if (!FR.Battle.play(b, inst.uid, target)) fail('使えるはずのカードが使えない: ' + inst.id);
       played[inst.id + (inst.upgraded ? '+' : '')] = (played[inst.id + (inst.upgraded ? '+' : '')] || 0) + 1;
       if (b.hand.length > FR.Config.handMax) fail('手札が上限を超えた');
     } else {
@@ -50,11 +52,17 @@ function botBattle(run, rnd, played) {
     b.barns.forEach(a => { if (a && (a.growth > a.stages || a.growth < 0)) fail('家畜の段がおかしい'); });
     if (b.energy < 0) fail('エネルギーがマイナス');
     if (b.run.hp < 0 || b.run.hp > b.run.maxHp) fail('健康度が範囲外');
-    if (Number.isNaN(b.run.gold) || Number.isNaN(b.enemy.hp)) fail('NaN');
+    if (Number.isNaN(b.run.gold) || b.enemies.some(e => Number.isNaN(e.hp) || e.hp < 0)) fail('NaN か負の勢い');
+    if (!b.over && !FR.Battle.aliveEnemies(b).length) fail('敵が全滅したのに戦闘が終わっていない');
     b.fx.length = 0;
   }
   return b;
 }
+
+// 顔ぶれ：すべての敵がどこかの顔ぶれに出てくるか
+const appear = new Set(FR.Encounters.flatMap(e => e.enemies));
+Object.keys(FR.Enemies).forEach(id => appear.has(id) || fail('どの顔ぶれにも出ない敵: ' + id));
+FR.Encounters.forEach(e => e.enemies.forEach(id => FR.Enemies[id] || fail('顔ぶれの敵がない: ' + id)));
 
 const played = {};
 const results = {};
@@ -84,7 +92,7 @@ for (const [id, c] of Object.entries(FR.Cards)) {
     const farmerId = c.pool.includes('common') ? 'livestock' : c.pool[0];
     const run = FR.Run.create(farmerId, 7);
     const b = FR.Battle.create(run);
-    b.enemy.hp = b.enemy.maxHp = 999;
+    b.enemies.forEach(e => { e.hp = e.maxHp = 999; });
     // 畑：実った野菜・実のなった木・空き / 畜舎：出荷できる家畜・空き
     b.plots = [{ crop: 'komatsuna', growth: 2, stages: 2 }, { crop: 'unshu', tree: true, growth: 2, stages: 2, fruits: 1, maxFruits: 3 },
                { crop: 'yuzu', tree: true, growth: 0, stages: 3, fruits: 0, maxFruits: 3 }, null];
@@ -95,11 +103,12 @@ for (const [id, c] of Object.entries(FR.Cards)) {
     b.hand.push(inst);
     run.hp = run.maxHp - 20;
     // 使ったカード自身が手札から減る分とエネルギーの支払いは除いて比べる
-    const snap = JSON.stringify([b.enemy.hp, b.block, b.hand.length - 1, b.plots, b.barns, b.statuses, run.hp, run.gold, b.energy - FR.cardView(inst).cost]);
-    const ok = FR.Battle.play(b, 999);
+    const ehp = () => b.enemies.reduce((t, e) => t + e.hp, 0);
+    const snap = JSON.stringify([ehp(), b.block, b.hand.length - 1, b.plots, b.barns, b.statuses, run.hp, run.gold, b.energy - FR.cardView(inst).cost]);
+    const ok = FR.Battle.play(b, 999, b.enemies[0].uid);
     if (!ok) { fail(`${id}${upgraded ? '+' : ''} が使えない: ${FR.Battle.canPlay(b, inst).reason}`); continue; }
     played[id] = (played[id] || 0) + 1;
-    const after = JSON.stringify([b.enemy.hp, b.block, b.hand.length, b.plots, b.barns, b.statuses, run.hp, run.gold, b.energy]);
+    const after = JSON.stringify([ehp(), b.block, b.hand.length, b.plots, b.barns, b.statuses, run.hp, run.gold, b.energy]);
     if (after === snap) fail(`${id}${upgraded ? '+' : ''} を使っても何も変わらない`);
   }
 }

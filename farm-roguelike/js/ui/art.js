@@ -8,6 +8,8 @@
 FR.Art = {
   BASE: 'assets/img/art/',
   FILES: {
+    // 農家（戦闘で左に立つ）
+    farmer_vegetable: 'farmer_vegetable.svg', farmer_livestock: 'farmer_livestock.svg', farmer_citrus: 'farmer_citrus.svg',
     // 敵
     crow: 'crow.svg', boar: 'boar.svg',
     // 家畜

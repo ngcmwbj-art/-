@@ -24,7 +24,7 @@
       <button class="btn" id="btn-new">はじめから</button>
     </div>
     <p class="title-best" id="title-best"></p>
-    <p class="title-note">試作版：群れ鴉を何度追い払えるか</p>
+    <p class="title-note">試作版：害獣を何度追い払えるか</p>
   </div>
 </section>
 
@@ -36,50 +36,47 @@
   </div>
 </section>
 
-<!-- ── 戦闘 ──────────────────────────────────── -->
+<!-- ── 戦闘（横から見た舞台：左に農家、右に敵）──────────── -->
 <section class="screen" id="screen-battle">
   <div class="battle">
     <header class="topbar">
-      <span class="season" id="b-season"></span>
-      <span class="gold">銭 <b id="b-gold"></b></span>
-      <span class="relics" id="b-relics"></span>
-      <button class="icon-btn" id="b-menu" aria-label="帳面（デッキとメニュー）">帳面</button>
+      <div class="who"><span class="who-name" id="b-farmer"></span><span class="who-sub" id="b-season"></span></div>
+      <span class="hud hp" title="農場の健康度"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 C4 15 2 11 2 8 C2 5 4.5 3 7 3 C9 3 11 4.5 12 6 C13 4.5 15 3 17 3 C19.5 3 22 5 22 8 C22 11 20 15 12 21Z" fill="currentColor"/></svg><b id="b-hp-top"></b></span>
+      <span class="hud gold" title="銭">銭<b id="b-gold"></b></span>
+      <span class="hud floor" id="b-floor"></span>
+      <span class="spacer"></span>
+      <button class="hud-btn" id="b-menu" aria-label="帳面（デッキとメニュー）">帳面<b id="b-deck-count"></b></button>
     </header>
+    <div class="relic-row" id="b-relics"></div>
 
-    <section class="enemy-area" id="b-enemy">
-      <div class="intent" id="b-intent"></div>
-      <div class="enemy-art" id="b-enemy-art"></div>
-      <div class="plate">
-        <div class="enemy-name" id="b-enemy-name"></div>
-        <div class="bar"><b id="b-enemy-bar"></b></div>
-        <div class="bar-label"><span id="b-enemy-hp"></span> <span class="str" id="b-enemy-str"></span></div>
-      </div>
-    </section>
-
-    <section class="field" id="b-field" aria-label="畑"></section>
-
-    <section class="player" id="b-player">
-      <div class="energy" id="b-energy" aria-label="エネルギー"></div>
-      <div class="hp-wrap">
-        <div class="hp-text"><span id="b-hp-text"></span><span class="block" id="b-block"></span></div>
-        <div class="bar"><b id="b-hp-bar"></b></div>
-        <div class="sub-row">
-          <span class="statuses" id="b-statuses"></span>
-          <button class="pile" id="b-pile-draw">山札 <b id="b-draw"></b></button>
-          <button class="pile" id="b-pile-discard">捨て札 <b id="b-discard"></b></button>
+    <section class="stage" id="b-stage">
+      <div class="unit player-unit" id="b-player">
+        <div class="unit-art" id="b-player-art"></div>
+        <div class="unit-bar">
+          <span class="block-badge" id="b-block" hidden></span>
+          <div class="bar"><b id="b-hp-bar"></b><span id="b-hp-text"></span></div>
         </div>
+        <div class="statuses" id="b-statuses"></div>
       </div>
-      <button class="end-turn" id="b-end">ターン<br>終了</button>
+      <div class="enemies" id="b-enemies"></div>
     </section>
 
-    <section class="hand" id="hand" aria-label="手札"></section>
+    <section class="field" id="b-field" aria-label="畑と畜舎"></section>
+
+    <section class="bottom">
+      <div class="energy" id="b-energy" aria-label="エネルギー"></div>
+      <button class="pile draw" id="b-pile-draw" aria-label="山札"><span>山札</span><b id="b-draw"></b></button>
+      <section class="hand" id="hand" aria-label="手札"></section>
+      <button class="end-turn" id="b-end">ターン終了</button>
+      <button class="pile discard" id="b-pile-discard" aria-label="捨て札"><span>捨て札</span><b id="b-discard"></b></button>
+    </section>
   </div>
 </section>
 
 <!-- ── 報酬 ──────────────────────────────────── -->
 <section class="screen" id="screen-reward">
   <div class="panel-page">
-    <h2 class="page-title">群れを追い払った</h2>
+    <h2 class="page-title">追い払った</h2>
     <p class="reward-gold" id="reward-gold"></p>
     <p class="reward-lead">1枚えらんでデッキに加える</p>
     <div class="reward-cards" id="reward-cards"></div>
@@ -123,6 +120,7 @@
 <script src="data/cards.js"></script>
 <script src="data/statuses.js"></script>
 <script src="data/enemies.js"></script>
+<script src="data/encounters.js"></script>
 <script src="data/relics.js"></script>
 <script src="data/farmers.js"></script>
 <!-- 仕組み -->

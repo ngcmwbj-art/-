@@ -23,8 +23,15 @@ const App = {
     document.getElementById('b-menu').onclick = () => App.showMenu();
     document.getElementById('b-pile-draw').onclick = () => App.showPile('山札', App.battle.draw, true);
     document.getElementById('b-pile-discard').onclick = () => App.showPile('捨て札', App.battle.discard);
-    document.getElementById('b-enemy').onclick = () => {
-      if (FR.HandInput.selected) App.playCard(FR.HandInput.selected);
+    // 敵をタップ：カードを選んでいればその敵に使う。選んでいなければ敵の説明
+    document.getElementById('b-enemies').onclick = ev => {
+      const u = ev.target.closest('.enemy-unit');
+      if (!u || !App.battle) return;
+      const e = App.battle.enemies.find(x => x.uid === +u.dataset.uid);
+      if (!e || e.dead) return;
+      if (FR.HandInput.selected) { App.playCard(FR.HandInput.selected, e.uid); return; }
+      const it = FR.Battle.intentLabel(App.battle, e);
+      FR.Screens.toast(`${e.name}　勢い ${e.hp}/${e.maxHp}${e.strength ? '　力+' + e.strength : ''}　次は「${it.name}」`);
     };
     document.getElementById('b-relics').onclick = ev => {
       const btn = ev.target.closest('[data-relic]');
@@ -58,7 +65,8 @@ const App = {
       }
     };
     FR.HandInput.attach(document.getElementById('hand'), {
-      onPlay: uid => App.playCard(uid)
+      onPlay: (uid, targetUid) => App.playCard(uid, targetUid),
+      onSelect: () => App.battle && FR.BattleView.updateTargeting(App.battle)
     });
     // ダイアログを閉じる
     document.getElementById('modal').onclick = ev => {
@@ -143,10 +151,18 @@ const App = {
     FR.BattleView.playFx(App.battle);
   },
 
-  playCard(uid) {
+  playCard(uid, targetUid) {
     const b = App.battle;
     if (!b || b.over || FR.HandInput.locked) return;
-    const ok = FR.Battle.play(b, uid);
+    const inst = b.hand.find(c => c.uid === uid);
+    if (!inst) return;
+    // 敵が2体以上いて、1体を狙うカードなら、敵を選んでもらう
+    if (FR.Battle.canPlay(b, inst).ok && FR.Battle.needsTarget(b, inst) && !b.enemies.some(e => e.uid === targetUid && !e.dead)) {
+      FR.HandInput.select(uid);
+      FR.Screens.toast('どの敵に使う？　敵をタップ');
+      return;
+    }
+    const ok = FR.Battle.play(b, uid, targetUid);
     if (ok) FR.HandInput.clear();
     App.refresh();
     if (b.over) App.afterBattle();
@@ -162,11 +178,11 @@ const App = {
     // 敵が動く前に一呼吸おく
     setTimeout(() => {
       document.getElementById('hand').classList.remove('discarding');
-      document.getElementById('b-enemy-art').classList.add('lunge');
+      document.querySelectorAll('.enemy-unit:not(.dead) .unit-art').forEach(el => el.classList.add('lunge'));
       FR.Battle.endTurn(b);
       FR.HandInput.locked = false;
       App.refresh();
-      setTimeout(() => document.getElementById('b-enemy-art').classList.remove('lunge'), 500);
+      setTimeout(() => document.querySelectorAll('.unit-art.lunge').forEach(el => el.classList.remove('lunge')), 500);
       if (b.over) App.afterBattle();
     }, 380);
   },
@@ -249,8 +265,8 @@ const App = {
     document.getElementById('result-parts').innerHTML = sc.parts.map(p =>
       `<tr><th>${E(p.label)}</th><td>${p.value}</td><td class="${p.points < 0 ? 'minus' : ''}">${p.points >= 0 ? '+' : ''}${p.points}</td></tr>`).join('');
     document.getElementById('result-lead').textContent = run.hp <= 0
-      ? `${run.stats.battlesWon}度、群れを追い払ったが、農場は力尽きた。`
-      : `${run.stats.battlesWon}度、群れを追い払い、この挑戦を終えた。`;
+      ? `${run.stats.battlesWon}度、害獣を追い払ったが、農場は力尽きた。`
+      : `${run.stats.battlesWon}度、害獣を追い払い、この挑戦を終えた。`;
     FR.Screens.show('result');
   }
 };

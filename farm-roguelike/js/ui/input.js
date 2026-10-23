@@ -3,6 +3,7 @@
    手札の操作（マウス・タッチ共通。Pointer Events）
    - タップ：カードを選ぶ → もう一度タップ、または敵をタップで使う
    - ドラッグ：カードを上へ引っぱって離すと使う（手札の上端より上で離す）
+     1体を狙うカードは、敵の上で離すとその敵に使う
    ========================================================= */
 FR.HandInput = {
   selected: null,   // 選んでいるカードの uid
@@ -41,6 +42,10 @@ FR.HandInput = {
       d.el.style.setProperty('--dx', dx + 'px');
       d.el.style.setProperty('--dy', dy + 'px');
       d.el.classList.toggle('will-play', ev.clientY < d.handTop - 30);
+      // 指の下の敵を光らせる
+      const over = FR.HandInput.enemyAt(ev.clientX, ev.clientY);
+      document.querySelectorAll('.enemy-unit.targeted').forEach(e => { if (e !== over) e.classList.remove('targeted'); });
+      if (over) over.classList.add('targeted');
     }
   },
 
@@ -50,10 +55,12 @@ FR.HandInput = {
     FR.HandInput.drag = null;
     if (d.moved) {
       const play = ev.clientY < d.handTop - 30;
+      const over = FR.HandInput.enemyAt(ev.clientX, ev.clientY);
+      document.querySelectorAll('.enemy-unit.targeted').forEach(e => e.classList.remove('targeted'));
       d.el.classList.remove('dragging', 'will-play');
       d.el.style.removeProperty('--dx');
       d.el.style.removeProperty('--dy');
-      if (play) FR.HandInput.handlers.onPlay(d.uid);
+      if (play) FR.HandInput.handlers.onPlay(d.uid, over ? +over.dataset.uid : undefined);
       return;
     }
     // タップ
@@ -68,6 +75,16 @@ FR.HandInput = {
     FR.HandInput.drag = null;
   },
 
+  // 画面のその位置にいる敵（ドラッグ中のカード自身は無視する）
+  enemyAt(x, y) {
+    const els = document.elementsFromPoint(x, y);
+    for (const el of els) {
+      const u = el.closest && el.closest('.enemy-unit:not(.dead)');
+      if (u) return u;
+    }
+    return null;
+  },
+
   select(uid) {
     FR.HandInput.selected = uid;
     document.querySelectorAll('#hand .card').forEach(c => c.classList.toggle('selected', +c.dataset.uid === uid));
@@ -77,5 +94,7 @@ FR.HandInput = {
   clear() {
     FR.HandInput.selected = null;
     document.querySelectorAll('#hand .card.selected').forEach(c => c.classList.remove('selected'));
+    const st = document.getElementById('b-stage');
+    if (st) st.classList.remove('targeting');
   }
 };

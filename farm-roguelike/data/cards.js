@@ -9,6 +9,7 @@
        emptyPlot 空いた区画 / ripeCrop 収穫できる作物か実 / tree 柑橘の木 /
        emptyBarn 空いた畜舎 / animal 家畜がいる / matureAnimal 出荷できる家畜
    - effects：効果。op の種類は js/core/effects.js を参照
+     damage など1体を狙う効果があるカードは、敵が2体以上いると「どの敵に使うか」を選ぶ（敵をタップ／敵の上で離す）
    - upgrade：強化したときに上書きする項目（休憩所で強化。②以降）
    - exhaust：true なら使うとこの戦闘から消える（廃棄）
    ========================================================= */
@@ -114,9 +115,9 @@ FR.Cards = {
   },
   pesticide: {
     name: '農薬散布', type: 'attack', cost: 2, rarity: 'common', pool: ['vegetable'], art: 'sprayer',
-    text: '勢いに3を3回',
-    effects: [{ op: 'damage', amount: 3 }, { op: 'damage', amount: 3 }, { op: 'damage', amount: 3 }],
-    upgrade: { name: '農薬散布+', text: '勢いに4を3回', effects: [{ op: 'damage', amount: 4 }, { op: 'damage', amount: 4 }, { op: 'damage', amount: 4 }] }
+    text: '敵すべての勢いに5',
+    effects: [{ op: 'damageAll', amount: 5 }],
+    upgrade: { name: '農薬散布+', text: '敵すべての勢いに8', effects: [{ op: 'damageAll', amount: 8 }] }
   },
   morningWork: {
     name: '朝どれ作業', type: 'attack', cost: 1, rarity: 'common', pool: ['vegetable'], art: 'weeding',
@@ -411,9 +412,9 @@ FR.Cards = {
   },
   machineOil: {
     name: 'マシン油散布', type: 'attack', cost: 2, rarity: 'common', pool: ['citrus'], art: 'sprayer',
-    text: '勢いに12',
-    effects: [{ op: 'damage', amount: 12 }],
-    upgrade: { name: 'マシン油散布+', text: '勢いに16', effects: [{ op: 'damage', amount: 16 }] }
+    text: '敵すべての勢いに6',
+    effects: [{ op: 'damageAll', amount: 6 }],
+    upgrade: { name: 'マシン油散布+', text: '敵すべての勢いに9', effects: [{ op: 'damageAll', amount: 9 }] }
   },
   sprinkler: {
     name: 'スプリンクラー', type: 'machine', cost: 1, rarity: 'uncommon', pool: ['citrus'], art: 'water',
@@ -469,9 +470,9 @@ FR.Cards = {
   },
   drone: {
     name: 'ドローン防除', type: 'machine', cost: 2, rarity: 'rare', pool: ['citrus', 'vegetable'], art: 'sprayer',
-    text: '勢いに7を2回。このターン、作物と実を奪われない',
-    effects: [{ op: 'damage', amount: 7 }, { op: 'damage', amount: 7 }, { op: 'status', id: 'netted', amount: 1 }],
-    upgrade: { name: 'ドローン防除+', text: '勢いに9を2回。このターン、作物と実を奪われない', effects: [{ op: 'damage', amount: 9 }, { op: 'damage', amount: 9 }, { op: 'status', id: 'netted', amount: 1 }] }
+    text: '敵すべての勢いに7。このターン、作物と実を奪われない',
+    effects: [{ op: 'damageAll', amount: 7 }, { op: 'status', id: 'netted', amount: 1 }],
+    upgrade: { name: 'ドローン防除+', text: '敵すべての勢いに10。このターン、作物と実を奪われない', effects: [{ op: 'damageAll', amount: 10 }, { op: 'status', id: 'netted', amount: 1 }] }
   }
 };
 

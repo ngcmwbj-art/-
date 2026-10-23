@@ -22,6 +22,7 @@
   --cw: clamp(80px, 20vw, 136px);
 }
 @media (max-height: 700px) { :root { --cw: clamp(74px, 18.5vw, 120px); } }
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) { :root { --cw: clamp(110px, 9.5vw, 150px); } }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -101,54 +102,109 @@ img { -webkit-user-drag: none; }
 
 /* ── 戦闘 ─────────────────────────────────────── */
 .battle {
-  height: 100%; height: 100dvh; max-width: 680px; margin: 0 auto;
+  height: 100%; height: 100dvh; max-width: 1280px; margin: 0 auto;
   display: grid; grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-  padding: max(8px, env(safe-area-inset-top)) 10px max(6px, env(safe-area-inset-bottom));
-  gap: 7px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  padding: max(6px, env(safe-area-inset-top)) 8px max(4px, env(safe-area-inset-bottom));
+  gap: 4px;
+  /* 舞台の人物の大きさの基準 */
+  --unit: min(25vh, 36vw, 230px);
 }
-.topbar, .player, .plate {
-  background: var(--panel); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-  border: 1px solid var(--panel-line); border-radius: 4px;
+.icon { width: 1em; height: 1em; vertical-align: -0.12em; }
+
+/* 上の帯（名前・健康度・銭・何戦目・帳面） */
+.topbar {
+  display: flex; align-items: center; gap: 12px; padding: 4px 10px;
+  background: linear-gradient(180deg, rgba(20, 18, 14, .88), rgba(20, 18, 14, .7));
+  border-bottom: 1px solid var(--panel-line); font-family: var(--mincho);
 }
-.topbar { display: flex; align-items: center; gap: 10px; padding: 5px 8px 5px 12px; font-family: var(--mincho); }
-.topbar .season { font-size: 16px; font-weight: 700; letter-spacing: .15em; margin-right: auto; }
-.topbar .gold b { font-size: 16px; color: var(--gold); }
-.relics { display: flex; gap: 4px; }
+.who { display: grid; line-height: 1.1; }
+.who-name { font-weight: 800; font-size: 16px; letter-spacing: .08em; white-space: nowrap; }
+.who-sub { font-size: 11px; color: var(--panel-text-soft); letter-spacing: .3em; }
+.hud { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--panel-text-soft); white-space: nowrap; }
+.hud b { font-size: 18px; font-weight: 800; }
+.hud.hp { color: #d9634a; }
+.hud.hp b { color: #f0a08a; }
+.hud.gold b { color: var(--gold); }
+.hud.floor { font-size: 14px; color: var(--panel-text); }
+.spacer { flex: 1; }
+@media (max-width: 400px) {
+  .topbar { gap: 8px; padding: 4px 6px; }
+  .who-name { font-size: 14px; letter-spacing: 0; }
+  .hud b { font-size: 16px; }
+  .hud.floor { font-size: 12px; }
+}
+.hud-btn { white-space: nowrap; font-family: var(--mincho); font-size: 13px; background: rgba(0, 0, 0, .35); border: 1px solid var(--panel-line); border-radius: 3px; padding: 3px 8px; display: inline-flex; gap: 5px; align-items: baseline; }
+.hud-btn b { color: var(--gold); }
+.relic-row { display: flex; gap: 6px; padding: 0 6px; min-height: 30px; }
 .relic { width: 30px; height: 30px; padding: 0; background: #d9cfb4; border: 1px solid var(--gold); border-radius: 50%; overflow: hidden; display: grid; place-items: center; }
 .relic img { width: 26px; height: 26px; }
-.icon-btn { font-family: var(--mincho); font-size: 13px; background: rgba(0, 0, 0, .3); border: 1px solid var(--panel-line); border-radius: 3px; padding: 4px 8px; }
 
-/* 敵 */
-.enemy-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 0; cursor: default; }
-.intent {
-  display: inline-flex; gap: 8px; align-items: baseline;
-  background: #7e2a1c; color: #f3e6c8; border: 1px solid #d6a86a; border-radius: 2px; padding: 2px 12px;
-  font-family: var(--mincho); font-weight: 800; font-size: 15px; box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+/* 舞台：左に農家、右に敵。足もとをそろえる */
+.stage {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 6px;
+  min-height: 0; padding: 0 2% 4px; position: relative;
 }
-.intent .intent-value { font-size: 18px; }
-.intent.steal { background: #5a3a1a; }
-.intent.buff { background: #3a3a52; }
-.intent.hidden { visibility: hidden; }
-.enemy-art { width: clamp(110px, 22vh, 280px); height: clamp(110px, 22vh, 280px); position: relative; flex-shrink: 1; min-height: 80px; }
-.enemy-art img { width: 100%; height: 100%; }
-.enemy-art::after { content: ""; position: absolute; bottom: 6%; left: 25%; right: 25%; height: 8%; background: rgba(0, 0, 0, .35); border-radius: 50%; z-index: -1; }
-.enemy-area.defeated .enemy-art { animation: defeated .8s ease forwards; }
-.plate { display: grid; justify-items: center; gap: 3px; padding: 4px 14px 5px; min-width: 170px; }
-.enemy-name { font-family: var(--mincho); font-weight: 800; font-size: 17px; letter-spacing: .12em; }
-.plate .bar { width: 150px; }
-.plate .bar > b { background: var(--enemy-bar); }
-.bar-label { font-size: 12px; color: var(--panel-text-soft); }
-.bar-label .str { color: #e08a6a; margin-left: 4px; }
+.unit { display: flex; flex-direction: column; align-items: center; position: relative; }
+.unit-art { position: relative; }
+.unit-art img { width: 100%; height: 100%; display: block; object-fit: contain; object-position: 50% 100%; }
+.unit-art::after { content: ""; position: absolute; bottom: 2%; left: 18%; right: 18%; height: 7%; background: rgba(0, 0, 0, .35); border-radius: 50%; z-index: -1; }
+.player-unit .unit-art { width: calc(var(--unit) * .72); height: calc(var(--unit) * 1.02); }
+.player-unit .unit-art::after { display: none; }
+.enemies { display: flex; align-items: flex-end; justify-content: flex-end; gap: 2%; flex: 1; min-width: 0; }
+.enemy-unit { width: min(calc(var(--unit) * var(--size)), calc(62vw / var(--count))); cursor: pointer; transition: opacity .6s, transform .6s; }
+.enemy-unit .unit-art { width: 100%; aspect-ratio: 1; }
+/* 敵の絵は右向きに描いてあるので、左右を反転して農家の方を向かせる */
+.enemy-unit .unit-art img { transform: scaleX(-1); }
+.enemy-unit.dead { opacity: 0; transform: translateY(-14px) scale(.9); pointer-events: none; }
+.unit-bar { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 70px; margin-top: 2px; }
+.player-unit .unit-bar { width: calc(var(--unit) * .9); }
+.unit-bar .bar { flex: 1; height: 12px; position: relative; border: 1px solid rgba(0, 0, 0, .7); background: rgba(0, 0, 0, .55); border-radius: 2px; overflow: visible; }
+.unit-bar .bar > b { display: block; height: 100%; background: var(--enemy-bar); transition: width .35s ease; }
+.player-unit .unit-bar .bar > b { background: linear-gradient(180deg, #d0583e, #8e2e1e); }
+.player-unit.has-block .unit-bar .bar { border-color: #8fb3cf; box-shadow: 0 0 0 1px #8fb3cf; }
+.player-unit.has-block .unit-bar .bar > b { background: linear-gradient(180deg, #8fb3cf, #4f7393); }
+.unit-bar .bar > span {
+  position: absolute; inset: -3px 0 0; text-align: center; font-family: var(--mincho); font-weight: 800;
+  font-size: 13px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; line-height: 16px;
+}
+/* 守り：青い盾に数字 */
+.block-badge {
+  flex: none; width: 26px; height: 28px; display: grid; place-items: center;
+  font-family: var(--mincho); font-weight: 800; font-size: 14px; color: #fff; text-shadow: 0 1px 2px #000;
+  background: linear-gradient(180deg, #8fb3cf, #3f6383); border: 1px solid #1e3346;
+  clip-path: polygon(50% 0, 100% 14%, 100% 55%, 50% 100%, 0 55%, 0 14%);
+}
+.block-badge[hidden] { display: none; }
+.unit-name { font-family: var(--mincho); font-size: 12px; color: var(--panel-text); text-shadow: 0 1px 3px #000; white-space: nowrap; }
+.unit-name em { font-style: normal; color: #e08a6a; margin-left: 4px; }
+.statuses { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; max-width: calc(var(--unit) * 1.1); margin-top: 2px; }
+.status { font-size: 10px; padding: 0 4px; background: rgba(20, 30, 14, .75); border: 1px solid #7e9a5a; color: #cfe0b0; border-radius: 2px; }
+.status b { margin-left: 2px; color: #fff; }
+
+/* 予告：敵の頭上にアイコンと数字 */
+.intent { display: flex; align-items: center; gap: 2px; min-height: 26px; font-family: var(--mincho); font-weight: 800; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.intent .icon { width: 22px; height: 22px; filter: drop-shadow(0 1px 1px #000); }
+.intent b { font-size: 19px; }
+.intent.attack { color: #f08a6a; }
+.intent.steal, .intent.trample { color: #e8c27a; }
+.intent.steal b, .intent.trample b { font-size: 13px; }
+.intent.buff { color: #9fc3e8; }
+
+/* 狙いを選んでいる間 */
+.stage.targeting .enemy-unit:not(.dead) .unit-art { animation: targetPulse 1s ease-in-out infinite; }
+.stage .enemy-unit.targeted .unit-art { filter: drop-shadow(0 0 6px #f0c86a) drop-shadow(0 0 12px #f0c86a); animation: none; }
+@keyframes targetPulse { 50% { filter: drop-shadow(0 0 5px rgba(240, 200, 106, .9)); } }
 
 /* 畑 */
 .field { display: grid; gap: 6px; max-width: 420px; width: 100%; justify-self: center; }
+.field[hidden] { display: none; }
 .plot {
-  height: clamp(54px, 9vh, 84px); border-radius: 3px; position: relative; display: grid; place-items: center;
+  height: clamp(46px, 7.5vh, 76px); border-radius: 3px; position: relative; display: grid; place-items: center;
   background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .12) 0 3px, transparent 3px 9px), linear-gradient(180deg, #4a3826, #2e2219);
   border: 1px solid var(--panel-line); box-shadow: inset 0 4px 6px rgba(0, 0, 0, .3);
 }
-.plot img { width: auto; height: clamp(44px, 7.4vh, 70px); }
+.plot img { width: auto; height: clamp(40px, 6.6vh, 66px); }
 .plot small { position: absolute; bottom: 2px; right: 5px; font-size: 11px; color: #f0dca8; font-weight: 700; text-shadow: 0 1px 2px #000; }
 .plot .crop-name { position: absolute; top: 2px; left: 5px; font-size: 10px; color: var(--panel-text-soft); text-shadow: 0 1px 2px #000; }
 .plot.empty small { left: 0; right: 0; text-align: center; bottom: auto; color: rgba(233, 223, 198, .35); font-weight: 500; }
@@ -159,7 +215,7 @@ img { -webkit-user-drag: none; }
 
 /* 畜舎：古い板張りと屋根 */
 .barn {
-  height: clamp(54px, 9vh, 84px); border-radius: 2px; position: relative; display: grid; place-items: center; margin-top: 10px;
+  height: clamp(46px, 7.5vh, 76px); border-radius: 2px; position: relative; display: grid; place-items: center; margin-top: 10px;
   background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 1px, transparent 1px 12px), linear-gradient(180deg, #6a5038, #4a3726);
   border: 1px solid var(--panel-line);
 }
@@ -167,7 +223,7 @@ img { -webkit-user-drag: none; }
   content: ""; position: absolute; top: -11px; left: 6%; right: 6%; height: 12px;
   background: #3a2c20; border: 1px solid var(--panel-line); border-bottom: 0; clip-path: polygon(0 100%, 50% 0, 100% 100%);
 }
-.barn img { width: auto; height: clamp(44px, 7.4vh, 70px); }
+.barn img { width: auto; height: clamp(40px, 6.6vh, 66px); }
 .barn small { position: absolute; bottom: 2px; right: 5px; font-size: 11px; color: #f0dca8; font-weight: 700; text-shadow: 0 1px 2px #000; }
 .barn .crop-name { position: absolute; top: 2px; left: 5px; font-size: 10px; color: var(--panel-text-soft); text-shadow: 0 1px 2px #000; }
 .barn .grade { position: absolute; top: 2px; right: 4px; font-family: var(--mincho); font-weight: 800; font-size: 12px; color: var(--gold); text-shadow: 0 1px 2px #000; }
@@ -176,29 +232,63 @@ img { -webkit-user-drag: none; }
 .field.many { max-width: 560px; }
 .field.many .crop-name { display: none; }
 
-/* プレイヤー */
-.player { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; }
-.energy {
-  width: 46px; height: 46px; border-radius: 50%; flex: none;
-  background: radial-gradient(circle at 40% 35%, #fff1c0, var(--energy) 55%, #7a4a14);
-  border: 1px solid #f0d29a; display: grid; place-items: center; color: #2a1a08;
-  font-family: var(--mincho); font-size: 22px; font-weight: 800; box-shadow: 0 0 16px rgba(240, 180, 80, .55);
+/* 下：エネルギー・山札・手札・ターン終了・捨て札
+   スマホ縦：上の段に エネルギー｜山札 … 捨て札｜ターン終了、下の段に手札
+   横長の画面：Slay the Spire のように四隅に置き、手札は中央 */
+.bottom {
+  display: grid; align-items: center; column-gap: 8px;
+  grid-template-columns: auto auto 1fr auto auto;
+  grid-template-areas: "energy draw . discard end" "hand hand hand hand hand";
 }
-.hp-wrap { flex: 1; min-width: 0; display: grid; gap: 3px; }
-.hp-text { font-size: 13px; display: flex; justify-content: space-between; gap: 6px; }
-.hp-wrap .bar > b { background: var(--hp-bar); }
-.block { color: #a9c3d2; font-weight: 700; font-family: var(--mincho); }
-.sub-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.statuses { display: flex; gap: 4px; margin-right: auto; flex-wrap: wrap; }
-.status { font-size: 11px; padding: 0 6px; border: 1px solid #7e9a5a; color: #cfe0b0; border-radius: 2px; }
-.pile { font-size: 11px; background: rgba(0, 0, 0, .3); border: 1px solid var(--panel-line); border-radius: 2px; padding: 1px 6px; color: var(--panel-text-soft); }
-.pile b { color: var(--panel-text); }
+.energy {
+  grid-area: energy; width: 52px; height: 52px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff1c0, var(--energy) 50%, #8a4a10 85%);
+  border: 2px solid #3a2410; display: grid; place-items: center; align-content: center; color: #2a1a08;
+  font-family: var(--mincho); font-weight: 800; box-shadow: 0 0 18px rgba(240, 160, 60, .6), inset 0 -4px 8px rgba(120, 50, 0, .5);
+  line-height: 1;
+}
+.energy b { font-size: 24px; }
+.energy small { font-size: 11px; margin-top: -2px; }
+.pile {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 0; padding: 3px 8px; line-height: 1.1;
+  background: rgba(20, 18, 14, .75); border: 1px solid var(--panel-line); border-radius: 3px; font-family: var(--mincho);
+}
+.pile span { font-size: 10px; color: var(--panel-text-soft); }
+.pile b { font-size: 16px; }
+.pile.draw { grid-area: draw; }
+.pile.discard { grid-area: discard; }
 .end-turn {
-  font-family: var(--mincho); font-weight: 700; font-size: 15px; color: #f3e6c8; line-height: 1.25;
-  background: linear-gradient(180deg, #4a3a2a, #2a2018); border: 1px solid #d6a86a; border-radius: 3px;
-  padding: 8px 12px; box-shadow: 0 3px 8px rgba(0, 0, 0, .45); flex: none;
+  grid-area: end; font-family: var(--mincho); font-weight: 800; font-size: 15px; letter-spacing: .08em; color: #f3e6c8;
+  background: linear-gradient(180deg, #3d4f5a, #22303a); border: 1px solid #9fb8c6; border-radius: 4px;
+  padding: 10px 14px; box-shadow: 0 3px 10px rgba(0, 0, 0, .5);
 }
 .end-turn:disabled { opacity: .45; }
+.bottom .hand { grid-area: hand; }
+
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+  .battle { --unit: min(30vh, 22vw, 300px); }
+  .hand .card.selected { transform: translateY(calc(var(--ty) - 60px)) rotate(0deg) scale(1.35); }
+  .bottom {
+    grid-template-columns: 110px 1fr 140px;
+    grid-template-areas: "energy hand end" "draw hand discard";
+    row-gap: 10px; align-items: end;
+  }
+  .energy { width: 78px; height: 78px; justify-self: center; }
+  .energy b { font-size: 34px; }
+  .energy small { font-size: 14px; }
+  .pile { justify-self: center; padding: 6px 12px; }
+  .pile b { font-size: 22px; }
+  .end-turn { font-size: 18px; padding: 14px 18px; justify-self: center; }
+  .field { max-width: 520px; }
+  .intent .icon { width: 34px; height: 34px; }
+  .intent b { font-size: 28px; }
+  .intent.steal b, .intent.trample b { font-size: 18px; }
+  .unit-bar .bar { height: 16px; }
+  .unit-bar .bar > span { font-size: 16px; line-height: 20px; }
+  .unit-name { font-size: 14px; }
+  .block-badge { width: 32px; height: 34px; font-size: 17px; }
+  .status { font-size: 12px; }
+}
 
 /* ── カード ────────────────────────────────────── */
 .card {
@@ -242,12 +332,14 @@ img { -webkit-user-drag: none; }
   transition: transform .18s ease, filter .18s ease;
   z-index: var(--z);
 }
-.hand .card.selected { transform: translateY(calc(var(--ty) - 18px)) rotate(0deg) scale(1.1); z-index: 40; box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(240, 190, 90, .55), 0 10px 20px rgba(0, 0, 0, .5); }
+.hand .card.selected { transform: translateY(calc(var(--ty) - 22px)) rotate(0deg) scale(1.16); z-index: 40; box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(240, 190, 90, .55), 0 10px 20px rgba(0, 0, 0, .5); }
 .hand .card.selected::after {
   content: "もう一度タップで使う"; position: absolute; left: 4px; right: 4px; bottom: 4px; text-align: center;
   white-space: nowrap; font-size: calc(var(--cw) * .085); color: #f3e6c8; background: #7e2a1c; padding: 2px 0; border-radius: 1px;
 }
 .hand .card.dragging { transition: none; transform: translate(var(--dx), var(--dy)) scale(1.1); z-index: 50; }
+.hand .card.selected.needs-target::after { content: "敵をタップして使う"; }
+.hand .card.dragging.needs-target::after { content: "敵の上で離す"; }
 .hand .card.dragging::after { content: "上で離すと使う"; position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -6px); white-space: nowrap; font-size: 11px; color: var(--panel-text); background: var(--panel); padding: 1px 6px; }
 .hand .card.will-play { box-shadow: 0 0 0 3px var(--gold), 0 0 26px rgba(240, 190, 90, .8); }
 .card.unplayable { filter: brightness(.62) saturate(.5); }
@@ -305,13 +397,14 @@ img { -webkit-user-drag: none; }
 .float-text.gold { color: var(--gold); font-size: 18px; }
 .float-text.heal { color: #b8e08a; }
 .float-text.buff { color: #e08a6a; font-size: 18px; }
+.float-text.move { color: #f3e6c8; font-size: 15px; letter-spacing: .1em; background: rgba(60, 14, 8, .8); padding: 1px 8px; border: 1px solid #d6a86a; }
 
 /* ── 動き ──────────────────────────────────────── */
 @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50px); } }
 @keyframes shakeX { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
 .shake { animation: shakeX .35s ease; }
 .lunge { animation: lunge .45s ease; }
-@keyframes lunge { 0%, 100% { transform: translateY(0) scale(1); } 40% { transform: translateY(18px) scale(1.12); } }
+@keyframes lunge { 0%, 100% { transform: translate(0, 0) scale(1); } 40% { transform: translate(-22px, 4px) scale(1.08); } }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
 @keyframes harvested { 0% { box-shadow: 0 0 0 0 rgba(240, 190, 90, .9); } 100% { box-shadow: 0 0 0 16px rgba(240, 190, 90, 0); } }
 @keyframes stolen { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-5px); background: #5a1a10; } 60% { transform: translateX(4px); } }

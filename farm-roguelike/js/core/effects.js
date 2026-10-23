@@ -8,6 +8,7 @@ FR.Effects = {
   OPS: {
     // ── 基本 ──
     damage(b, e) { FR.Battle.damageEnemy(b, e.amount); },
+    damageAll(b, e) { FR.Battle.aliveEnemies(b).forEach(en => FR.Battle.damageEnemy(b, e.amount, en)); },
     block(b, e) { FR.Battle.gainBlock(b, e.amount); },
     draw(b, e) { FR.Battle.drawCards(b, e.amount); },
     energy(b, e) { b.energy += e.amount; },
