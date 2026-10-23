@@ -4,6 +4,7 @@
    - kind：pest 害獣・害虫 / weed 雑草 / disease 病害・疫病 / weather 天候
    - hp：勢い（敵の体力）の範囲 [最小, 最大]。hpGrowth：戦闘を重ねるごとに増える量
    - turns：天候だけ。このターン数を耐えきると過ぎ去る（勢いを0にしても勝ち）
+   - art：'enemy:ID' は assets/img/enemies/ID.png（いただいた絵）。それ以外は js/ui/art.js の名前
    - size：絵の大きさ（1 がふつう）
    - moves：行動。intent の種類
        attack  … 健康度に damage（hits 回）
@@ -20,7 +21,7 @@
 FR.Enemies = {
   // ── 害獣 ──
   crowSmall: {
-    name: 'はぐれ鴉', kind: 'pest', art: 'crow', size: 0.72,
+    name: 'はぐれ鴉', kind: 'pest', art: 'enemy:crowSmall', size: 0.78,
     hp: [10, 13], hpGrowth: 3,
     moves: {
       peck:  { name: 'ついばむ', intent: 'attack', damage: 4 },
@@ -29,7 +30,7 @@ FR.Enemies = {
     pattern: ['peck', 'steal', 'peck'], randomStart: true
   },
   crow: {
-    name: '群れ鴉', kind: 'pest', art: 'crow', size: 1,
+    name: '群れ鴉', kind: 'pest', art: 'enemy:crow', size: 1.05,
     hp: [18, 22], hpGrowth: 5,
     moves: {
       peck:  { name: 'ついばむ', intent: 'attack', damage: 6 },
@@ -39,7 +40,7 @@ FR.Enemies = {
     pattern: ['peck', 'steal', 'peck', 'caw']
   },
   boar: {
-    name: '山の大猪', kind: 'pest', art: 'boar', size: 1.25,
+    name: '山の大猪', kind: 'pest', art: 'enemy:boar', size: 1.2,
     hp: [40, 46], hpGrowth: 7,
     moves: {
       snort:   { name: '鼻を鳴らす', intent: 'buff', strength: 2 },
@@ -50,7 +51,7 @@ FR.Enemies = {
   },
   // ── 害虫・雑草 ──
   aphids: {
-    name: 'アブラムシの群れ', kind: 'pest', art: 'aphids', size: 0.8,
+    name: 'アブラムシの群れ', kind: 'pest', art: 'enemy:aphids', size: 0.85,
     hp: [9, 12], hpGrowth: 2,
     moves: {
       suck:     { name: '汁を吸う', intent: 'blight', amount: 1, damage: 2 },
@@ -60,7 +61,7 @@ FR.Enemies = {
     pattern: ['swarm', 'suck', 'multiply'], randomStart: true
   },
   weeds: {
-    name: 'はびこる雑草', kind: 'weed', art: 'weeds', size: 1,
+    name: 'はびこる雑草', kind: 'weed', art: 'enemy:weeds', size: 1.0,
     hp: [26, 30], hpGrowth: 4,
     moves: {
       spread: { name: '根を広げる', intent: 'heal', amount: 6 },
@@ -71,7 +72,7 @@ FR.Enemies = {
   },
   // ── 病害・疫病 ──
   blast: {
-    name: 'いもち病', kind: 'disease', art: 'blast', size: 1,
+    name: 'いもち病', kind: 'disease', art: 'enemy:blast', size: 1.0,
     hp: [30, 34], hpGrowth: 5,
     moves: {
       spores: { name: '胞子を飛ばす', intent: 'addCard', card: 'lesion', count: 2 },
@@ -81,7 +82,7 @@ FR.Enemies = {
     pattern: ['spores', 'rot', 'fever']
   },
   avianFlu: {
-    name: '鳥インフル', kind: 'disease', art: 'avianflu', size: 1,
+    name: '鳥インフル', kind: 'disease', art: 'enemy:avianFlu', size: 1.0,
     hp: [32, 36], hpGrowth: 5,
     moves: {
       infect: { name: '感染', intent: 'infect', damage: 8 },
@@ -92,7 +93,7 @@ FR.Enemies = {
   },
   // ── 天候（ターン数を耐えきると過ぎ去る）──
   frost: {
-    name: '遅霜', kind: 'weather', art: 'frost', size: 1,
+    name: '遅霜', kind: 'weather', art: 'enemy:frost', size: 1.05,
     hp: [36, 40], hpGrowth: 5, turns: 4,
     moves: {
       frostbite: { name: '霜が降りる', intent: 'blight', amount: 1, damage: 5 },
@@ -101,7 +102,7 @@ FR.Enemies = {
     pattern: ['chill', 'frostbite']
   },
   drought: {
-    name: '干ばつ', kind: 'weather', art: 'drought', size: 1.1,
+    name: '干ばつ', kind: 'weather', art: 'enemy:drought', size: 1.1,
     hp: [44, 50], hpGrowth: 6, turns: 5,
     moves: {
       scorch: { name: '照りつける', intent: 'attack', damage: 8 },
@@ -111,7 +112,7 @@ FR.Enemies = {
     pattern: ['parch', 'scorch', 'wither', 'scorch']
   },
   typhoon: {
-    name: '大型台風', kind: 'weather', art: 'typhoon', size: 1.3,
+    name: '大型台風', kind: 'weather', art: 'enemy:typhoon', size: 1.25,
     hp: [60, 66], hpGrowth: 7, turns: 5,
     moves: {
       gust:  { name: '強風', intent: 'attack', damage: 10 },

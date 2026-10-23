@@ -12,7 +12,7 @@ FR.renderCard = function (v, opts) {
   return `<div class="${cls.join(' ')}" data-uid="${v.uid || ''}" data-id="${v.id}" ${opts.style ? `style="${opts.style}"` : ''}>
     <span class="cost">${v.cost}</span>
     <div class="name">${E(v.name)}</div>
-    <div class="art">${FR.Art.img(v.art, '', '')}</div>
+    <div class="art ${FR.Art.CARDS.has(v.id) ? 'has-photo' : ''}">${FR.Art.cardImg(v)}</div>
     <div class="kind">${FR.CardTypes[v.type] || ''}</div>
     <div class="text">${E(v.text)}</div>
   </div>`;

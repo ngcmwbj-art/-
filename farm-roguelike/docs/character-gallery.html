@@ -17,7 +17,6 @@
   .ch { background: rgba(20, 18, 14, .8); border: 1px solid var(--panel-line); border-radius: 4px; padding: 12px; width: 370px; display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: end; }
   .ch .pic { height: 190px; display: flex; align-items: flex-end; justify-content: center; background: radial-gradient(ellipse at 50% 85%, rgba(255, 240, 200, .14), transparent 70%); }
   .ch .pic img { max-width: 100%; max-height: 100%; }
-  .ch.enemy .pic img { transform: scaleX(-1); }
   .name { font-family: var(--mincho); font-weight: 800; font-size: 20px; letter-spacing: .1em; }
   .info { display: grid; gap: 6px; align-self: start; font-size: 13px; line-height: 1.6; color: var(--panel-text-soft); }
   .info b { color: var(--panel-text); font-weight: 700; }
@@ -45,7 +44,7 @@
 <script src="../js/core/util.js"></script>
 <script src="../js/ui/art.js"></script>
 <script>
-  FR.Art.BASE = '../assets/img/art/';
+  FR.Art.BASE = '../assets/img/art/'; FR.Art.CARD_BASE = '../assets/img/cards/'; FR.Art.ENEMY_BASE = '../assets/img/enemies/';
   const E = FR.Util.escape;
   const tool = { vegetable: '鍬', livestock: '牛追い棒と縄', citrus: '背負い籠と剪定ばさみ' };
   document.getElementById('farmers').innerHTML = Object.entries(FR.Farmers).map(([id, f]) => `

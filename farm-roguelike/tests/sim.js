@@ -19,6 +19,7 @@ const artNames = new Set(fs.readdirSync(path.join(root, 'assets/img/art')).map(f
 for (const [id, c] of Object.entries(FR.Cards)) {
   if (c.unplayable) continue;
   if (!artNames.has(c.art)) fail(`カード ${id} の絵 ${c.art} がない`);
+  if (!fs.existsSync(path.join(root, 'assets/img/cards', id + '.jpg'))) fail(`カード ${id} の絵（JPEG）がない`);
   if (!FR.CardTypes[c.type]) fail(`カード ${id} の種類 ${c.type} が不明`);
   if (c.needs && !FR.Battle.NEEDS[c.needs]) fail(`カード ${id} の条件 ${c.needs} が不明`);
   for (const e of [...c.effects, ...((c.upgrade && c.upgrade.effects) || [])]) {
@@ -90,7 +91,8 @@ for (const farmerId of Object.keys(FR.Farmers)) {
 // 敵：すべての行動を、作物・木・家畜がある状態で1回ずつ実行する
 const INTENTS = ['attack', 'steal', 'trample', 'blight', 'debuff', 'addCard', 'infect', 'heal', 'buff'];
 for (const [id, def] of Object.entries(FR.Enemies)) {
-  if (!artNames.has(def.art)) fail(`敵 ${id} の絵 ${def.art} がない`);
+  const ok = def.art.startsWith('enemy:') ? fs.existsSync(path.join(root, 'assets/img/enemies', def.art.slice(6) + '.png')) : artNames.has(def.art);
+  if (!ok) fail(`敵 ${id} の絵 ${def.art} がない`);
   for (const [mk, m] of Object.entries(def.moves)) {
     if (!INTENTS.includes(m.intent)) fail(`敵 ${id} の行動 ${mk} の種類 ${m.intent} が不明`);
     if (m.intent === 'debuff' && !FR.Statuses[m.status]) fail(`敵 ${id} の状態 ${m.status} がない`);

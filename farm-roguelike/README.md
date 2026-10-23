@@ -108,6 +108,12 @@ sickle: {
 各ファイルの先頭に書き方の説明があります。農家タイプは `data/farmers.js` に1件足し、
 `enabled: true` にして、専用カードの `pool` にタイプIDを入れれば選べるようになります。
 
+### 絵について
+
+- **カードの絵**（`assets/img/cards/<カードID>.jpg`、70枚）と **敵の絵**（`assets/img/enemies/<敵ID>.png`、背景透過、10体）は、
+  いただいた絵から切り出したもの。カードを足すときは同じ名前で JPEG（3:2、360×240 程度）を置き、`js/ui/art.js` の `CARDS` に ID を足す
+- 農家・作物・家畜・道具のアイコンと背景は、`tools/` のスクリプトで描いた SVG（`assets/img/art/`・`assets/img/bg/`）
+
 ### 絵を差し替える
 
 `js/ui/art.js` の `FILES` に「名前 → ファイル」が並んでいます。手描きの PNG などに替えるときは
