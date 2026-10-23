@@ -95,7 +95,8 @@
       "サトイモ": "3〜4年",
       "ショウガ": "3〜4年"
     },
-    "rotationYearsOther": "1〜2年"
+    "rotationYearsOther": "1〜2年",
+    "zukanCount": "　📖 図鑑 {n}/{total}"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -169,7 +170,11 @@
     "welcomeBody": "{season}の基本の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。\nほかに、ミッションで種が手に入るチャレンジ野菜が{m}種類あります。",
     "toFarm": "はたけへ",
     "work": "{season}の畑しごと",
-    "workNote": "図鑑の「季節のバッジ」を押すと、いつでも読み返せます。"
+    "workNote": "図鑑の「季節のバッジ」を押すと、いつでも読み返せます。",
+    "certTitle": "賞　状",
+    "certText": "あなたは {icon}{season}の旬の野菜を\nぜんぶ育てて収穫しました",
+    "certStats": "これまでに {total}こ収穫　・　図鑑 {n}/{all}",
+    "certDate": "{y}年{m}月{d}日　はたけパズル"
   },
   "howto": {
     "title": "{name}の育て方",

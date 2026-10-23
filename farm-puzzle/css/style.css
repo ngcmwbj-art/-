@@ -1082,6 +1082,21 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .howto-steps li.now { background: #fdf0dc; border-radius: 8px; box-shadow: 0 0 0 2px #f3cf9f; }
 .now-tag { display: inline-block; margin: 0 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.72rem; font-weight: bold; vertical-align: 1px; }
 
+/* 季節コンプの賞状（ふち飾りは季節の色） */
+.certificate {
+  margin: 0 auto 12px; padding: 14px 12px; max-width: 320px; text-align: center;
+  background: #fffdf6; border: 3px double #d9b56a; border-radius: 10px;
+  box-shadow: inset 0 0 0 6px #fffdf6, inset 0 0 0 7px #ecd9a8;
+}
+.cert-title { font-size: 1.4rem; font-weight: bold; letter-spacing: 0.4em; color: #a8622a; margin-bottom: 6px; }
+.cert-text { white-space: pre-line; line-height: 1.7; font-weight: bold; }
+.certificate .season-complete-vegs { margin: 8px 0; }
+.cert-stats { font-size: 0.85rem; color: var(--green-dark); font-weight: bold; }
+.cert-date { margin-top: 6px; font-size: 0.78rem; color: var(--sub); }
+/* 育て方カード：読みがなで行がつまらないように */
+.howto-row dd ruby rt { font-size: 0.55em; }
+.howto-row dd { line-height: 1.9; }
+
 /* 季節の畑しごと */
 .season-work-note { margin: 8px 0 0; font-size: 0.8rem; color: var(--sub); }
 .season-work { margin-top: 12px; text-align: left; background: #f6f9ef; border-radius: 12px; padding: 10px 12px; }

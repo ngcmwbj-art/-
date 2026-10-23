@@ -180,11 +180,21 @@
   });
 
   function celebrateSeason({ done, next, vegs }) {
+    const today = new Date();
     Sound.play('harvest', 5);
     Modal.open({
       title: Msg.t('season.completeTitle', { icon: done.icon, season: done.name }),
       body: h('div', { class: 'season-complete' },
-        h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
+        // 賞状：ふち飾りの中に、そろえた野菜・日付・これまでの収穫数・図鑑の登録数（スクショして見せたくなるように）
+        h('div', { class: 'certificate' },
+          h('div', { class: 'cert-title' }, Msg.t('season.certTitle')),
+          h('div', { class: 'cert-text' }, Msg.t('season.certText', { icon: done.icon, season: done.name })),
+          h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
+          h('div', { class: 'cert-stats' }, Msg.t('season.certStats', {
+            total: Object.values(save.harvested).reduce((a, b) => a + b, 0),
+            n: Object.keys(save.harvested).length, all: config.vegetables.length,
+          })),
+          h('div', { class: 'cert-date' }, Msg.t('season.certDate', { y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate() }))),
         h('p', {}, Msg.t('season.completeBody', { done: done.name, icon: next.icon, season: next.name }))
       ),
       buttons: [{ label: Msg.t('season.toNext', { icon: next.icon, season: next.name }), primary: true, onClick: () => welcomeSeason(next) }],

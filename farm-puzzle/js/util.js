@@ -57,7 +57,11 @@ const Msg = (() => {
 
   // 読みがな付きで取り出す（ボタンや見出し用。要素のまとまりを返す）
   function rich(key, vars = {}) {
-    const text = raw(key, vars);
+    return richText(raw(key, vars));
+  }
+
+  // {語|よみ} の入った文（data/vegetables.json のコツなど）を、読みがな付きの要素にする
+  function richText(text) {
     const frag = document.createDocumentFragment();
     let last = 0;
     text.replace(RUBY, (m, word, reading, at) => {
@@ -91,7 +95,12 @@ const Msg = (() => {
     });
   }
 
-  return { init, t, rich, get, setRuby, applyToDom };
+  // {語|よみ} の入った文から、読みがなを外したただの文字にする（お知らせなど）
+  function plain(text) {
+    return String(text).replace(RUBY, '$1');
+  }
+
+  return { init, t, rich, richText, plain, get, setRuby, applyToDom };
 })();
 
 /* ---------- ダイアログ ---------- */

@@ -266,6 +266,8 @@ const Farm = (() => {
     let text = single
       ? Msg.t('farm.harvested', { name: single.name, coins, coin })
       : Msg.t('farm.harvestedMany', { n: indices.length, coins, coin });
+    // 初めての野菜があれば、同じ行に図鑑の登録数（集める目標が見えるように）
+    if (firsts.length) text += Msg.t('farm.zukanCount', { n: Object.keys(data.harvested).length, total: cfg.vegetables.length });
     if (bonusAny) text += '\n' + Msg.t('farm.seasonBonus');
     if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
     // 旬の残りが1種になったら、ゴールが近いことを知らせる（その野菜の名前も）
@@ -312,7 +314,7 @@ const Farm = (() => {
   // 種まきのときは、育てる前に知っておきたい「失敗しないコツ」も1行（data の mistake。ある野菜だけ）
   function tellStep(v, step) {
     const text = v.steps[step];
-    const tip = step === 'sow' && v.mistake ? v.mistake : '';
+    const tip = step === 'sow' && v.mistake ? Msg.plain(v.mistake) : '';
     const word = (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && (text + tip).includes(w.term));
     let msg = `${Msg.t('farm.stepNames.' + step)}：${text}`;
     if (tip) msg += '\n' + Msg.t('farm.mistake', { text: tip });
@@ -578,6 +580,8 @@ const Farm = (() => {
     vegs.forEach((v) => {
       v.tips.forEach((t) => pool.push({ v, t }));
       pool.push({ v, t: v.guide.point });
+      if (v.mistake) pool.push({ v, t: Msg.t('farm.mistake', { text: v.mistake }) });
+      if (v.eat) pool.push({ v, t: Msg.t('farm.eat', { text: v.eat }) });
     });
     const d = new Date();
     const n = (d.getFullYear() * 400 + (d.getMonth() + 1) * 32 + d.getDate() + data.seasonIndex * 7) % pool.length;
@@ -586,7 +590,7 @@ const Farm = (() => {
       h('span', { class: 'daily-icon' }, vegIcon(v)),
       h('div', { class: 'daily-body' },
         h('div', { class: 'daily-title' }, Msg.t('daily.title', { name: v.name })),
-        h('div', { class: 'daily-text' }, t),
+        h('div', { class: 'daily-text' }, Msg.richText(t)),
         h('div', { class: 'daily-actions' },
           h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open')),
           h('button', { class: 'link-btn sub', type: 'button', onclick: () => { data.tipHiddenDay = todayKey(); changed(); } }, Msg.t('daily.hideToday')))),

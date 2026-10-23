@@ -40,8 +40,9 @@ const HowTo = (() => {
         row(Msg.t('howto.sun'), g.sun),
         row(Msg.t('howto.plant'), g.plant),
         row(Msg.t('howto.pests'), g.pests),
-        row(Msg.t('howto.point'), g.point),
-        v.mistake ? row(Msg.t('howto.mistake'), v.mistake) : null,
+        // コツの2行は、むずかしい言葉に読みがな（設定で消せる）
+        row(Msg.t('howto.point'), Msg.richText(g.point)),
+        v.mistake ? row(Msg.t('howto.mistake'), Msg.richText(v.mistake)) : null,
         v.family ? row(Msg.t('howto.family'), familyText(v)) : null,
         v.eat ? row(Msg.t('howto.eat'), v.eat) : null
       ),
