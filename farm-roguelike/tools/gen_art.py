@@ -8,7 +8,7 @@ OUT = sys.argv[1]
 LINE = '#3a2c22'
 N = [0]
 
-def cel(d, base, shade, off=(-5, -6), hi=None, lw=2.4, extra=''):
+def cel(d, base, shade, off=(-5, -6), hi=None, lw=2.4, extra='', tf=None):
     """1つの部品をアニメ塗りで描く。d はパス、base は地の色、shade は影の色"""
     N[0] += 1
     cid = f'c{N[0]}'
@@ -19,6 +19,8 @@ def cel(d, base, shade, off=(-5, -6), hi=None, lw=2.4, extra=''):
         s += hi
     s += extra + '</g>'
     s += f'<path d="{d}" fill="none" stroke="{LINE}" stroke-width="{lw}" stroke-linejoin="round"/>'
+    if tf:
+        s = f'<g transform="{tf}">{s}</g>'
     return s
 
 def line(d, w=2.2, color=LINE):
@@ -38,7 +40,10 @@ def eye_s(x, y, r=2.6, iris='#1c1612'):
 
 def svg(name, body):
     s = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">\n'
-         f'<!-- {name}：アニメ塗り（tools/gen_art.py で生成） -->\n{body}\n</svg>\n')
+         f'<!-- {name}：アニメ塗り（tools/gen_art.py で生成） -->\n'
+         '<defs><filter id="mute"><feColorMatrix type="saturate" values=".72"/>'
+         '<feComponentTransfer><feFuncR type="linear" slope=".93"/><feFuncG type="linear" slope=".93"/><feFuncB type="linear" slope=".9"/></feComponentTransfer></filter></defs>\n'
+         f'<g filter="url(#mute)">{body}</g>\n</svg>\n')
     open(os.path.join(OUT, name + '.svg'), 'w').write(s)
 
 # ── カラス：紺がかった黒、羽に青い光 ─────────────
@@ -166,4 +171,66 @@ svg('boar',
   cel('M96 74 C102 80 110 76 112 66 C108 72 104 74 99 72Z', '#efe6cf', '#c2b494', off=(-1, -1), lw=1.8) +
   eye_s(88, 52, 2.4, '#7a2e14')
 )
+SOIL = cel('M18 100 C24 90 96 90 102 100 C96 107 24 107 18 100Z', '#5a4330', '#3d2d20', off=(-3, -4))
+
+# ── 小松菜：まっすぐ立つさじ形の葉の束 ──────────────
+LEAF = 'M60 98 C58 80 52 62 48 46 C44 30 56 22 62 32 C66 42 63 70 62 98Z'
+svg('komatsuna', SOIL + ''.join(
+  cel(LEAF, '#5f9a44', '#3d6e2c', off=(-3, -4), tf=f'rotate({a} 60 98)',
+      extra=line('M61 96 C60 80 58 60 55 40', 1.4, '#2f5a22'))
+  for a in (-34, 30, -14, 14, 0)))
+
+# ── トマト：支柱・葉・赤い実 ─────────────────────
+def tomato_fruit(x, y, r):
+    return (cel(f'M{x-r} {y} C{x-r} {y-r*1.1} {x+r} {y-r*1.1} {x+r} {y} C{x+r} {y+r*1.1} {x-r} {y+r*1.1} {x-r} {y}Z', '#c8482e', '#8f2b1a', off=(-3, -3),
+                hi=f'<ellipse cx="{x-r*.35:.1f}" cy="{y-r*.4:.1f}" rx="{r*.25:.1f}" ry="{r*.15:.1f}" fill="#f2b49a"/>') +
+            f'<path d="M{x-5} {y-r+1} L{x} {y-r-3} L{x+5} {y-r+1} L{x} {y-r+3}Z" fill="#4f7a34" stroke="{LINE}" stroke-width="1.2"/>')
+svg('tomato', SOIL +
+  line('M74 100 L74 18', 5, LINE) + line('M74 100 L74 18', 3, '#9c7a52') +
+  line('M60 100 C60 80 58 60 62 30', 3.4, '#3d6e2c') +
+  cel('M60 50 C46 46 34 52 30 60 C42 62 52 58 60 50Z', '#5f9a44', '#3d6e2c', off=(-2, -3)) +
+  cel('M62 38 C74 30 88 34 92 42 C80 46 70 44 62 38Z', '#5f9a44', '#3d6e2c', off=(-2, -3)) +
+  cel('M60 72 C72 66 86 70 90 78 C78 82 68 80 60 72Z', '#5f9a44', '#3d6e2c', off=(-2, -3)) +
+  tomato_fruit(46, 70, 10) + tomato_fruit(76, 56, 9) + tomato_fruit(62, 86, 9))
+
+# ── マルチ：黒いフィルムをかけた畝と、穴から出る芽 ─────────
+svg('mulch',
+  cel('M8 100 C14 92 106 92 112 100 C106 108 14 108 8 100Z', '#5a4330', '#3d2d20', off=(-3, -4)) +
+  cel('M12 98 C18 66 102 66 108 98Z', '#2c2c30', '#151518', off=(-5, -6),
+      hi='<path d="M24 84 C40 72 70 70 92 78" stroke="#6a6c78" stroke-width="2.4" fill="none" stroke-linecap="round"/>') +
+  ''.join(f'<ellipse cx="{x}" cy="{y}" rx="6" ry="3" fill="#5a4330" stroke="{LINE}" stroke-width="1.2"/>' +
+          cel(f'M{x} {y} C{x-8} {y-4} {x-10} {y-12} {x-6} {y-14} C{x-2} {y-10} {x} {y-6} {x} {y}Z', '#7fae55', '#4f7a34', off=(-1, -2), lw=1.4) +
+          cel(f'M{x} {y} C{x+8} {y-4} {x+10} {y-12} {x+6} {y-14} C{x+2} {y-10} {x} {y-6} {x} {y}Z', '#7fae55', '#4f7a34', off=(-1, -2), lw=1.4)
+          for x, y in [(36, 82), (60, 76), (84, 82)]))
+
+# ── 種袋 ─────────────────────────────────
+svg('seeds',
+  cel('M32 42 L80 42 L86 100 L26 100Z', '#cdb68a', '#a08a62', off=(-5, -5)) +
+  cel('M32 42 L80 42 L76 30 L36 30Z', '#b9a274', '#8f7a52', off=(-2, -2)) +
+  '<rect x="40" y="56" width="32" height="32" fill="#efe6cf" stroke="' + LINE + '" stroke-width="1.6"/>' +
+  f'<text x="56" y="80" font-size="22" font-family="serif" font-weight="700" text-anchor="middle" fill="{LINE}">種</text>' +
+  ''.join(f'<ellipse cx="{x}" cy="{y}" rx="3.2" ry="2.2" fill="#7a5a36" stroke="{LINE}" stroke-width="1" transform="rotate({r} {x} {y})"/>'
+          for x, y, r in [(92, 102, 20), (100, 98, -30), (96, 92, 50), (106, 104, 0), (88, 96, -10)]))
+
+# ── 肥料の袋 ────────────────────────────────
+svg('fertilizer',
+  cel('M30 46 C26 36 38 30 46 38 L70 38 C78 30 90 36 86 46 L94 102 L22 102Z', '#c2ad84', '#94805c', off=(-6, -6)) +
+  line('M44 40 C52 34 64 34 72 40', 2.4) +
+  '<rect x="38" y="58" width="40" height="32" fill="#e7dcc0" stroke="' + LINE + '" stroke-width="1.6"/>' +
+  f'<text x="58" y="82" font-size="22" font-family="serif" font-weight="700" text-anchor="middle" fill="#6e2a1c">肥</text>')
+
+# ── 堆肥づくり：湯気の立つ堆肥の山とフォーク ─────────────
+svg('compost',
+  line('M88 102 L100 34', 4.6, LINE) + line('M88 102 L100 34', 2.6, '#9c7a52') +
+  line('M94 36 L98 22 M100 34 L104 22 M106 36 L110 24 M94 36 L106 36', 2, '#6a6e74') +
+  cel('M10 102 C20 64 42 48 58 48 C76 48 94 66 102 102Z', '#5a4330', '#3a2a1c', off=(-6, -7),
+      extra=''.join(f'<path d="M{x} {y} l6 -2" stroke="#8a6a3a" stroke-width="2" stroke-linecap="round"/>' for x, y in [(30, 84), (46, 70), (62, 78), (52, 92), (76, 88), (40, 96)])) +
+  line('M44 40 C38 32 48 26 42 16 M60 38 C54 28 66 22 60 12 M76 42 C70 34 80 28 74 18', 2.2, '#b9b4a8'))
+
+# ── 果樹（柿の木） ─────────────────────────────
+svg('fruittree', SOIL +
+  cel('M54 100 C56 84 56 70 52 58 L66 58 C62 70 62 84 66 100Z', '#5a4330', '#3a2a1c', off=(-2, -2)) +
+  cel('M18 52 C14 30 36 14 60 16 C86 14 106 32 100 54 C98 70 78 74 60 70 C40 74 20 68 18 52Z', '#4f6b3a', '#334a26', off=(-6, -7)) +
+  ''.join(cel(f'M{x-6} {y} C{x-6} {y-7} {x+6} {y-7} {x+6} {y} C{x+6} {y+6} {x-6} {y+6} {x-6} {y}Z', '#d9822e', '#a45a1a', off=(-2, -2), lw=1.6)
+          for x, y in [(36, 42), (58, 32), (80, 46), (48, 58), (72, 60), (88, 30)]))
 print('ok')

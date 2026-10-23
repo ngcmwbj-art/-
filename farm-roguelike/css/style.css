@@ -1,0 +1,300 @@
+/* =========================================================
+   見た目
+   - 色・大きさは :root にまとめてある。ここを変えると全体が変わる
+   - 方向性：もののけ姫のようなシリアスなタッチ（墨・苔・藍・朱・古い和紙）
+   ========================================================= */
+:root {
+  --paper: #e9dfc6;
+  --ink: #241c15;
+  --ink-soft: #5e5040;
+  --panel: rgba(22, 20, 16, .74);
+  --panel-line: rgba(214, 190, 140, .45);
+  --panel-text: #efe4c8;
+  --panel-text-soft: #c9bc9c;
+  --gold: #e8c27a;
+  --attack: #b5503a;
+  --energy: #d9a441;
+  --enemy-bar: linear-gradient(180deg, #c0563c, #7e2a1c);
+  --hp-bar: linear-gradient(180deg, #8fae5a, #4f6f2e);
+  --mincho: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  /* カードの幅（スマホ 84px 〜 iPad・PC 140px）。カードの中身はこれを基準に大きさが決まる */
+  --cw: clamp(80px, 20vw, 136px);
+}
+@media (max-height: 700px) { :root { --cw: clamp(74px, 18.5vw, 120px); } }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--gothic);
+  color: var(--panel-text);
+  background: #2c3b44;
+  overflow: hidden;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+img { -webkit-user-drag: none; }
+
+/* ── 背景 ───────────────────────────────────── */
+.scene { position: fixed; inset: 0; z-index: 0; }
+.scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; }
+
+/* ── 画面の切り替え ─────────────────────────────── */
+.screen { display: none; position: fixed; inset: 0; z-index: 1; }
+.screen.active { display: block; }
+
+/* ── 共通の部品 ─────────────────────────────────── */
+.btn {
+  font-family: var(--mincho); font-weight: 700; font-size: 17px; letter-spacing: .12em;
+  color: var(--panel-text); background: linear-gradient(180deg, #3e3124, #241b13);
+  border: 1px solid #c79a5c; border-radius: 3px; padding: 12px 22px; min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .45);
+}
+.btn.primary { background: linear-gradient(180deg, #8e3422, #5e1f13); border-color: #e0b06c; }
+.btn.danger { background: linear-gradient(180deg, #5a2219, #3a140e); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn:not(:disabled):active { transform: translateY(1px); }
+
+.bar { height: 8px; border: 1px solid var(--panel-line); border-radius: 1px; background: rgba(0, 0, 0, .45); overflow: hidden; }
+.bar > b { display: block; height: 100%; transition: width .35s ease; }
+
+.panel-page {
+  position: absolute; inset: 0; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(15, 14, 11, .55), rgba(15, 14, 11, .78));
+}
+.page-title { font-family: var(--mincho); font-weight: 800; font-size: 24px; letter-spacing: .2em; margin-top: 12px; text-shadow: 0 2px 8px #000; }
+
+/* ── タイトル ──────────────────────────────────── */
+.title-wrap {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  background: radial-gradient(ellipse at 50% 40%, rgba(10, 10, 8, .15), rgba(10, 10, 8, .7));
+  padding: 24px 16px; text-align: center;
+}
+.title-sub { font-family: var(--mincho); letter-spacing: .5em; color: var(--panel-text-soft); font-size: 15px; }
+.game-title {
+  font-family: var(--mincho); font-weight: 800; font-size: clamp(40px, 11vw, 76px); letter-spacing: .18em;
+  color: #f3e6c8; text-shadow: 0 0 24px rgba(0, 0, 0, .8), 0 3px 0 #000;
+}
+.title-buttons { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.title-best { font-family: var(--mincho); color: var(--gold); min-height: 1.2em; }
+.title-note { font-size: 12px; color: var(--panel-text-soft); }
+
+/* ── 農家タイプ選択 ────────────────────────────── */
+.farmer-list { display: grid; gap: 12px; width: 100%; max-width: 520px; }
+.farmer {
+  display: flex; gap: 12px; align-items: center; text-align: left;
+  background: var(--panel); border: 1px solid var(--panel-line); border-radius: 4px; padding: 12px;
+}
+.farmer:not(.locked):hover, .farmer:not(.locked):focus-visible { border-color: var(--gold); box-shadow: 0 0 14px rgba(232, 194, 122, .35); }
+.farmer.locked { opacity: .5; cursor: default; }
+.farmer-art { flex: none; width: 76px; height: 76px; background: #d9cfb4; border: 1px solid var(--ink); display: grid; place-items: center; }
+.farmer-art img { width: 70px; height: 70px; }
+.farmer-body { display: grid; gap: 4px; }
+.farmer-name { font-family: var(--mincho); font-weight: 800; font-size: 19px; letter-spacing: .1em; }
+.farmer-name em { font-style: normal; font-size: 12px; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--panel-line); color: var(--panel-text-soft); }
+.farmer-text { font-size: 13px; line-height: 1.5; color: var(--panel-text-soft); }
+.farmer-hp { font-size: 12px; color: #a9c38a; }
+
+/* ── 戦闘 ─────────────────────────────────────── */
+.battle {
+  height: 100%; height: 100dvh; max-width: 680px; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  padding: max(8px, env(safe-area-inset-top)) 10px max(6px, env(safe-area-inset-bottom));
+  gap: 7px;
+}
+.topbar, .player, .plate {
+  background: var(--panel); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  border: 1px solid var(--panel-line); border-radius: 4px;
+}
+.topbar { display: flex; align-items: center; gap: 10px; padding: 5px 8px 5px 12px; font-family: var(--mincho); }
+.topbar .season { font-size: 16px; font-weight: 700; letter-spacing: .15em; margin-right: auto; }
+.topbar .gold b { font-size: 16px; color: var(--gold); }
+.relics { display: flex; gap: 4px; }
+.relic { width: 30px; height: 30px; padding: 0; background: #d9cfb4; border: 1px solid var(--gold); border-radius: 50%; overflow: hidden; display: grid; place-items: center; }
+.relic img { width: 26px; height: 26px; }
+.icon-btn { font-family: var(--mincho); font-size: 13px; background: rgba(0, 0, 0, .3); border: 1px solid var(--panel-line); border-radius: 3px; padding: 4px 8px; }
+
+/* 敵 */
+.enemy-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 0; cursor: default; }
+.intent {
+  display: inline-flex; gap: 8px; align-items: baseline;
+  background: #7e2a1c; color: #f3e6c8; border: 1px solid #d6a86a; border-radius: 2px; padding: 2px 12px;
+  font-family: var(--mincho); font-weight: 800; font-size: 15px; box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+}
+.intent .intent-value { font-size: 18px; }
+.intent.steal { background: #5a3a1a; }
+.intent.buff { background: #3a3a52; }
+.intent.hidden { visibility: hidden; }
+.enemy-art { width: clamp(110px, 22vh, 280px); height: clamp(110px, 22vh, 280px); position: relative; flex-shrink: 1; min-height: 80px; }
+.enemy-art img { width: 100%; height: 100%; }
+.enemy-art::after { content: ""; position: absolute; bottom: 6%; left: 25%; right: 25%; height: 8%; background: rgba(0, 0, 0, .35); border-radius: 50%; z-index: -1; }
+.enemy-area.defeated .enemy-art { animation: defeated .8s ease forwards; }
+.plate { display: grid; justify-items: center; gap: 3px; padding: 4px 14px 5px; min-width: 170px; }
+.enemy-name { font-family: var(--mincho); font-weight: 800; font-size: 17px; letter-spacing: .12em; }
+.plate .bar { width: 150px; }
+.plate .bar > b { background: var(--enemy-bar); }
+.bar-label { font-size: 12px; color: var(--panel-text-soft); }
+.bar-label .str { color: #e08a6a; margin-left: 4px; }
+
+/* 畑 */
+.field { display: grid; gap: 6px; max-width: 420px; width: 100%; justify-self: center; }
+.plot {
+  height: clamp(54px, 9vh, 84px); border-radius: 3px; position: relative; display: grid; place-items: center;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .12) 0 3px, transparent 3px 9px), linear-gradient(180deg, #4a3826, #2e2219);
+  border: 1px solid var(--panel-line); box-shadow: inset 0 4px 6px rgba(0, 0, 0, .3);
+}
+.plot img { width: auto; height: clamp(44px, 7.4vh, 70px); }
+.plot small { position: absolute; bottom: 2px; right: 5px; font-size: 11px; color: #f0dca8; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.plot .crop-name { position: absolute; top: 2px; left: 5px; font-size: 10px; color: var(--panel-text-soft); text-shadow: 0 1px 2px #000; }
+.plot.empty small { left: 0; right: 0; text-align: center; bottom: auto; color: rgba(233, 223, 198, .35); font-weight: 500; }
+.plot.ripe { box-shadow: inset 0 4px 6px rgba(0, 0, 0, .3), 0 0 0 1px var(--gold), 0 0 12px rgba(240, 190, 90, .6); }
+.pulse-plant, .pulse-grow { animation: pulse .5s ease; }
+.pulse-harvest { animation: harvested .6s ease; }
+.pulse-stolen { animation: stolen .6s ease; }
+
+/* プレイヤー */
+.player { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; }
+.energy {
+  width: 46px; height: 46px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 40% 35%, #fff1c0, var(--energy) 55%, #7a4a14);
+  border: 1px solid #f0d29a; display: grid; place-items: center; color: #2a1a08;
+  font-family: var(--mincho); font-size: 22px; font-weight: 800; box-shadow: 0 0 16px rgba(240, 180, 80, .55);
+}
+.hp-wrap { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.hp-text { font-size: 13px; display: flex; justify-content: space-between; gap: 6px; }
+.hp-wrap .bar > b { background: var(--hp-bar); }
+.block { color: #a9c3d2; font-weight: 700; font-family: var(--mincho); }
+.sub-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.statuses { display: flex; gap: 4px; margin-right: auto; flex-wrap: wrap; }
+.status { font-size: 11px; padding: 0 6px; border: 1px solid #7e9a5a; color: #cfe0b0; border-radius: 2px; }
+.pile { font-size: 11px; background: rgba(0, 0, 0, .3); border: 1px solid var(--panel-line); border-radius: 2px; padding: 1px 6px; color: var(--panel-text-soft); }
+.pile b { color: var(--panel-text); }
+.end-turn {
+  font-family: var(--mincho); font-weight: 700; font-size: 15px; color: #f3e6c8; line-height: 1.25;
+  background: linear-gradient(180deg, #4a3a2a, #2a2018); border: 1px solid #d6a86a; border-radius: 3px;
+  padding: 8px 12px; box-shadow: 0 3px 8px rgba(0, 0, 0, .45); flex: none;
+}
+.end-turn:disabled { opacity: .45; }
+
+/* ── カード ────────────────────────────────────── */
+.card {
+  --rot: 0deg; --ty: 0px; --dx: 0px; --dy: 0px;
+  width: var(--cw); height: calc(var(--cw) * 1.5); flex: none; position: relative;
+  background: linear-gradient(160deg, #efe6cf, var(--paper) 60%, #d9cba8);
+  border: 1px solid #3a2c20; outline: 3px solid rgba(36, 28, 21, .85); outline-offset: -6px; border-radius: 3px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .5);
+  display: grid; grid-template-rows: auto auto auto 1fr; color: var(--ink);
+  cursor: pointer; touch-action: none;
+}
+.card .cost {
+  position: absolute; top: -8px; left: -8px; width: calc(var(--cw) * .26); height: calc(var(--cw) * .26); min-width: 24px; min-height: 24px;
+  border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff1c0, var(--energy) 60%, #7a4a14);
+  border: 1px solid #241c15; display: grid; place-items: center; z-index: 1;
+  font-family: var(--mincho); font-weight: 800; font-size: calc(var(--cw) * .15); color: #2a1a08;
+}
+.card .name { font-family: var(--mincho); font-weight: 800; font-size: calc(var(--cw) * .13); text-align: center; padding-top: calc(var(--cw) * .07); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.card.upgraded .name { color: #4f6f2e; }
+.card .art { margin: calc(var(--cw) * .03) calc(var(--cw) * .09) 0; height: calc(var(--cw) * .5); border: 1px solid var(--ink); display: grid; place-items: center; background: #d6cfb8; }
+.card .art img { width: auto; height: calc(var(--cw) * .46); }
+.card.type-attack .art { background: #e2c2b0; }
+.card.type-skill .art { background: #c6cfd2; }
+.card.type-crop .art { background: #cfd6b4; }
+.card.type-growth .art { background: #c9d8c0; }
+.card.type-power .art { background: #d8cba0; }
+.card .kind { font-size: calc(var(--cw) * .085); text-align: center; color: var(--ink-soft); letter-spacing: .2em; margin-top: 2px; }
+.card .text { font-size: calc(var(--cw) * .1); line-height: 1.35; text-align: center; padding: 0 calc(var(--cw) * .08) 4px; overflow: hidden; }
+
+/* 手札（扇形） */
+.hand {
+  display: flex; justify-content: center; align-items: flex-start;
+  height: calc(var(--cw) * 1.5 + 30px); padding-top: 8px; position: relative;
+}
+.hand .card {
+  margin: 0 calc(var(--cw) * -.16);
+  transform: translateY(var(--ty)) rotate(var(--rot));
+  transform-origin: 50% 140%;
+  transition: transform .18s ease, filter .18s ease;
+  z-index: var(--z);
+}
+.hand .card.selected { transform: translateY(calc(var(--ty) - 18px)) rotate(0deg) scale(1.1); z-index: 40; box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(240, 190, 90, .55), 0 10px 20px rgba(0, 0, 0, .5); }
+.hand .card.selected::after {
+  content: "もう一度タップで使う"; position: absolute; left: 4px; right: 4px; bottom: 4px; text-align: center;
+  white-space: nowrap; font-size: calc(var(--cw) * .085); color: #f3e6c8; background: #7e2a1c; padding: 2px 0; border-radius: 1px;
+}
+.hand .card.dragging { transition: none; transform: translate(var(--dx), var(--dy)) scale(1.1); z-index: 50; }
+.hand .card.dragging::after { content: "上で離すと使う"; position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -6px); white-space: nowrap; font-size: 11px; color: var(--panel-text); background: var(--panel); padding: 1px 6px; }
+.hand .card.will-play { box-shadow: 0 0 0 3px var(--gold), 0 0 26px rgba(240, 190, 90, .8); }
+.card.unplayable { filter: brightness(.62) saturate(.5); }
+.card.unplayable .cost { background: radial-gradient(circle at 40% 35%, #f0b0a0, #a8442f 60%, #5a1a10); }
+.hand.discarding .card { transform: translateY(160%) rotate(var(--rot)); opacity: 0; transition: transform .35s ease-in, opacity .35s; }
+
+/* ── 報酬・経営評価 ──────────────────────────────── */
+.reward-gold { font-family: var(--mincho); color: var(--gold); font-size: 16px; text-align: center; }
+.reward-lead { font-size: 14px; color: var(--panel-text-soft); }
+.reward-cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; --cw: clamp(96px, 27vw, 150px); padding: 10px 0; }
+.reward-cards .card.selected { transform: translateY(-8px) scale(1.04); box-shadow: 0 0 0 2px var(--gold), 0 0 22px rgba(240, 190, 90, .6); }
+.reward-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.reward-status { font-size: 12px; color: var(--panel-text-soft); }
+.result-lead { font-family: var(--mincho); text-align: center; line-height: 1.7; }
+.result-rank { font-family: var(--mincho); font-weight: 800; font-size: 84px; color: var(--gold); text-shadow: 0 0 24px rgba(232, 194, 122, .5); line-height: 1; }
+.result-title { font-family: var(--mincho); font-size: 18px; letter-spacing: .15em; }
+.result-total { font-size: 15px; color: var(--panel-text-soft); }
+.result-parts { border-collapse: collapse; min-width: 260px; background: var(--panel); border: 1px solid var(--panel-line); }
+.result-parts th, .result-parts td { padding: 6px 12px; border-bottom: 1px solid rgba(214, 190, 140, .2); text-align: right; font-size: 14px; }
+.result-parts th { text-align: left; font-weight: 500; color: var(--panel-text-soft); }
+.result-parts td.minus { color: #e08a6a; }
+
+/* ── ダイアログ・お知らせ ───────────────────────────── */
+#modal { position: fixed; inset: 0; z-index: 100; display: none; background: rgba(0, 0, 0, .6); padding: 16px; }
+#modal.open { display: grid; place-items: center; }
+.modal-box { width: 100%; max-width: 620px; max-height: 86vh; overflow: auto; background: #1d1a15; border: 1px solid var(--panel-line); border-radius: 4px; padding: 14px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.modal-title { font-family: var(--mincho); font-weight: 800; letter-spacing: .1em; }
+.modal-close { background: none; border: 1px solid var(--panel-line); padding: 3px 10px; border-radius: 2px; font-size: 13px; }
+.card-list { display: flex; flex-wrap: wrap; gap: 12px 8px; justify-content: center; --cw: clamp(80px, 22vw, 110px); padding-top: 8px; }
+.card-list .card { cursor: default; }
+.menu-note, .relic-text { color: var(--panel-text-soft); font-size: 14px; line-height: 1.6; }
+.menu-actions { margin-top: 16px; display: flex; justify-content: center; }
+
+#toast {
+  position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 90;
+  background: rgba(15, 13, 10, .88); border: 1px solid var(--panel-line); color: var(--panel-text);
+  font-family: var(--mincho); font-weight: 700; letter-spacing: .08em; padding: 8px 18px; border-radius: 2px;
+  opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; text-align: center; font-size: 15px;
+}
+#toast.show { opacity: 1; }
+#toast.warn { border-color: #c0563c; }
+#toast.stolen { border-color: #c0563c; color: #f0b0a0; }
+#toast.harvest { border-color: var(--gold); color: var(--gold); }
+
+/* 浮き上がる数字 */
+.float-text {
+  position: fixed; z-index: 80; transform: translate(-50%, 0); pointer-events: none;
+  font-family: var(--mincho); font-weight: 800; font-size: 26px; text-shadow: 0 2px 4px #000, 0 0 2px #000;
+  animation: floatUp 1.1s ease-out both;
+}
+.float-text.damage.enemy { color: #ffe0b0; }
+.float-text.damage.player { color: #ff8a6a; }
+.float-text.block, .float-text.blocked { color: #b8d4e4; font-size: 18px; }
+.float-text.gold { color: var(--gold); font-size: 18px; }
+.float-text.heal { color: #b8e08a; }
+.float-text.buff { color: #e08a6a; font-size: 18px; }
+
+/* ── 動き ──────────────────────────────────────── */
+@keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50px); } }
+@keyframes shakeX { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+.shake { animation: shakeX .35s ease; }
+.lunge { animation: lunge .45s ease; }
+@keyframes lunge { 0%, 100% { transform: translateY(0) scale(1); } 40% { transform: translateY(18px) scale(1.12); } }
+@keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes harvested { 0% { box-shadow: 0 0 0 0 rgba(240, 190, 90, .9); } 100% { box-shadow: 0 0 0 16px rgba(240, 190, 90, 0); } }
+@keyframes stolen { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-5px); background: #5a1a10; } 60% { transform: translateX(4px); } }
+@keyframes defeated { to { opacity: 0; transform: translateY(-20px) scale(.9); filter: blur(2px); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
