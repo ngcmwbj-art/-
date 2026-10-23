@@ -11,7 +11,8 @@ FR.Art = {
     // 農家（戦闘で左に立つ）
     farmer_vegetable: 'farmer_vegetable.svg', farmer_livestock: 'farmer_livestock.svg', farmer_citrus: 'farmer_citrus.svg',
     // 敵
-    crow: 'crow.svg', boar: 'boar.svg',
+    crow: 'crow.svg', boar: 'boar.svg', aphids: 'aphids.svg', weeds: 'weeds.svg', blast: 'blast.svg',
+    avianflu: 'avianflu.svg', frost: 'frost.svg', drought: 'drought.svg', typhoon: 'typhoon.svg',
     // 家畜
     calf: 'calf.svg', piglet: 'piglet.svg', chick: 'chick.svg', hen: 'hen.svg', dog: 'dog.svg',
     // 野菜

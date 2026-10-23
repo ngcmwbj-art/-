@@ -14,6 +14,11 @@ FR.BattleView = {
     steal: '<path d="M6 4 C4 10 6 14 10 18 M12 3 C11 9 12 14 14 18 M18 4 C19 10 18 14 16 19" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
     trample: '<path d="M5 9 C5 5 10 5 10 9 L10 15 C10 19 5 19 5 15Z M14 9 C14 5 19 5 19 9 L19 15 C19 19 14 19 14 15Z" fill="currentColor"/>',
     buff: '<path d="M12 3 L20 12 L15 12 L15 21 L9 21 L9 12 L4 12Z" fill="currentColor"/>',
+    blight: '<path d="M12 21 L12 11 C12 6 8 4 4 5 C4 10 7 12 12 12 M12 15 C14 11 18 11 21 13 C19 17 15 17 12 15" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity=".35" stroke-linejoin="round"/><path d="M6 19 L9 22 M18 19 L15 22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    debuff: '<path d="M12 21 L4 12 L9 12 L9 3 L15 3 L15 12 L20 12Z" fill="currentColor"/>',
+    curse: '<rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="currentColor"/><circle cx="14.5" cy="14" r="2.4" fill="currentColor"/><circle cx="9" cy="16" r="1.4" fill="currentColor"/>',
+    infect: '<circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 2 L12 6 M12 18 L12 22 M2 12 L6 12 M18 12 L22 12 M5 5 L8 8 M16 16 L19 19 M19 5 L16 8 M8 16 L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    heal: '<path d="M9 3 L15 3 L15 9 L21 9 L21 15 L15 15 L15 21 L9 21 L9 15 L3 15 L3 9 L9 9Z" fill="currentColor"/>',
     other: '<circle cx="12" cy="12" r="6" fill="currentColor"/>'
   },
   icon(kind) {
@@ -46,7 +51,7 @@ FR.BattleView = {
     $('b-block').hidden = !b.block;
     $('b-player').classList.toggle('has-block', !!b.block);
     $('b-statuses').innerHTML = Object.keys(b.statuses).filter(k => b.statuses[k] > 0 && FR.Statuses[k]).map(k =>
-      `<span class="status" title="${E(FR.Statuses[k].text)}" data-status="${k}">${E(FR.Statuses[k].name)}<b>${b.statuses[k]}</b></span>`).join('');
+      `<span class="status ${FR.Statuses[k].bad ? 'bad' : ''}" title="${E(FR.Statuses[k].text)}" data-status="${k}">${E(FR.Statuses[k].name)}<b>${b.statuses[k]}</b></span>`).join('');
 
     // 敵（左から順に。倒れた敵も場所は残して消えていく）
     const count = b.enemies.length;
@@ -58,6 +63,7 @@ FR.BattleView = {
         <div class="unit-art">${FR.Art.img(e.def.art, '', e.name)}</div>
         <div class="unit-bar"><div class="bar"><b style="width:${100 * e.hp / e.maxHp}%"></b><span>${e.hp}/${e.maxHp}</span></div></div>
         <div class="unit-name">${E(e.name)}${e.strength ? `<em>力${e.strength}</em>` : ''}</div>
+        ${e.turnsLeft && !e.dead ? `<div class="turns-left">あと${e.turnsLeft}ターンで過ぎ去る</div>` : ''}
       </div>`;
     }).join('');
 

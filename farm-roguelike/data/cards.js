@@ -476,7 +476,15 @@ FR.Cards = {
   }
 };
 
+/* ════════ 敵が混ぜてくる、役に立たないカード（報酬には出ない）════════ */
+FR.Cards.lesion = {
+  name: '病斑', type: 'status', cost: 0, rarity: 'status', pool: [], art: 'blast',
+  text: '使えない。この戦闘の間だけ山札に混ざる',
+  unplayable: true,
+  effects: []
+};
+
 // 種類の表示名
 FR.CardTypes = {
-  attack: '攻撃', skill: '守り', crop: '作物', growth: '成長', livestock: '畜産', machine: '機械', power: '常時'
+  attack: '攻撃', skill: '守り', crop: '作物', growth: '成長', livestock: '畜産', machine: '機械', power: '常時', status: '病'
 };

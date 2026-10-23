@@ -181,6 +181,8 @@ img { -webkit-user-drag: none; }
 .statuses { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; max-width: calc(var(--unit) * 1.1); margin-top: 2px; }
 .status { font-size: 10px; padding: 0 4px; background: rgba(20, 30, 14, .75); border: 1px solid #7e9a5a; color: #cfe0b0; border-radius: 2px; }
 .status b { margin-left: 2px; color: #fff; }
+.status.bad { background: rgba(60, 14, 8, .8); border-color: #c0563c; color: #f0b0a0; }
+.turns-left { font-size: 11px; color: #9fc3e8; text-shadow: 0 1px 3px #000; white-space: nowrap; }
 
 /* 予告：敵の頭上にアイコンと数字 */
 .intent { display: flex; align-items: center; gap: 2px; min-height: 26px; font-family: var(--mincho); font-weight: 800; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
@@ -190,6 +192,11 @@ img { -webkit-user-drag: none; }
 .intent.steal, .intent.trample { color: #e8c27a; }
 .intent.steal b, .intent.trample b { font-size: 13px; }
 .intent.buff { color: #9fc3e8; }
+.intent.blight { color: #c9b46a; }
+.intent.debuff { color: #c08ae0; }
+.intent.curse, .intent.infect { color: #b89ad0; }
+.intent.heal { color: #8fd08a; }
+.intent.blight b, .intent.debuff b, .intent.curse b, .intent.infect b { font-size: 13px; }
 
 /* 狙いを選んでいる間 */
 .stage.targeting .enemy-unit:not(.dead) .unit-art { animation: targetPulse 1s ease-in-out infinite; }
@@ -317,6 +324,8 @@ img { -webkit-user-drag: none; }
 .card.type-power .art { background: #d8cba0; }
 .card.type-livestock .art { background: #d9cbb4; }
 .card.type-machine .art { background: #c8c8c0; }
+.card.type-status { background: linear-gradient(160deg, #b9b0a0, #8a8070); }
+.card.type-status .art { background: #6e6a5e; }
 .card .kind { font-size: calc(var(--cw) * .085); text-align: center; color: var(--ink-soft); letter-spacing: .2em; margin-top: 2px; }
 .card .text { font-size: calc(var(--cw) * .1); line-height: 1.35; text-align: center; padding: 0 calc(var(--cw) * .08) 4px; overflow: hidden; }
 

@@ -4,6 +4,8 @@
    - 数字はスタック（重ねがけの数）
    - turnStart(b, n)：ターン開始時に起きること
    - clearAtTurnEnd：ターン終了でなくなる
+   - decay：ターン終了ごとに1ずつ減る（敵からかけられる悪い状態）
+   - bad：悪い状態（赤く表示）
    ========================================================= */
 FR.Statuses = {
   soil:       { name: '地力', text: '作物と木が育つたびに、この数だけ多く育つ' },
@@ -20,5 +22,9 @@ FR.Statuses = {
   contract:   { name: '契約', text: '出荷の銭が1.5倍（重ねるとさらに0.5倍ずつ）' },
   immune:     { name: '防疫', text: '家畜が病気にかからない' },
   bigFruit:   { name: '摘果', text: '次に実を収穫するとき、実1つごとの効果が2倍' },
-  ripening:   { name: '完熟', text: '実1つごとの銭+3・守り+2（×この数）' }
+  ripening:   { name: '完熟', text: '実1つごとの銭+3・守り+2（×この数）' },
+  // ── 敵からかけられる悪い状態（残りターン数）──
+  weak:       { name: '疲労', text: '敵の勢いを減らす量が25%少ない（残りターン数）', bad: true, decay: true },
+  fragile:    { name: '荒れ', text: '受ける被害が50%多い（残りターン数）', bad: true, decay: true },
+  dry:        { name: '乾燥', text: 'ターン終了時に作物と木が育たない（残りターン数）', bad: true, decay: true }
 };

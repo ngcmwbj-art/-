@@ -486,4 +486,80 @@ farmer('farmer_citrus', '#4a5a3a', '#323e26', '#e6e0d0',
            ''.join(f'<circle cx="{x}" cy="{y}" r="5" fill="#e0802a" stroke="{LINE}" stroke-width="1.2"/>' for x, y in [(26, 52), (36, 50)])),
   front_tool=cel('M92 86 L110 74 L112 78 L94 92Z', '#c9d2d8', '#8f9aa2', off=(-1, -1), lw=1.6) +
              cel('M92 88 L108 84 L108 88 L94 92Z', '#a8442f', '#7e2a1c', off=(-1, -1), lw=1.4))
+
+# ════════ 敵の追加（害虫・雑草・病害・天候・疫病）════════
+# ── アブラムシの群れ：葉の上にたかる ──
+def aphid(x, y, sc, rot=0):
+    t = f'translate({x} {y}) scale({sc}) rotate({rot})'
+    return (f'<g transform="{t}">' +
+            line('M-6 4 L-12 10 M0 6 L-2 13 M6 4 L11 10 M-6 -2 L-12 -6 M6 -2 L12 -6', 1.6) +
+            line('M10 -8 C16 -16 22 -18 26 -16 M10 -6 C18 -10 22 -8 26 -6', 1.4) +
+            cel('M-10 0 C-10 -12 4 -16 10 -8 C14 -2 10 8 0 8 C-6 8 -10 6 -10 0Z', '#8aa65a', '#5f7a3a', off=(-2, -2), lw=2,
+                hi='<ellipse cx="-2" cy="-6" rx="4" ry="2" fill="#c6dc9a"/>') +
+            f'<circle cx="7" cy="-6" r="1.6" fill="{LINE}"/>' + '</g>')
+svg('aphids',
+  cel('M6 96 C20 60 60 40 112 34 C104 70 70 100 6 96Z', '#4f7a3a', '#33522a', off=(-5, -5),
+      extra=line('M10 94 C40 74 76 54 108 38 M40 76 L36 60 M60 62 L58 46 M80 52 L82 40', 1.6, '#2f4a22')) +
+  aphid(34, 74, .8, -15) + aphid(58, 58, .7, -20) + aphid(86, 46, .6, -25) + aphid(54, 80, 1.25, -10))
+
+# ── はびこる雑草：エノコログサとつる ──
+svg('weeds',
+  cel('M10 104 C20 94 100 94 110 104 C100 110 20 110 10 104Z', '#3d2d20', '#241a12', off=(-2, -3)) +
+  ''.join(cel(f'M{x} 104 C{x+lean*.3} 80 {x+lean*.7} 56 {x+lean} {top} C{x+lean*.7+4} 60 {x+lean*.3+4} 82 {x+6} 104Z', c, '#22381c', off=(-2, -2), lw=1.8)
+          for x, lean, top, c in [(20, -8, 40, '#3f6a34'), (34, 6, 22, '#4a7a3a'), (50, -4, 30, '#3a6230'), (64, 10, 18, '#4f7f3c'), (80, 4, 34, '#3f6a34'), (94, 14, 44, '#4a7a3a')]) +
+  ''.join(cel(f'M{x} {y} C{x+10} {y-10} {x+18} {y-4} {x+20} {y+8} C{x+14} {y+2} {x+6} {y} {x} {y}Z', '#b8a86a', '#8a7a42', off=(-1, -1), lw=1.6)
+          for x, y in [(36, 24), (66, 20), (92, 46)]) +
+  line('M8 100 C20 84 10 70 24 62 C34 56 28 44 40 40', 2.6, '#2f4a22') +
+  ''.join(cel(f'M{x} {y} C{x-8} {y-4} {x-8} {y-12} {x} {y-12} C{x+6} {y-10} {x+4} {y-2} {x} {y}Z', '#5f8a46', '#3d6030', off=(-1, -1), lw=1.4) for x, y in [(18, 82), (24, 64), (36, 46)]))
+
+# ── いもち病：病斑の出た稲と胞子のもや ──
+svg('blast',
+  '<ellipse cx="66" cy="44" rx="44" ry="26" fill="#8a8a7a" opacity=".35"/><ellipse cx="80" cy="34" rx="28" ry="16" fill="#9a9a8a" opacity=".35"/>' +
+  cel('M14 106 C24 98 96 98 106 106 C96 112 24 112 14 106Z', '#3d2d20', '#241a12', off=(-2, -3)) +
+  ''.join(cel(f'M{x} 104 C{x+lean*.4} 80 {x+lean*.8} 50 {x+lean} {top} C{x+lean*.8+5} 52 {x+lean*.4+5} 82 {x+5} 104Z', '#8a9a4a', '#5e6a2e', off=(-2, -2), lw=1.8,
+              extra=''.join(f'<ellipse cx="{x+lean*f+2}" cy="{104-(104-top)*f}" rx="2.4" ry="5" fill="#7a5a30" stroke="#4a3418" stroke-width=".8"/><ellipse cx="{x+lean*f+2}" cy="{104-(104-top)*f}" rx=".9" ry="2" fill="#b9b4a0"/>' for f in (.35, .6)))
+          for x, lean, top in [(30, -12, 30), (48, 4, 18), (62, 16, 26), (78, 24, 40)]) +
+  ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#c9c6b4" stroke="#6a6a5a" stroke-width=".8"/>' for x, y, r in [(70, 30, 2.6), (84, 22, 2), (96, 36, 2.4), (58, 22, 1.8), (104, 24, 1.6), (90, 46, 1.8), (46, 34, 1.6)]))
+
+# ── 干ばつ：照りつける日輪とひび割れた地面 ──
+svg('drought',
+  ''.join(f'<path d="M60 44 L{60 + 52*__import__("math").cos(a):.1f} {44 + 52*__import__("math").sin(a):.1f}" stroke="#d9822e" stroke-width="5" stroke-linecap="round" opacity=".85"/>'
+          for a in [k * 0.5236 for k in range(12)]) +
+  cel('M36 44 A24 24 0 1 1 84 44 A24 24 0 1 1 36 44Z', '#e0702a', '#a8441a', off=(-4, -4),
+      hi='<ellipse cx="50" cy="36" rx="10" ry="6" fill="#f2b06a"/>') +
+  line('M20 74 C30 70 40 78 50 74 C60 70 70 78 80 74 C90 70 100 78 108 74', 1.6, '#c9a06a') +
+  cel('M4 90 L116 90 L116 112 L4 112Z', '#9a7a52', '#6e5434', off=(-2, -2),
+      extra=line('M10 94 L24 100 L20 110 M24 100 L40 96 L52 104 L48 112 M52 104 L68 98 L80 106 M68 98 L66 92 M80 106 L96 100 L108 108 M96 100 L100 92', 1.6, '#4a3418')))
+
+# ── 大型台風：渦を巻く雲と雨 ──
+svg('typhoon',
+  ''.join(f'<path d="M{x} {y} L{x-8} {y+18}" stroke="#8fa6b8" stroke-width="2" stroke-linecap="round" opacity=".8"/>' for x, y in [(24, 76), (40, 86), (58, 80), (76, 88), (94, 78), (110, 86), (32, 98), (66, 96), (100, 98)]) +
+  cel('M60 10 C92 10 114 30 112 52 C110 72 88 80 70 76 C88 70 96 54 88 42 C80 30 62 30 54 40 C46 50 52 62 62 62 C52 66 40 58 40 46 C40 30 52 22 66 22 C46 18 24 28 18 46 C14 26 34 10 60 10Z',
+      '#5d6c76', '#3a4650', off=(-5, -5), hi='<path d="M40 18 C56 12 80 14 96 26" stroke="#8a98a2" stroke-width="3" fill="none" stroke-linecap="round"/>') +
+  cel('M12 54 C14 74 36 86 58 84 C40 80 26 70 22 56Z', '#4a5862', '#2e3a42', off=(-2, -2)) +
+  '<circle cx="62" cy="48" r="5" fill="#cfd8dc" opacity=".8"/>')
+
+# ── 遅霜：冷たい靄と氷の結晶、しおれた苗 ──
+def flake(x, y, r):
+    return ''.join(line(f'M{x} {y} L{x + r*__import__("math").cos(a):.1f} {y + r*__import__("math").sin(a):.1f}', 1.6, '#e8f2f8') for a in [k * 1.0472 for k in range(6)])
+svg('frost',
+  cel('M10 50 C8 30 28 18 46 24 C54 10 80 10 88 24 C104 22 116 36 110 52 C106 64 20 66 10 50Z', '#cfdde6', '#9fb4c2', off=(-5, -5),
+      hi='<ellipse cx="40" cy="30" rx="12" ry="5" fill="#eef6fa"/>') +
+  flake(30, 74, 7) + flake(60, 66, 9) + flake(90, 76, 7) + flake(46, 90, 5) + flake(76, 92, 5) +
+  cel('M24 106 C34 100 86 100 96 106 C86 112 34 112 24 106Z', '#5a4330', '#3d2d20', off=(-2, -2)) +
+  line('M60 104 C60 96 62 92 66 90', 2.6, '#6a7a52') +
+  cel('M66 90 C74 92 80 98 78 104 C72 102 68 96 66 90Z', '#8a9a6a', '#5e6a42', off=(-1, -1), lw=1.4) +
+  cel('M62 94 C54 94 48 100 48 106 C54 104 60 100 62 94Z', '#8a9a6a', '#5e6a42', off=(-1, -1), lw=1.4))
+
+# ── 鳥インフル：渡ってきた病んだ鴨と、まとわりつく瘴気 ──
+svg('avianflu',
+  '<path d="M14 40 C30 20 40 50 56 30 C70 14 84 40 100 24" stroke="#7a5a8a" stroke-width="3" fill="none" opacity=".6" stroke-linecap="round"/>' +
+  '<path d="M10 70 C24 56 34 80 50 64" stroke="#7a5a8a" stroke-width="2.4" fill="none" opacity=".5" stroke-linecap="round"/>' +
+  line('M54 92 L52 104 M52 104 L46 108 M52 104 L56 108 M66 92 L66 104 M66 104 L61 108 M66 104 L71 108', 2.4, '#b8823e') +
+  cel('M24 74 C22 60 40 54 58 56 C70 44 86 40 94 50 C100 58 94 66 86 68 C88 86 70 96 50 94 C34 92 26 86 24 74Z', '#8a8e7e', '#5e6254', off=(-6, -6),
+      extra=line('M36 70 C46 76 60 78 72 74', 1.6, '#4a4e40')) +
+  cel('M70 46 C76 40 88 40 92 48 C90 54 80 54 72 52Z', '#4a6a5a', '#2e4a3a', off=(-2, -2)) +
+  cel('M92 52 L108 54 C108 58 100 60 92 58Z', '#b8a04a', '#8a7428', off=(-1, -1), lw=1.6) +
+  eye_s(86, 48, 2.2, '#7a2e14') +
+  ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#9a7aaa" opacity=".55"/>' for x, y, r in [(30, 54, 3), (18, 60, 2), (100, 70, 2.6), (106, 40, 2), (40, 46, 1.8)]))
 print('ok')

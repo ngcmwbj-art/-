@@ -17,13 +17,14 @@ FR.Battle = {
     const n = run.battleIndex;
     // 顔ぶれを選ぶ（②でマップができたら、マスの種類から決める）
     const pool = FR.Encounters.filter(en => n >= en.from);
-    const enc = FR.Util.weighted(rnd, pool.map(en => ({ value: en, weight: en.weight })));
+    const enc = FR.Util.weighted(rnd, pool.map(en => ({ value: en, weight: en.weight * ((en.bias && en.bias[run.farmerId]) || 1) })));
     const strength = Math.floor(n / FR.Config.scaling.damageEveryBattles);
     const enemies = enc.enemies.map((id, k) => {
       const def = FR.Enemies[id];
       const hp = FR.Util.randInt(rnd, def.hp[0], def.hp[1]) + n * (def.hpGrowth || 0);
       return {
         uid: k + 1, id, def, name: def.name, hp, maxHp: hp, strength, dead: false,
+        turnsLeft: def.turns || null,   // 天候：あと何ターンで過ぎ去るか
         moveIndex: def.randomStart ? FR.Util.randInt(rnd, 0, def.pattern.length - 1) : 0, intent: null
       };
     });
@@ -43,6 +44,7 @@ FR.Battle = {
       turn: 0,
       playedThisTurn: 0,
       lastHarvested: 0,
+      nextUid: 10000,   // 戦闘中にだけ混ざるカード（病斑など）の番号
       over: false, won: false,
       fx: [],
       log: []
@@ -85,7 +87,24 @@ FR.Battle = {
     for (const id of Object.keys(FR.Statuses)) {
       if (FR.Statuses[id].clearAtTurnEnd) b.statuses[id] = 0;
     }
-    FR.Battle.growAll(b, 1, true);
+    // 乾燥していなければ作物と木が育つ
+    if (b.statuses.dry > 0) b.fx.push({ kind: 'note', text: '乾燥で作物が育たない' });
+    else FR.Battle.growAll(b, 1, true);
+    // 悪い状態は1ずつ減る
+    for (const id of Object.keys(FR.Statuses)) {
+      if (FR.Statuses[id].decay && b.statuses[id] > 0) b.statuses[id]--;
+    }
+    // 天候は時間がたつと過ぎ去る
+    FR.Battle.aliveEnemies(b).forEach(e => {
+      if (!e.turnsLeft) return;
+      e.turnsLeft--;
+      if (e.turnsLeft <= 0) {
+        e.dead = true;
+        b.fx.push({ kind: 'defeated', enemy: e.uid });
+        b.fx.push({ kind: 'note', text: e.name + 'が過ぎ去った' });
+      }
+    });
+    if (!FR.Battle.aliveEnemies(b).length) { FR.Battle.win(b); return; }
     FR.Battle.chooseIntents(b);
     FR.Battle.startTurn(b);
   },
@@ -112,6 +131,7 @@ FR.Battle = {
   canPlay(b, inst) {
     const v = FR.cardView(inst);
     if (b.over) return { ok: false, reason: '' };
+    if (v.unplayable) return { ok: false, reason: 'このカードは使えない' };
     if (v.cost > b.energy) return { ok: false, reason: 'エネルギーが足りない' };
     const need = v.needs && FR.Battle.NEEDS[v.needs];
     if (need && !need.test(b)) return { ok: false, reason: typeof need.reason === 'function' ? need.reason(b) : need.reason };
@@ -178,6 +198,7 @@ FR.Battle = {
     let e = target || b.target;
     if (!e || e.dead) e = FR.Battle.randomEnemy(b);
     if (!e) return;
+    if (b.statuses.weak > 0) amount = Math.floor(amount * 0.75);
     e.hp = Math.max(0, e.hp - amount);
     b.fx.push({ kind: 'damage', target: 'enemy', enemy: e.uid, text: '-' + amount });
     if (e.hp <= 0) {
@@ -188,6 +209,7 @@ FR.Battle = {
   },
 
   damagePlayer(b, amount) {
+    if (b.statuses.fragile > 0) amount = Math.floor(amount * 1.5);
     const blocked = Math.min(b.block, amount);
     b.block -= blocked;
     const rest = amount - blocked;
@@ -371,18 +393,29 @@ FR.Battle = {
     });
   },
 
-  // 予告に表示するもの（kind：attack / steal / trample / buff）
+  // 予告に表示するもの（kind はアイコンの種類）
   intentLabel(b, e) {
     const it = e.intent;
     if (!it) return null;
     const dmg = (it.damage || 0) + e.strength;
-    if (it.intent === 'attack') return { name: it.name, value: dmg, kind: 'attack' };
-    if (it.intent === 'steal' || it.intent === 'trample') {
-      const t = it.intent === 'steal' ? FR.Battle.stealTarget(b) : FR.Battle.trampleTarget(b);
-      if (t >= 0 && !b.statuses.netted) return { name: it.name, value: it.intent === 'steal' && b.plots[t].tree ? '実' : '作物', kind: it.intent };
-      return { name: it.intent === 'steal' ? 'つつく' : '体当たり', value: dmg, kind: 'attack' };
+    const withDmg = (kind, extra) => ({ name: it.name, value: it.damage ? dmg : extra, kind });
+    switch (it.intent) {
+      case 'attack': return { name: it.name, value: dmg, kind: 'attack' };
+      case 'steal':
+      case 'trample': {
+        const t = it.intent === 'steal' ? FR.Battle.stealTarget(b) : FR.Battle.trampleTarget(b);
+        if (t >= 0 && !b.statuses.netted) return { name: it.name, value: it.intent === 'steal' && b.plots[t].tree ? '実' : '作物', kind: it.intent };
+        return { name: it.intent === 'steal' ? 'つつく' : '体当たり', value: dmg, kind: 'attack' };
+      }
+      case 'blight': return withDmg('blight', 'しおれ');
+      case 'debuff': return withDmg('debuff', FR.Statuses[it.status].name);
+      case 'addCard': return withDmg('curse', '病斑');
+      case 'infect':
+        if (FR.Battle.animalCount(b) > 0 && !b.statuses.immune) return { name: it.name, value: '家畜', kind: 'infect' };
+        return { name: it.name, value: dmg, kind: 'attack' };
+      case 'heal': return { name: it.name, value: '+' + it.amount, kind: 'heal' };
+      case 'buff': return { name: it.name, value: '+' + it.strength, kind: 'buff' };
     }
-    if (it.intent === 'buff') return { name: it.name, value: '+' + it.strength, kind: 'buff' };
     return { name: it.name, value: '', kind: 'other' };
   },
 
@@ -434,8 +467,51 @@ FR.Battle = {
       } else if (it.intent === 'buff') {
         e.strength += it.strength;
         b.fx.push({ kind: 'buff', target: 'enemy', enemy: e.uid, text: '力 +' + it.strength });
+      } else if (it.intent === 'heal') {
+        const before = e.hp;
+        e.hp = Math.min(e.maxHp, e.hp + it.amount);
+        if (e.hp > before) b.fx.push({ kind: 'heal', target: 'enemy', enemy: e.uid, text: '+' + (e.hp - before) });
+      } else if (it.intent === 'blight') {
+        FR.Battle.blight(b, it.amount);
+        if (it.damage) FR.Battle.damagePlayer(b, dmg);
+      } else if (it.intent === 'debuff') {
+        b.statuses[it.status] = (b.statuses[it.status] || 0) + it.amount;
+        b.fx.push({ kind: 'note', text: FR.Statuses[it.status].name + 'になった' });
+        if (it.damage) FR.Battle.damagePlayer(b, dmg);
+      } else if (it.intent === 'addCard') {
+        for (let k = 0; k < it.count; k++) b.discard.push({ uid: b.nextUid++, id: it.card, upgraded: false, temp: true });
+        b.fx.push({ kind: 'note', text: `${FR.Cards[it.card].name}が${it.count}枚、捨て札に混ざった` });
+        if (it.damage) FR.Battle.damagePlayer(b, dmg);
+      } else if (it.intent === 'infect') {
+        FR.Battle.infect(b, dmg);
       }
     }
+  },
+
+  // 作物と木をしおれさせる（覆いがあれば防げる）。成木は実が落ちる
+  blight(b, amount) {
+    if (b.statuses.netted) { if (FR.Battle.cropCount(b)) b.fx.push({ kind: 'note', text: '覆いが作物を守った' }); return; }
+    b.plots.forEach((p, i) => {
+      if (!p) return;
+      if (p.tree && p.growth >= p.stages) {
+        if (p.fruits > 0) { p.fruits = Math.max(0, p.fruits - amount); b.fx.push({ kind: 'stolen', plot: i, text: '実が落ちた' }); }
+      } else if (p.growth > 0) {
+        p.growth = Math.max(0, p.growth - amount);
+        b.fx.push({ kind: 'stolen', plot: i, text: '作物がしおれた' });
+      }
+    });
+  },
+
+  // 家畜1頭を病気で失う（いちばん育った家畜から）。防疫があれば防ぐ。家畜がいなければ攻撃
+  infect(b, dmg) {
+    let t = -1;
+    b.barns.forEach((a, i) => { if (a && (t < 0 || a.growth > b.barns[t].growth)) t = i; });
+    if (t < 0) { FR.Battle.damagePlayer(b, dmg); return; }
+    if (b.statuses.immune) { b.fx.push({ kind: 'note', text: 'ワクチンが家畜を守った' }); return; }
+    const name = FR.Animals[b.barns[t].animal].name;
+    b.barns[t] = null;
+    b.run.stats.cropsLost++;
+    b.fx.push({ kind: 'stolen', barn: t, text: name + 'が病気で倒れた' });
   },
 
   // ── 勝ち負け ───────────────────────────────

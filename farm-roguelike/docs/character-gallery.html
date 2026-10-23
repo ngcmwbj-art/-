@@ -14,7 +14,7 @@
   h1 { font-family: var(--mincho); font-weight: 800; letter-spacing: .15em; text-shadow: 0 2px 6px #000; }
   h2 { font-family: var(--mincho); font-weight: 800; letter-spacing: .12em; margin: 18px 0 10px; text-shadow: 0 2px 6px #000; }
   .row { display: flex; flex-wrap: wrap; gap: 14px; }
-  .ch { background: rgba(20, 18, 14, .78); border: 1px solid var(--panel-line); border-radius: 4px; padding: 12px; width: 360px; display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: end; }
+  .ch { background: rgba(20, 18, 14, .8); border: 1px solid var(--panel-line); border-radius: 4px; padding: 12px; width: 370px; display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: end; }
   .ch .pic { height: 190px; display: flex; align-items: flex-end; justify-content: center; background: radial-gradient(ellipse at 50% 85%, rgba(255, 240, 200, .14), transparent 70%); }
   .ch .pic img { max-width: 100%; max-height: 100%; }
   .ch.enemy .pic img { transform: scaleX(-1); }
@@ -37,6 +37,7 @@
 <script src="../data/crops.js"></script>
 <script src="../data/animals.js"></script>
 <script src="../data/cards.js"></script>
+<script src="../data/statuses.js"></script>
 <script src="../data/enemies.js"></script>
 <script src="../data/encounters.js"></script>
 <script src="../data/relics.js"></script>
@@ -53,14 +54,15 @@
         <span>${E(f.text)}</span>
         <span><b>健康度</b> ${f.hp}　<b>持ち物</b> ${tool[id]}</span>
         <span><b>初期レリック</b> ${E(FR.Relics[f.relic].name)}</span></div></div>`).join('');
-  const kind = { attack: '攻撃', steal: '作物を奪う', trample: '畑を荒らす', buff: '力を上げる' };
+  const kind = { attack: '攻撃', steal: '作物を奪う', trample: '畑を荒らす', buff: '力を上げる', blight: '作物をしおれさせる', debuff: '悪い状態にする', addCard: '病斑のカードを混ぜる', infect: '家畜を病気にする', heal: '勢いを回復' };
+  const kindName = { pest: '害獣・害虫', weed: '雑草', disease: '病害・疫病', weather: '天候' };
   document.getElementById('enemies').innerHTML = Object.entries(FR.Enemies).map(([id, e]) => {
     const from = Math.min(...FR.Encounters.filter(en => en.enemies.includes(id)).map(en => en.from)) + 1;
     return `<div class="ch enemy"><div class="pic"><img src="${FR.Art.url(e.art)}" alt="" style="height:${Math.round(150 * (e.size || 1))}px"></div>
       <div class="info"><span class="name">${E(e.name)}</span>
-        <span><b>勢い</b> ${e.hp[0]}〜${e.hp[1]}（1戦ごとに+${e.hpGrowth}）　<b>登場</b> ${from}戦目から</span>
+        <span><b>${kindName[e.kind]}</b>　<b>勢い</b> ${e.hp[0]}〜${e.hp[1]}（1戦ごとに+${e.hpGrowth}）　<b>登場</b> ${from}戦目から${e.turns ? `<br>${e.turns}ターン耐えきると過ぎ去る` : ''}</span>
         <ul class="moves">${e.pattern.filter((k, i, a) => a.indexOf(k) === i).map(k => { const m = e.moves[k];
-          return `<li><b>${E(m.name)}</b>：${kind[m.intent]}${m.damage ? '（' + (m.intent === 'attack' ? '' : 'できないとき') + m.damage + '）' : ''}${m.strength ? '（力+' + m.strength + '）' : ''}</li>`; }).join('')}</ul></div></div>`;
+          return `<li><b>${E(m.name)}</b>：${kind[m.intent]}${m.status ? '（' + FR.Statuses[m.status].name + m.amount + '）' : ''}${m.intent === 'addCard' ? '（' + m.count + '枚）' : ''}${m.intent === 'heal' ? '（+' + m.amount + '）' : ''}${m.damage ? '（' + ({ steal: 'できないとき', trample: 'できないとき', infect: '家畜がいないとき' }[m.intent] || (m.intent === 'attack' ? '' : '＋攻撃')) + m.damage + '）' : ''}${m.strength ? '（力+' + m.strength + '）' : ''}</li>`; }).join('')}</ul></div></div>`;
   }).join('');
 </script>
 </body>

@@ -17,6 +17,7 @@ const fail = msg => { failures++; console.log('NG:', msg); };
 // データの整合性：art・crop・animal・status の参照先があるか
 const artNames = new Set(fs.readdirSync(path.join(root, 'assets/img/art')).map(f => f.replace('.svg', '')));
 for (const [id, c] of Object.entries(FR.Cards)) {
+  if (c.unplayable) continue;
   if (!artNames.has(c.art)) fail(`カード ${id} の絵 ${c.art} がない`);
   if (!FR.CardTypes[c.type]) fail(`カード ${id} の種類 ${c.type} が不明`);
   if (c.needs && !FR.Battle.NEEDS[c.needs]) fail(`カード ${id} の条件 ${c.needs} が不明`);
@@ -86,8 +87,52 @@ for (const farmerId of Object.keys(FR.Farmers)) {
   results[farmerId] = { 平均勝利数: (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1), 最大: Math.max(...scores) };
 }
 
+// 敵：すべての行動を、作物・木・家畜がある状態で1回ずつ実行する
+const INTENTS = ['attack', 'steal', 'trample', 'blight', 'debuff', 'addCard', 'infect', 'heal', 'buff'];
+for (const [id, def] of Object.entries(FR.Enemies)) {
+  if (!artNames.has(def.art)) fail(`敵 ${id} の絵 ${def.art} がない`);
+  for (const [mk, m] of Object.entries(def.moves)) {
+    if (!INTENTS.includes(m.intent)) fail(`敵 ${id} の行動 ${mk} の種類 ${m.intent} が不明`);
+    if (m.intent === 'debuff' && !FR.Statuses[m.status]) fail(`敵 ${id} の状態 ${m.status} がない`);
+    if (m.intent === 'addCard' && !FR.Cards[m.card]) fail(`敵 ${id} のカード ${m.card} がない`);
+    for (const farmerId of Object.keys(FR.Farmers)) {
+      const run = FR.Run.create(farmerId, 11);
+      const b = FR.Battle.create(run);
+      b.enemies = [{ uid: 1, id, def, name: def.name, hp: 30, maxHp: 50, strength: 0, dead: false, turnsLeft: def.turns || null, moveIndex: 0, intent: Object.assign({ key: mk }, m) }];
+      if (b.plots.length) b.plots[0] = { crop: 'komatsuna', growth: 1, stages: 2 };
+      if (b.plots.length > 1) b.plots[1] = { crop: 'unshu', tree: true, growth: 2, stages: 2, fruits: 2, maxFruits: 3 };
+      if (b.barns.length) b.barns[0] = { animal: 'calf', growth: 2, stages: 3, care: 2 };
+      const label = FR.Battle.intentLabel(b, b.enemies[0]);
+      if (!label || label.value === undefined) fail(`敵 ${id} の ${mk} の予告が作れない`);
+      const before = JSON.stringify([run.hp, b.plots, b.barns, b.statuses, b.discard.length, b.enemies[0].hp, b.enemies[0].strength]);
+      try { FR.Battle.enemyAct(b); } catch (err) { fail(`敵 ${id} の ${mk} で例外: ${err.message}`); continue; }
+      const after = JSON.stringify([run.hp, b.plots, b.barns, b.statuses, b.discard.length, b.enemies[0].hp, b.enemies[0].strength]);
+      if (before === after) fail(`敵 ${id} の ${mk}（${farmerId}）で何も起きない`);
+    }
+  }
+}
+// 天候はターン数がたつと過ぎ去って勝ちになる
+{
+  const run = FR.Run.create('vegetable', 5);
+  const b = FR.Battle.create(run);
+  const def = FR.Enemies.frost;
+  b.enemies = [{ uid: 1, id: 'frost', def, name: def.name, hp: 999, maxHp: 999, strength: 0, dead: false, turnsLeft: def.turns, moveIndex: 0, intent: null }];
+  FR.Battle.chooseIntents(b);
+  run.hp = 999; run.maxHp = 999;
+  for (let t = 0; t < def.turns && !b.over; t++) FR.Battle.endTurn(b);
+  if (!b.won) fail('天候が過ぎ去っても勝ちにならない');
+}
+// 病斑は使えず、報酬にも出ない
+{
+  const run = FR.Run.create('vegetable', 5);
+  const b = FR.Battle.create(run);
+  if (FR.Battle.canPlay(b, { uid: 1, id: 'lesion' }).ok) fail('病斑が使えてしまう');
+  for (let k = 0; k < 50; k++) { run.battleIndex = k; if (FR.Reward.make(run).cards.includes('lesion')) fail('病斑が報酬に出た'); }
+}
+
 // 1枚ずつ：使える状況を作って直接使い、期待どおり状態が変わるか
 for (const [id, c] of Object.entries(FR.Cards)) {
+  if (c.unplayable) continue;
   for (const upgraded of [false, true]) {
     const farmerId = c.pool.includes('common') ? 'livestock' : c.pool[0];
     const run = FR.Run.create(farmerId, 7);
@@ -114,7 +159,7 @@ for (const [id, c] of Object.entries(FR.Cards)) {
 }
 
 // すべてのカードが使われたか（強化前）
-const unused = Object.keys(FR.Cards).filter(id => !played[id]);
+const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].unplayable);
 if (unused.length) fail('一度も使われなかったカード: ' + unused.join(', '));
 console.log('ボットの成績（ランダムに遊んだ場合）', results);
 console.log('使われたカード', Object.keys(played).length, '種（強化後を含む）');
