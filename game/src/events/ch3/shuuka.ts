@@ -118,6 +118,7 @@ function ride(truck: Actor, ids: string[]): Actor[] {
   ids.slice(0, SEATS.length).forEach((id, i) => {
     const a = who(`c3_sk_rider_${i}`, 0, 0, 'right', spriteOf(id));
     a.lift = 9;
+    a.data.riding = true;
     out.push(a);
   });
   const place = () => {
@@ -191,7 +192,8 @@ function* quay(people: string[]): Co {
     game.scripts.run(
       (function* (): Co {
         yield i * 260;
-        yield* stroll(a.id, [[a.tileX, 26], [QSTOP - 1, 26], [QSTOP - 1, 25]], 3.4);
+        // (to the tail, beside the body — not into it: QSTOP − 1 was inside its back; 改善会議 10-23 の2)
+        yield* stroll(a.id, [[a.tileX, 26], [QSTOP - 3, 26], [QSTOP - 3, 25]], 3.4);
         se('se_step_metal', { vol: 0.3 });
         despawn(a.id);
         left--;
@@ -241,13 +243,21 @@ function* bed(people: string[]): Co {
 
 // ---------------------------------------------------------------- ③ the cape
 
-/** The plaza before the old aquarium (x20–31, y12–16): a checkerboard so nobody stands behind anybody, the door's front first. */
+/**
+ * The plaza before the old aquarium (x20–31, y12–15): a checkerboard so nobody stands behind anybody, the
+ * door's front first; more people than its squares, then the squares between (side by side), then y16
+ * last (the parapet y17 hides them from the knees down). 改善会議 10-23 の3: with y16 in the checkerboard
+ * and the places taken round again (placed % length) when many came, two stood on one square.
+ */
 function plazaSpots(): [number, number][] {
-  const out: [number, number][] = [];
-  const skip = new Set(['30,12', '22,16', '29,16', '31,12']);
-  for (let y = 12; y <= 16; y++) for (let x = 20; x <= 31; x++) if ((x + y) % 2 === 0 && !skip.has(`${x},${y}`)) out.push([x, y]);
-  out.sort((a, b) => Math.hypot(a[0] - 26.5, (a[1] - 12) * 1.6) - Math.hypot(b[0] - 26.5, (b[1] - 12) * 1.6));
-  return out;
+  const skip = new Set(['30,12', '31,12', '22,16', '29,16']);
+  const near = (a: [number, number], b: [number, number]) => Math.hypot(a[0] - 26.5, (a[1] - 12) * 1.6) - Math.hypot(b[0] - 26.5, (b[1] - 12) * 1.6);
+  const tier = (odd: number, y0: number, y1: number): [number, number][] => {
+    const out: [number, number][] = [];
+    for (let y = y0; y <= y1; y++) for (let x = 20; x <= 31; x++) if ((x + y) % 2 === odd && !skip.has(`${x},${y}`)) out.push([x, y]);
+    return out.sort(near);
+  };
+  return [...tier(0, 12, 15), ...tier(1, 12, 15), ...tier(0, 16, 16), ...tier(1, 16, 16)];
 }
 
 const STOP: [number, number] = [17, 13];

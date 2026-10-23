@@ -121,8 +121,13 @@ const TOWN = Object.keys(C3_NAMES);
  * first, then the town and the people who came fill the free places from
  * the middle out.
  */
-function placeBreakwater(center: number, fixed: [string, number, number, Dir, string?, string?][]): void {
+function placeBreakwater(center: number, fixed: [string, number, number, Dir, string?, string?][], clear: [number, number][] = []): void {
   const taken = new Set<string>();
+  // (しゅん's own square, and the ones kept clear: nobody put on him — 改善会議 10-23 の3, S31 a town
+  // person stood on his square — or behind the tripod)
+  const p = F().player;
+  if (p.visible) taken.add(`${p.tileX},${p.tileY}`);
+  for (const [x, y] of clear) taken.add(`${x},${y}`);
   for (const [id, x, y, d, spr, p] of fixed) {
     put(id, x, y, d, spr, p);
     taken.add(`${x},${y}`);
@@ -181,7 +186,8 @@ const BEACH_SPOTS: [number, number][] = [
   // the sides and the waterline
   [54, 27], [63, 26], [63, 31], [54, 25],
   // the grass east of the beach (a far ring)
-  [69, 25], [71, 26], [70, 28], [72, 29], [69, 30], [74, 28], [75, 25], [76, 27], [71, 30], [74, 30],
+  // ((73,31), not (69,30): against the rocks (68,30) he stood in their face in HD-2D — 改善会議 10-23 の3)
+  [69, 25], [71, 26], [70, 28], [72, 29], [73, 31], [74, 28], [75, 25], [76, 27], [71, 30], [74, 30],
   // the quay west of the rocks
   [50, 25], [49, 24], [51, 24], [48, 25], [49, 26], [51, 26], [47, 24], [46, 25],
 ];
@@ -511,23 +517,30 @@ function* cut3Photo(): Co {
   const master = kita.includes('npc_photo_master');
   // (W's tripod at (31,33) on the sea's edge, facing everyone to the north)
   setFlag('flag_c3_end_tripod', 1);
-  cutTo('map_umizoi', 31, 32, { show: true, dir: 'down', shot: 'e3_photo' });
-  placeBreakwater(31, [
-    ['kanenari', 32, 32, 'down', 'kanenari'],
-    ['npc_maruyama', 33, 32, 'down', 'npc_maruyama_hige'],
-    ['npc_tsugao', 31, 31, 'down', 'npc_tsugao'],
-    ['npc_hirosuke', 30, 32, 'down'],
-    ['npc_pokosha', 34, 32, 'down'],
-    ['npc_piichan', 35, 32, 'down'],
-    ['npc_dakoku', 32, 31, 'down', 'npc_dakoku_daisha'],
-    ['npc_c3_kanshiin', 29, 32, 'down'],
-  ]);
+  // 改善会議 10-23 の3: しゅん one square west of the tripod (31,33) — right behind it he was hidden to the
+  // waist — and (31,32) behind it kept clear; the ones west of him one more square west
+  cutTo('map_umizoi', 30, 32, { show: true, dir: 'down', shot: 'e3_photo' });
+  placeBreakwater(
+    31,
+    [
+      ['kanenari', 32, 32, 'down', 'kanenari'],
+      ['npc_maruyama', 33, 32, 'down', 'npc_maruyama_hige'],
+      ['npc_tsugao', 31, 31, 'down', 'npc_tsugao'],
+      ['npc_hirosuke', 29, 32, 'down'],
+      ['npc_pokosha', 34, 32, 'down'],
+      ['npc_piichan', 35, 32, 'down'],
+      ['npc_dakoku', 32, 31, 'down', 'npc_dakoku_daisha'],
+      ['npc_c3_kanshiin', 28, 32, 'down'],
+    ],
+    [[31, 32]],
+  );
   const p = F().player;
   p.dir = 'down';
   // (the photographer behind the tripod, facing the breakwater)
   despawn('e3_npc_photo_master');
-  if (master) put('npc_photo_master', 32, 33, 'up');
-  else put('npc_pokosha', 32, 33, 'up');
+  // (on the tetrapods beside the tripod: a few px south, in front of their face, not in it — 改善会議 10-23 の3)
+  const cam = master ? put('npc_photo_master', 32, 33, 'up') : put('npc_pokosha', 32, 33, 'up');
+  cam.y += 5;
   playBgm('bgm_hirugohan', { variant: 'minna', fade: 2.0 });
   yield* game.fadeIn(700);
   se('se_step_stone', { vol: 0.4 });
@@ -641,8 +654,9 @@ function* cut5Morning(): Co {
   stopBgm(0.5);
   cutTo('map_town', 27, 25, { show: false, dir: 'up', shot: 'e3_ginza_asa' });
   setClockText('5:10', { cut: true });
-  spawnTruck('e3_truck', 31, 24, 'left');
-  put('npc_tsugao', 30, 23, 'left', 'npc_tsugao');
+  // (ツガオ off at the truck's nose, west of its body: at (30,23) he stood in the back of it in HD-2D — 改善会議 10-23 の2)
+  spawnTruck('e3_truck', 32, 24, 'left');
+  put('npc_tsugao', 29, 23, 'left', 'npc_tsugao');
   put('npc_maruyama', 27, 23, 'down', 'npc_maruyama_hige');
   put('kanenari', 26, 23, 'down', 'npc_kanenari_cook');
   F().snapCamera();

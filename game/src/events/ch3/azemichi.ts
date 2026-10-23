@@ -267,9 +267,11 @@ export function* runBin(who: Kita[]): Co {
   const staged: string[] = [];
   for (const [i, k] of who.entries()) {
     const [x, y] = LINE_UP(i);
-    const a = spawn(`c3_bin_${k.id}`, QUAY.x, QUAY.y + 1, { sprite: k.sprite ? k.sprite() : k.id, dir: 'down', ghost: true });
+    // off the bed's back (the truck faces west: its tail at the east end), clear of its body — out of its
+    // front they stepped through the picture (改善会議 10-23 の2); then round to the line
+    const a = spawn(`c3_bin_${k.id}`, QUAY.x + 3, QUAY.y, { sprite: k.sprite ? k.sprite() : k.id, dir: 'down', ghost: true });
     a.data.scripted = true;
-    a.path = [[x * 16 + 8, y * 16 + 16]];
+    a.path = [[(QUAY.x + 3) * 16 + 8, (QUAY.y + 1) * 16 + 16], [x * 16 + 8, y * 16 + 16]];
     a.pathSpeed = 3.5 * 16;
     staged.push(a.id);
     se('se_step_stone', { vol: 0.5 });

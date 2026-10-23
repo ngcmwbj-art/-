@@ -51,7 +51,7 @@ registerScript('c3_kn_shop', function* (): Co {
 /** The truck where it stands after the clear: 夕鳴町 by the koban, 海ぞいの町 at the harbour. */
 const TRUCKS: Record<string, { x: number; y: number; dir: Dir }> = {
   map_town: { x: 44, y: 20, dir: 'down' }, // 銀座の北の 広い 道（world/postgame.ts PG_TRUCK_STOPS と同じ）
-  map_umizoi: { x: 23, y: 18, dir: 'right' },
+  map_umizoi: { x: 24, y: 18, dir: 'right' }, // 降りた しゅん (21,17) が 荷台の うしろに めりこまない（改善会議 10-23 の2。前は x 23）
   // 岬（旧水族館の 前。2026-10-20 町の 外へ 移した）：港から 乗せて もらう（events/postgame.ts pgTruck）
   map_c3_misaki: { x: 17, y: 13, dir: 'right' }, // 道の上に横向き（world/postgame.ts PG_TRUCK_STOPS と同じ）
 };
@@ -83,7 +83,7 @@ registerScript('c3_truck_c4', function* (): Co {
   yield* game.fadeOut(500, '#0B0B14');
   se('se_keitora_go', { vol: 0.5 });
   yield 700;
-  if (town) jumpMap('map_umizoi', 21, 17, 'left');
+  if (town) jumpMap('map_umizoi', 21, 17, 'down'); // (グソっ君は 北に：東は 荷台の うしろ。改善会議 10-23 の2)
   else jumpMap('map_town', 46, 22, 'left'); // 軽トラ (44,20) の 鼻先の 右（2026-10-20 路地から 通りへ）
   F().syncFollower(true);
   yield 300;

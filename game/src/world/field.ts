@@ -38,7 +38,7 @@ import {
 } from './hoshi';
 import { colonDip, updateCallBubble } from './hud';
 import { runMsg } from './msg';
-import { initNpc, updateNpc, type NpcWorld } from './npc';
+import { initNpc, updateNpc, vehicleBox, type NpcWorld } from './npc';
 import { Renderer } from './render';
 import type { DoorObj, ExamineObj, MapObj, NpcObj, PropObj, SymbolObj, TriggerObj } from './types';
 import { interactActor, interactObject, runTrigger } from './interact';
@@ -545,10 +545,13 @@ export class FieldScene implements Scene {
     const view = (): VehicleView => a.dir;
     const img = () => vehicleFrame(id, view(), this.t, a.moving);
     a.bw = 52;
+    // a parked one (ツガオ便 on the quay, before the old aquarium): its body (改善会議 10-23 の2)
+    vehicleBox(a);
     a.data.shadowFrame = img();
     a.drawFn = (g, x, y) => {
       const im = img();
-      a.bw = a.dir === 'left' || a.dir === 'right' ? 52 : 24;
+      if (a.data.passerby) a.bw = a.dir === 'left' || a.dir === 'right' ? 52 : 24;
+      else vehicleBox(a);
       a.data.shadowFrame = im;
       // contact shadow under the body
       g.rect(x - Math.floor(im.width / 2) + 2, y - 3, im.width - 4, 3, P.ink, 0.35);

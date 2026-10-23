@@ -133,7 +133,7 @@ for (const id of ['map_town', 'map_maruyama']) {
 /** 着く所（05 8.1。夕鳴町 (43,28) 上向き、海ぞい (21,17) 左、星見台 転回場のそば）。 */
 const ARRIVE: Record<PgTown, { map: string; x: number; y: number; dir: Dir }> = {
   yunari: { map: 'map_town', x: 46, y: 22, dir: 'left' }, // 軽トラ (44,20) の 鼻先の 右（2026-10-20 路地から 通りへ）
-  umi: { map: 'map_umizoi', x: 21, y: 17, dir: 'left' },
+  umi: { map: 'map_umizoi', x: 21, y: 17, dir: 'down' }, // 下向き：グソっ君は うしろ（北）に。左向きだと 東の 荷台の うしろに 立った（改善会議 10-23 の2）
   hoshi: { map: 'map_hoshimidai', x: 41, y: 44, dir: 'up' },
 };
 /** 海ぞいの町の 中の 便：岬（旧水族館の 前。2026-10-20 町の 外へ 移した）の 着く所と、かかる 分。 */

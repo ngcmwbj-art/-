@@ -7,7 +7,7 @@
 //   ・干物屋の ホシオ (17,14)・ホシミ (19,14)：いつもの 会話（〔c1〕、S08 の あとは その 台詞）の あと、もう 1回 話すと
 //     〔mikan〕＋ 数が ちがう（flag_mk_start）。S08 の 品集めの 最中は 今の S08 の 台詞が 先。
 //   ・みかん畑の いちばん 上の 作業道 (52,2) の 北 (52,1)：石の 段（町の 地図の 1マスを 石段に する。きらりと 白い
-//     照り返しで 見つけやすく）。(52,0) を 押すと map_c3_mikan_ue (12,8)。
+//     照り返しで 見つけやすく）。石の 段に 乗ると map_c3_mikan_ue (12,8)。
 //   ・上の 段：物置 (1–3,1) で はさみと かご（flag_mk_hasami）。段ごとに 1本の 枝の 木（下 (7,7)・中 (16,4)・上 (8,1)。
 //     きらり）→ 大写し「枝」EdaPanel：←→ で 実を 選んで けっていで 切る。落とす 実は 段ごとに 1つ（下 小さい・
 //     中 傷・上 上向きの 大きい）。ちがう 実は 切らない（グソっ君の 1行。flag_mk_miss）。flag_mk_eda_0..2。
@@ -84,10 +84,13 @@ const EDA_AT: [number, number][] = [
 ];
 /** 町の 地図の 石の 段（作業道 (52,2) の 北）。 */
 const DAN: [number, number] = [52, 1];
-/** 段階2 の 2人（中の 段。石の 段 (11–12) は あける）。 */
+/**
+ * 段階2 の 2人：ホシオは 中の 段の 石の 段の 上 (11,4)、ホシミは 着いた 所の 前 (12,7)。石の 段の 列（11–12）の
+ * ほかは 石垣の 絵に 隠れる（2D の 重なりの 点検）ので、ここに 立つ。上へは (11,5)→(12,5)→(12,4) で 通れる。
+ */
 const FUTARI_AT: [number, number][] = [
-  [9, 5],
-  [14, 5],
+  [11, 4],
+  [12, 7],
 ];
 
 SPEAKERS.c3_himono_futari = { name: `${c3Name(OTTO)}・${c3Name(TSUMA)}`, voice: 'c3_himono_otto' };
@@ -169,17 +172,18 @@ function wrap(id: string, fn: (ctx: ScriptCtx, orig: () => Co) => Co): void {
 addToMap(UMIZOI, [
   { t: 'prop', prop: 'prop_mk_dan', x: DAN[0], y: DAN[1], opts: { side: 'umizoi' } } as unknown as MapObj,
   // the way up (pushing north from the steps), the things to examine there (a glint while it leads somewhere)
-  { t: 'door', id: 'door_c3_mikan_ue', x: DAN[0], y: DAN[1] - 1, to: MIKAN_UE, tx: 12, ty: 8, dir: 'up', se: 'se_step_stone', cond: { when: mkDoor } } as unknown as MapObj,
-  { t: 'obj', id: 'obj_mk_dan', x: DAN[0], y: DAN[1] - 1, script: 'obj_mk_dan', face: 'up', cond: { when: mkDoor } } as unknown as MapObj,
-  { t: 'obj', id: 'obj_mk_dan_yasumi', x: DAN[0], y: DAN[1] - 1, script: 'obj_mk_dan_yasumi', face: 'up', cond: { when: () => !mkDoor() && (pgOn() || c3Stage() >= 3) } } as unknown as MapObj,
+  // (stepping onto the steps goes up: the pines' edge row past them is the map's edge)
+  { t: 'door', id: 'door_c3_mikan_ue', x: DAN[0], y: DAN[1], step: true, to: MIKAN_UE, tx: 12, ty: 8, dir: 'up', se: 'se_step_stone', cond: { when: mkDoor } } as unknown as MapObj,
+  { t: 'obj', id: 'obj_mk_dan', x: DAN[0], y: DAN[1], flat: true, script: 'obj_mk_dan', face: 'up', cond: { when: mkDoor } } as unknown as MapObj,
+  { t: 'obj', id: 'obj_mk_dan_yasumi', x: DAN[0], y: DAN[1], flat: true, script: 'obj_mk_dan_yasumi', face: 'up', cond: { when: () => !mkDoor() && (pgOn() || c3Stage() >= 3) } } as unknown as MapObj,
 ]);
 
 const NPC = (o: Record<string, unknown>): MapObj => ({ t: 'npc', ...o }) as unknown as MapObj;
 const isEda = (x: number, y: number) => EDA_AT.some(([ex, ey]) => ex === x && ey === y);
 addToMap(MIKAN_UE, [
-  { t: 'obj', id: 'obj_mk_monooki', x: 1, y: 1, w: 3, script: 'obj_mk_monooki', face: 'up' } as unknown as MapObj,
+  { t: 'obj', id: 'obj_mk_monooki', x: 1, y: 1, w: 3, script: 'obj_mk_monooki', face: 'up', cond: { when: () => inCh3() } } as unknown as MapObj,
   { t: 'obj', id: 'obj_mk_furuki', x: 20, y: 1, w: 2, script: 'obj_mk_furuki', face: 'up', cond: { when: () => inCh3() } } as unknown as MapObj,
-  { t: 'obj', id: 'obj_mk_bench', x: 11, y: 1, script: 'obj_mk_bench', face: 'up' } as unknown as MapObj,
+  { t: 'obj', id: 'obj_mk_bench', x: 11, y: 1, script: 'obj_mk_bench', face: 'up', cond: { when: () => inCh3() } } as unknown as MapObj,
   { t: 'obj', id: 'obj_mk_drum', x: 22, y: 8, script: 'obj_mk_drum', cond: { when: () => inCh3() } } as unknown as MapObj,
   // the three branches (one tree a terrace; a glint until looked at)
   ...EDA_AT.map(([x, y], k) => ({ t: 'obj', id: `obj_mk_eda_${k}`, x, y, w: 2, script: 'obj_mk_eda', face: 'up', cond: { when: () => flag(MKF.start) > 0 && c3Stage() === 1 } }) as unknown as MapObj),
@@ -293,11 +297,18 @@ export class EdaPanel implements Widget {
     else if (input.pressed('cancel')) this.cancel = true;
   }
 
-  /** 実の 位置（大写しの 中、下げ 実の 中心）。 */
+  /** 枝の 上の 点（i 番目の 実の 付け根）。 */
+  branchAt(i: number, oy: number): [number, number] {
+    const x = SX + 28 + i * 42;
+    return [x, oy + 24 + Math.round(i * 2.2)];
+  }
+
+  /** 実の 中心（下げ 実は 枝の 下、上向きの 実は 枝の 上）。 */
   miAt(i: number, oy: number): [number, number] {
-    const x = SX + 26 + i * 40;
-    const by = oy + 30 + Math.round(i * 4 - (i * i) / 2);
-    return [x, by];
+    const [x, by] = this.branchAt(i, oy);
+    const kind = EDA_MI[this.k][i];
+    if (kind === 'ue') return [x, by - 12];
+    return [x, by + (kind === 'chiisai' ? 16 : 22)];
   }
 
   draw(g: Gfx): void {
@@ -332,71 +343,67 @@ export class EdaPanel implements Widget {
       const y = oy + ((i * 29) % CH);
       g.circle(x, y, 9 + (i % 3) * 2, i % 4 ? '#2E6A3A' : '#24563A');
     }
-    for (let i = 0; i < 7; i++) g.rect(SX + 12 + ((i * 61) % (W - 20)), oy + 4 + ((i * 17) % 30), 3, 2, '#A8D0EA');
-    // the branch from the left, bending down a little to the right
+    for (let i = 0; i < 7; i++) g.rect(SX + 12 + ((i * 61) % (W - 20)), oy + 4 + ((i * 17) % 14), 3, 2, '#A8D0EA');
     const mi = EDA_MI[this.k];
-    let prev: [number, number] = [SX - 2, oy + 16];
-    for (let i = 0; i < 5; i++) {
-      const [x, y] = this.miAt(i, oy);
-      const p: [number, number] = [x + 8, y - 12];
-      g.line(prev[0], prev[1], p[0], p[1], '#5A3A2A');
-      g.line(prev[0], prev[1] + 1, p[0], p[1] + 1, '#4A2E22');
-      g.line(prev[0], prev[1] + 2, p[0], p[1] + 2, '#3A2418');
-      prev = p;
+    // the leaves along the branch (a crowd of them: about 20 to 25 a fruit, not counted), behind it
+    for (let i = 0; i < 60; i++) {
+      const [bx, by] = this.branchAt(i % 5, oy);
+      const lx = bx - 20 + ((i * 13) % 40);
+      const ly = by - 14 + ((i * 7) % 12) + (i % 2 ? 0 : 10);
+      g.rect(lx, ly, 8, 3, i % 3 ? '#4A8A4A' : '#3A7A3A');
+      g.rect(lx + 1, ly, 6, 1, '#6AA06A');
+      g.px(lx + 7, ly + 1, '#2E6A3A');
     }
-    // the leaves along it (about 20 to 25 a fruit: drawn as a crowd, not counted)
-    for (let i = 0; i < 38; i++) {
-      const j = i % 5;
-      const [x, y] = this.miAt(j, oy);
-      const lx = x - 14 + ((i * 13) % 34);
-      const ly = y - 20 + ((i * 7) % 9) - (i % 2) * 4;
-      g.rect(lx, ly, 7, 3, i % 3 ? '#4A8A4A' : '#3A7A3A');
-      g.rect(lx + 1, ly, 5, 1, '#6AA06A');
+    // the branch from the left, bending down a little to the right
+    let prev: [number, number] = [SX - 2, oy + 20];
+    for (let i = 0; i < 5; i++) {
+      const p = this.branchAt(i, oy);
+      for (let d = 0; d < 3; d++) g.line(prev[0], prev[1] + d, p[0] + 20, p[1] + 1 + d, d === 0 ? '#7A5A3A' : d === 1 ? '#5A3A2A' : '#3A2418');
+      prev = [p[0] + 20, p[1] + 1];
     }
     // the five fruit (the one cut falls into the basket below)
     for (let i = 0; i < 5; i++) {
-      const [x, y0] = this.miAt(i, oy);
-      let y = y0;
-      if (i === this.cut) {
-        y += Math.round((this.cutT / 1000) * (this.cutT / 1000) * 240);
-        if (y > oy + CH + 10) continue;
-      }
       const kind = mi[i];
-      const r = kind === 'chiisai' ? 3 : kind === 'ue' ? 7 : 6;
-      if (kind === 'ue') {
-        // sitting on top of the branch, facing up (the stem below it)
-        const uy = y - 24;
-        g.rect(x - 1, uy + r, 2, 4, '#5A6A3A');
-        g.circle(x, uy, r, '#6AA04A');
-        g.circle(x - 2, uy - 2, 2, '#9BCB6B');
-        g.rect(x - 1, uy - r - 1, 2, 2, '#3A5A2A');
-        continue;
-      }
-      // hanging down from the branch on a short stem
-      if (i !== this.cut) g.line(x, y - 12, x, y - r, '#5A6A3A');
+      const [bx, by] = this.branchAt(i, oy);
+      let [x, y] = this.miAt(i, oy);
+      const r = kind === 'chiisai' ? 4 : kind === 'ue' ? 10 : 8;
+      if (i === this.cut) {
+        const u = this.cutT / 1000;
+        y += Math.round(u * u * 260);
+        x += Math.round(((SX + W / 2) - x) * Math.min(1, u * 1.6));
+        if (y > oy + CH + 10) continue;
+      } else if (kind === 'ue') g.rect(x - 1, y + r - 1, 3, by - (y + r) + 2, '#5A6A3A');
+      else g.rect(x - 1, by + 2, 2, y - r - by - 1, '#5A6A3A');
       g.circle(x, y, r, '#6AA04A');
-      g.circle(x - Math.max(1, r / 3), y - Math.max(1, r / 3), Math.max(1, r / 3), '#9BCB6B');
-      g.rect(x - 1, y + r - 1, 2, 1, '#3A5A2A');
+      g.circle(x + Math.round(r / 4), y + Math.round(r / 4), Math.round(r * 0.7), '#5A9040');
+      g.circle(x - Math.round(r / 3), y - Math.round(r / 3), Math.max(1, Math.round(r / 3)), '#9BCB6B');
+      // the calyx: on top of a hanging fruit, under one that faces up
+      if (kind === 'ue') g.rect(x - 2, y - r, 4, 2, '#3A5A2A');
+      else if (i !== this.cut) g.rect(x - 2, y - r, 4, 2, '#3A5A2A');
       if (kind === 'kizu') {
-        g.line(x - 3, y - 1, x + 2, y + 3, '#8A5A3A');
-        g.line(x - 2, y - 2, x + 3, y + 2, '#A8784A');
+        g.line(x - 4, y - 2, x + 3, y + 4, '#8A5A3A');
+        g.line(x - 3, y - 3, x + 4, y + 3, '#A8784A');
+        g.line(x - 1, y - 3, x + 1, y + 1, '#8A5A3A');
       }
     }
-    // the basket at the bottom
-    g.rect(SX + W / 2 - 18, oy + CH - 10, 36, 10, '#C8A06A');
-    g.rect(SX + W / 2 - 18, oy + CH - 10, 36, 1, '#E8C890');
-    for (let i = 0; i < cutN() + (this.cut >= 0 && this.cutT > 500 ? 0 : 0); i++) g.circle(SX + W / 2 - 8 + i * 8, oy + CH - 11, 3, '#6AA04A');
-    // the cursor: a pale ring round the chosen fruit and the shears' tips over it
+    // the basket at the bottom, the fruit cut so far in it
+    const kx = SX + W / 2 - 22;
+    const ky = oy + CH - 12;
+    g.rect(kx, ky, 44, 12, '#C8A06A');
+    g.rect(kx, ky, 44, 1, '#E8C890');
+    for (let x = kx + 3; x < kx + 44; x += 4) g.rect(x, ky + 2, 1, 9, '#A8804A');
+    const inK = cutN() - (this.cut >= 0 && this.cutT < 900 ? 1 : 0);
+    for (let i = 0; i < inK; i++) g.circle(kx + 10 + i * 12, ky - 1, 4, '#6AA04A');
+    // the cursor: a pale ring round the chosen fruit and the shears' red grips over it
     if (this.active && this.picked === null && this.cut < 0) {
-      const [x, y0] = this.miAt(this.sel, oy);
-      const y = mi[this.sel] === 'ue' ? y0 - 24 : y0;
+      const [x, y] = this.miAt(this.sel, oy);
       const blink = Math.floor(this.t / 300) % 2 === 0;
-      const r = 10;
+      const r = 12;
       g.frame(x - r, y - r, r * 2, r * 2, blink ? '#FFE7A3' : '#F4ECD8');
-      g.line(x + r - 2, y - r - 6, x + 2, y - r + 2, '#C8CCD4');
-      g.line(x + r + 2, y - r - 6, x + 4, y - r + 2, '#C8CCD4');
-      g.rect(x + r - 3, y - r - 9, 3, 3, '#C25A4A');
-      g.rect(x + r + 1, y - r - 9, 3, 3, '#C25A4A');
+      g.line(x + r - 3, y - r - 7, x + 2, y - r + 3, '#E8ECF4');
+      g.line(x + r + 3, y - r - 7, x + 4, y - r + 3, '#E8ECF4');
+      g.rect(x + r - 5, y - r - 11, 4, 4, '#C25A4A');
+      g.rect(x + r + 2, y - r - 11, 4, 4, '#C25A4A');
     }
   }
 }
@@ -518,6 +525,19 @@ export class MiharashiPanel implements Widget {
     g.rect(SX + 20, oy + 66, 92, 8, '#7A8090');
     g.rect(SX + 20, oy + 66, 92, 1, '#A8ACB4');
     for (let x = SX + 24; x < SX + 110; x += 8) g.rect(x, oy + 67, 1, 7, '#6B7186');
+    // the gulls stopped in the air at noon (62 8.8)
+    if (!nami) for (const [x, y] of [[150, 14], [232, 22], [280, 10]] as const) {
+      g.rect(SX + x - 3, oy + y, 3, 1, '#F4F1E8');
+      g.rect(SX + x + 1, oy + y, 3, 1, '#F4F1E8');
+      g.px(SX + x, oy + y + 1, '#C8CCD4');
+    }
+    // the far row of the town's roofs (smaller, paler), then the near row below the hill
+    for (let i = 0; i < 16; i++) {
+      const x = SX + 118 + i * 14 + ((i * 5) % 4);
+      if (x > SX + W - 10) break;
+      g.rect(x, oy + 68 + (i % 2), 12, 6, i % 3 ? '#6A7488' : '#8A6A52');
+      g.rect(x, oy + 68 + (i % 2), 12, 1, '#B8BCC4');
+    }
     // the town's roofs below the hill (tiles: grey-blue, a few brown), their ridges
     for (let i = 0; i < 12; i++) {
       const x = SX + 4 + i * 27 + ((i * 7) % 5);

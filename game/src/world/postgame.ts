@@ -413,7 +413,7 @@ export function pgAqOpen(min = pgMin()): boolean {
  */
 export const PG_TRUCK_STOPS: Record<string, { x: number; y: number; dir: 'down' | 'up' | 'left' | 'right' }> = {
   map_town: { x: 44, y: 20, dir: 'down' }, // 銀座の北の 広い 道（路地 (45,30) に縦だと、降りた しゅんと グソっ君が 車体に めりこんで 見えた 2026-10-20）
-  map_umizoi: { x: 23, y: 18, dir: 'right' },
+  map_umizoi: { x: 24, y: 18, dir: 'right' }, // 降りた所 (21,17) と 荷台の うしろを あける（改善会議 10-23 の2。前は x 23）
   // 岬（旧水族館の 前。2026-10-20 町の 外へ 移した）：港と 岬の あいだも ツガオ便
   map_c3_misaki: { x: 17, y: 13, dir: 'right' }, // 道の上に横向き（建物の前で縦に停めると、荷台が建物に食いこんで見えた 2026-10-20）
   map_hoshimidai: { x: 42, y: 41, dir: 'left' },

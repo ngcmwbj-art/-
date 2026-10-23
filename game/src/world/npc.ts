@@ -3,6 +3,7 @@ import type { Dir } from '../game/state';
 import { Actor, DIR_VEC, dirFromVec } from './actor';
 import type { NpcMove, NpcObj } from './types';
 import { pgOn } from './postgame';
+import { vehicleBodyDepth, vehicleFrame, type VehicleView } from '../art/props/vehicles';
 
 export interface NpcWorld {
   t: number;
@@ -61,9 +62,24 @@ export function stepToward(a: Actor, tx: number, ty: number, speed: number, dt: 
   return false;
 }
 
+/**
+ * 改善会議 10-23 の2（ツガオ便のめりこみ）: a parked or staged vehicle's collision box is its body —
+ * its picture's width across and as deep as the HD-2D body reaches north of its feet (横 62×16、
+ * 縦 30×60: vehicleBodyDepth), so nobody walks into it. It was 52×10 (and 24×44 seen end-on, set
+ * only by the 2D drawing: in HD-2D it stayed 52×10). Passing traffic keeps its own (lanes, npc.ts).
+ */
+export function vehicleBox(a: Actor): void {
+  const id = a.data.vehicle as string | undefined;
+  if (!id || a.data.passerby) return;
+  const view = a.dir as VehicleView;
+  a.bw = vehicleFrame(id, view, 0, false).width;
+  a.bh = vehicleBodyDepth(view);
+}
+
 export function updateNpc(a: Actor, dt: number, w: NpcWorld, talking: boolean): void {
   const def = a.data.def as NpcObj | undefined;
   a.update(dt);
+  if (a.data.vehicle) vehicleBox(a);
   if (!def || talking || a.data.scripted) {
     if (a.path.length === 0) a.moving = false;
     return;

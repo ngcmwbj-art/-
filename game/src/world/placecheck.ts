@@ -12,6 +12,7 @@
 //
 //   __game.cmd.placeCheck()                 今の地図（いま並んでいる人・spawn した人も）
 //   __game.cmd.placeCheck({ player: false })
+//   __game.cmd.placeCheck({ scene: true })  場面で並べた ghost の人どうしも 数える（改善会議 10-23 の3）
 //   __game.cmd.placeCheckMaps(['map_town', …])  地図ごと（省略：すべて。今の 進みの flag のまま）
 //
 // 見つかった物を 直すかは 人が決める（わざと 重ねている所：座る人・カウンターの 店番・
@@ -23,9 +24,10 @@ import { cellAt, hasMap, mapIds } from './maps';
 import { coverage, opaque } from './occlusion';
 import type { NpcObj } from './types';
 import { registerDebug } from '../debug';
+import { vehicleBodyDepth, type VehicleView } from '../art/props/vehicles';
 
 export interface PlaceIssue {
-  /** 'マス:かべ' 'マス:物' 'マス:人どうし' '物:かべ' '物:物' '絵:人どうし' '絵:かくれる' */
+  /** 'マス:かべ' 'マス:物' 'マス:人どうし' '物:かべ' '物:物' '絵:人どうし' '絵:かくれる' '車:かべ' '車:物' '車:人' */
   kind: string;
   a: string;
   b?: string;
@@ -56,10 +58,11 @@ function picture(a: Actor): { img: HTMLCanvasElement; x: number; y: number } | n
 }
 
 /** わざと 何かに 重ねて 立たせている人（occlusion.ts と同じ 決め）。 */
-function meant(f: FieldScene, a: Actor): boolean {
+function meantFor(f: FieldScene, a: Actor, scene = false): boolean {
   const def = a.data.def as NpcObj | undefined;
   if (a.kind !== 'npc' || !def) return false;
-  if (def.ghost) return true;
+  // (a scene's people are spawned ghost — they walk through each other — but where they stand still counts: `scene`)
+  if (def.ghost && !scene) return true;
   if (def.pose === 'sit' || a.pose === 'sit') return true;
   return !!cellAt(f.map, a.tileX, a.tileY + 1).counter;
 }
@@ -70,14 +73,17 @@ function propName(p: PropInst): string {
 }
 
 /** 今の地図を 点検する。`player`: 主人公も（既定 true。地図めぐりでは false）。 */
-export function placeCheck(f: FieldScene, o: { player?: boolean; hide?: number; overlap?: number } = {}): PlaceIssue[] {
+export function placeCheck(f: FieldScene, o: { player?: boolean; hide?: number; overlap?: number; scene?: boolean } = {}): PlaceIssue[] {
   const out: PlaceIssue[] = [];
+  const meant = (f: FieldScene, a: Actor) => meantFor(f, a, !!o.scene);
   const hideMin = o.hide ?? 0.35;
   const overlapMin = o.overlap ?? 0.25;
   // (the town's traffic waits off the map's edge: not standing anywhere)
   const onMap = (a: Actor) => a.x >= 0 && a.y > 0 && a.x < f.map.w * 16 && a.y <= f.map.h * 16;
-  const people = f.actors.filter((a) => a.visible && a.alpha > 0.5 && a.kind !== 'follower' && onMap(a));
-  if (o.player !== false) people.push(f.player);
+  // (the riders up on a truck's bed sit close on purpose: shuuka.ts ride())
+  const people = f.actors.filter((a) => a.visible && a.alpha > 0.5 && a.kind !== 'follower' && onMap(a) && !a.data.riding);
+  // (a hidden player — a scene staged without him — stands nowhere)
+  if (o.player !== false && f.player.visible) people.push(f.player);
   // ---- マス目：人の 立つ マス
   for (const a of people) {
     if (meant(f, a)) continue;
@@ -121,6 +127,37 @@ export function placeCheck(f: FieldScene, o: { player?: boolean; hide?: number; 
     if (meant(f, a) || a.drawFn) continue;
     const c = coverage(f, a.x + a.ox, a.y + a.oy, a.frame());
     if (c.frac >= hideMin) out.push({ kind: '絵:かくれる', a: a.id, b: c.by.join(' '), at: [Math.floor(a.x / 16), Math.floor((a.y - 1) / 16)], note: `${Math.round(c.frac * 100)}%` });
+  }
+  // ---- 車の 体（改善会議 10-23 の2）：止めた 軽トラの 体（絵の幅 × 横 16px・縦 60px 北へ。HD-2D の 立体と 同じ）が
+  // かべ・建物・物の マスに 入っていないか、人（主人公・グソっ君も）の 足が 体の 中に ないか
+  for (const v of f.actors) {
+    if (!v.data.vehicle || !v.visible || !onMap(v)) continue;
+    const img = v.data.shadowFrame as HTMLCanvasElement | undefined;
+    const w = img?.width ?? 30;
+    const x0 = v.x + v.ox - Math.floor(w / 2);
+    const x1 = x0 + w;
+    const z1 = v.y;
+    const z0 = v.y - vehicleBodyDepth(v.dir as VehicleView);
+    const name = `${v.id}(車)`;
+    const walls: string[] = [];
+    const things: string[] = [];
+    for (let ty = Math.floor((z0 + 1) / 16); ty <= Math.floor((z1 - 1) / 16); ty++)
+      for (let tx = Math.floor((x0 + 1) / 16); tx <= Math.floor((x1 - 1) / 16); tx++) {
+        if (wallCell(f, tx, ty)) walls.push(`${tx},${ty}`);
+        else if (f.propSolidAt(tx, ty)) things.push(`${tx},${ty}`);
+      }
+    const at: [number, number] = [Math.floor(v.x / 16), Math.floor((v.y - 1) / 16)];
+    if (walls.length) out.push({ kind: '車:かべ', a: name, at, note: `${walls.length}マス ${walls.slice(0, 4).join(' ')}` });
+    if (things.length) out.push({ kind: '車:物', a: name, at, note: `${things.length}マス ${things.slice(0, 4).join(' ')}` });
+    for (const a of [...people, ...(f.follower && f.follower.visible ? [f.follower] : [])]) {
+      // (the riders up on the bed: lift; S25 ride())
+      if (a === v || a.data.vehicle || meant(f, a) || a.lift > 0 || a.data.riding) continue;
+      // (on the body's back or front plane too: the picture stands in it, half buried or flickering)
+      if (a.y < z0 - 2 || a.y > z1 + 2) continue;
+      const hw = Math.max(4, a.bw / 2);
+      if (a.x + a.ox + hw <= x0 || a.x + a.ox - hw >= x1) continue;
+      out.push({ kind: '車:人', a: a.id, b: name, at: [Math.floor(a.x / 16), Math.floor((a.y - 1) / 16)], note: a.y > z1 - 1 ? '体の 前の 面' : a.y < z0 + 1 ? '体の うしろの 面' : `体の 中 ${Math.round(z1 - a.y)}px` });
+    }
   }
   // ---- 物の solid の四角
   const solids = f.props.filter((p) => p.present && p.obj.solid);
@@ -170,7 +207,7 @@ function pixelOverlap(a: { img: HTMLCanvasElement; x: number; y: number }, b: { 
 }
 
 if (import.meta.env.DEV) {
-  registerDebug('placeCheck', (o: { player?: boolean; hide?: number; overlap?: number } = {}) => {
+  registerDebug('placeCheck', (o: { player?: boolean; hide?: number; overlap?: number; scene?: boolean } = {}) => {
     const f = field();
     if (!f) return 'field not active';
     return placeCheck(f, o);

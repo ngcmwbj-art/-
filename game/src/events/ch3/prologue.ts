@@ -28,6 +28,7 @@ import type { FieldScene } from '../../world/field';
 import { hasMap } from '../../world/maps';
 import type { NpcObj } from '../../world/types';
 import type { Actor } from '../../world/actor';
+import { vehicleBox } from '../../world/npc';
 import { vehicleFrame, type VehicleView } from '../../art/props/vehicles';
 import { P } from '../../art/tiles/palette';
 import { playChapterDoor } from '../../ui/chapter_door';
@@ -62,8 +63,12 @@ const TRUCK_ZONE = { x0: 43, x1: 47, y0: 24, y1: 31 };
 const TAKASHI_ZONE = { x0: 24, x1: 29, y0: 22, y1: 24 };
 /** The bed of the truck (map_c3_nidai, 62 4.1). */
 const NIDAI = { shun: [4, 3], kn: [5, 3], hiro: [7, 2] } as const;
-/** map_umizoi: off the bed at (21,17) E, the truck stopped at (22–24,17–18) facing east (62 1.4). */
-const ARRIVE = { x: 21, y: 17, truckX: 23, truckY: 18 };
+/**
+ * map_umizoi: off the bed at (21,17) E, the truck stopped at (24,18) facing east (62 1.4). Its body
+ * (62 px across, reaching a tile north) clears しゅん's tile: at (23,18) its tail came to x 345 and
+ * しゅん stood half into its back in HD-2D (改善会議 10-23 の2).
+ */
+const ARRIVE = { x: 21, y: 17, truckX: 24, truckY: 18 };
 
 // ---------------------------------------------------------------- the truck (a staged vehicle actor)
 
@@ -79,16 +84,14 @@ export function spawnTruck(id: string, x: number, y: number, dir: VehicleView, k
   a.data.vehicle = kind;
   a.data.noSpace = true;
   a.solid = true;
-  a.bh = 10;
   fitLane(a);
   const img = () => vehicleFrame(a.data.vehicle as string, a.dir, game.time, a.moving);
-  a.bw = 52;
+  // the collision box is the body (改善会議 10-23 の2、world/npc.ts vehicleBox: 2D and HD-2D alike)
+  vehicleBox(a);
   a.data.shadowFrame = img();
   a.drawFn = (g, px, py) => {
     const im = img();
-    a.bw = a.dir === 'left' || a.dir === 'right' ? 52 : 24;
-    // seen from the front or the back the body runs ~3 tiles along the road: keep people off it
-    a.bh = a.dir === 'left' || a.dir === 'right' ? 10 : 44;
+    vehicleBox(a);
     a.data.shadowFrame = im;
     g.rect(px - Math.floor(im.width / 2) + 2, py - 3, im.width - 4, 3, P.ink, 0.35);
     g.img(im, px - Math.floor(im.width / 2), py - im.height + 1);

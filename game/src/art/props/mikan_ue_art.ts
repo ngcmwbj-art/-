@@ -43,7 +43,7 @@ registerProp('prop_mk_dan', (opts) => {
     w: 18,
     h: 20,
     foot: 15,
-    flat: !machi,
+    flat: true,
     img: () => img,
     contact: 0,
     // the town side: a white glint of the noon sun on the top step now and then (seen from the work path)

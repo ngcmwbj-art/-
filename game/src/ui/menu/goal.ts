@@ -30,8 +30,8 @@ export interface GoalWhere {
   ty: number;
 }
 
-/** 1行の 幅（手帳の 上の テープ：がま口と 時計の 札の あいだ）。 */
-export const GOAL_W = 196;
+/** 1行の 幅（手帳の 上の テープ：がま口の 値札と クリア後の 時間帯の 印の あいだ。テープの 左 20px は 小旗、右 8px は 余白）。 */
+export const GOAL_W = 184;
 
 type Line = string | ((n: number) => string);
 
@@ -251,7 +251,7 @@ export function goalLine(w?: GoalWhere): string {
 // ================================================================ 手帳の 上の テープ
 
 /** テープの 左はし・右はし（がま口の 値札の 右・時計の 札と クリア後の 時間帯の 印の 左）。 */
-const TAPE_X0 = 98;
+const TAPE_X0 = 94;
 const TAPE_X1 = 306;
 
 /** 朱の 小旗（さお 1px × 11、旗 5×4）。x, y：さおの 上。つづきからの カードでも 使う。 */
@@ -267,7 +267,7 @@ export function drawGoalFlag(g: Gfx, x: number, y: number): void {
  */
 export function drawGoalTape(g: Gfx, text: string, dx: number, alpha: number): void {
   if (!text) return;
-  const w = Math.min(TAPE_X1 - TAPE_X0, textW(text) + 30);
+  const w = Math.min(TAPE_X1 - TAPE_X0, textW(text) + 28);
   const x = TAPE_X0 + dx;
   const y = 2;
   g.alpha(alpha, () => {
@@ -295,7 +295,7 @@ export function goalText(): { pages: number; bad: string[] } {
   };
   for (const [k, l] of Object.entries(GOAL)) {
     if (typeof l === 'string') check(k, l);
-    else for (const n of k === 'pg.later' ? [0, 1, 2, 3] : [1, 2, 3, 4, 6, 45]) check(`${k}(${n})`, l(n));
+    else for (const n of k === 'pg.later' ? [0, 1, 2, 3] : k === 'pg.left' ? [1, 9, 45] : [1, 2, 3, 4, 6]) check(`${k}(${n})`, l(n));
   }
   // グソっ君の ヒントの 文は どれも 表の 行に なる（食いちがいを 作らない）
   for (const [, [k]] of hintKeys()) if (!GOAL[k]) bad.push(`ヒント ${k}: 表に 行が ない`);

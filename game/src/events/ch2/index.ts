@@ -83,4 +83,7 @@ import './kutsu';
 // 当たりは、かじって みんと（げむきか 10/22 の 案5、02_ch2_index）。ペロ（羽釜の 用は 先に 通す）・ハモ区長を 包む。
 // hagama の あとに import する
 import './shishito';
+// 幕の 中の 停留所（げむきか 10/23 の 案4、02_ch2_index）。転回場の 村営バス・まつ先生を 包む（まつ先生の ほかの 用は
+// 先に 通す）。himo の あとに import する
+import './busmaku';
 import './debug';

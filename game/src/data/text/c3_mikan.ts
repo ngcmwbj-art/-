@@ -346,9 +346,10 @@ export const MK_ITEM_DESC: [string, string] = ['しぼると、すっぱい。�
 /** みました帳③の すみの 1ページ（ui/menu/book_mikan.ts）。 */
 export const MK_BOOK = {
   title: '落とすけえ、甘うなる',
+  titleLines: ['落とすけえ、', '甘うなる'],
   fuda: ['かたい 字', '丸い 字'],
   quote: ['落とすけえ、', '残りが 甘うなる。'],
-  meyasu: '葉 20〜25枚に 実 1つ',
+  meyasu: '葉 20〜25枚に 1つ',
 };
 
 export const MK_TEXTS: Record<string, unknown> = {

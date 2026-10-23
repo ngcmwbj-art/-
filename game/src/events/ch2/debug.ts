@@ -75,6 +75,7 @@ import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
 import { KU_TEXTS } from '../../data/text/hoshi_kutsu';
 import { SS_TEXTS } from '../../data/text/hoshi_shishito';
+import { BM_TEXTS } from '../../data/text/hoshi_busmaku';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -535,6 +536,8 @@ function collectTexts(): [string, string][] {
   walk('kutsu', KU_TEXTS);
   // げむきか10/22の案5（当たりは、かじって みんと。02_ch2_index）
   walk('shishito', SS_TEXTS);
+  // げむきか10/23の案4（幕の 中の 停留所。02_ch2_index）
+  walk('busmaku', BM_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）

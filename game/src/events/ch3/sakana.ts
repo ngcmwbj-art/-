@@ -128,20 +128,22 @@ addMarkSource((f) => {
 
 const fishCache = new Map<string, HTMLCanvasElement>();
 
-/** 小アジ（横向き、頭が 左。口に 糸）：14×6。 */
+/** 小アジ（横向き、頭が 左。口に 糸）：18×8。背は 青みどり、腹は 銀、ぜいごの 線、二つに 分かれた 尾。 */
 function ajiImg(): HTMLCanvasElement {
   const hit = fishCache.get('aji');
   if (hit) return hit;
   const p = PixelCanvas.fromArt(
     [
-      '...hhhhhhh....',
-      '.hwwwwwwwwwh.t',
-      'kwswwwwwwwwwtt',
-      'hbbbbbbbbbbbbt',
-      '.hbbbbbbbbbh.t',
-      '...hhhhhhh....',
+      '.....bbbbbbb......',
+      '...bbbbbbbbbbb..tt',
+      '.bbewbbbbbbbbbbtt.',
+      'mwwwllllllllllltt.',
+      '.wwwwwwwwwwwwwwtt.',
+      '..wwwwwwwwwwwww.tt',
+      '....wwwwwwwww.....',
+      '..................',
     ],
-    { h: '#5A6A7A', w: '#E8F2F8', s: '#1B1733', b: '#B8C8D4', t: '#8EA4B4', k: '#C89068' },
+    { b: '#5E8A94', e: '#1B1733', w: '#E8F2F8', l: '#9AB0BE', t: '#7A98A4', m: '#C89068' },
   );
   p.outline('#1B1733');
   const c = p.toCanvas();

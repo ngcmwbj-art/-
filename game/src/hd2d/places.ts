@@ -89,16 +89,10 @@ function umizoiStep(tx: number, ty: number, ch: string): number | undefined {
   return undefined;
 }
 
-/** みかん畑の 上の 段：上（y0–2）・中（y3–5）・下（y6–9）。石垣の 列は 上の 段の 高さ、石の 段は あいだ。 */
+/** みかん畑の 上の 段：1段の 高さ（px）。 */
 export const MIKAN_UE_DAN = 14;
-function mikanUeStep(_tx: number, ty: number, ch: string): number | undefined {
-  const lv = ty <= 2 ? 2 : ty <= 5 ? 1 : 0;
-  if (ch === 'n' && (ty === 3 || ty === 6)) return Math.round((lv + 0.5) * MIKAN_UE_DAN);
-  if (ch === 'B') return lv * MIKAN_UE_DAN;
-  if (ch === 'n' && ty === 9) return -4;
-  return lv * MIKAN_UE_DAN;
-}
-
+const MK_UP = 2 * MIKAN_UE_DAN;
+const MK_MID = MIKAN_UE_DAN;
 export const PLACES: Record<string, PlaceDef> = {
   map_town: { water: true },
   map_school: {
@@ -157,9 +151,16 @@ export const PLACES: Record<string, PlaceDef> = {
   // 岬（旧水族館の 正面、2026-10-20）：海は 崖の 下。南の はしの 先は 海が 続く、北は 松林、西は 町へ 続く 道
   map_c3_misaki: { steps: { '~': -8 }, c3sea: true, outside: (_tx, ty, edge) => (ty >= 18 ? '~' : ty < 2 ? 'H' : edge) },
   // 小石の 浜（低う、平たく、03_ch3_index）：海は 浜より 低い。南の はしの 先は 海が 続く、北は やぶ、東西は 岩
-  // みかん畑の 上の 段（落とすけえ、甘うなる、03_ch3_index）：段々 3段、上の 段ほど 高い（石垣 y3・y6 の 面が 立つ）。
-  // 北は クロマツ、東西は 低い がけ、南の はしの 先は 下の 作業道（町の 段々）
-  map_c3_mikan_ue: { stepAt: mikanUeStep, outside: (_tx, ty, edge) => (ty < 1 ? 'H' : ty > 9 ? 'K' : edge) },
+  // みかん畑の 上の 段（落とすけえ、甘うなる、03_ch3_index）：段々 3段、上の 段ほど 高い（地図の 字ごと。石垣の 面が 立つ）。
+  // 北と 東西は その 段の 高さの クロマツ、南の はしの 先は 1段 下の 畑（町の 段々）
+  map_c3_mikan_ue: {
+    steps: {
+      h: MK_UP, p: MK_UP, P: MK_UP, S: MK_UP, T: MK_UP, O: MK_UP, C: MK_UP, N: (MK_UP + MK_MID) / 2,
+      j: MK_MID, q: MK_MID, Q: MK_MID, B: MK_MID, n: MK_MID / 2,
+      H: 0, m: 0, M: 0, o: 0, D: 0, z: -MK_MID / 2, v: -MK_MID,
+    },
+    outside: (_tx, ty, edge) => (ty > 9 ? 'v' : ty < 0 ? 'h' : edge),
+  },
   map_c3_koishi: { steps: { '~': -8 }, c3sea: true, outside: (tx, ty, edge) => (ty >= 8 ? '~' : ty < 1 ? 'H' : tx < 0 || tx > 23 ? 'K' : edge) },
 };
 

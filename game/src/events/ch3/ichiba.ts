@@ -186,7 +186,8 @@ export function* evtSeri(): Co {
       const a = spawn('c3_seri_kucho', 6, 10, { sprite: 'npc_hoshi_kucho', dir: 'up', ghost: true });
       a.data.scripted = true;
       staged.push(a.id);
-      game.scripts.run(walk(a.id, [[6, 7]], { speed: 4, face: 'up' }));
+      // (behind ナミエ's shoulder at (7,8): (6,7) is the market's own customer's square — 改善会議 10-23 の3)
+      game.scripts.run(walk(a.id, [[7, 8]], { speed: 4, face: 'up' }));
     }
     if (kita('npc_madam')) {
       const a = spawn('c3_seri_madam', 13, 10, { sprite: 'npc_madam', dir: 'up', ghost: true });

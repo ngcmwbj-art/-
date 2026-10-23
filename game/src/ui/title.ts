@@ -413,7 +413,7 @@ export class TitleScene implements Scene {
     if (shown <= 0) return false;
     const head = c.place ? `${c.chapter} ${c.place}` : c.chapter;
     const w = Math.max(textW(head), c.goal ? textW(c.goal) + 10 : 0) + 16;
-    const h = c.goal ? 42 : 24;
+    const h = c.goal ? 38 : 22;
     const n = this.menu.length;
     const top = MENU_BOTTOM - 18 - (n - 1) * MENU_STEP;
     const right = menuX(top) - (this.kind === 'ch2' ? NOTE_W - 5 : 0) - 18;
@@ -423,11 +423,11 @@ export class TitleScene implements Scene {
     drawWindow(g, x, y, w, h, UI, shown, { curl: false });
     g.alpha(shown, () => {
       const cw = textW(c.chapter);
-      g.text(c.chapter, x + 8, y + 4, { color: UI.accent });
-      if (c.place) g.text(c.place, x + 8 + cw + 8, y + 4, { color: UI.text });
+      g.text(c.chapter, x + 8, y + 3, { color: UI.accent });
+      if (c.place) g.text(c.place, x + 8 + cw + 8, y + 3, { color: UI.text });
       if (c.goal) {
-        drawGoalFlag(g, x + 8, y + 26);
-        g.text(c.goal, x + 18, y + 22, { color: UI.text });
+        drawGoalFlag(g, x + 8, y + 24);
+        g.text(c.goal, x + 18, y + 20, { color: UI.text });
       }
     });
     return true;
@@ -698,8 +698,11 @@ function drawChapterNote(g: Gfx, x: number, y: number, a: number, sel: boolean):
   });
 }
 
-/** 「つづきから」の カードの 上（ロゴの 英字の 下）。 */
-const CONT_Y = 99;
+/**
+ * 「つづきから」の カードの 上：ロゴの 英字（〜y94）の すぐ 下。下の はし（y133）は クリアの カードの
+ * はなまる（y137〜）と ①②③の 旗（y134〜）より 上。
+ */
+const CONT_Y = 95;
 
 /** The post-ending card: bottom-left, left of the silhouettes on the bridge (x ≥ 118). */
 const CLEAR_CARD = { x: 4, y: 146, w: 112, h: 62 };
