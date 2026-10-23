@@ -326,7 +326,7 @@ export class Threats {
   spawnGroup(wave, baseAngle) {
     const members = 2 + Math.floor(wave / 2) + (this.extraGhosts || 0);
     const realIdx = Math.floor(Math.random() * members);
-    const group = { members: [], collapsed: false, hp: 110 + wave * 45, speed: 3.6 + wave * 0.45 };
+    const group = { members: [], collapsed: false, hp: (110 + wave * 45) * (this.hpMul || 1), speed: 3.6 + wave * 0.45 };
     // 竜巻は東の海から上陸してくる
     const z0 = this.landZ ?? Math.max(-120, Math.min(120, Math.sin(baseAngle) * 160 + rand(-50, 50)));
     for (let i = 0; i < members; i++) {
@@ -353,7 +353,7 @@ export class Threats {
   // 前ぶれの雑魚：青虫・カラス・つむじ風（小さな竜巻。重ね合わせなし）
   spawnMinion(type, wave) {
     if (type === 'tsumuji') {
-      const group = { members: [], collapsed: true, hp: 40 + wave * 12, speed: 4.5 + wave * 0.3, scale: 0.3, mini: true };
+      const group = { members: [], collapsed: true, hp: (40 + wave * 12) * (this.hpMul || 1), speed: 4.5 + wave * 0.3, scale: 0.3, mini: true };
       const tor = new Tornado(this, this.gatePoint(4), true, group);
       tor.setGhost(0);
       group.members.push(tor);
@@ -375,6 +375,18 @@ export class Threats {
       return;
     }
     this.minions.push(new Minion(this, type, wave));
+  }
+
+  // モンシロチョウの卵と、そこからわく青虫（1 回の台風で合わせて 8 まで）
+  spawnEgg(pos) {
+    if ((this.eggCount || 0) >= 8) return;
+    this.eggCount = (this.eggCount || 0) + 1;
+    this.minions.push(new Minion(this, 'egg', this.game.wave, pos));
+    if (this.eggCount === 1) this.hud.toast('モンシロチョウが光る卵を産んだ！ 青虫がわく前に割ろう', 'tip');
+  }
+  hatch(pos) {
+    this.fx.burst(pos.clone().add(new THREE.Vector3(0, 0.6, 0)), '#9fe05a', 14, 4, 0.5, 0.3, 2);
+    this.minions.push(new Minion(this, 'mushi', this.game.wave, pos));
   }
 
   // 不確定性原理：縛っていた位置がほどけると、どこへ飛ぶかわからない
@@ -407,7 +419,7 @@ export class Threats {
     g.scale = 1.7;
     this.game.memo('superposition');
     for (const m of g.members) {
-      m.hp = m.maxHp = 380 + wave * 190;
+      m.hp = m.maxHp = (380 + wave * 190) * (this.hpMul || 1);
       m.baseScale = 1.7;
       m.obj.scale.setScalar(1.7);
     }
@@ -453,7 +465,7 @@ export class Threats {
     this.game.onKill?.(e, p);
     if (e.type || e.group.mini) {
       this.minionKills++;
-      this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : e.type === 'inoshishi' ? '#7a5a40' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);
+      this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : e.type === 'inoshishi' ? '#7a5a40' : e.type === 'egg' ? '#ffd84a' : e.type === 'chou' ? '#ffffff' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);
       this.game.addQ(4, p);
       this.audio.clank(0.4);
     } else {

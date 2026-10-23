@@ -17,6 +17,7 @@ const MAT = {
   boarDark: new THREE.MeshStandardMaterial({ color: '#2e2219', roughness: 0.9 }),
   snout: new THREE.MeshStandardMaterial({ color: '#a8786a', roughness: 0.6 }),
   tusk: new THREE.MeshStandardMaterial({ color: '#f2ead8', roughness: 0.4 }),
+  wingW: new THREE.MeshStandardMaterial({ color: '#f6f4ea', roughness: 0.6, side: THREE.DoubleSide }),
 };
 for (const k in MAT) MAT[k] = toToon(MAT[k]);
 const sphere = new THREE.SphereGeometry(1, 16, 12);
@@ -94,17 +95,50 @@ function buildBoar() {
   return g;
 }
 
+// モンシロチョウ：白い羽に黒い点
+function buildChou() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(sphere, MAT.eye); body.scale.set(0.05, 0.05, 0.22); g.add(body);
+  const wings = [];
+  for (const sx of [-1, 1]) {
+    const pivot = new THREE.Group(); g.add(pivot);
+    const w1 = new THREE.Mesh(new THREE.CircleGeometry(0.22, 10), MAT.wingW); w1.rotation.x = -Math.PI / 2; w1.position.set(sx * 0.2, 0, 0.06); pivot.add(w1);
+    const w2 = new THREE.Mesh(new THREE.CircleGeometry(0.16, 10), MAT.wingW); w2.rotation.x = -Math.PI / 2; w2.position.set(sx * 0.16, 0, -0.14); pivot.add(w2);
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.035, 8), MAT.eye); dot.rotation.x = -Math.PI / 2; dot.position.set(sx * 0.24, 0.003, 0.08); pivot.add(dot);
+    pivot.userData.sx = sx; wings.push(pivot);
+  }
+  g.scale.setScalar(2.2);
+  g.userData.wings = wings;
+  return g;
+}
+// 卵：見落とさないよう大きく光らせる
+const EGG_MAT = new THREE.MeshStandardMaterial({ color: '#fff3a0', emissive: '#ffd84a', emissiveIntensity: 1.2, roughness: 0.4 });
+function buildEgg() {
+  const g = new THREE.Group();
+  const e = new THREE.Mesh(sphere, EGG_MAT); e.scale.set(0.28, 0.4, 0.28); e.position.y = 0.4; g.add(e);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.8, 24).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.6, depthWrite: false, fog: false }));
+  halo.position.y = 0.05; g.add(halo);
+  g.userData = { egg: e, halo };
+  return g;
+}
+
 export class Minion {
-  constructor(sys, type, wave) {
+  constructor(sys, type, wave, at = null) {
     this.sys = sys; this.type = type;
     this.alive = true;
-    this.hp = this.maxHp = type === 'mushi' ? 30 + wave * 10 : type === 'inoshishi' ? 70 + wave * 15 : 22 + wave * 8;
-    this.speed = type === 'mushi' ? 2.6 + wave * 0.2 : type === 'inoshishi' ? 3.5 : 8 + wave * 0.5;
+    const HP = { mushi: 30 + wave * 10, inoshishi: 70 + wave * 15, chou: 14 + wave * 4, egg: 18 + wave * 3 };
+    this.hp = this.maxHp = (HP[type] ?? 22 + wave * 8) * (sys.hpMul || 1);
+    this.speed = type === 'mushi' ? 2.6 + wave * 0.2 : type === 'inoshishi' ? 3.5 : type === 'chou' ? 5 : 8 + wave * 0.5;
     this.target = -1; this.retarget = 0; this.t = Math.random() * 10; this.hit = 0;
-    this.obj = type === 'mushi' ? buildMushi() : type === 'inoshishi' ? buildBoar() : buildCrow();
+    this.obj = type === 'mushi' ? buildMushi() : type === 'inoshishi' ? buildBoar() : type === 'chou' ? buildChou() : type === 'egg' ? buildEgg() : buildCrow();
+    this.eggsLeft = 2; this.hatchT = 9; this.layT = 0;
     this.mode = 'walk'; this.cool = 2;
     // 予報で決めた方角（東西南北の一方）からザーッと押し寄せる。カラスはその方角の空から
-    if (type === 'mushi' || type === 'inoshishi') {
+    if (at) {
+      this.pos = at.clone();
+      this.pos.y = groundAt(this.pos.x, this.pos.z);
+    } else if (type === 'mushi' || type === 'inoshishi') {
       this.pos = sys.gatePoint(0);
       this.pos.y = groundAt(this.pos.x, this.pos.z);
     } else {
@@ -118,6 +152,7 @@ export class Minion {
   update(dt) {
     const sys = this.sys, cab = sys.cabbages;
     this.t += dt;
+    if (this.type === 'egg') { this.updateEgg(dt); return; }
     // 結界で位置を縛られている間：その場で震える
     if (this.frozen > 0) {
       // 突進の前・最中に結界で止めたら「止めた！」
@@ -144,6 +179,7 @@ export class Minion {
     const dx = c.x - this.pos.x, dz = c.z - this.pos.z, d = Math.hypot(dx, dz);
     const spd = this.speed * (sys.slow ? 0.35 : 1) * zeno;
     if (this.type === 'inoshishi') { this.updateBoar(dt, c, dx, dz, d, spd); return; }
+    if (this.type === 'chou') { this.updateChou(dt, c, dx, dz, d, spd); return; }
     if (this.type === 'mushi') {
       if (d > 0.9) {
         this.pos.x += dx / d * spd * dt; this.pos.z += dz / d * spd * dt;
@@ -215,6 +251,47 @@ export class Minion {
     ud.legs.forEach((l, i) => { l.rotation.x = (i === 0 || i === 3 ? sw : -sw); });
     this.obj.scale.setScalar(1.15 * (1 + this.hit * 0.2));
   }
+  // モンシロチョウ：ひらひら飛んでキャベツに止まり、卵を産んで次のキャベツへ（2 個まで）
+  updateChou(dt, c, dx, dz, d, spd) {
+    const sys = this.sys;
+    if (this.layT > 0) {
+      this.layT -= dt;
+      this.pos.y += (c.y + 0.9 - this.pos.y) * Math.min(1, dt * 4);
+      if (this.layT <= 0) {
+        sys.spawnEgg(new THREE.Vector3(c.x, 0, c.z));
+        this.eggsLeft--;
+        this.target = sys.cabbages.nearestAlive(this.pos.x + rand(-40, 40), this.pos.z + rand(-40, 40));
+        this.retarget = 12;
+      }
+    } else {
+      const ty = (d > 6 ? 3.5 : c.y + 1.2) + Math.sin(this.t * 5) * 0.4;
+      this.pos.y += (ty - this.pos.y) * Math.min(1, dt * 3);
+      const wob = Math.sin(this.t * 2.3) * 0.8;
+      if (d > 0.7) { this.pos.x += (dx / d + wob * -dz / d * 0.6) * spd * dt; this.pos.z += (dz / d + wob * dx / d * 0.6) * spd * dt; }
+      else if (this.eggsLeft > 0) this.layT = 1.2;
+      else if (sys.cabbages.damage(this.target, 6 * dt * sys.dmgMul, 'up')) sys.stats.lost++;
+      this.obj.rotation.y = Math.atan2(dx, dz);
+    }
+    const flap = Math.sin(this.t * 18) * 0.9;
+    this.obj.userData.wings.forEach((w) => { w.rotation.z = w.userData.sx * flap; });
+    this.obj.position.copy(this.pos);
+    this.obj.scale.setScalar(2.2 * (1 + this.hit * 0.25));
+  }
+  // 卵：しばらくすると青虫がわく（わく数には上限）
+  updateEgg(dt) {
+    const ud = this.obj.userData;
+    this.hatchT -= dt * (this.sys.slow ? 0.35 : 1);
+    const k = 1 - this.hatchT / 9;
+    ud.egg.scale.set(0.28 + k * 0.08, 0.4 + Math.sin(this.t * (4 + k * 14)) * 0.03 + k * 0.08, 0.28 + k * 0.08);
+    ud.halo.material.opacity = 0.35 + Math.sin(this.t * 6) * 0.25;
+    EGG_MAT.emissiveIntensity = 1 + Math.sin(this.t * 6) * 0.4;
+    this.obj.position.copy(this.pos);
+    if (this.hatchT <= 0) {
+      this.remove();
+      this.sys.hatch(this.pos);
+    }
+  }
+
   showLine() {
     this.hideLine();
     const L = 42;

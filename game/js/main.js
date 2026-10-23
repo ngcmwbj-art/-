@@ -131,6 +131,7 @@ class Game {
     this.phaseT = 0;
     this.buildSel = null;
     this.cd = { teleport: 0, observe: 0, chord: 0, kekkai: 0 };
+    this.spots = [];
     this.memoSeen = new Set(); this.blessing = null; this.prayT = 0; this.prayed = false;
     this.cowLog = { storms: 0, allHome: 0, outageFail: 0 };
     this.cards = new Set(); this.hitstop = 0; this.killStreak = 0; this.lastKillAt = -9;
@@ -295,7 +296,7 @@ class Game {
         this.player.facing = Math.atan2(f.x, f.z);
       }
     }
-    const dmg = 34 * (this.blessing === 'hado' ? 1.3 : 1) * (this.cards.has('loud') ? 1.3 : 1) * (this.settings.easy ? 1.25 : 1);
+    const dmg = 34 * (this.blessing === 'hado' ? 1.3 : 1) * (this.cards.has('loud') ? 1.3 : 1) * (this.diff() === 0 ? 1.25 : 1);
     const res = this.threats.blast(p, reach, dmg, { cone: new THREE.Vector2(f.x, f.z), inner: 9, push: 4, from: p });
     const gpos = p.clone().add(new THREE.Vector3(0, 1.3, 0));
     this.fx.ring(p, '#ffd36a', reach, 0.45, 0.7);
@@ -314,8 +315,12 @@ class Game {
     if (res.unobserved && !res.hits) this.hud.toast('紫の竜巻（幻かも）には効かない！［F］観測で正体を暴こう', 'bad');
   }
 
+  // 台風の強さ：0 やさしい／1 ふつう／2 強い／3 猛烈
+  diff() { return this.settings.diff ?? 1; }
+  diffMul() { return [{ dmg: 0.6, hp: 1, pay: 1 }, { dmg: 1, hp: 1, pay: 1 }, { dmg: 1.3, hp: 1.3, pay: 1.2 }, { dmg: 1.6, hp: 1.7, pay: 1.5 }][this.diff()]; }
+
   aimTarget(p, f, range) {
-    const cosLim = this.settings.easy ? -1 : Math.cos(1.2);
+    const cosLim = this.diff() === 0 ? -1 : Math.cos(1.2);
     let best = null, bd = range * range;
     const consider = (e) => {
       const dx = e.pos.x - p.x, dz = e.pos.z - p.z, d2 = dx * dx + dz * dz;
@@ -471,9 +476,12 @@ class Game {
     if (!this.buildSel) return;
     const def = this.towers.def(this.buildSel);
     const pos = this.player.aimPoint(7);
-    if (this.q < def.cost) { this.hud.toast(`Qビットが足りない（${def.name}：${def.cost}Q）`, 'bad'); return; }
+    const spot = (this.spots || []).find((sp) => Math.hypot(sp.pos.x - pos.x, sp.pos.z - pos.z) < 6);
+    const cost = spot ? Math.floor(def.cost * 0.9) : def.cost;
+    if (this.q < cost) { this.hud.toast(`Qビットが足りない（${def.name}：${cost}Q）`, 'bad'); return; }
     if (!this.towers.canPlace(pos)) { this.hud.toast('ここには建てられない', 'bad'); return; }
-    this.q -= def.cost;
+    this.q -= cost;
+    if (spot) { this.scene.remove(spot.ring); this.spots = this.spots.filter((x) => x !== spot); this.hud.toast(`おすすめ設置ポイント：1 割引き（${cost}Q）`, 'good'); }
     this.towers.build(this.buildSel, pos);
     this.audio.build();
     this.hud.toast(`${def.name}を建てた`, 'q');
@@ -487,7 +495,7 @@ class Game {
     const z0 = Math.max(-110, Math.min(110, Math.sin(a) * 150 + rand(-30, 30)));
     // 最初の台風は練習を兼ねて、弱い雑魚が少しだけ
     // イノシシは台風2号と4号だけ（大ボスの第2形態がある台風3号・5号とは重ねない）
-    const counts = wv === 0 ? { mushi: 5, karasu: 2, tsumuji: 0, pair: 0, inoshishi: 0 } : { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv, inoshishi: wv === 1 ? 2 : wv === 3 ? 3 : 0 };
+    const counts = wv === 0 ? { mushi: 5, karasu: 2, tsumuji: 0, pair: 0, inoshishi: 0 } : { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv, inoshishi: wv === 1 ? 2 : wv === 3 ? 3 : 0, chou: wv >= 2 ? (wv === 4 ? 4 : 3) : 0 };
     this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) + (WAVES[Math.min(wv, WAVES.length - 1)].ghosts || 0) };
     // 上陸予想地点の赤い柱
     if (this.landMarker) this.scene.remove(this.landMarker);
@@ -504,7 +512,35 @@ class Game {
     this.landMarker = g;
     this.plan.landing = g.position.clone();
     this.makeGate();
+    this.makeSpots();
   }
+
+  // おすすめ設置ポイント：台風2号・3号の準備タイムだけ、最大 2 か所に平たい緑の輪。そこに建てると 1 割引き
+  makeSpots() {
+    this.clearSpots();
+    if (this.wave !== 1 && this.wave !== 2) return;
+    const g = this.plan.gate, L = this.plan.landing;
+    const cands = [
+      { x: g.x + g.in.x * 42, z: g.z + g.in.y * 42, why: `雑魚の来る${g.name}の入り口` },
+      { x: L.x - 26, z: L.z, why: 'ボスの上陸地点の手前' },
+    ];
+    for (const c of cands) {
+      let pos = null;
+      for (let k = 0; k < 12 && !pos; k++) {
+        const p = new THREE.Vector3(c.x + (k ? rand(-8, 8) : 0), 0, c.z + (k ? rand(-8, 8) : 0));
+        p.y = heightAt(p.x, p.z);
+        if (this.towers.canPlace(p)) pos = p;
+      }
+      if (!pos) continue;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(3.2, 4, 40).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: '#7dffb0', transparent: true, opacity: 0.7, depthWrite: false, fog: false }));
+      ring.position.copy(pos).add(new THREE.Vector3(0, 0.35, 0));
+      this.scene.add(ring);
+      this.spots.push({ pos, ring, why: c.why });
+    }
+    if (this.spots.length) this.hud.toast('緑の輪は「おすすめ設置ポイント」：そこに建てると 1 割引き（地図にも出ている）', 'tip');
+  }
+  clearSpots() { for (const sp of this.spots || []) this.scene.remove(sp.ring); this.spots = []; }
 
   // 雑魚の来る方角（東西南北のどれか一方）。その辺の幅 60m の「門」からザーッと押し寄せる
   makeGate() {
@@ -570,7 +606,7 @@ class Game {
     const c = p.counts;
     const tip = this.weaknessTip();
     this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
-      `${tip ? `<span class="tip">今回のコツ：${tip}</span>` : ''}${c.inoshishi ? '<span class="tip">イノシシ注意：止まって土煙を上げたら突進の合図。結界［G］で止めよう</span>' : ''}予報：雑魚は<span class="hl">${p.gate.name}</span>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2 + (c.inoshishi || 0)} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}${c.inoshishi ? `・イノシシ ${c.inoshishi}` : ''}）→ 大ボス（分身 ${p.ghosts} 体${WAVES[Math.min(this.wave, WAVES.length - 1)].phase2 ? '・体力半分で回り込む' : ''}）`, items);
+      `${tip ? `<span class="tip">今回のコツ：${tip}</span>` : ''}${c.inoshishi ? '<span class="tip">イノシシ注意：止まって土煙を上げたら突進の合図。結界［G］で止めよう</span>' : ''}${c.chou ? '<span class="tip">モンシロチョウ注意：光る卵は青虫がわく前に割ろう</span>' : ''}予報：雑魚は<span class="hl">${p.gate.name}</span>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2 + (c.inoshishi || 0) + (c.chou || 0)} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}${c.inoshishi ? `・イノシシ ${c.inoshishi}` : ''}${c.chou ? `・モンシロチョウ ${c.chou}` : ''}）→ 大ボス（分身 ${p.ghosts} 体${WAVES[Math.min(this.wave, WAVES.length - 1)].phase2 ? '・体力半分で回り込む' : ''}）`, items);
   }
 
   skipPrep() {
@@ -614,15 +650,19 @@ class Game {
     for (let i = 0; i < c.tsumuji; i++) pool.push('tsumuji');
     for (let i = 0; i < (c.pair || 0); i++) pool.push('pair');
     for (let i = 0; i < (c.inoshishi || 0); i++) pool.push('inoshishi');
+    for (let i = 0; i < (c.chou || 0); i++) pool.push('chou');
+    this.threats.eggCount = 0;
     pool.sort(() => Math.random() - 0.5);
     this.spawn = { pool, total: pool.length, next: 1.5, boss: false, debris: 6, strike: 14 };
     // 停電のサブミッション：台風2号から、10 回に 7 回くらい
     this.outage = this.wave > 0 && Math.random() < 0.7 ? { at: rand(18, 34), state: 'wait' } : null;
+    this.eye = this.wave > 0 ? { state: 'wait' } : null;
     this.threats.minionKills = 0;
     const a = this.plan.angle; // 予報どおり東の海から
     this.stormAngle = a;
     this.threats.landZ = this.plan.z0;
     this.threats.gate = this.plan.gate;
+    this.clearSpots();
     clearTimeout(this.evTimer); this.clearPrepEvent();
     if (this.wave > 0) { this.cowLog.storms++; if (this.cows.home >= this.cows.count) this.cowLog.allHome++; }
     this.cows.shelterAll();
@@ -631,7 +671,8 @@ class Game {
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
     this.weather.setStorm(w.peak * 0.7);
-    this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1) * (this.cards.has('tough') ? 0.8 : 1) * (this.settings.easy ? 0.6 : 1);
+    this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1) * (this.cards.has('tough') ? 0.8 : 1) * this.diffMul().dmg;
+    this.threats.hpMul = this.diffMul().hp;
     this.say('来たな…キャベツには指一本触れさせねえ！', true);
     this.hud.banner(`${w.name} 接近！`, `雑魚 ${this.minionsLeft()} 匹が${this.plan.gate.name}からザーッと押し寄せる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
     this.audio.thunder(0.5);
@@ -640,6 +681,7 @@ class Game {
   spawnBoss() {
     const w = WAVES[this.wave];
     this.spawn.boss = true;
+    this.spawn.bossAt = this.phaseT;
     this.threats.extraGhosts = w.ghosts || 0;
     const g = this.threats.spawnBoss(this.wave, this.stormAngle);
     this.threats.extraGhosts = 0;
@@ -665,6 +707,7 @@ class Game {
     const bonus = 30 + Math.floor(this.cabbages.alive / this.cabbages.total * 50);
     this.addQ(bonus);
     this.say('ふぅ…守り切ったぜ', true);
+    if (this.eyeSeen) { this.eyeSeen = false; this.memo('eye'); }
     this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q`);
     this.audio.fanfare();
   }
@@ -852,6 +895,45 @@ class Game {
     return o && o.state === 'on' ? `　<b>牛舎が停電！</b> 発電機へ 残り ${Math.ceil(o.left)} 秒` : '';
   }
 
+  // 台風の目：ボス戦の途中で 10 秒だけ風がやむ（晴れ間）→ 反対向きの強い風（吹き返し）で雑魚が飛ばされる
+  // 空は描き直さず、嵐の強さを下げて暗い雲を薄くするだけ
+  updateEye(dt, w) {
+    const e = this.eye, sp = this.spawn, b = this.threats.boss;
+    if (!e || e.state === 'done' || !sp.boss || !b) return;
+    if (e.state === 'wait') {
+      if (this.phaseT - sp.bossAt < 22 || sp.phase2T > 0) return;
+      e.state = 'calm'; e.left = 10; e.speed = b.speed; b.speed *= 0.5;
+      this.weather.setStorm(w.peak * 0.18);
+      this.say('静かになった…いや、目に入っただけだ', true);
+      this.hud.toast('台風の目に入った：風がやんだ。まだ終わっていない！ 吹き返しに注意', 'tip');
+      return;
+    }
+    if (e.state === 'calm') {
+      e.left -= dt;
+      if (e.left > 0) return;
+      // 吹き返し
+      e.state = 'done';
+      b.speed = e.speed;
+      this.weather.setStorm(Math.min(1, w.peak * 1.15));
+      this.weather.windDir.multiplyScalar(-1);
+      const wd = this.weather.windDir;
+      for (const m of this.threats.minions) {
+        if (!m.alive || m.type === 'egg') continue;
+        m.pos.x += wd.x * 8; m.pos.z += wd.y * 8; m.retarget = 0;
+        this.fx.burst(m.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#cfd6dc', 8, 5, 0.5, 0.3, 1);
+      }
+      this.player.shake = 0.8;
+      this.audio.thunder(0, 0.5);
+      this.hud.banner('吹き返し！', '台風の目が通り過ぎて、反対向きの強い風。雑魚も吹き飛ばされた');
+      this.say('来た、吹き返しだ！', true);
+      this.eyeSeen = true;
+    }
+  }
+  eyeText() {
+    const e = this.eye;
+    return e && e.state === 'calm' ? `台風の目に入った ― まだ終わっていない！ 吹き返しまで <b>${Math.ceil(e.left)}</b> 秒` : '';
+  }
+
   // 大ボスの第2形態：体力が半分になると、量子トンネルで反対側（西の山すそ）へ回り込む
   // 回り込んだ先に赤い柱で予告し、3 秒止まってから再び畑へ
   updatePhase2(dt) {
@@ -882,7 +964,7 @@ class Game {
   }
 
   // 出荷：キャベツ 1 玉 150 円で計算
-  sales() { return this.cabbages.alive * 150 + (this.harvestYen || 0); }
+  sales() { return Math.round((this.cabbages.alive * 150 + (this.harvestYen || 0)) * this.diffMul().pay); }
   yen(n) { return n.toLocaleString() + ' 円'; }
   // 牛の様子（台風のたびに牛舎へ戻せたか・停電を直せたかで変わる。出荷はしない）
   cowCondition() {
@@ -910,10 +992,10 @@ class Game {
     const rec = loadRecords();
     const prev = rec.lastSales;
     const diff = prev != null && win ? sales - prev : null;
-    if (win) { rec.lastSales = sales; rec.bestSales = Math.max(rec.bestSales || 0, sales); saveRecords(rec); }
+    if (win) { rec.cleared = true; rec.lastSales = sales; rec.bestSales = Math.max(rec.bestSales || 0, sales); saveRecords(rec); }
     const cow = this.cowCondition();
     el.querySelector('.stats').innerHTML = `
-      <li class="ship"><span>キャベツの売上（1玉 150 円${this.harvestYen ? '＋金のキャベツ' : ''}）</span><b>${win ? this.yen(sales) : '出荷できず'}</b></li>
+      <li class="ship"><span>キャベツの売上（1玉 150 円${this.harvestYen ? '＋金のキャベツ' : ''}${this.diffMul().pay > 1 ? `・台風の強さボーナス ×${this.diffMul().pay}` : ''}）</span><b>${win ? this.yen(sales) : '出荷できず'}</b></li>
       ${this.harvestYen && win ? `<li><span>うち 収穫タイムの金のキャベツ</span><b>${this.yen(this.harvestYen)}</b></li>` : ''}
       ${diff != null ? `<li class="ship"><span>前回とくらべて</span><b class="${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '+' : '−'}${this.yen(Math.abs(diff))}</b></li>` : ''}
       ${rec.bestSales ? `<li><span>これまでの最高売上</span><b>${this.yen(rec.bestSales)}</b></li>` : ''}
@@ -963,6 +1045,7 @@ class Game {
       if (sp.strike <= 0 && this.phaseT > 15) { this.threats.spawnStrike(); sp.strike = w.strike * (w.strikeMul || 1) * rand(0.8, 1.5); }
       if (sp.boss && w.phase2) this.updatePhase2(dt);
       this.updateOutage(dt);
+      this.updateEye(dt, w);
       if (sp.boss && !this.threats.bossAlive) this.endStorm();
       if (this.phaseT > 260) this.endStorm();
     } else if (this.phase === 'clear') {
@@ -980,7 +1063,9 @@ class Game {
   // 敵を倒した瞬間：ほんの一瞬止める（ヒットストップ）・Qの光の粒・連続撃破
   onKill(e, pos) {
     const big = e.group && e.group.boss;
-    this.hitstop = Math.max(this.hitstop, big ? 0.18 : 0.045);
+    this.hitstop = Math.max(this.hitstop, big ? 0 : 0.045);
+    // 大ボス撃破：0.6 秒だけスローにしてカメラを寄せる
+    if (big) { this.slowmo = 0.6; this.fovKick = 1.6; this.player.shake = 0.9; this.fx.sphere(e.pos.clone().add(new THREE.Vector3(0, 6, 0)), '#ffffff', 40, 0.9); }
     this.fx.absorb(pos, this.player.pos, big ? '#ffd36a' : '#b48cff', big ? 14 : 5);
     this.killStreak = this.time - this.lastKillAt < 2.2 ? this.killStreak + 1 : 1;
     this.lastKillAt = this.time;
@@ -1250,6 +1335,7 @@ class Game {
     const rawDt = Math.min(this.clock.getDelta(), 0.05);
     let dt = this.paused ? 0 : rawDt;
     if (this.hitstop > 0) { this.hitstop -= rawDt; dt *= 0.08; }
+    if (this.slowmo > 0) { this.slowmo -= rawDt; dt *= 0.2; }
     this.time += rawDt;
     const t = this.time;
 
@@ -1292,6 +1378,7 @@ class Game {
     w.update(rawDt, t, this.camera, this.player.pos);
     this.windU.uTime.value = t;
     if (this.gateMarker) this.gateMarker.userData.wallMat.uniforms.uT.value = t;
+    for (const sp of this.spots) sp.ring.material.opacity = 0.45 + Math.sin(t * 3) * 0.25;
     this.windU.uWind.value = w.storm * 1.4;
     this.world.update(rawDt, t, w);
     this.cabbages.update(dt, t, w.storm, this.camera);
@@ -1307,15 +1394,15 @@ class Game {
     gu.uFlash.value = w.flash;
     gu.uSolo.value = this.player.soloOn ? 1 : Math.max(0, gu.uSolo.value - rawDt * 2);
     // 弾いた瞬間にカメラをぐっと寄せる
-    this.fovKick = Math.max(0, this.fovKick - rawDt * 3.5);
+    if (!(this.slowmo > 0)) this.fovKick = Math.max(0, this.fovKick - rawDt * 3.5);
     const fov = 62 - this.fovKick * 9 + (this.player.soloOn ? -6 : 0);
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     if (this.tut) this.updateTutorial();
     else if (this.phase === 'storm') {
       const sub = `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`;
       // 大ボス戦は画面上の体力バーが目印になるので、目的パネルは出さない
-      const ot = this.outageText();
-      if (this.spawn.boss) this.hud.objective(ot ? ot.trim() : null, '', true);
+      const ot = this.outageText(), et = this.eyeText();
+      if (this.spawn.boss) this.hud.objective(et || (ot ? ot.trim() : null), '', true);
       else this.hud.objective(`前ぶれの雑魚 残り <b>${this.minionsLeft()}</b> 匹${ot}`, sub, true);
     } else if (this.phase === 'prep' && !this.mission) {
       // スマホ・iPad はやることリストを 8 秒で自動的にたたむ（タップで開ける）
@@ -1401,6 +1488,17 @@ if (saved) {
   contBtn.hidden = false;
   contBtn.innerHTML = `つづきから<small>${WAVES[Math.min(saved.wave, WAVES.length - 1)].name}の準備タイム（${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} 保存）</small>`;
   contBtn.addEventListener('click', () => game && game.start({ resume: saved }));
+}
+// 台風の強さ：強い・猛烈は一度クリアしてから
+{
+  const cleared = !!loadRecords().cleared;
+  document.querySelectorAll('.diff-sel').forEach((sel) => {
+    [2, 3].forEach((v) => { const o = sel.querySelector(`option[value="${v}"]`); o.disabled = !cleared; if (!cleared) o.textContent = o.textContent.replace(/（.*）/, '') + '（クリア後）'; });
+  });
+  const td = document.getElementById('title-diff');
+  const syncTitle = () => { if (game) td.value = String(game.settings.diff ?? 1); };
+  td.addEventListener('change', () => { if (!game) return; game.settings.diff = +td.value; saveSettings(game.settings); game.settingsSync?.(); });
+  setInterval(syncTitle, 1000); setTimeout(syncTitle, 200);
 }
 document.getElementById('open-settings').addEventListener('click', () => game && game.toggleSettings(true));
 document.getElementById('pause-settings').addEventListener('click', (e) => { e.stopPropagation(); game && game.toggleSettings(true); });

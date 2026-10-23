@@ -102,8 +102,8 @@ export class HUD {
     if (!card) { this.memoOn = false; el.className = ''; document.body.classList.remove('memo-on'); return; }
     this.memoOn = true;
     document.body.classList.add('memo-on');
-    el.innerHTML = `<span class="tag">量子メモ</span><h4>${card.title}</h4>
-      <dl><dt>本当の量子力学</dt><dd>${card.physics}</dd><dt>ゲームでは</dt><dd>${card.game}</dd></dl>
+    el.innerHTML = `<span class="tag">${card.kind === 'weather' ? '気象メモ' : '量子メモ'}</span><h4>${card.title}</h4>
+      <dl><dt>${card.kind === 'weather' ? '本当の気象' : '本当の量子力学'}</dt><dd>${card.physics}</dd><dt>ゲームでは</dt><dd>${card.game}</dd></dl>
       <p class="lore"><small>言い伝え（ゲームの中の世界観）</small>${card.lore}</p><i class="close">×</i>`;
     el.className = ''; void el.offsetWidth; el.className = 'show';
     const done = () => { clearTimeout(this._mt); el.onpointerdown = null; el.className = 'out'; setTimeout(() => this.nextMemo(), 400); };
@@ -413,8 +413,14 @@ export class HUD {
       g.fillStyle = 'rgba(160,30,20,.85)'; g.fillRect(100 - w / 2, 6, w, 14);
       g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(msg, 100, 16.5);
     }
+    // おすすめ設置ポイント
+    for (const sp of game.spots || []) {
+      const [a2, b2] = this.toMap(sp.pos.x, sp.pos.z);
+      g.strokeStyle = '#7dffb0'; g.lineWidth = big ? 1.2 : 2; g.beginPath(); g.arc(a2, b2, big ? 3.5 : 4, 0, 7); g.stroke();
+      if (big) { g.font = '700 4.5px "Zen Kaku Gothic New", sans-serif'; g.textAlign = 'center'; g.fillStyle = '#7dffb0'; g.fillText('おすすめ設置', a2, b2 + 8); }
+    }
     // 雑魚
-    for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : m.type === 'inoshishi' ? '#b07040' : '#222', m.type === 'inoshishi' ? 3 : 2);
+    for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : m.type === 'inoshishi' ? '#b07040' : m.type === 'egg' ? '#ffd84a' : m.type === 'chou' ? '#ffffff' : '#222', m.type === 'inoshishi' || m.type === 'egg' ? 3 : 2);
     // 飛来物
     for (const d of game.threats.debris) dot(d.pos.x, d.pos.z, '#ccc', 1.6);
     // 竜巻
