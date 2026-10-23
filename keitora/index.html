@@ -2390,19 +2390,12 @@ canvas { display: block; width: 100%; height: 100%; }
   // 100m ごとの距離標、ベストの旗、タイムアタックのゴール
   function drawMarkers() {
     const first = Math.floor((cam - 60) / (100 * PX_PER_M));
-    for (let k = Math.max(1, first); k <= first + 2; k++) {
+    for (let k = Math.max(1, first); k <= first + 2 && !r3.drawing; k++) {   // 3D では道の奥に立てる看板として別に作る
       const sx = k * 100 * PX_PER_M + TRUCK_FRONT - cam;
-      if (sx < -40 || sx > W + 40 || find('gap', sx + cam)) continue;
+      if (sx < -50 || sx > W + 50 || find('gap', sx + cam)) continue;
       ctx.save();
       ctx.translate(0, -levelAt(sx + cam));
-      ctx.fillStyle = '#e8e2d0';
-      ctx.fillRect(sx - 7, GROUND - 26, 14, 26);
-      ctx.fillStyle = '#b9b19a';
-      ctx.fillRect(sx - 7, GROUND - 26, 14, 3);
-      ctx.fillStyle = '#3b3326';
-      ctx.font = '10px ' + FONT;
-      ctx.textAlign = 'center';
-      ctx.fillText(String(k * 100), sx, GROUND - 9, 12);
+      drawDistSign(k * 100, sx, GROUND);
       ctx.restore();
     }
     if (state === 'title') return;
@@ -2512,6 +2505,37 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillText(name, sx + 8, top + 16);
     ctx.restore();
   }
+  // 距離の看板：柱の上に、緑のふちの白い板。「300 m」と大きく
+  function drawDistSign(m, x, gy) {
+    const text = `${fmtM(m)} m`;
+    ctx.font = 'bold 18px ' + FONT;
+    const bw = Math.max(64, Math.ceil(ctx.measureText(text).width) + 18), bh = 30;
+    ctx.fillStyle = '#6a4b2a';
+    ctx.fillRect(x - 2.5, gy - 44, 5, 44);
+    ctx.fillStyle = '#2f5d3a';
+    ctx.fillRect(x - bw / 2, gy - 44 - bh, bw, bh);
+    ctx.fillStyle = '#f4ecd2';
+    ctx.fillRect(x - bw / 2 + 3, gy - 44 - bh + 3, bw - 6, bh - 6);
+    ctx.fillStyle = '#23402a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, x, gy - 44 - 9);
+  }
+  // 注意の看板（ボコボコ道・水たまり）：黄色い板に太い字
+  function drawWarnSign(x, gy, text, bg, fg) {
+    ctx.font = 'bold 15px ' + FONT;
+    const bw = Math.ceil(ctx.measureText(text).width) + 16, bh = 24;
+    ctx.fillStyle = '#6a4b2a';
+    ctx.fillRect(x - 2, gy - 40, 4, 40);
+    ctx.fillStyle = '#3a2a14';
+    ctx.fillRect(x - bw / 2 - 2, gy - 40 - bh - 2, bw + 4, bh + 4);
+    ctx.fillStyle = bg;
+    ctx.fillRect(x - bw / 2, gy - 40 - bh, bw, bh);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, x, gy - 40 - 7);
+  }
   // トマト畑の直売所（道の奥）
   function drawStand(sx) {
     const y = GROUND - 2;
@@ -2571,6 +2595,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawHazard(o, sx) {
     {
       if (o.t === 'puddle') {
+        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '水たまり', '#7fc4ec', '#123a5a');
         if (sx > W || sx + o.w < 0 || r3.drawing) return;
         drawPuddle(sx, o.w);
       } else if (o.t === 'cow') {
@@ -2589,16 +2614,7 @@ canvas { display: block; width: 100%; height: 100%; }
       } else if (o.t === 'bump') {
         if (sx > W || sx + o.w < 0) return;
         if (!r3.drawing) drawBumps(sx, o.w, o.seed);
-        if (sx - 30 > -50 && sx - 30 < W) {
-          ctx.fillStyle = '#6a4b2a';
-          ctx.fillRect(sx - 30, GROUND - 34, 3, 34);
-          ctx.fillStyle = '#f0d27a';
-          ctx.fillRect(sx - 46, GROUND - 48, 36, 18);
-          ctx.fillStyle = '#3a2a14';
-          ctx.font = '11px ' + FONT;
-          ctx.textAlign = 'center';
-          ctx.fillText('悪路', sx - 28, GROUND - 34);
-        }
+        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '悪路 注意', '#f2c230', '#2a1d08');
       }
     }
   }
@@ -3058,7 +3074,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawNight() {
     const n = env.night;
     if (n <= 0.01) return;
-    ctx.fillStyle = `rgba(8,12,35,${n * 0.42})`;
+    ctx.fillStyle = `rgba(8,12,35,${n * 0.28})`;
     ctx.fillRect(-20, -(VH - H) - camY - 20, W + 40, VH + 40);
     if (n > 0.4) drawFireflies((n - 0.4) / 0.6);
     if (n < 0.3 || truck.falling) return;
@@ -3462,6 +3478,16 @@ canvas { display: block; width: 100%; height: 100%; }
     r3.layerSoft.renderOrder = 10;
     scene.add(r3.layerSolid, r3.layerSoft);
 
+    // 泥の穴に落ちた軽トラ：転がりながら手前（カメラの方）の田んぼへ。層とは別の板にする
+    const FALL = 300;
+    r3.fallCv = document.createElement('canvas');
+    r3.fallCv.width = r3.fallCv.height = Math.ceil(FALL / LP);
+    r3.fallTex = pixelTex(T, r3.fallCv);
+    r3.fall = new T.Mesh(new T.PlaneGeometry(FALL * M, FALL * M), new T.MeshBasicMaterial({ map: r3.fallTex, alphaTest: 0.5 }));
+    r3.fall.customDepthMaterial = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: r3.fallTex, alphaTest: 0.5 });
+    r3.fall.castShadow = true;
+    r3.fall.visible = false;
+    scene.add(r3.fall);
     // 蛍（夜だけ）
     const FF = 46;
     const ffGeo = new T.BufferGeometry();
@@ -3521,6 +3547,19 @@ canvas { display: block; width: 100%; height: 100%; }
     t.wrapS = t.wrapT = T.RepeatWrapping;
     return t;
   }
+  // 水たまり：空を映した青に、ゆらゆら流れる白い光のすじ
+  function puddleTex(T) {
+    const c = document.createElement('canvas');
+    c.width = 32; c.height = 16;
+    const g = c.getContext('2d');
+    g.fillStyle = '#5aa6e0'; g.fillRect(0, 0, 32, 16);
+    g.fillStyle = '#86c4ee'; g.fillRect(0, 0, 32, 4);
+    g.fillStyle = '#ffffff';
+    for (const [x, y, w] of [[3, 5, 6], [15, 9, 8], [25, 3, 4], [8, 12, 5], [22, 13, 6]]) g.fillRect(x, y, w, 1);
+    const t = pixelTex(T, c);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    return t;
+  }
   function stoneTex(T) {
     const c = document.createElement('canvas');
     c.width = c.height = 32;
@@ -3552,8 +3591,11 @@ canvas { display: block; width: 100%; height: 100%; }
       stone: L({ map: stone }),
       water: new T.MeshPhongMaterial({ color: 0x86b5ab, shininess: 70, specular: 0x5c6e6a }),
       pitWater: new T.MeshPhongMaterial({ color: 0x7a6a48, shininess: 40, specular: 0x3a3a30 }),
-      puddle: new T.MeshPhongMaterial({ color: 0x9fc6dc, shininess: 90, specular: 0x8899aa }),
-      bump: L({ color: 0x7a5a36 }),
+      puddle: new T.MeshPhongMaterial({ map: puddleTex(T), color: 0xffffff, emissive: 0x1d4a6e, shininess: 120, specular: 0xaaccee }),
+      puddleRim: L({ color: 0x5c4630 }),
+      bump: L({ color: 0x6b4e30 }),
+      bumpLight: L({ color: 0x9a7a4e }),
+      rut: L({ color: 0x7a5a36 }),
       rice: L({ color: 0x86c45a, side: T.DoubleSide }),
       plain: L({ color: 0x9cc3b0 }),
       pole: L({ color: 0x5b4a3a }),
@@ -3602,7 +3644,11 @@ canvas { display: block; width: 100%; height: 100%; }
   }
   function disposeChunk(ch) {
     r3.scene.remove(ch.group);
-    ch.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    ch.group.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      const own = o.userData.own;
+      if (own) { own.mat.map.dispose(); own.mat.dispose(); own.depth.dispose(); }
+    });
   }
   function buildWorld() {
     if (r3.stepsRef !== steps || cam < r3.lastCam - 200) resetWorld();
@@ -3672,27 +3718,50 @@ canvas { display: block; width: 100%; height: 100%; }
       if (o.x < a || o.x >= b) continue;          // 区切りをまたぐものは、始まりのかたまりで1回だけ作る
       const top = (o.lv || 0) * M;
       if (o.t === 'puddle') {
-        const p = new T.Mesh(new T.PlaneGeometry(o.w * M, 2.2), mt.puddle);
+        // 泥のふちの上に、明るい青の水面（光のすじが流れる）
+        const rim = new T.Mesh(new T.PlaneGeometry(o.w * M + 0.5, 2.9), mt.puddleRim);
+        rim.rotation.x = -Math.PI / 2;
+        rim.position.set((o.x + o.w / 2) * M, top + 0.012, 0.1);
+        rim.receiveShadow = true;
+        const p = new T.Mesh(new T.PlaneGeometry(o.w * M, 2.5), mt.puddle);
         p.rotation.x = -Math.PI / 2;
-        p.position.set((o.x + o.w / 2) * M, top + 0.015, 0.1);
+        p.position.set((o.x + o.w / 2) * M, top + 0.025, 0.1);
         p.receiveShadow = true;
-        group.add(p);
+        group.add(rim, p);
       } else if (o.t === 'bump') {
-        const n = Math.max(3, Math.round(o.w / 9));
-        const im = new T.InstancedMesh(new T.SphereGeometry(0.22, 6, 4), mt.bump, n * 3);
+        // 掘れた路面の上に、大小の土の塊を3列。影が落ちて、遠くからでも凸凹が分かる
+        const rut = new T.Mesh(new T.PlaneGeometry(o.w * M, 3.0), mt.rut);
+        rut.rotation.x = -Math.PI / 2;
+        rut.position.set((o.x + o.w / 2) * M, top + 0.01, 0);
+        rut.receiveShadow = true;
+        group.add(rut);
+        const n = Math.max(4, Math.round(o.w / 7));
+        const geo = new T.SphereGeometry(0.34, 7, 5);
+        const dark = new T.InstancedMesh(geo, mt.bump, n * 3), light = new T.InstancedMesh(geo, mt.bumpLight, n * 3);
         const m4 = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3();
-        let k = 0;
+        let kd = 0, kl = 0;
         for (let i = 0; i < n; i++) {
           for (let row = 0; row < 3; row++) {
-            const x = (o.x + (i + 0.5) * o.w / n + (hash(o.seed + i * 3 + row) - 0.5) * 6) * M;
-            sc.set(1 + hash(o.seed + i + row * 7) * 0.6, 0.45, 1);
-            m4.compose(new T.Vector3(x, top + 0.02, (row - 1) * 0.9), q, sc);
-            im.setMatrixAt(k++, m4);
+            const j = hash(o.seed + i * 3 + row);
+            const x = (o.x + (i + 0.5) * o.w / n + (j - 0.5) * 5) * M;
+            sc.set(0.9 + j * 0.7, 0.45 + hash(o.seed + i + row * 7) * 0.45, 0.9 + j * 0.4);
+            m4.compose(new T.Vector3(x, top + 0.02, (row - 1) * 0.95), q, sc);
+            if ((i + row) % 2) dark.setMatrixAt(kd++, m4); else light.setMatrixAt(kl++, m4);
           }
         }
-        im.castShadow = true; im.receiveShadow = true;
-        group.add(im);
+        dark.count = kd; light.count = kl;
+        for (const im of [dark, light]) { im.castShadow = true; im.receiveShadow = true; group.add(im); }
       }
+    }
+    // 距離の看板（100 m ごと）：道の奥のふちに立てる
+    const SIGN = 100 * PX_PER_M;
+    for (let k = Math.max(1, Math.ceil((a - TRUCK_FRONT) / SIGN)); k * SIGN + TRUCK_FRONT < b; k++) {
+      const sx = k * SIGN + TRUCK_FRONT;
+      if (gaps.some(o => sx > o.x - 20 && sx < o.x + o.w + 20)) continue;
+      const info = decorTex('sign-' + k, 100, 82, () => drawDistSign(k * 100, 50, 80), true);
+      const bb = billboard(T, info, (sx - 50) * M, levelAt(sx) * M - 0.04, -ROAD_D - 0.3, 'sign');
+      bb.userData.own = info;
+      group.add(bb);
     }
     // 電柱と電線（奥の田んぼ）
     const POLE = 24 / M;
@@ -3777,8 +3846,8 @@ canvas { display: block; width: 100%; height: 100%; }
     group.add(im);
   }
   // ドット絵の板の絵（2D の絵を粗い解像度に描いたもの）。季節に合わせて見せたり隠したりする
-  function decorTex(key, w, h, fn) {
-    if (r3.decor.has(key)) return r3.decor.get(key);
+  function decorTex(key, w, h, fn, temp) {
+    if (!temp && r3.decor.has(key)) return r3.decor.get(key);
     const c = document.createElement('canvas');
     c.width = Math.ceil(w / LP); c.height = Math.ceil(h / LP);
     const g = c.getContext('2d');
@@ -3790,6 +3859,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const mat = new r3.T.MeshBasicMaterial({ map, alphaTest: 0.5, transparent: true });
     const depth = new r3.T.MeshDepthMaterial({ depthPacking: r3.T.RGBADepthPacking, map, alphaTest: 0.5 });
     const info = { mat, depth, w, h };
+    if (temp) return info;
     r3.decor.set(key, info);
     r3.tinted.push(mat);
     return info;
@@ -3852,6 +3922,7 @@ canvas { display: block; width: 100%; height: 100%; }
         '  vec3 c = mix(sharp, bl, coc);',
         '  float l = dot(bl, vec3(0.299, 0.587, 0.114));',
         '  c += bl * max(l - 0.84, 0.0) * (0.8 + night * 3.6);',
+        '  c = mix(c, sqrt(max(c, 0.0)), night * 0.4);',
         '  c = (c - 0.5) * 1.06 + 0.5; float g = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(g), c, 1.1);',
         '  c *= vec3(1.03, 1.0, 0.95);',
         '  vec2 q = (vUv - 0.5) * vec2(1.0, 0.85); c *= 1.0 - 0.34 * pow(clamp(length(q) * 1.35, 0.0, 1.0), 2.4);',
@@ -3930,7 +4001,7 @@ canvas { display: block; width: 100%; height: 100%; }
       drawMarkers();
       drawHazards();
       drawGhost();
-      drawTruck(mainTruckSpec());
+      if (!truck.falling) drawTruck(mainTruckSpec());
       drawBoars();
       drawCrows();
       drawParts();
@@ -3938,6 +4009,7 @@ canvas { display: block; width: 100%; height: 100%; }
       drawStepWarning();
     } finally { r3.drawing = false; ctx = mainCtx; }
     r3.layerTex.needsUpdate = true;
+    drawFallingTruck();
     // 2) 距離やスコアの表示（ぼかさない）
     hudCtx.setTransform(1, 0, 0, 1, 0, 0);
     hudCtx.clearRect(0, 0, hudCv.width, hudCv.height);
@@ -3954,6 +4026,22 @@ canvas { display: block; width: 100%; height: 100%; }
     const t2 = performance.now();
     render3D();
     r3.prof = [Math.round(t1 - t0), Math.round(t2 - t1), Math.round(performance.now() - t2)];
+  }
+  // 穴に落ちた軽トラを専用の板に描き、転がった分だけ手前へ出す（1 回転半で約 4.5 m。あぜの外の田んぼへ沈む）
+  function drawFallingTruck() {
+    r3.fall.visible = truck.falling;
+    if (!truck.falling) return;
+    const half = 150, cx0 = truckX + TRUCK_W / 2 - half, cy0 = truck.y - 40 - half;
+    const fc = r3.fallCv.getContext('2d');
+    fc.setTransform(1, 0, 0, 1, 0, 0);
+    fc.clearRect(0, 0, r3.fallCv.width, r3.fallCv.height);
+    fc.setTransform(1 / LP, 0, 0, 1 / LP, -cx0 / LP, -cy0 / LP);
+    ctx = fc;
+    r3.drawing = true;
+    try { drawTruck(mainTruckSpec()); } finally { r3.drawing = false; ctx = mainCtx; }
+    r3.fallTex.needsUpdate = true;
+    const e = clamp((truck.roll || 0) / (3 * Math.PI), 0, 1);
+    r3.fall.position.set((cam + cx0 + half) * M, (GROUND - (cy0 + half)) * M, 4.5 * e);
   }
   const col = (c, hex) => c.set(hex);
   function updateWorld(yTop) {
@@ -3977,25 +4065,28 @@ canvas { display: block; width: 100%; height: 100%; }
     // 季節と時間帯の色
     col(r3.scene.fog.color, env.skyBot);
     col(mt.water.color, env.water1);
+    mt.water.color.lerp(new T.Color('#5b7f98'), n * 0.6);            // 夜の田んぼは月明かりで少し明るく
+    mt.puddle.emissive.set(0x1d4a6e).lerp(new T.Color('#3a78b0'), n);  // 水たまりは夜もはっきり
+    mt.puddle.map.offset.x = (clock * 0.06) % 1;
     col(mt.rice.color, env.rice);
     col(mt.plain.color, env.field);
     col(mt.mtnNear.color, env.mtnNear);
     col(mt.mtnFar.color, env.mtnFar);
     mt.pitWater.color.set(env.water1).lerp(new T.Color('#6b5236'), 0.55);
     r3.scene.fog.near = 90 - n * 30; r3.scene.fog.far = 560 - n * 200;
-    r3.hemi.color.set(env.skyTop).lerp(new T.Color('#ffffff'), 0.55 - n * 0.3);
+    r3.hemi.color.set(env.skyTop).lerp(new T.Color('#ffffff'), 0.55 - n * 0.15);
     r3.hemi.groundColor.set(env.field);
-    r3.hemi.intensity = 0.62 - n * 0.3;
+    r3.hemi.intensity = 0.62 - n * 0.08;
     const dusk = clamp((env.sunY - 120) / 90, 0, 1);
-    r3.sun.color.set('#fff2dc').lerp(new T.Color('#ff9a55'), dusk).lerp(new T.Color('#8fa6d8'), n);
-    r3.sun.intensity = 0.95 - n * 0.55;
+    r3.sun.color.set('#fff2dc').lerp(new T.Color('#ff9a55'), dusk).lerp(new T.Color('#a9bdf0'), n);
+    r3.sun.intensity = 0.95 - n * 0.3;
     // 太陽（夜は月）の向き：画面の左奥・上から。影は軽トラの手前（道の上）に落ちて見える
     const tx = (cam + TRUCK_X + 300) * M;
     r3.sun.position.set(tx - 12 - dusk * 8, roadY + 26 - dusk * 12, -9);
     r3.sun.target.position.set(tx, roadY, 0);
     // ヘッドライト（夜）
     const hx = (cam + TRUCK_FRONT) * M, hy = (GROUND - truck.y) * M + 0.9;
-    r3.head.intensity = n > 0.3 && !truck.falling ? n * 2.6 : 0;
+    r3.head.intensity = n > 0.3 && !truck.falling ? n * 3.4 : 0;
     r3.head.position.set(hx, hy, 0.4);
     r3.head.target.position.set(hx + 12, hy - 2.2, 0.2);
     // 稲の高さ（季節）。ドット絵の板は夜に暗くする
@@ -4007,9 +4098,10 @@ canvas { display: block; width: 100%; height: 100%; }
         if (o.userData.kind === 'harvest') o.visible = env.harvest > 0.3;
       });
     }
-    const tint = new T.Color(1, 1, 1).lerp(new T.Color('#55628a'), n * 0.8);
+    const tint = new T.Color(1, 1, 1).lerp(new T.Color('#8a96c0'), n * 0.7);
     r3.layerSolid.material.color.copy(tint);
     r3.layerSoft.material.color.copy(tint);
+    r3.fall.material.color.copy(tint);
     for (const m of r3.tinted) m.color.copy(tint);
     for (const rg of r3.ridges) updateRidge(rg, cx);
     r3.plain.position.x = cx;
