@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<!-- scarecrow：手描き水彩風（自動生成） -->
+<defs>
+  <!-- 線のゆらぎ：手描きらしく少し揺らす -->
+  <filter id="ink" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="29" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- 水彩のにじみ：ふちを揺らし、中に紙のムラを入れる -->
+  <filter id="wash" x="-15%" y="-15%" width="130%" height="130%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="29" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="29" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.35" result="grain"/>
+    <feComposite in="d" in2="grain" operator="in" result="g"/>
+    <feGaussianBlur in="d" stdDeviation="0.6" result="soft"/>
+    <feMerge><feMergeNode in="soft"/><feMergeNode in="g"/></feMerge>
+  </filter>
+  <!-- 光の当たる側を明るく -->
+  <radialGradient id="hl" cx="35%" cy="30%" r="70%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<g filter="url(#wash)">
+  <path d="M58 40 L58 110" stroke="#9b7a52" stroke-width="6"/>
+  <path d="M18 60 L102 60" stroke="#9b7a52" stroke-width="6"/>
+  <path d="M38 56 L82 56 L76 92 L44 92Z" fill="#7aa7c8"/>
+  <circle cx="58" cy="38" r="15" fill="#f1e2bf"/>
+  <ellipse cx="58" cy="26" rx="28" ry="6" fill="#e2c46c"/>
+  <path d="M44 26 C44 10 72 10 72 26Z" fill="#e8cf7c"/>
+  <path d="M18 60 L10 66 M18 60 L12 54 M102 60 L110 66 M102 60 L108 54" stroke="#d8b858" stroke-width="3"/>
+</g>
+<g filter="url(#ink)">
+  <path d="M38 56 L82 56 L76 92 L44 92Z" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M18 60 L38 60 M82 60 L102 60 M58 92 L58 110" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="58" cy="38" r="15" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="58" cy="26" rx="28" ry="6" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M44 26 C44 10 72 10 72 26" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M51 44 C55 48 61 48 65 44" fill="none" stroke="#4a3a2a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g><circle cx="52.5" cy="37" r="2" fill="#4a3a2a"/><circle cx="63.5" cy="37" r="2" fill="#4a3a2a"/><circle cx="48" cy="42" r="2.6" fill="#e9a08a" opacity=".6"/><circle cx="68" cy="42" r="2.6" fill="#e9a08a" opacity=".6"/>
+  <path d="M50 70 L54 74 M66 66 L70 70 M60 80 L64 84" fill="none" stroke="#4a6a88" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+
+</svg>

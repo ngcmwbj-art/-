@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<!-- calf：手描き水彩風（自動生成） -->
+<defs>
+  <!-- 線のゆらぎ：手描きらしく少し揺らす -->
+  <filter id="ink" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="5" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- 水彩のにじみ：ふちを揺らし、中に紙のムラを入れる -->
+  <filter id="wash" x="-15%" y="-15%" width="130%" height="130%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="5" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="5" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.35" result="grain"/>
+    <feComposite in="d" in2="grain" operator="in" result="g"/>
+    <feGaussianBlur in="d" stdDeviation="0.6" result="soft"/>
+    <feMerge><feMergeNode in="soft"/><feMergeNode in="g"/></feMerge>
+  </filter>
+  <!-- 光の当たる側を明るく -->
+  <radialGradient id="hl" cx="35%" cy="30%" r="70%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<g filter="url(#wash)">
+  <rect x="22" y="48" width="60" height="34" rx="16" fill="#3f3632"/>
+  <path d="M30 80 L28 102 M44 82 L44 102 M66 82 L66 102 M78 80 L80 102" stroke="#3a312d" stroke-width="7" stroke-linecap="round"/>
+  <path d="M74 44 C80 32 104 32 108 48 C110 60 104 70 92 72 C82 72 74 60 74 44Z" fill="#463c37"/>
+  <ellipse cx="100" cy="64" rx="9" ry="7" fill="#c9a08a"/>
+  <ellipse cx="72" cy="38" rx="9" ry="5" fill="#4a3f3a" transform="rotate(-20 72 38)"/>
+  <ellipse cx="50" cy="56" rx="22" ry="8" fill="#7a6a62" opacity=".45"/>
+</g>
+<rect x="22" y="46" width="62" height="36" rx="16" fill="url(#hl)"/>
+<g filter="url(#ink)">
+  <path d="M74 50 C64 46 40 44 30 50 C18 56 18 76 30 82 C42 86 62 86 76 80" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M30 80 L28 102 M44 82 L44 102 M66 82 L66 102 M78 78 L80 102" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M74 44 C80 32 104 32 108 48 C110 60 104 70 92 72 C82 72 74 60 74 44Z" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 36 C74 30 64 32 64 38 C68 42 74 42 78 40" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 58 C14 60 12 70 14 76" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="100" cy="64" rx="9" ry="7" fill="none" stroke="#4a3a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<circle cx="94" cy="49" r="3.6" fill="#fffbe9" stroke="#4a3a2a" stroke-width="1.4"/>
+<circle cx="94.6" cy="49.6" r="1.9" fill="#1f1a18"/>
+<circle cx="97" cy="64" r="1.2" fill="#4a3a2a"/><circle cx="103" cy="64" r="1.2" fill="#4a3a2a"/>
+
+</svg>

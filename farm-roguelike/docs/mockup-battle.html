@@ -206,6 +206,10 @@ body {
 .card.attack .art { background: radial-gradient(ellipse at 40% 40%, #fbe3d6 0%, var(--attack) 85%); }
 .card.skill  .art { background: radial-gradient(ellipse at 40% 40%, #e6f2f7 0%, var(--skill) 85%); }
 .card.crop   .art { background: radial-gradient(ellipse at 40% 40%, #eef5dc 0%, var(--crop) 85%); }
+/* 手描きの絵（SVG）を枠いっぱいに */
+.enemy img { width: 118px; height: 118px; }
+.plot img, .barn img { width: 52px; height: 52px; }
+.card .art img { width: 54px; height: 54px; }
 .card .kind { font-size: 10px; text-align: center; color: var(--ink-soft); margin-top: 2px; }
 .card .text { font-size: 11.5px; line-height: 1.35; text-align: center; padding: 2px 6px 0; }
 .card .text b { color: #a24a32; }
@@ -237,18 +241,18 @@ body {
 
   <section class="enemy-area">
     <div class="intent">🗡️ 7</div>
-    <div class="enemy">🐦‍⬛</div>
+    <div class="enemy"><img src="../assets/img/art/crow.svg" alt="カラス"></div>
     <div class="enemy-name title-font">カラスの群れ</div>
     <div class="bar"><b style="width:62%"></b></div>
     <div class="bar-label">勢い 14 / 22</div>
   </section>
 
   <section class="field" aria-label="畑と畜舎">
-    <div class="plot ripe">🥬<small>実った</small></div>
-    <div class="plot">🌱<small>2/3</small></div>
+    <div class="plot ripe"><img src="../assets/img/art/cabbage.svg" alt="キャベツ"><small>実った</small></div>
+    <div class="plot"><img src="../assets/img/art/sprout.svg" alt="芽"><small>2/3</small></div>
     <div class="plot"></div>
     <div></div>
-    <div class="barn">🐂</div>
+    <div class="barn"><img src="../assets/img/art/calf.svg" alt="F1の子牛"></div>
     <div class="barn empty">空き</div>
   </section>
 
@@ -262,11 +266,11 @@ body {
   </section>
 
   <section class="hand" aria-label="手札">
-    <div class="card attack"><span class="cost">1</span><div class="name">除草</div><div class="art">🌿</div><div class="kind">攻撃</div><div class="text">勢いに<b>6</b></div></div>
-    <div class="card skill"><span class="cost">1</span><div class="name">防鳥ネット</div><div class="art">🕸️</div><div class="kind">守り</div><div class="text">守り<b>6</b>。鳥の攻撃をさらに半減</div></div>
-    <div class="card crop"><span class="cost">0</span><div class="name">収穫</div><div class="art">🧺</div><div class="kind">作物</div><div class="text">実った作物を収穫し<b>🪙</b>と効果</div></div>
-    <div class="card crop"><span class="cost">1</span><div class="name">水やり</div><div class="art">💧</div><div class="kind">成長</div><div class="text">作物を<b>1</b>段育てる。カードを1枚引く</div></div>
-    <div class="card attack"><span class="cost">2</span><div class="name">かかし</div><div class="art">🧑‍🌾</div><div class="kind">攻撃</div><div class="text">勢いに<b>4</b>。3ターン毎回<b>4</b></div></div>
+    <div class="card attack"><span class="cost">1</span><div class="name">除草</div><div class="art"><img src="../assets/img/art/weeding.svg" alt=""></div><div class="kind">攻撃</div><div class="text">勢いに<b>6</b></div></div>
+    <div class="card skill"><span class="cost">1</span><div class="name">防鳥ネット</div><div class="art"><img src="../assets/img/art/net.svg" alt=""></div><div class="kind">守り</div><div class="text">守り<b>6</b>。鳥の攻撃をさらに半減</div></div>
+    <div class="card crop"><span class="cost">0</span><div class="name">収穫</div><div class="art"><img src="../assets/img/art/basket.svg" alt=""></div><div class="kind">作物</div><div class="text">実った作物を収穫し<b>🪙</b>と効果</div></div>
+    <div class="card crop"><span class="cost">1</span><div class="name">水やり</div><div class="art"><img src="../assets/img/art/water.svg" alt=""></div><div class="kind">成長</div><div class="text">作物を<b>1</b>段育てる。カードを1枚引く</div></div>
+    <div class="card attack"><span class="cost">2</span><div class="name">かかし</div><div class="art"><img src="../assets/img/art/scarecrow.svg" alt=""></div><div class="kind">攻撃</div><div class="text">勢いに<b>4</b>。3ターン毎回<b>4</b></div></div>
   </section>
 </main>
 </body>

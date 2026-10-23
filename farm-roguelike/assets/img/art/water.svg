@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<!-- water：手描き水彩風（自動生成） -->
+<defs>
+  <!-- 線のゆらぎ：手描きらしく少し揺らす -->
+  <filter id="ink" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="23" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- 水彩のにじみ：ふちを揺らし、中に紙のムラを入れる -->
+  <filter id="wash" x="-15%" y="-15%" width="130%" height="130%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="23" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="23" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.35" result="grain"/>
+    <feComposite in="d" in2="grain" operator="in" result="g"/>
+    <feGaussianBlur in="d" stdDeviation="0.6" result="soft"/>
+    <feMerge><feMergeNode in="soft"/><feMergeNode in="g"/></feMerge>
+  </filter>
+  <!-- 光の当たる側を明るく -->
+  <radialGradient id="hl" cx="35%" cy="30%" r="70%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<g filter="url(#wash)">
+  <path d="M30 50 L70 50 L74 92 L26 92Z" fill="#8fbcd6"/>
+  <path d="M70 62 L102 40 L106 46 L72 76Z" fill="#7aa8c4"/>
+  <path d="M100 56 C98 62 96 64 96 66 C96 69 100 69 100 66Z M108 62 C106 68 104 70 104 72 C104 75 108 75 108 72Z M94 72 C92 78 90 80 90 82 C90 85 94 85 94 82Z" fill="#a8d4ef"/>
+</g>
+<path d="M30 50 L70 50 L74 92 L26 92Z" fill="url(#hl)"/>
+<g filter="url(#ink)">
+  <path d="M30 50 L70 50 L74 92 L26 92Z" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M70 62 L102 40 M72 76 L106 46 M100 38 L108 48" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M34 50 C34 30 66 30 66 50" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M26 92 L74 92" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+
+</svg>

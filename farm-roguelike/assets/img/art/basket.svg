@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<!-- basket：手描き水彩風（自動生成） -->
+<defs>
+  <!-- 線のゆらぎ：手描きらしく少し揺らす -->
+  <filter id="ink" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="19" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- 水彩のにじみ：ふちを揺らし、中に紙のムラを入れる -->
+  <filter id="wash" x="-15%" y="-15%" width="130%" height="130%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="19" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="19" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.35" result="grain"/>
+    <feComposite in="d" in2="grain" operator="in" result="g"/>
+    <feGaussianBlur in="d" stdDeviation="0.6" result="soft"/>
+    <feMerge><feMergeNode in="soft"/><feMergeNode in="g"/></feMerge>
+  </filter>
+  <!-- 光の当たる側を明るく -->
+  <radialGradient id="hl" cx="35%" cy="30%" r="70%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<g filter="url(#wash)">
+  <circle cx="44" cy="54" r="14" fill="#e3876a"/><circle cx="66" cy="48" r="15" fill="#a9d07a"/><ellipse cx="84" cy="56" rx="12" ry="10" fill="#f0b45a"/>
+  <path d="M20 60 L100 60 L90 100 L30 100Z" fill="#d9a86a"/>
+</g>
+<path d="M20 60 L100 60 L90 100 L30 100Z" fill="url(#hl)"/>
+<g filter="url(#ink)">
+  <path d="M20 60 L100 60 L90 100 L30 100Z" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 72 L96 72 M27 86 L93 86" fill="none" stroke="#8a6440" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 60 L44 100 M60 60 L60 100 M80 60 L76 100" fill="none" stroke="#8a6440" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M30 60 C30 26 90 26 90 60" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M66 33 C68 28 72 26 76 27" fill="none" stroke="#4a3a2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+
+</svg>

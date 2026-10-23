@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<!-- crow：手描き水彩風（自動生成） -->
+<defs>
+  <!-- 線のゆらぎ：手描きらしく少し揺らす -->
+  <filter id="ink" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- 水彩のにじみ：ふちを揺らし、中に紙のムラを入れる -->
+  <filter id="wash" x="-15%" y="-15%" width="130%" height="130%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="3" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="3" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.35" result="grain"/>
+    <feComposite in="d" in2="grain" operator="in" result="g"/>
+    <feGaussianBlur in="d" stdDeviation="0.6" result="soft"/>
+    <feMerge><feMergeNode in="soft"/><feMergeNode in="g"/></feMerge>
+  </filter>
+  <!-- 光の当たる側を明るく -->
+  <radialGradient id="hl" cx="35%" cy="30%" r="70%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<g filter="url(#wash)">
+  <path d="M30 92 L12 104 L20 88 Z" fill="#3c4253"/>
+  <ellipse cx="58" cy="72" rx="30" ry="22" fill="#434a5e"/>
+  <circle cx="84" cy="48" r="17" fill="#4a5268"/>
+  <path d="M40 64 C52 54 74 58 82 74 C68 80 52 80 40 64Z" fill="#2f3546"/>
+  <path d="M99 46 L114 52 L99 56 Z" fill="#c9a26b"/>
+  <ellipse cx="58" cy="66" rx="24" ry="12" fill="#6b7a98" opacity=".35"/>
+</g>
+<ellipse cx="60" cy="68" rx="30" ry="22" fill="url(#hl)"/>
+<g filter="url(#ink)">
+  <path d="M30 92 L12 104 L20 88" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M28 76 C30 58 48 50 66 52 C70 40 78 31 88 31 C100 32 104 42 100 52 C98 60 92 66 88 72 C84 88 68 96 50 94 C40 92 32 86 28 76Z" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 64 C52 54 74 58 82 74" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M99 46 L114 52 L99 56" fill="none" stroke="#4a3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M54 94 L52 106 M52 106 L46 108 M52 106 L56 109 M66 93 L66 105 M66 105 L61 108 M66 105 L71 107" fill="none" stroke="#a5784a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<circle cx="88" cy="45" r="4.8" fill="#fffbe9" stroke="#4a3a2a" stroke-width="1.6"/>
+<circle cx="89" cy="45.5" r="2.4" fill="#2a2420"/>
+<circle cx="89.8" cy="44.5" r=".8" fill="#fff"/>
+
+</svg>
