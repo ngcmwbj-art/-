@@ -297,6 +297,8 @@ const Puzzle = (() => {
       const extra = got.text || '';
       showClearText(cleared, `+${gained}` + (extra ? `  ${extra}` : ''), lines);
       Sound.play('clear', lines + st.combo - 1);
+      // マークを消したときだけ、多いほうの音を1回重ねる（水＝ぽちゃん、肥料＝カサッ）
+      if (marks.water || marks.fertilizer) Sound.play(marks.water >= marks.fertilizer ? 'drop' : 'leaf');
     } else {
       Sound.play('place');
       st.movesSinceClear += 1;

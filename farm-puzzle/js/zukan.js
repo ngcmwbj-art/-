@@ -74,7 +74,12 @@ const Zukan = (() => {
     if (filter === 'month') {
       // 現実のカレンダーで、今月植えられる野菜（実際の家庭菜園の参考に。名前もそのまま見せる）
       root.append(h('p', { class: 'month-note' }, Msg.t('zukan.monthNote', { m: month })));
+      list.append(h('h3', { class: 'month-heading' }, Msg.t('zukan.monthSow', { m: month })));
       vegs.filter((v) => v.guide.plantMonths.includes(month)).forEach((v) => list.append(monthCard(v)));
+      // 今月とれる野菜（収穫の月）と食べ方。新しいチップは増やさず、同じ画面の下に並べる
+      list.append(h('h3', { class: 'month-heading' }, Msg.t('zukan.monthHarvest', { m: month })),
+        h('p', { class: 'month-note' }, Msg.t('zukan.monthHarvestNote')));
+      vegs.filter((v) => v.guide.harvestMonths.includes(month)).forEach((v) => list.append(harvestCard(v)));
     } else if (filter === 'planter') {
       // ベランダのプランターで育てられる野菜（向いている → ひと工夫で の順）。実際の家庭菜園の参考に、名前も見せる
       root.append(h('p', { class: 'month-note' }, Msg.t('zukan.planterNote')));
@@ -143,6 +148,17 @@ const Zukan = (() => {
         h('div', { class: 'month-plant' }, g.plant),
         g.planter ? h('div', { class: 'month-planter' }, Msg.t('zukan.planterFit', { fit: Msg.t('howto.fit.' + g.planter.fit) })
           + (filter === 'planter' ? `　${g.planter.depth} / ${g.planter.count}` : '')) : null,
+        h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))));
+  }
+
+  // 今月とれる野菜のカード（収穫の月・おいしい食べ方・育て方カードへ）
+  function harvestCard(v) {
+    return h('article', { class: 'zukan-card month-card' },
+      h('div', { class: 'zukan-icon' }, vegIcon(v)),
+      h('div', { class: 'zukan-body' },
+        h('h3', { class: 'zukan-name' }, v.name),
+        h('div', { class: 'month-plant' }, Msg.t('zukan.harvestMonths', { months: Quiz.formatMonths(v.guide.harvestMonths) })),
+        v.eat ? h('div', { class: 'zukan-eat' }, Msg.t('farm.eat', { text: v.eat })) : null,
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))));
   }
 

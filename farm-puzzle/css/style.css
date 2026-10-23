@@ -1090,6 +1090,10 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .season-work p { margin: 0 0 6px; font-size: 0.85rem; color: var(--sub); }
 button.badge-season { border: none; padding: 0; cursor: pointer; font: inherit; font-size: 1.1rem; }
 
+/* 図鑑：今月まける・今月とれる の見出し */
+.month-heading { margin: 14px 0 6px; font-size: 1rem; color: var(--green-dark); }
+.month-heading:first-child { margin-top: 0; }
+
 /* 図鑑：なかま */
 .zukan-family { margin: 0 0 6px; font-size: 0.82rem; color: var(--green-dark); line-height: 1.6; }
 

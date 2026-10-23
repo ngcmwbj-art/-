@@ -167,9 +167,14 @@ const Farm = (() => {
 
   /* ---------- 作業 ---------- */
   function sow(index, vegId) {
+    const v = veg(vegId);
+    // 前にこの区画で同じなかまを育てていたら「連作」のひとこと（罰はなし。本物の畑の知識として）
+    const rotation = v.family && data.lastFamily[index] === v.family;
+    data.lastFamily[index] = null;   // ひとことは1回だけ
     data.plots[index] = { vegId, stage: 0, growLeft: 0 };
     if (data.onboardStep === 0) data.onboardStep = 1;   // 案内：次は水やり
-    tellStep(veg(vegId), 'sow');
+    if (rotation) tellRotation(v);
+    else tellStep(v, 'sow');
     acted();
   }
 
@@ -250,6 +255,7 @@ const Farm = (() => {
       }
       if (!data.harvested[v.id]) firsts.push(v);
       data.harvested[v.id] = (data.harvested[v.id] || 0) + 1;
+      data.lastFamily[i] = v.family;   // この区画で前に育てたなかま（次の種まきで連作のひとことに使う）
       data.plots[i] = null;
     });
     data.resources.coins += coins;
@@ -312,6 +318,12 @@ const Farm = (() => {
     if (tip) msg += '\n' + Msg.t('farm.mistake', { text: tip });
     if (word) msg += '\n' + Msg.t('farm.word', { term: word.term, reading: word.reading, text: word.text });
     toast(msg, tip && word ? 8000 : tip || word ? 6000 : undefined);
+  }
+
+  // 連作のひとこと（2行まで。何年あけるかの目安も）
+  function tellRotation(v) {
+    const years = (Msg.get('farm.rotationYears') || {})[v.family] || Msg.t('farm.rotationYearsOther');
+    toast(Msg.t('farm.rotation', { family: v.family, years }), 7000);
   }
 
   // プレイヤーが畑で作業したとき
