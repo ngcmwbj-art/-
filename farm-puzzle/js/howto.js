@@ -11,9 +11,11 @@ const HowTo = (() => {
   const STEPS = ['sow', 'water', 'fertilize', 'harvest'];
   const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   let glossary = [];
+  let allVegs = [];
 
   function init(options) {
     glossary = options.config.glossary || [];
+    allVegs = options.config.vegetables || [];
   }
 
   // options.actions：カードの下に足すボタン [{ label, primary, onClick }]
@@ -39,6 +41,7 @@ const HowTo = (() => {
         row(Msg.t('howto.plant'), g.plant),
         row(Msg.t('howto.pests'), g.pests),
         row(Msg.t('howto.point'), g.point),
+        v.family ? row(Msg.t('howto.family'), familyText(v)) : null,
         v.eat ? row(Msg.t('howto.eat'), v.eat) : null
       ),
       planter(g.planter),
@@ -86,6 +89,12 @@ const HowTo = (() => {
         h('dd', {}, w.text)))));
   }
 
+  // なかま：「ナスのなかま（トマト・なす・ピーマン）」のように、同じなかまの野菜も並べる
+  function familyText(v) {
+    const others = allVegs.filter((x) => x.family === v.family && x.id !== v.id).map((x) => x.name);
+    return Msg.t('howto.familyText', { family: v.family }) + (others.length ? `（${others.join('・')}）` : '');
+  }
+
   function row(label, text) {
     return h('div', { class: 'howto-row' }, h('dt', {}, label), h('dd', {}, text));
   }
@@ -106,5 +115,5 @@ const HowTo = (() => {
     );
   }
 
-  return { init, open, calendar };
+  return { init, open, calendar, familyText };
 })();

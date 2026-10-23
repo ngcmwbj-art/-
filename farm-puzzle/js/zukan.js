@@ -57,6 +57,11 @@ const Zukan = (() => {
       }, (s.icon ? s.icon + ' ' : '') + s.name));
     });
     chips.append(h('button', {
+      class: 'filter-chip month' + (filter === 'planter' ? ' active' : ''),
+      type: 'button',
+      onclick: () => { filter = 'planter'; render(); },
+    }, Msg.t('zukan.planterChip')));
+    chips.append(h('button', {
       class: 'filter-chip sort' + (easyFirst ? ' active' : ''),
       type: 'button',
       onclick: () => { easyFirst = !easyFirst; render(); },
@@ -70,6 +75,13 @@ const Zukan = (() => {
       // 現実のカレンダーで、今月植えられる野菜（実際の家庭菜園の参考に。名前もそのまま見せる）
       root.append(h('p', { class: 'month-note' }, Msg.t('zukan.monthNote', { m: month })));
       vegs.filter((v) => v.guide.plantMonths.includes(month)).forEach((v) => list.append(monthCard(v)));
+    } else if (filter === 'planter') {
+      // ベランダのプランターで育てられる野菜（向いている → ひと工夫で の順）。実際の家庭菜園の参考に、名前も見せる
+      root.append(h('p', { class: 'month-note' }, Msg.t('zukan.planterNote')));
+      const rank = { ok: 0, kufuu: 1 };
+      vegs.filter((v) => v.guide.planter && v.guide.planter.fit in rank)
+        .sort((a, b) => rank[a.guide.planter.fit] - rank[b.guide.planter.fit])
+        .forEach((v) => list.append(monthCard(v)));
     } else {
       vegs.filter((v) => filter === 'all' || v.seasons.includes(filter))
         .forEach((v) => list.append(data.harvested[v.id] ? card(v) : lockedCard(v)));
@@ -90,6 +102,7 @@ const Zukan = (() => {
         ),
         h('ul', { class: 'zukan-tips' }, v.tips.map((tip) => h('li', {}, tip))),
         v.eat ? h('div', { class: 'zukan-eat' }, Msg.t('farm.eat', { text: v.eat })) : null,
+        v.family ? h('div', { class: 'zukan-family' }, '🌿 ' + HowTo.familyText(v)) : null,
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
       )
     );
@@ -128,7 +141,8 @@ const Zukan = (() => {
         h('h3', { class: 'zukan-name' }, v.name,
           h('span', { class: 'stars' }, ' ' + '★'.repeat(g.level) + '☆'.repeat(3 - g.level))),
         h('div', { class: 'month-plant' }, g.plant),
-        g.planter ? h('div', { class: 'month-planter' }, Msg.t('zukan.planterFit', { fit: Msg.t('howto.fit.' + g.planter.fit) })) : null,
+        g.planter ? h('div', { class: 'month-planter' }, Msg.t('zukan.planterFit', { fit: Msg.t('howto.fit.' + g.planter.fit) })
+          + (filter === 'planter' ? `　${g.planter.depth} / ${g.planter.count}` : '')) : null,
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))));
   }
 
