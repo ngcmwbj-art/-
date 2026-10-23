@@ -126,6 +126,7 @@ function buildIsopod(opt){
     const tc=new THREE.ConeGeometry(.03,.1,14);tc.translate(0,-.04,0);mk(tc,limbMat,par,null,null,.01);
     I.ant.push({root,chain,s});});
   // angry brows — appear as the dark side takes over
+  I.blushMat=blushMat;
   I.brows=[-1,1].map(s=>{const g=new THREE.CapsuleGeometry(.022,.13,4,10);g.rotateZ(Math.PI/2);const b=mk(g,new THREE.MeshBasicMaterial({color:'#2a120a'}),head,[s*.23,.17,.475],[-.15,0,s*.42],0,{keep:true,noShadow:true});b.visible=false;return b});
   // headband (hachimaki) with a knot and two tails at the back
   I.bandMat=bandMat;

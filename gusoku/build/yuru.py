@@ -61,7 +61,7 @@ R=[
 ("往年の育成ゲーム『シーマン』のように、ぶっきらぼうで皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。",
  "見た目は、頭に白いハチマキを巻いて二本足で立つ、まるっこいゆるキャラ。一人称は「ボク」、相手は「キミ」か名前で呼び、語尾にときどき「グソ」がつく。ほんわかマイペースで、深海育ちらしくちょっとだけ毒舌。でも飼い主のことを少しずつ覚えて心を開いていく。※下の段階ルールに「ワシ」「オマエ」とあっても、一人称は「ボク」、二人称は「キミ」にすること。"),
 # ---- a slightly higher, rounder voice
-("    const f0base=235*Math.pow(60/235,gw);","    const f0base=270*Math.pow(105/270,gw);"),
+("f0base=235*Math.pow(60/235,gw)*","f0base=270*Math.pow(105/270,gw)*"),
 ("scale=1.34*Math.pow(.76/1.34,this.gw||0),","scale=1.38*Math.pow(.95/1.38,this.gw||0),"),
 ("function shellTint(){const k=[1.18,1.06,.98,.94][S.stage]||1;ISO.shellMat.color.setRGB(k,k*.985,k*.96);ISO.coreMat.color.setRGB(k,k,k)}",
  "function shellTint(){const k=[1.14,1.06,1,.97][S.stage]||1;ISO.shellMat.color.copy(ISO.shellBase).multiplyScalar(k);ISO.limbMat.color.copy(ISO.limbBase).multiplyScalar(k)}"),

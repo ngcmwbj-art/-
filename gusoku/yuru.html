@@ -170,6 +170,28 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 /* toast */
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 16px);transform:translateX(-50%);background:rgba(3,14,22,.9);border:1px solid var(--line);padding:8px 14px;border-radius:4px;font-size:13px;z-index:30;opacity:0;transition:opacity .4s;pointer-events:none}
 #toast.on{opacity:1}
+.pop.grid{min-width:0;padding:10px}
+.mg{display:grid;grid-template-columns:repeat(4,minmax(64px,1fr));gap:8px}
+.mg button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 4px 8px;min-height:68px;font-size:11.5px;text-align:center;white-space:normal;line-height:1.2;width:auto}
+.mg svg{width:26px;height:26px;fill:none;stroke:var(--glow);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.mg button.locked{opacity:.45}
+.mg button.has-new::after{content:"";position:absolute;top:7px;right:9px;width:8px;height:8px;border-radius:50%;background:#ffb36b;box-shadow:0 0 6px #ffb36b}
+.yuru .mg button{border-radius:18px;background:rgba(28,64,88,.85)}
+.yuru .mg svg{stroke:#ffd9a0;stroke-width:2.2}
+.mate-sub{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.mate-sub button{text-align:left}
+.letterchip{pointer-events:auto;display:block;margin-top:6px;font-size:12px;padding:5px 10px;border-color:rgba(255,190,120,.55);color:#ffd9b0;animation:ltpulse 2.4s ease-in-out infinite}
+@keyframes ltpulse{50%{box-shadow:0 0 10px rgba(255,180,110,.45)}}
+.lt-sheet{background:#0b1a24}
+.lt-sheet .tabs span{font-size:12px;color:var(--dim);align-self:center;padding:0 4px}
+.lt-paper{margin-top:12px;background:#efe6d2;color:#3a2a1c;border-radius:4px;padding:22px 22px 26px;background-image:repeating-linear-gradient(transparent 0 31px,rgba(120,90,60,.18) 31px 32px);box-shadow:inset 0 0 30px rgba(120,90,50,.18)}
+.lt-paper p{margin:0;white-space:pre-wrap;font-family:var(--f-display);font-size:16px;line-height:32px}
+.yuru .lt-paper{border-radius:16px;background-color:#fff4e0}
+#glowfx{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;background:radial-gradient(55% 45% at 50% 55%,rgba(255,236,180,.30),transparent 70%)}
+#glowfx.go{animation:glowfx 1.8s ease-out}
+.dpanel .og{display:flex;gap:6px;padding:2px 2px 8px;margin-bottom:6px;border-bottom:1px solid var(--line);color:#ffd9b0;font-size:12.5px}
+.dpanel .og.done{color:var(--dim)}
+@keyframes glowfx{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
 .confirm{display:flex;gap:6px;flex-wrap:wrap}
 
 .daily{pointer-events:auto;margin-top:8px;font-family:var(--f-data);font-size:11px;padding:5px 9px;display:flex;gap:8px;align-items:center;background:rgba(4,16,24,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
@@ -188,7 +210,7 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 .dpanel li.done span:nth-child(2){text-decoration:line-through}
 .dpanel .n{margin-left:auto;font-family:var(--f-data);color:var(--dim);font-size:10.5px;flex:none}
 .dpanel .foot{margin-top:6px;color:var(--dim);font-size:11px;line-height:1.6}
-body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily{display:none}
+body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily,body.kbd .letterchip,body.cine .letterchip,body.photo .letterchip{display:none}
 #away .aw-time{font-family:var(--f-data);color:var(--dim);font-size:12px;margin:-4px 0 6px}
 #away ul{margin:0 0 14px;padding:0;list-style:none}
 #away li{padding:9px 0;border-bottom:1px solid var(--line);line-height:1.7;font-size:14px}
@@ -309,6 +331,7 @@ body.kbd #tutchip{display:none}
       <div id="clock">--:--</div>
       <button type="button" class="daily" id="daily" hidden aria-label="今日のお世話"></button>
       <div class="dpanel" id="dpanel" hidden></div>
+      <button type="button" class="letterchip" id="letterchip" hidden>✉ 手紙が届きました</button>
     </div>
   </div>
   <details class="gauges" id="gauges">
@@ -358,16 +381,23 @@ body.kbd #tutchip{display:none}
     </div>
     <div class="menu">
       <button type="button" id="btn-more" aria-haspopup="true">その他</button>
-      <div class="pop" id="pop-more" hidden>
-        <button type="button" id="m-diary">日記・思い出</button>
-        <button type="button" id="m-photo">写真モード</button>
-        <button type="button" id="m-zukan">図鑑（宝物・来客・姿・家系）</button>
-        <button type="button" id="m-idle">置き水槽モード</button>
-        <button type="button" id="m-room">グソっ君の相談所（成体になると開きます）</button>
-        <div class="note">同居生物</div>
-        <button type="button" data-mate="hag">ヌタウナギと暮らす</button>
-        <button type="button" data-mate="eel">ゲンゲと暮らす</button>
-        <button type="button" data-mate="">同居をやめる</button>
+      <div class="pop grid" id="pop-more" hidden>
+        <div class="mg">
+          <button type="button" id="m-diary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5c.8 0 1.5-.7 1.5-1.5z"/></svg><span>日記</span></button>
+          <button type="button" id="m-photo"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8.5 7l1.5-2.5h4L15.5 7"/></svg><span>写真</span></button>
+          <button type="button" id="m-zukan"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><circle cx="16.5" cy="16.5" r="3.5"/></svg><span>図鑑</span></button>
+          <button type="button" id="m-room"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10h-8l-4 4v-4H5z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg><span>相談所</span></button>
+          <button type="button" id="m-letter"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3.5 7l8.5 6.5L20.5 7"/></svg><span>手紙</span></button>
+          <button type="button" id="m-idle"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15c3-2 5 2 9 0s6-2 9 0"/></svg><span>置き水槽</span></button>
+          <button type="button" id="m-mate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-5 10-6 14 0-4 6-11 5-14 0z"/><path d="M17 12l4-3v6z"/><path d="M8 11.5h.01"/></svg><span>同居</span></button>
+          <button type="button" id="m-name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h8l10 10-7 7L4 11z"/><path d="M7.5 8h.01"/></svg><span>名前</span></button>
+        </div>
+        <div class="mate-sub" id="mate-sub" hidden>
+          <div class="note">同居生物</div>
+          <button type="button" data-mate="hag">ヌタウナギと暮らす</button>
+          <button type="button" data-mate="eel">ゲンゲと暮らす</button>
+          <button type="button" data-mate="">同居をやめる</button>
+        </div>
       </div>
     </div>
     <span class="sep"></span>
@@ -475,6 +505,13 @@ body.kbd #tutchip{display:none}
 <div id="itank" hidden><div id="it-clock"></div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3 id="mem-name">グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
+<div id="glowfx"></div>
+<div class="modal" id="letter" hidden>
+  <div class="sheet lt-sheet" role="dialog" aria-labelledby="lt-title">
+    <header><h3 id="lt-title">手紙</h3><div class="tabs"><button type="button" id="lt-prev">‹ 前</button><span id="lt-date"></span><button type="button" id="lt-next">次 ›</button><button type="button" id="lt-close">閉じる</button></div></header>
+    <div class="lt-paper"><p id="lt-text"></p></div>
+  </div>
+</div>
 <div id="fade"></div>
 <button type="button" id="skip" hidden>スキップ</button>
 
@@ -1180,6 +1217,7 @@ function buildIsopod(opt){
     const tc=new THREE.ConeGeometry(.03,.1,14);tc.translate(0,-.04,0);mk(tc,limbMat,par,null,null,.01);
     I.ant.push({root,chain,s});});
   // angry brows — appear as the dark side takes over
+  I.blushMat=blushMat;
   I.brows=[-1,1].map(s=>{const g=new THREE.CapsuleGeometry(.022,.13,4,10);g.rotateZ(Math.PI/2);const b=mk(g,new THREE.MeshBasicMaterial({color:'#2a120a'}),head,[s*.23,.17,.475],[-.15,0,s*.42],0,{keep:true,noShadow:true});b.visible=false;return b});
   // headband (hachimaki) with a knot and two tails at the back
   I.bandMat=bandMat;
@@ -1623,10 +1661,10 @@ const Audio2={ctx:null,master:null,
     // iPad/iPhone dictation takes over the audio and leaves this context "interrupted": bring it back as soon as it is allowed
     c.onstatechange=()=>{if(c.state!=='running')setTimeout(()=>this.wake(),300)};
     const w=()=>this.wake();['pointerdown','touchend','keydown','input','focusin','focusout'].forEach(ev=>document.addEventListener(ev,w,true));
-    addEventListener('focus',w);document.addEventListener('visibilitychange',()=>{if(!document.hidden)w()});
+    addEventListener('focus',w);document.addEventListener('visibilitychange',()=>{if(!document.hidden)w();else if(c.state==='running'){try{const p=c.suspend();if(p&&p.catch)p.catch(()=>{})}catch(e){}}});
     setInterval(()=>{if(!document.hidden&&c.state!=='running')w()},1000);
   },
-  wake(){const c=this.ctx;if(!c||c.state==='running'||c.state==='closed')return;try{const p=c.resume();if(p&&p.catch)p.catch(()=>{})}catch(e){}},
+  wake(){const c=this.ctx;if(!c||document.hidden||c.state==='running'||c.state==='closed')return;try{const p=c.resume();if(p&&p.catch)p.catch(()=>{})}catch(e){}},
   tone(f0,f1,dur,type,vol){if(!this.ctx)return;const c=this.ctx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+dur+.02)},
   bubble(v){this.tone(300+Math.random()*500,1200+Math.random()*900,.05,'sine',v)},
@@ -1668,8 +1706,8 @@ const Voice={
     const c=Audio2.ctx;let t=c.currentTime+.04;const t0=t;
     const clean=text.replace(/（[^）]*）/g,'').trim();
     const gw=clamp((S.molts||0)/9,0,1);this.gw=gw;
-    const f0base=270*Math.pow(105/270,gw);
-    const E={annoyed:{f:.86,d:.84,g:1.4},happy:{f:1.14,d:.95,g:.9},sad:{f:.9,d:1.3,g:.8},curious:{f:1.05,d:1,g:1},sleepy:{f:.88,d:1.4,g:.7},proud:{f:.94,d:1.12,g:1.1},scared:{f:1.2,d:.8,g:.9}}[emo]||{f:1,d:1,g:1};
+    const kb=this.kib||0,f0base=270*Math.pow(105/270,gw)*(kb<0?1+.08*kb:1+.03*kb);
+    const E={annoyed:{f:.86,d:.84,g:1.4},happy:{f:1.14,d:.95,g:.9},sad:{f:.9,d:1.3,g:.8},curious:{f:1.05,d:1,g:1},sleepy:{f:.88,d:1.4,g:.7},proud:{f:.94,d:1.12,g:1.1},scared:{f:1.2,d:.8,g:.9},ask:{f:1.17,d:1.02,g:.9}}[emo]||{f:1,d:1,g:1};
     const q=/[?？]\s*$|か[。…]*$|だな[?？]?$/.test(clean);
     let phrases=clean.split(/([、。…！!？?\s]+)/).filter(x=>x!=='');
     if(!phrases.some(p=>/[^、。…！!？?\s]/.test(p)))phrases=['ぐ'];
@@ -1684,7 +1722,7 @@ const Voice={
         let f2=f*.96;
         if(emo==='happy')f*=(i%2?1.07:.95);
         if(last&&i===n-1){if(q){f2=f*1.38}else{f2=f*.8}}
-        const d=(.155+Math.random()*.03)*E.d*(.72+.33*gw)*(last&&i===n-1?1.5:1);
+        const d=(.155+Math.random()*.03)*E.d*(kb<0?1+.12*kb:1)*(.72+.33*gw)*(last&&i===n-1?1.5:1);
         this.syllable(t,cons,cons==='g'?'u':'o',f,f2,d,E.g);t+=d+.012;
       }
     });
@@ -1721,7 +1759,7 @@ const Voice={
    ===================================================================== */
 const $=id=>document.getElementById(id);
 const lineEl=$('line'),emoEl=$('emo'),whoEl=$('who');
-const EMO={neutral:'',happy:'（機嫌がいい）',annoyed:'（むっとしている）',sad:'（しょんぼり）',curious:'（触角をこちらへ向けた）',sleepy:'（うとうと）',proud:'（胸を張った…たぶん）',scared:'（身を縮めた）'};
+const EMO={neutral:'',happy:'（機嫌がいい）',annoyed:'（むっとしている）',sad:'（しょんぼり）',curious:'（触角をこちらへ向けた）',sleepy:'（うとうと）',proud:'（胸を張った…たぶん）',scared:'（身を縮めた）',ask:'（じっとこちらを見ている）'};
 let voiceOn=true,jpVoice=null;
 function pickVoice(){try{const vs=speechSynthesis.getVoices().filter(v=>/ja/i.test(v.lang));jpVoice=vs.find(v=>/otoya|hattori|ichiro|keita|daichi|naoki|男性|\bmale\b/i.test(v.name)&&!/female|女性/i.test(v.name))||vs[0]||null}catch(e){}}
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
@@ -2012,7 +2050,7 @@ const DAY=86400000;
 function dkey(t){const d=new Date(t||Date.now());return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fastDays(){return Math.max(0,Math.floor((Date.now()-(S.lastAteAt||S.born))/DAY))}
 const FAST_MILES=[3,7,14,30,60,100,200,365,500,1000,1825];
-function ev(code,v){if(!S||!S.hatched)return;const k=dkey();S.events=S.events||{};const a=S.events[k]=S.events[k]||[];
+function ev(code,v){if(!S||!S.hatched)return;if(code==='fed')Sfx.ate();else if(code==='molt')Sfx.molt();else if(code==='trouble')Sfx.warn();const k=dkey();S.events=S.events||{};const a=S.events[k]=S.events[k]||[];
   if(code==='talk'||code==='poke'){const e=a.find(x=>x.c===code);if(e){e.n=(e.n||1)+1;return}a.push({c:code,n:1});return}
   if(!a.some(x=>x.c===code&&x.v===v))a.push({c:code,v});
   const keys=Object.keys(S.events).sort();while(keys.length>40)delete S.events[keys.shift()];}
@@ -2898,7 +2936,7 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
     if(!S||!S.daily||!started){$('daily').hidden=true;return}
     const L=S.daily.list,sk=this.streak();$('daily').hidden=false;
     $('daily').innerHTML='<span>今日のお世話</span><span class="dots">'+L.map(x=>'<i class="'+(this.isDone(x)?'on':'')+'"></i>').join('')+'</span>'+(sk?'<span class="stk">連続'+sk+'日</span>':'');
-    const P=$('dpanel');P.innerHTML='';const ul=document.createElement('ul');
+    const P=$('dpanel');P.innerHTML='';Onegai.panel(P);const ul=document.createElement('ul');
     L.forEach(x=>{const T=this.TASKS[x.k],li=document.createElement('li'),dn=this.isDone(x);if(dn)li.className='done';
       const prog=x.k==='watch'?Math.floor(x.n/60)+'/5分':T.goal>1?x.n+'/'+T.goal:'';
       li.innerHTML='<span class="ck">'+(dn?'✓':'・')+'</span><span></span><span class="n">'+prog+'</span>';li.children[1].textContent=T.label;ul.appendChild(li)});
@@ -3031,7 +3069,7 @@ const MORPHS={
 };
 const Col={
   get c(){if(!S.col)S.col={items:{},vis:{},morphs:{std:1},deco:null};return S.col},
-  addItem(k){const c=this.c,first=!c.items[k];c.items[k]=(c.items[k]||0)+1;save();if(!$('zukan').hidden)Zukan.render();return first},
+  addItem(k){const c=this.c,first=!c.items[k];Sfx.find();c.items[k]=(c.items[k]||0)+1;save();if(!$('zukan').hidden)Zukan.render();return first},
   pick(){const pool=TREASURES.filter(t=>!t.gift),W=pool.map(t=>[0,6,3,1][t.r]);let x=Math.random()*W.reduce((a,b)=>a+b,0);for(let i=0;i<pool.length;i++){x-=W[i];if(x<=0)return pool[i]}return pool[0]},
   T(k){return TREASURES.find(t=>t.k===k)}
 };
@@ -3369,7 +3407,7 @@ const Room={tabK:'uranai',
   },
   watch(){
     if(!S||!started)return;
-    const lab=S.stage>=3?'グソっ君の相談所':'グソっ君の相談所（成体になると開きます）';if($('m-room').textContent!==lab)$('m-room').textContent=lab;
+    $('m-room').classList.toggle('locked',S.stage<3);
     // ask, the next day, whether yesterday's worry got lighter
     const so=S.soudan;if(so&&!so.fu&&so.d!==dkey()&&!Life.asleep&&!Life.dead&&!S.pending&&Daily.sess>20){so.fu=true;save();say(so.k==='その他'?'……昨日のご相談、少しは軽くなりましたか。':'……昨日の'+so.k+'のお話、その後いかがですか。',{emo:'curious'})}
   }
@@ -3668,7 +3706,7 @@ const Rec={
     const dm=Math.max(0,b.molts-a.molts),dt=b.trust-a.trust,talk=Math.max(0,b.talks-a.talks),fed=Math.max(0,b.fed-a.fed),fast=Math.max(...span.map(r=>r.fast||0));
     const line='今週の成長：体長 '+a.mm+'mm → '+b.mm+'mm'+(dm>0?'（脱皮'+dm+'回）':'')+'・話しかけた回数 '+talk+'回・食べた回数 '+fed+'回・なかよし度 '+(dt>=0?'+':'')+dt+'・いちばん長い絶食 '+fast+'日';
     S.weekly[D]=line;S.weekFrom=D;save();
-    if(started)setTimeout(()=>say('（今週の成長を、日記に書いておきました）',{narr:true}),9000);
+    if(S.stage>=1)Letter.add({a,b,dm,dt,talk,fed,fast});else if(started)setTimeout(()=>say('（今週の成長を、日記に書いておきました）',{narr:true}),9000);
   },
   tick(){if(!S||!S.hatched)return;this.snap();this.week();save()}
 };
@@ -3738,6 +3776,139 @@ canvas.addEventListener('pointercancel',()=>Nade.up());
 Daily.TASKS.nade={label:DEFNAME+'をなでる',goal:1};
 // tell people it exists, once
 setInterval(()=>{if(!S||!started||S.nadeHint||S.tut!=='done'||Life.asleep||Daily.sess<90||Tutor.i!==-1)return;S.nadeHint=1;save();say('（'+gname()+'を長押しすると、なでられます）',{narr:true})},5000);
+
+/* =====================================================================
+   SOUND CUES — happy things sound high, warnings sound low.
+   Everything is synthesized on the spot; nothing plays while hidden or during voice input.
+   ===================================================================== */
+const Sfx={
+  ok(){return !!Audio2.ctx&&!document.hidden&&!Mic.on},
+  bell(f,vol,dur){Audio2.tone(f,f*.998,dur,'sine',vol);Audio2.tone(f*2.01,f*2,dur*.55,'sine',vol*.3)},
+  seq(ns,gap,vol,dur){if(!this.ok())return;ns.forEach((f,i)=>setTimeout(()=>this.bell(f,vol,dur),i*gap))},
+  ui(){if(this.ok())Audio2.tone(560,400,.07,'sine',.045)},
+  ate(){this.seq([659,880],110,.045,.35)},
+  find(){this.seq([784,988,1319],95,.045,.55);this.glow()},
+  molt(){this.seq([523,659,784,1047],170,.05,.9);this.glow()},
+  joy(){this.seq([698,880,1047],120,.05,.6);this.glow()},
+  letter(){this.seq([1568],0,.05,1.4)},
+  warn(){this.seq([233,175],280,.06,.6)},
+  glow(){if(document.hidden)return;const g=$('glowfx');g.classList.remove('go');void g.offsetWidth;g.classList.add('go')}
+};
+document.addEventListener('pointerdown',e=>{if(e.target.closest('.actions button,.mg button,.mate-sub button'))Sfx.ui()},true);
+
+/* =====================================================================
+   MOOD ON THE BODY — no numbers needed.
+   Real: posture and antennae only (the shell colour already speaks for moults and the dark side).
+   グソっ君: cheeks and brows. Both turn away when upset, and the voice drops a little.
+   ===================================================================== */
+const Kibun={v:0,low:0,
+  target(){
+    if(!S||!S.hatched||Life.dead)return 0;let bad=0;const m=x=>{bad=Math.max(bad,x)};
+    if(S.mood<35)m((35-S.mood)/30);if(S.health<40)m(.8);if(S.hunger>80)m(.5);if(S.water<45)m(.6);
+    if(S.temp>13.5||S.temp<6.5)m(.7);if(Trouble.cur)m(.7);if(darkLv()>=1)m(.4+darkLv()*.2);
+    if(bad>0)return -Math.min(1,bad);
+    return S.mood>=65?clamp(.35+(S.mood-65)/50,0,1):0;
+  },
+  post(dt,time){
+    if(!ISO||!S)return;this.v=damp(this.v,this.target(),.8,dt);const v=this.v,bad=Math.max(0,-v),good=Math.max(0,v);Voice.kib=v;
+    const free=started&&C.state==='idle'&&C.talk<=0&&C.face<=0&&!Game.molting&&!Molt.phase&&!Life.asleep&&!Life.dead&&!Nade.on&&!Hashi.on&&!Cine.on&&!Dream.on;
+    if(free&&bad>.25)C.yaw+=angDiff(C.yaw,camYaw()+Math.PI)*Math.min(1,dt*.5*bad);
+    else if(free&&good>.5&&Math.sin(time*.13)>.6)C.yaw+=angDiff(C.yaw,camYaw())*Math.min(1,dt*.35);
+    if(ISO.ant)ISO.ant.forEach((a,ai)=>{if(!a.root)return;a.root.rotation.x+=bad*.38;a.root.rotation.y+=Math.sin(time*3.2+ai*1.3)*.14*good});
+    if(ISO.body)ISO.body.rotation.x+=bad*(ISO.chara?.12:.07);
+    if(ISO.blushMat)ISO.blushMat.opacity=clamp(.85+.15*good-.6*bad,.15,1);
+    if(ISO.brows){const dk=smooth(25,90,S.dark||0);ISO.brows.forEach((b,i)=>{const s=i?1:-1;
+      if(dk>.05){b.rotation.z=s*.42;return}const on=bad>.3;b.visible=on;b.rotation.z=-s*.32;if(on)b.scale.set(1,Math.min(1,bad*1.2),1)})}
+    if(bad>.5&&started)this.low+=dt;else this.low=0;
+    if(this.low>20&&!S.kibHint&&!Life.asleep&&Tutor.i===-1){S.kibHint=1;save();say('（'+gname()+'が背を向けて、触角を下げています。機嫌が悪いときのしぐさです。「様子」や水槽の数値を見てみましょう）',{narr:true})}
+  }
+};
+{const f=updateCreature;updateCreature=function(dt,time){f(dt,time);Kibun.post(dt,time)}}
+
+/* =====================================================================
+   A WISH A DAY — at most one small request per day.
+   Granting it is a little gift; ignoring it costs nothing.
+   ===================================================================== */
+const Onegai={
+  L:{
+    red:{lb:'赤い灯りにする',ok:()=>S.light!=='red'&&S.light!=='off',ask:['……少しまぶしいです。赤い灯りにしていただけませんか。','目が疲れました。……灯りを赤くしていただけると、うれしいです。'],a1:'……マブシイ、デス。……アカイ、アカリ……',done:()=>S.light==='red'},
+    off:{lb:'灯りを消す',ok:()=>{const h=new Date().getHours();return S.light!=='off'&&(h>=19||h<5)},ask:['今夜は、真っ暗にしていただけますか。深海の夢が見たいのです。'],a1:'……クライノ、スキ、デス。',done:()=>S.light==='off'},
+    water:{lb:'水換えをする',ok:()=>S.water<90,ask:['お水を、新しくしていただけませんか。……少し、においます。'],a1:'……ミズ、アタラシク……',done:()=>S.water>=99},
+    cool:{lb:'水温を少し下げる',ok:()=>S.temp>10.6,ask:['少し水がぬるいです。もう少しだけ、冷たくしていただけますか。'],a1:'……アツイ、デス。',done:()=>S.temp<=10.2},
+    warm:{lb:'水温を少し上げる',ok:()=>S.temp<9.4,ask:['……少し寒いです。水温を、ほんの少し上げていただけますか。'],a1:'……サムイ、デス。',done:()=>S.temp>=9.8},
+    talk:{lb:'2回話しかける',ok:()=>true,ask:['今日のお話を、聞かせていただけませんか。陸のことが知りたいのです。','……少し、お話ししませんか。'],a1:'……オハナシ、シテ……',done:b=>(S.talks||0)>=b.talks+2},
+    nade:{lb:'なでる（長押し）',ok:()=>!!S.nadeHint,ask:['……背中を、なでていただけませんか。','……少しだけ、なでていただけますか。背中のほうを。'],a1:'……ナデテ、クダサイ。',done:b=>!!S.nade&&S.nade.d===dkey()&&S.nade.n>b.nade},
+    feed:{lb:'餌を差し出す',ok:()=>S.hunger>=40,ask:['……お腹が空きました。何か、いただけませんか。'],a1:'……オナカ、スキマシタ。',done:b=>(S.fed||0)>b.fed},
+    watch:{lb:'2分間そばにいる',ok:()=>true,ask:['しばらく、そばで見ていていただけますか。……それだけで結構です。'],a1:'……ソバニ、イテ……',done:(b,o)=>o.w>=120}
+  },
+  cur(){return S&&S.og&&S.og.d===dkey()?S.og:null},
+  tick(){
+    if(!S||!started||!S.hatched||Life.dead||S.stage<1)return;const D=dkey(),o=S.og;
+    if(o&&o.d===D){if(o.done||document.hidden||Life.asleep)return;o.w=(o.w||0)+1;const T=this.L[o.k];if(T&&T.done(o.b,o))this.grant();return}
+    if(Daily.sess<50||S.pending||Tutor.i!==-1||Life.asleep||Game.molting||Molt.phase||Trouble.cur||Cine.on||Dream.on||Hashi.on||Nade.on||typing||queue.length||darkLv()>=2||document.hidden)return;
+    const ks=Object.keys(this.L).filter(k=>this.L[k].ok());if(!ks.length)return;
+    const need=ks.filter(k=>['water','cool','warm','feed'].includes(k)),k=pickR(need.length&&Math.random()<.6?need:ks);
+    S.og={d:D,k,b:{talks:S.talks||0,fed:S.fed||0,nade:S.nade&&S.nade.d===D?S.nade.n:0},w:0,done:0};save();
+    const T=this.L[k];say(S.stage===1?T.a1:pickR(T.ask),{emo:'ask'});
+    if(!S.ogHint){S.ogHint=1;save();say('（'+gname()+'のおねがいです。かなえなくても困ることはありません。「今日のお世話」にも書いてあります）',{narr:true})}
+    Daily.render();
+  },
+  grant(){
+    const o=S.og;o.done=1;S.mood=clamp(S.mood+6,0,100);S.trust=clamp(S.trust+2,0,100);save();refreshHUD();
+    Sfx.joy();toast('おねがい ✓ '+this.L[o.k].lb);Daily.render();
+    setTimeout(()=>{if(Life.asleep||Life.dead)return;say(S.stage===1?'……アリガト、ゴザイマス。':pickR(['……ありがとうございます。覚えておきます。','ふむ。……うれしいです。ありがとうございます。','願いを聞いていただけるとは。……ありがとうございます。']),{emo:'happy'});C.wave=2.6;C.waveDur=2.6},1400);
+  },
+  panel(P){const o=this.cur();if(!o)return;const d=document.createElement('div');d.className='og'+(o.done?' done':'');
+    d.innerHTML='<span class="ck">'+(o.done?'✓':'♡')+'</span><span></span>';d.children[1].textContent='おねがい：'+this.L[o.k].lb+(o.done?'（かないました）':'');P.appendChild(d)}
+};
+setInterval(()=>Onegai.tick(),1000);
+
+/* =====================================================================
+   A LETTER A WEEK — written from the growth record, arrives with one small bell.
+   ===================================================================== */
+const Letter={i:0,
+  YU(t){return typeof yuru==='function'?yuru(t):t},
+  write(x){
+    const n=san(tkName()),hd=(n||'飼い主さま')+'へ',st=S.stage,me=gname();
+    if(st<2)return [hd,'','コンシュウ、'+x.b.mm+'ミリ、ニ、ナリマシタ。',x.talk?'オハナシ、'+x.talk+'カイ。……ウレシカッタ、デス。':'……マタ、オハナシ、シテクダサイ。','ライシュウモ、マッテマス。','',me].join('\n');
+    const L=[];
+    L.push(x.dm>0?`今週、ワタクシは殻を${x.dm}回脱いで、${x.a.mm}mmから${x.b.mm}mmになりました。きついと思っていたので、すっきりしました。`:`今週の体長は${x.b.mm}mmのままでした。深海の生き物は、急ぎません。`);
+    L.push(x.talk>=20?`${x.talk}回も話しかけていただきました。……数えていたわけではありません。`:x.talk>0?`話しかけていただいたのは${x.talk}回でした。どのお話も、覚えています。`:'今週は、あまりお話ができませんでしたね。お忙しかったのでしょう。');
+    L.push(x.fed>0?`ごはんは${x.fed}回いただきました。お礼は申しません。……おいしかったです。`:x.fast>=7?`いちばん長い絶食は${x.fast}日でした。ワタクシたちには、ふつうのことです。ご心配なく。`:'ごはんは、まだ結構です。');
+    if(x.dt>0)L.push('あなたのことを、前より少しだけ信じられるようになりました。');else if(x.dt<0)L.push('……今週は、少しこわいこともありました。');
+    if(/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''))L.push('牛たちにも、よろしくお伝えください。');
+    L.push('来週も、ガラスの向こうでお待ちしています。');
+    return [hd,''].concat(L.map(l=>this.YU(l)),['',me+'より']).join('\n');
+  },
+  add(x){
+    if(S.stage<1)return;S.letters=S.letters||[];S.letters.push({d:dkey(),t:this.write(x)});if(S.letters.length>30)S.letters.shift();S.letterNew=1;save();
+    if(started)setTimeout(()=>this.arrive(),9000);
+  },
+  arrive(){if(!S.letterNew||Life.dead)return;Sfx.letter();this.sync();say('（'+gname()+'から、手紙が届きました）',{narr:true})},
+  sync(){const nw=!!(S&&S.letterNew&&started);$('letterchip').hidden=!nw;$('m-letter').classList.toggle('has-new',nw)},
+  open(){closePops();if(!started||!S.hatched)return;const L=S.letters||[];this.i=L.length-1;S.letterNew=0;save();this.sync();this.render();$('letter').hidden=false},
+  render(){const L=S.letters||[],x=L[this.i];
+    $('lt-text').textContent=x?x.t:'（まだ手紙は届いていません。成長の記録が1週間ぶんたまると、'+gname()+'から手紙が届きます）';
+    $('lt-date').textContent=x?x.d.replace(/^(\d+)-0?(\d+)-0?(\d+)$/,'$2月$3日'):'';
+    $('lt-prev').disabled=!x||this.i<=0;$('lt-next').disabled=!x||this.i>=L.length-1}
+};
+$('letterchip').addEventListener('click',e=>{e.stopPropagation();Letter.open()});
+$('m-letter').addEventListener('click',()=>Letter.open());
+$('lt-close').addEventListener('click',()=>$('letter').hidden=true);
+$('lt-prev').addEventListener('click',()=>{Letter.i--;Letter.render()});
+$('lt-next').addEventListener('click',()=>{Letter.i++;Letter.render()});
+setInterval(()=>{if(S&&started)Letter.sync()},3000);
+
+/* =====================================================================
+   MENU AS AN ICON GRID — 4 x 2, finger-sized. The current tank-mate stays on the front.
+   ===================================================================== */
+const MenuGrid={
+  sync(){if(!S)return;const n=S.mate?({hag:'ヌタウナギ',eel:'ゲンゲ'}[S.mate.kind]||'同居'):'同居';const e=$('m-mate').lastElementChild;if(e.textContent!==n)e.textContent=n}
+};
+document.body.classList.toggle('yuru',VARIANT==='yuru');
+$('m-mate').addEventListener('click',e=>{e.stopPropagation();$('mate-sub').hidden=!$('mate-sub').hidden});
+$('m-name').addEventListener('click',()=>{closePops();$('set-name').click()});
+$('btn-more').addEventListener('click',()=>{$('mate-sub').hidden=true;MenuGrid.sync()});
 
 let started=false;
 function boot(){
@@ -3948,7 +4119,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
