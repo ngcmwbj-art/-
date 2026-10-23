@@ -39,41 +39,9 @@ body {
 }
 .title-font { font-family: "Klee One", "Zen Maru Gothic", serif; }
 
-/* ── 背景：空・入道雲・遠い山・草原 ─────────────────────── */
-.scene {
-  position: fixed; inset: 0;
-  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 38%, var(--sky-low) 62%);
-}
-/* 入道雲：重ねた円をぼかして、ふちだけ少しくっきり */
-.cloud { position: absolute; filter: blur(1.5px); }
-.cloud i {
-  position: absolute; border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff 0%, #fff 55%, #eef3f6 80%, #dfe8ee 100%);
-  box-shadow: inset -6px -10px 18px rgba(150, 175, 200, .35);
-}
-.cloud.a { left: -6%; top: 9%; width: 70%; height: 22%; }
-.cloud.a i:nth-child(1) { left: 0;   top: 45%; width: 38%; height: 55%; }
-.cloud.a i:nth-child(2) { left: 18%; top: 10%; width: 42%; height: 80%; }
-.cloud.a i:nth-child(3) { left: 44%; top: 0;   width: 36%; height: 90%; }
-.cloud.a i:nth-child(4) { left: 64%; top: 38%; width: 30%; height: 60%; }
-.cloud.b { right: -10%; top: 4%; width: 48%; height: 13%; opacity: .9; }
-.cloud.b i:nth-child(1) { left: 0;   top: 35%; width: 45%; height: 65%; }
-.cloud.b i:nth-child(2) { left: 25%; top: 0;   width: 50%; height: 100%; }
-.cloud.b i:nth-child(3) { left: 58%; top: 30%; width: 42%; height: 70%; }
-/* 木もれ日のような光の筋 */
-.rays {
-  position: absolute; inset: 0;
-  background: repeating-linear-gradient(115deg, rgba(255, 250, 220, .0) 0 40px, rgba(255, 250, 220, .18) 40px 70px, rgba(255, 250, 220, 0) 70px 140px);
-  mask-image: linear-gradient(180deg, #000 0%, transparent 55%);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 55%);
-}
-.hills { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 62%; }
-/* 紙の質感：画面全体にうっすらノイズを重ねる */
-.grain {
-  position: fixed; inset: 0; pointer-events: none; z-index: 50;
-  opacity: .22; mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .25  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-}
+/* ── 背景：描き込んだ里山の1枚絵（assets/img/bg/） ─────── */
+.scene { position: fixed; inset: 0; background: #5fa9e0; }
+.scene img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; }
 
 /* ── レイアウト ─────────────────────────────────────────── */
 .app {
@@ -87,8 +55,8 @@ body {
 /* 上の帯：健康度・資金・季節 */
 .topbar {
   display: flex; align-items: center; gap: 8px;
-  background: rgba(247, 240, 222, .82);
-  border: 2px solid var(--ink); border-radius: 14px 18px 12px 16px / 16px 12px 18px 14px;
+  background: rgba(250, 245, 230, .78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  border: 1.5px solid rgba(74, 58, 42, .55); border-radius: 12px;
   padding: 6px 10px; font-size: 14px;
   box-shadow: 0 3px 0 rgba(74, 58, 42, .18);
 }
@@ -105,12 +73,19 @@ body {
   box-shadow: 0 2px 0 rgba(74, 58, 42, .2);
 }
 .enemy {
-  width: 128px; height: 128px; display: grid; place-items: center;
-  font-size: 80px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 252, 238, .95) 0%, rgba(255, 248, 225, .6) 55%, transparent 72%);
-  filter: drop-shadow(0 6px 4px rgba(60, 50, 30, .25)) saturate(.85);
+  width: 140px; height: 140px; display: grid; place-items: center; position: relative;
 }
-.enemy-name { font-size: 18px; font-weight: 600; }
+/* 足もとの影（地面に立っているように） */
+.enemy::after {
+  content: ""; position: absolute; bottom: 6px; left: 25%; right: 25%; height: 12px;
+  background: rgba(40, 50, 70, .25); border-radius: 50%; z-index: -1;
+}
+/* 敵の名前札：木の札のような小さな板 */
+.plate {
+  display: grid; justify-items: center; gap: 3px; padding: 4px 14px 5px;
+  background: rgba(250, 245, 230, .85); border: 1.5px solid rgba(74, 58, 42, .55); border-radius: 10px;
+}
+.enemy-name { font-size: 17px; font-weight: 600; }
 .bar {
   width: 160px; height: 12px; border: 2px solid var(--ink); border-radius: 8px;
   background: #efe5cc; overflow: hidden; position: relative;
@@ -152,8 +127,8 @@ body {
 /* プレイヤーの状態 */
 .player {
   display: flex; align-items: center; gap: 10px;
-  background: rgba(247, 240, 222, .82); border: 2px solid var(--ink);
-  border-radius: 16px 12px 16px 14px; padding: 6px 10px;
+  background: rgba(250, 245, 230, .8); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  border: 1.5px solid rgba(74, 58, 42, .55); border-radius: 12px; padding: 6px 10px;
 }
 .energy {
   width: 46px; height: 46px; border-radius: 50%; flex: none;
@@ -201,13 +176,12 @@ body {
 .card .art {
   margin: 0 7px; border-radius: 8px; border: 1.5px solid var(--ink-soft);
   display: grid; place-items: center; font-size: 34px;
-  filter: saturate(.85);
 }
-.card.attack .art { background: radial-gradient(ellipse at 40% 40%, #fbe3d6 0%, var(--attack) 85%); }
-.card.skill  .art { background: radial-gradient(ellipse at 40% 40%, #e6f2f7 0%, var(--skill) 85%); }
-.card.crop   .art { background: radial-gradient(ellipse at 40% 40%, #eef5dc 0%, var(--crop) 85%); }
+.card.attack .art { background: #f6dccf; }
+.card.skill .art { background: #dcecf4; }
+.card.crop .art { background: #e4f0cc; }
 /* 手描きの絵（SVG）を枠いっぱいに */
-.enemy img { width: 118px; height: 118px; }
+.enemy img { width: 140px; height: 140px; }
 .plot img, .barn img { width: 52px; height: 52px; }
 .card .art img { width: 54px; height: 54px; }
 .card .kind { font-size: 10px; text-align: center; color: var(--ink-soft); margin-top: 2px; }
@@ -216,21 +190,7 @@ body {
 </style>
 </head>
 <body>
-<div class="scene" aria-hidden="true">
-  <div class="rays"></div>
-  <div class="cloud a"><i></i><i></i><i></i><i></i></div>
-  <div class="cloud b"><i></i><i></i><i></i></div>
-  <!-- 重なる丘：遠いほど淡く青みがかる -->
-  <svg class="hills" viewBox="0 0 400 400" preserveAspectRatio="none">
-    <path d="M0 120 C60 80 110 100 160 90 C220 76 260 60 320 82 C360 96 385 88 400 80 L400 400 L0 400Z" fill="#a9c9c0" opacity=".8"/>
-    <path d="M0 160 C50 130 120 150 180 135 C240 120 300 150 400 130 L400 400 L0 400Z" fill="var(--hill-far)"/>
-    <path d="M0 210 C80 180 140 200 210 188 C280 176 340 205 400 192 L400 400 L0 400Z" fill="var(--hill-mid)"/>
-    <path d="M0 260 C70 240 150 258 230 246 C300 236 350 252 400 244 L400 400 L0 400Z" fill="var(--hill-near)"/>
-    <!-- 遠くの一本木 -->
-    <g transform="translate(300 120)"><rect x="-2" y="0" width="4" height="16" fill="#5b4a35"/><circle cx="0" cy="-4" r="11" fill="#5f8f5f"/><circle cx="-6" cy="0" r="7" fill="#6c9c69"/></g>
-  </svg>
-</div>
-<div class="grain" aria-hidden="true"></div>
+<div class="scene" aria-hidden="true"><img src="../assets/img/bg/summer.svg" alt=""></div>
 
 <main class="app">
   <header class="topbar">
@@ -242,9 +202,11 @@ body {
   <section class="enemy-area">
     <div class="intent">🗡️ 7</div>
     <div class="enemy"><img src="../assets/img/art/crow.svg" alt="カラス"></div>
-    <div class="enemy-name title-font">カラスの群れ</div>
-    <div class="bar"><b style="width:62%"></b></div>
-    <div class="bar-label">勢い 14 / 22</div>
+    <div class="plate">
+      <div class="enemy-name title-font">カラスの群れ</div>
+      <div class="bar"><b style="width:62%"></b></div>
+      <div class="bar-label">勢い 14 / 22</div>
+    </div>
   </section>
 
   <section class="field" aria-label="畑と畜舎">
