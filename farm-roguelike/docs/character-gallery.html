@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>キャラクター一覧</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* 農家（使うキャラ）と敵を、戦闘と同じ背景の上で大きく並べるページ */
+  body { overflow: auto; -webkit-user-select: text; user-select: text; }
+  .scene { position: fixed; }
+  .wrap { position: relative; z-index: 1; padding: 16px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-family: var(--mincho); font-weight: 800; letter-spacing: .15em; text-shadow: 0 2px 6px #000; }
+  h2 { font-family: var(--mincho); font-weight: 800; letter-spacing: .12em; margin: 18px 0 10px; text-shadow: 0 2px 6px #000; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .ch { background: rgba(20, 18, 14, .78); border: 1px solid var(--panel-line); border-radius: 4px; padding: 12px; width: 360px; display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: end; }
+  .ch .pic { height: 190px; display: flex; align-items: flex-end; justify-content: center; background: radial-gradient(ellipse at 50% 85%, rgba(255, 240, 200, .14), transparent 70%); }
+  .ch .pic img { max-width: 100%; max-height: 100%; }
+  .ch.enemy .pic img { transform: scaleX(-1); }
+  .name { font-family: var(--mincho); font-weight: 800; font-size: 20px; letter-spacing: .1em; }
+  .info { display: grid; gap: 6px; align-self: start; font-size: 13px; line-height: 1.6; color: var(--panel-text-soft); }
+  .info b { color: var(--panel-text); font-weight: 700; }
+  .moves { margin: 0; padding-left: 1.1em; }
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true"><img src="../assets/img/bg/forest.svg" alt=""></div>
+<div class="wrap">
+  <h1>キャラクター一覧</h1>
+  <h2>使うキャラ（農家）</h2>
+  <div class="row" id="farmers"></div>
+  <h2>敵</h2>
+  <div class="row" id="enemies"></div>
+</div>
+<script src="../data/config.js"></script>
+<script src="../data/crops.js"></script>
+<script src="../data/animals.js"></script>
+<script src="../data/cards.js"></script>
+<script src="../data/enemies.js"></script>
+<script src="../data/encounters.js"></script>
+<script src="../data/relics.js"></script>
+<script src="../data/farmers.js"></script>
+<script src="../js/core/util.js"></script>
+<script src="../js/ui/art.js"></script>
+<script>
+  FR.Art.BASE = '../assets/img/art/';
+  const E = FR.Util.escape;
+  const tool = { vegetable: '鍬', livestock: '牛追い棒と縄', citrus: '背負い籠と剪定ばさみ' };
+  document.getElementById('farmers').innerHTML = Object.entries(FR.Farmers).map(([id, f]) => `
+    <div class="ch"><div class="pic">${FR.Art.img('farmer_' + id, '', f.name)}</div>
+      <div class="info"><span class="name">${E(f.name)}</span>
+        <span>${E(f.text)}</span>
+        <span><b>健康度</b> ${f.hp}　<b>持ち物</b> ${tool[id]}</span>
+        <span><b>初期レリック</b> ${E(FR.Relics[f.relic].name)}</span></div></div>`).join('');
+  const kind = { attack: '攻撃', steal: '作物を奪う', trample: '畑を荒らす', buff: '力を上げる' };
+  document.getElementById('enemies').innerHTML = Object.entries(FR.Enemies).map(([id, e]) => {
+    const from = Math.min(...FR.Encounters.filter(en => en.enemies.includes(id)).map(en => en.from)) + 1;
+    return `<div class="ch enemy"><div class="pic"><img src="${FR.Art.url(e.art)}" alt="" style="height:${Math.round(150 * (e.size || 1))}px"></div>
+      <div class="info"><span class="name">${E(e.name)}</span>
+        <span><b>勢い</b> ${e.hp[0]}〜${e.hp[1]}（1戦ごとに+${e.hpGrowth}）　<b>登場</b> ${from}戦目から</span>
+        <ul class="moves">${e.pattern.filter((k, i, a) => a.indexOf(k) === i).map(k => { const m = e.moves[k];
+          return `<li><b>${E(m.name)}</b>：${kind[m.intent]}${m.damage ? '（' + (m.intent === 'attack' ? '' : 'できないとき') + m.damage + '）' : ''}${m.strength ? '（力+' + m.strength + '）' : ''}</li>`; }).join('')}</ul></div></div>`;
+  }).join('');
+</script>
+</body>
+</html>
