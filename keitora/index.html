@@ -1627,6 +1627,25 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fillRect(x, y, r, r);
       }
     }
+    // 天の川：夜だけ、空を斜めに横切る淡い光の帯と細かい星
+    if (env.night > 0.3) {
+      const a = (env.night - 0.3) / 0.7;
+      ctx.save();
+      ctx.translate(W * 0.42, top + (210 - top) * 0.45);
+      ctx.rotate(-0.42);
+      const band = ctx.createLinearGradient(0, -46, 0, 46);
+      band.addColorStop(0, 'rgba(190,200,255,0)');
+      band.addColorStop(0.5, `rgba(205,212,255,${0.3 * a})`);
+      band.addColorStop(1, 'rgba(190,200,255,0)');
+      ctx.fillStyle = band;
+      ctx.fillRect(-620, -46, 1240, 92);
+      for (let i = 0; i < 220; i++) {
+        const x = (hash(i * 5.3 + 11) - 0.5) * 1100, y = (hash(i * 2.9 + 3) + hash(i * 4.1 + 7) - 1) * 40;
+        ctx.fillStyle = `rgba(255,252,240,${a * (0.35 + hash(i * 9.7) * 0.6)})`;
+        ctx.fillRect(x, y, 1.3, 1.3);
+      }
+      ctx.restore();
+    }
     // 太陽（夜は三日月）
     ctx.fillStyle = env.sun;
     ctx.beginPath(); ctx.arc(600, env.sunY, env.sunR, 0, Math.PI * 2); ctx.fill();
@@ -2859,6 +2878,7 @@ canvas { display: block; width: 100%; height: 100%; }
     if (n <= 0.01) return;
     ctx.fillStyle = `rgba(8,12,35,${n * 0.42})`;
     ctx.fillRect(-20, -(VH - H) - camY - 20, W + 40, VH + 40);
+    if (n > 0.4) drawFireflies((n - 0.4) / 0.6);
     if (n < 0.3 || truck.falling) return;
     const hx = truckX + TRUCK_W - 2, hy = truck.y - 22;
     ctx.save();
@@ -2872,6 +2892,32 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = `rgba(255,240,190,${0.5 * n})`;
     ctx.beginPath(); ctx.arc(hx, hy, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // 夜の田んぼの蛍：あぜ道の手前と奥の田んぼの上で、ゆらゆら明滅する
+  function drawFireflies(a) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 18; i++) {
+      const far = i % 3 === 0;                       // 3匹に1匹は奥の田んぼ（ゆっくり流れる）
+      const par = far ? 0.45 : 1;
+      const span = W + 240;
+      const x = ((hash(i * 4.7) * span - cam * par + Math.sin(clock * 0.6 + i) * 18) % span + span) % span - 120;
+      // 段を登っていれば、その段の田んぼの上を飛ぶ
+      const lv = levelAt(far ? cam + TRUCK_X : x + cam);
+      const y = (far ? GROUND - 40 - hash(i * 2.3) * 30 : GROUND + ROAD_H + 18 + hash(i * 2.3) * 70) - lv + Math.sin(clock * 1.3 + i * 2.1) * 7;
+      const blink = Math.max(0, Math.sin(clock * (1.6 + hash(i) * 1.2) + i * 5));
+      const k = a * blink * (far ? 0.6 : 1);
+      if (k < 0.03) continue;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, far ? 5 : 9);
+      g.addColorStop(0, `rgba(215,255,140,${0.7 * k})`);
+      g.addColorStop(1, 'rgba(215,255,140,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, far ? 5 : 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `rgba(245,255,200,${0.9 * k})`;
+      ctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
+    }
     ctx.restore();
   }
 
@@ -3124,7 +3170,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; },
-      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get rk() { return rk; }, get score() { return score; }, get steps() { return steps; },
+      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get rk() { return rk; }, get env() { return env; }, get score() { return score; }, get steps() { return steps; },
       get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep, bgm: bgmMode, pos: bgmEl ? bgmEl.currentTime : null, src: !!bgmSrc }; },
       suspendAudio() { return ac && ac.suspend(); }, get clock() { return clock; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
