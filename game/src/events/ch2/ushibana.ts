@@ -651,6 +651,15 @@ if (import.meta.env.DEV) {
     return go(BARN, 6, 6, 'up');
   });
 
+  // (the light put on a part directly, for the pictures)
+  registerDebug('ubAim', (part = 1) => {
+    const p = game.ui.widgets.find((w) => w instanceof UbPanel) as UbPanel | undefined;
+    if (!p) return 'no panel';
+    p.sel = Math.max(0, Math.min(2, Number(part))) as Part;
+    p.aim = p.sel;
+    return p.sel;
+  });
+
   registerDebug('ubState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(UF)) flags[k] = flag(id);

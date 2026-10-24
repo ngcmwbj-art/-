@@ -492,6 +492,15 @@ if (import.meta.env.DEV) {
     return go(VILLAGE, 21, 38, 'up');
   });
 
+  // (the light put on a cell directly, for the pictures)
+  registerDebug('kyAim', (c = 0, r = 0) => {
+    const p = game.ui.widgets.find((w) => w instanceof KyPanel) as KyPanel | undefined;
+    if (!p) return 'no panel';
+    p.c = Number(c);
+    p.r = Number(r);
+    return [p.c, p.r];
+  });
+
   registerDebug('kyState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(KF)) flags[k] = flag(id);

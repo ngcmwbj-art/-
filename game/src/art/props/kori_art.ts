@@ -115,15 +115,18 @@ registerProp('prop_kr_bunki', (opts) => {
   const imgs = b.to.map((to) => {
     const p = new PixelCanvas(16, 16);
     railTile(p, 0, 0, ends, to);
-    // the switch's tongue: a white arrow from the trunk towards where it goes now
+    // the switch's tongue: a yellow arrow from the trunk's side across the tile towards where it goes now
     const [dx, dy] = DV[to];
-    for (let t = 1; t <= 6; t++) {
-      p.set(8 + dx * t - (dx < 0 ? 1 : 0), 8 + dy * t - (dy < 0 ? 1 : 0), '#FFFFFF');
-      p.set(8 + dx * t - (dx < 0 ? 1 : 0) + (dy !== 0 ? -1 : 0), 8 + dy * t - (dy < 0 ? 1 : 0) + (dx !== 0 ? -1 : 0), '#FFFFFF');
-    }
-    const hx = 8 + dx * 6;
-    const hy = 8 + dy * 6;
-    for (let s = -3; s <= 2; s++) p.set(hx + (dy !== 0 ? s : -dx * 2) - (dx < 0 ? 1 : 0), hy + (dx !== 0 ? s : -dy * 2) - (dy < 0 ? 1 : 0), '#FFE7A3');
+    const A = ['..#....', '..##...', '######.', '#######', '######.', '..##...', '..#....'];
+    for (let j = 0; j < 7; j++)
+      for (let i = 0; i < 7; i++) {
+        if (A[j][i] !== '#') continue;
+        // the picture points east; turned for the other ways
+        const u = i - 3;
+        const v = j - 3;
+        const [rx, ry] = dx === 1 ? [u, v] : dx === -1 ? [-u, v] : dy === 1 ? [-v, u] : [v, -u];
+        p.set(8 + rx + dx * 2 - (dx < 0 ? 1 : 0), 8 + ry + dy * 2 - (dy < 0 ? 1 : 0), '#FFD23F');
+      }
     // the lever's little red handle by the tile's corner
     p.rect(1, 1, 3, 3, '#E23B2E');
     p.set(1, 1, '#FF6A4D');
