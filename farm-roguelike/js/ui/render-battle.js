@@ -56,9 +56,13 @@ FR.BattleView = {
     // 敵（左から順に）。並びが変わらなければ要素を作り直さず中身だけ変える（勢いのバーがなめらかに減る）
     const count = b.enemies.length;
     const box = $('b-enemies');
-    const same = box.children.length === count && b.enemies.every((e, k) => box.children[k].dataset.uid == e.uid);
+    // 同じ戦闘で、同じ並び（番号と種類）のときだけ作り直さない。新しい戦闘では必ず作り直す
+    const battleKey = b.run.seed + ':' + b.run.battleIndex + ':' + b.encounter;
+    const same = box.dataset.battle === battleKey && box.children.length === count &&
+      b.enemies.every((e, k) => box.children[k].dataset.uid == e.uid && box.children[k].dataset.id === e.id);
+    box.dataset.battle = battleKey;
     if (!same) {
-      box.innerHTML = b.enemies.map(e => `<div class="unit enemy-unit" data-uid="${e.uid}" style="--size:${e.def.size || 1};--count:${count}">
+      box.innerHTML = b.enemies.map(e => `<div class="unit enemy-unit" data-uid="${e.uid}" data-id="${e.id}" style="--size:${e.def.size || 1};--count:${count}">
         <div class="intent"></div>
         <div class="unit-art">${FR.Art.img(e.def.art, '', e.name)}</div>
         <div class="unit-bar"><div class="bar"><b></b><span></span></div></div>
