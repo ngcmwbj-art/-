@@ -286,14 +286,6 @@ export class KyPanel implements Widget {
     g.rect(SX + W - 5, oy, 3, CH, '#7A6A4A');
     const lx = Math.round(this.lx);
     const ly = Math.round(this.ly + dy);
-    // the fruit behind the leaves: seen only in the light (glowing where it falls)
-    KY_AT.forEach(([c, r], i) => {
-      if (flag(KF.got) & (1 << i)) return;
-      const [x, y] = cellXY(c, r, oy);
-      const d = Math.hypot(x - lx, y - ly);
-      if (d > LIGHT_R + 6) return;
-      g.alpha(Math.max(0, 1 - d / (LIGHT_R + 6)), () => drawCuke(g, x, y - 14, i));
-    });
     // the big leaves, overlapping (lighter and thinner where the light is: the fruit shows through)
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
@@ -308,6 +300,14 @@ export class KyPanel implements Widget {
           g.alpha(0.6, () => g.line(cx - rr + 3, cy, cx + rr - 3, cy, lit > 0.3 ? '#7AB05A' : '#304E34'));
         }
       }
+    // the fruit in the leaves' shade: seen only in the light (it shows through the thinned leaves, glowing)
+    KY_AT.forEach(([c, r], i) => {
+      if (flag(KF.got) & (1 << i)) return;
+      const [x, y] = cellXY(c, r, oy);
+      const d = Math.hypot(x - lx, y - ly);
+      if (d > LIGHT_R + 6) return;
+      g.alpha(Math.max(0, 1 - d / (LIGHT_R + 6)) * 0.95, () => drawCuke(g, x, y - 14, i));
+    });
     // a yellow flower or two
     for (const [x, y] of [[SX + 60, oy + 8], [SX + 150, oy + 76]] as const) {
       g.rect(x, y, 3, 3, '#F4D23A');

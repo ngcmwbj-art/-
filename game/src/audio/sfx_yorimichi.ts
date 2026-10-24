@@ -19,7 +19,7 @@ const knock = (f: string, f2: number, at: number, v: number) => [
 ];
 
 se('se_yorimichi', {
-  label: '寄り道が 始まった（木の 2音「こ・こん」）',
+  label: '寄り道の 始まり（こ・こん）',
   group: TALK,
   max: 1,
   layers: [...knock('784→720', 1568, 160, 0.26), ...knock('1047→960', 2094, 290, 0.28)],
