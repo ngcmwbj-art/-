@@ -269,6 +269,8 @@ function bandAt(g: Gfx, text: string): void {
 
 export class KuPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

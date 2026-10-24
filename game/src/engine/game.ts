@@ -27,6 +27,8 @@ export interface Widget {
   /** Modal widgets eat all input so scenes below don't react. */
   modal: boolean;
   done: boolean;
+  /** A close-up game (大写し): on touch, a tap anywhere on the window is けってい (engine/touch.ts). */
+  closeup?: boolean;
   update(dt: number, input: Input): void;
   draw(g: Gfx): void;
 }

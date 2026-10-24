@@ -140,6 +140,8 @@ const KUMO_OK: [number, number] = [0.38, 0.7];
 
 export class AsPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

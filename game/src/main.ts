@@ -3,9 +3,9 @@
 
 import { loadFont, warmGlyphs } from './engine/font';
 import { game } from './engine/game';
-import { unlockAudio } from './audio';
+import { sfx, unlockAudio } from './audio';
 import { installDebug, registerDebug } from './debug';
-import { installTouch, setBackShown, touchLayoutInfo } from './engine/touch';
+import { installTouch, setBackShown, setCloseupShown, touchAnywhereInfo, touchLayoutInfo } from './engine/touch';
 import { commitTextZones, uiBands } from './engine/textzones';
 import { buttonZones } from './engine/safezones';
 import { field } from './world/field';
@@ -51,9 +51,15 @@ async function boot(): Promise<void> {
     const f = field();
     return !(f && game.top === f && f.controllable);
   });
+  // a close-up game (大写し, Widget.closeup) is up: a touch off the picture is けってい too
+  setCloseupShown(
+    () => game.ui.widgets.some((w) => w.closeup === true && !w.done),
+    () => sfx('se_touch_any'),
+  );
   canvas.focus();
   installDebug();
   registerDebug('textZones', () => ({ ...uiBands(), touch: touchLayoutInfo(), buttons: buttonZones() }));
+  registerDebug('touchAnywhere', () => touchAnywhereInfo());
   if (import.meta.env.DEV || import.meta.env.VITE_HD2D_DEMO === '1') loadHd2d();
   if (hd2d) await hd2d;
   document.getElementById('boot')?.remove();

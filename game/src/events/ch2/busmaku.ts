@@ -148,6 +148,8 @@ export type MakuMode = 'show' | 'lock1' | 'lock2' | 'free';
 
 export class MakuPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

@@ -124,6 +124,8 @@ const RUBS = 5;
 
 export class RubPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

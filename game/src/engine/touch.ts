@@ -4,6 +4,11 @@
 //  - 「けってい」(confirm), 「もどる」(cancel), 「ダッシュ」(toggle: stays on
 //    until tapped again) and 「メニュー」.
 //  - Tapping the game picture itself counts as けってい (advancing text).
+//    In a close-up game (大写し: a Widget with closeup, the battle's timing
+//    words) the black round the picture counts too, held or tapped
+//    (改善会議 2026-10-24 の 1): a small 「どこでも タッチ」 in a corner and a
+//    soft 「とん」. Walking around it stays the picture only; もどる is never
+//    widened.
 //
 // Layout adapts to the device. The picture is scaled smoothly (not only in
 // whole steps) to the biggest size that leaves the controls beside it (phone,
@@ -60,6 +65,11 @@ const CSS = `
   font-size:.82em;white-space:nowrap;pointer-events:none;transform:translateX(-50%);animation:tcBeat .56s ease-in-out infinite alternate}
 .tc-hint.on{display:block}
 .tc-hint.go{background:#FFD23F;color:${INK};animation-duration:.18s}
+.tc-any{position:absolute;display:none;padding:.2em .5em .15em;font-family:GameFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-size:12px;line-height:1;letter-spacing:.06em;white-space:nowrap;color:${PAPER};background:rgba(42,36,64,.72);
+  border:2px solid rgba(251,243,220,.55);border-radius:.4em;pointer-events:none;opacity:.9;transition:opacity .4s}
+.tc-any.on{display:block}
+.tc-any.dim{opacity:.45}
 .tc-a.hint{outline:4px solid #FFD23F;outline-offset:2px;z-index:3}
 .tc.overlay .tc-a.hint{opacity:.9}
 @keyframes tcBeat{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.1)}}
@@ -113,6 +123,8 @@ function div(cls: string, parent: Element, text?: string): HTMLDivElement {
 type Mode = 'side' | 'bottom' | 'overlay';
 
 let backShown: () => boolean = () => true;
+let closeupShown: () => boolean = () => false;
+let anywhereTap: (() => void) | null = null;
 
 let layoutInfo: () => { active: boolean; sideways: boolean; scale: number | null; fit: string } = () => ({
   active: false,
@@ -155,6 +167,22 @@ export function setBackShown(fn: () => boolean): void {
   backShown = fn;
 }
 
+/**
+ * Tell the controls when a close-up game (大写し) is up: then a touch on the
+ * black round the picture is けってい too (held: held). `tap` plays the soft
+ * sound of such a touch.
+ */
+export function setCloseupShown(fn: () => boolean, tap?: () => void): void {
+  closeupShown = fn;
+  anywhereTap = tap ?? null;
+}
+
+let anyInfo: () => { closeup: boolean; label: boolean; taps: number } = () => ({ closeup: false, label: false, taps: 0 });
+/** QA: is the 「どこでも タッチ」 mode on, its word shown, and how many touches off the picture it took. */
+export function touchAnywhereInfo(): ReturnType<typeof anyInfo> {
+  return anyInfo();
+}
+
 export function installTouch(input: Input, screen?: Screen): void {
   const style = document.createElement('style');
   style.textContent = CSS;
@@ -170,6 +198,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   div('lamp', btnD);
   btnD.append('ダッシュ');
   const btnM = div('tc-btn tc-m', root, 'メニュー');
+  const anyEl = div('tc-any', root, 'どこでも タッチ');
   const arms = new Map<string, Element>();
   root.querySelectorAll('.arm').forEach((el) => arms.set((el as SVGElement).dataset.a ?? '', el));
 
@@ -277,31 +306,111 @@ export function installTouch(input: Input, screen?: Screen): void {
   let backAway = false;
   window.setInterval(() => {
     if (!active) return;
+    syncCloseup();
     const away = !backShown();
     if (away === backAway) return;
     backAway = away;
     btnB.classList.toggle('away', away);
   }, 80);
 
+  // ---- a close-up game: the whole window is けってい ----------------------------
+  // (the picture already is, below; here the black round it)
+  let closeup = false;
+  let anyTaps = 0;
+  let dimT = 0;
+  const closeupNow = () => {
+    try {
+      return closeupShown() || !!hintBtn?.classList.contains('hint');
+    } catch {
+      return false;
+    }
+  };
+  /** The word goes in the widest black margin (above the picture, else beside it), at its right. */
+  const placeAny = () => {
+    const c = canvas?.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const st = anyEl.style;
+    st.left = st.right = st.top = st.bottom = '';
+    if (!c) {
+      st.right = '8px';
+      st.top = '6px';
+      return;
+    }
+    const top = c.top;
+    const right = vw - c.right;
+    if (top >= 22) {
+      st.right = `${Math.max(8, Math.round(right + 4))}px`;
+      st.top = `${Math.round(Math.max(4, (top - 18) / 2))}px`;
+    } else if (right >= 104) {
+      st.right = `${Math.round((right - 96) / 2)}px`;
+      st.top = `${Math.round(c.top + 6)}px`;
+    } else {
+      // no black margin to speak of: the picture's top right corner, faint
+      st.right = `${Math.round(right + 6)}px`;
+      st.top = `${Math.round(c.top + 6)}px`;
+    }
+  };
+  const syncCloseup = () => {
+    const on = active && closeupNow();
+    if (on === closeup) return;
+    closeup = on;
+    window.clearTimeout(dimT);
+    anyEl.classList.remove('dim');
+    if (on) {
+      placeAny();
+      // a moment at full strength, then faint (it stays while the game is up)
+      dimT = window.setTimeout(() => anyEl.classList.add('dim'), 4000);
+    }
+    anyEl.classList.toggle('on', on);
+  };
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!active || e.pointerType === 'mouse') return;
+      const t = e.target as Element | null;
+      if (t === canvas || (t instanceof Element && t.closest('.tc-btn,.tc-pad'))) return;
+      syncCloseup();
+      if (!closeup) return;
+      e.preventDefault();
+      anyTaps++;
+      holdConfirm(e.pointerId, window);
+      buzz();
+      try {
+        anywhereTap?.();
+      } catch {
+        /* no sound */
+      }
+    },
+    { passive: false },
+  );
+
   // Tapping the picture = けってい (advance text, talk). Holding it holds
   // けってい too (the battle's 「長押し！」 works on the picture as well as on
-  // the button); a quick tap still lasts at least 90ms.
+  // the button); a quick tap still lasts at least 90ms. Two fingers (the
+  // picture and the black round it) hold it until both have let go.
   const canvas = document.getElementById('screen');
+  const holding = new Set<number>();
+  const holdConfirm = (id: number, on: EventTarget) => {
+    holding.add(id);
+    input.setVirtual('confirm', true);
+    const t0 = performance.now();
+    const up = (ev: Event) => {
+      if ((ev as PointerEvent).pointerId !== id) return;
+      on.removeEventListener('pointerup', up);
+      on.removeEventListener('pointercancel', up);
+      const left = Math.max(0, 90 - (performance.now() - t0));
+      window.setTimeout(() => {
+        holding.delete(id);
+        if (!holding.size) input.setVirtual('confirm', false);
+      }, left);
+    };
+    on.addEventListener('pointerup', up);
+    on.addEventListener('pointercancel', up);
+  };
   canvas?.addEventListener('pointerdown', (e) => {
     if (!active || e.pointerType === 'mouse') return;
-    input.setVirtual('confirm', true);
-    const id = e.pointerId;
-    const t0 = performance.now();
-    capture(canvas, id);
-    const up = (ev: PointerEvent) => {
-      if (ev.pointerId !== id) return;
-      canvas.removeEventListener('pointerup', up);
-      canvas.removeEventListener('pointercancel', up);
-      const left = Math.max(0, 90 - (performance.now() - t0));
-      window.setTimeout(() => input.setVirtual('confirm', false), left);
-    };
-    canvas.addEventListener('pointerup', up);
-    canvas.addEventListener('pointercancel', up);
+    capture(canvas, e.pointerId);
+    holdConfirm(e.pointerId, canvas);
   });
 
   // ---- layout -----------------------------------------------------------------
@@ -644,8 +753,10 @@ export function installTouch(input: Input, screen?: Screen): void {
     if (z.brief.length) layout(true);
     else calmT = window.setTimeout(() => layout(true), 220);
   });
+  anyInfo = () => ({ closeup, label: anyEl.classList.contains('on'), taps: anyTaps });
   layoutInfo = () => ({ active, sideways, scale: screen?.fixedScale ?? null, fit: sideways ? lastFit : '' });
   window.addEventListener('resize', relayout);
+  window.addEventListener('resize', () => closeup && placeAny());
   window.addEventListener('orientationchange', relayout);
   window.addEventListener('touchstart', activate, { once: true, passive: true });
   // iOS Safari pinch / double-tap zoom would fight the controls

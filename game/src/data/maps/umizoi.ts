@@ -276,8 +276,11 @@ const OBJECTS: MapObj[] = [
   // カイト up on the lifeguard chair (spoken to from (57,28)); at 12:01 under it, the flag folded
   { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 27, dir: 'down', pose: 'sit', off: [0, -18], noTurn: false, cond: S1 },
   { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 28, dir: 'down', cond: S2 },
-  { t: 'npc', id: 'npc_c3_himono_otto', x: 17, y: 14, dir: 'down', cond: S12 },
-  { t: 'npc', id: 'npc_c3_himono_tsuma', x: 19, y: 14, dir: 'down', cond: S12 },
+  // the two keepers in the open front (y14, the shop's last row): their feet 1px south of the facade's
+  // line — on the line, HD-2D stood their boards flush with the facade and they sank into it out of
+  // sight (改善会議 10-24 の3). In 2D the same place, the counter (y15) over their legs
+  { t: 'npc', id: 'npc_c3_himono_otto', x: 17, y: 14, dir: 'down', off: [0, 1], cond: S12 },
+  { t: 'npc', id: 'npc_c3_himono_tsuma', x: 19, y: 14, dir: 'down', off: [0, 1], cond: S12 },
   { t: 'npc', id: 'npc_c3_tsuri', x: 21, y: 32, dir: 'down', pose: 'sit', cond: S12 },
   // 12:01: the cook and the regular at the shop's door (the noren in her hands), the auctioneers
   // at the auction floor's mouth, the siren keeper at the breakwater's root

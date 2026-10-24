@@ -251,6 +251,8 @@ const TARGET: Mi[] = ['chiisai', 'kizu', 'ue'];
 
 export class EdaPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;
@@ -469,6 +471,8 @@ function* eda(k: number): Co<boolean> {
 
 export class MiharashiPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

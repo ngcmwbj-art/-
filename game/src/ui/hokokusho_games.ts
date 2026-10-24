@@ -42,6 +42,8 @@ const PANEL_H = 140;
 
 abstract class Panel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   protected t = 0;
   protected out = -1;

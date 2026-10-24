@@ -342,13 +342,15 @@ if (import.meta.env.DEV) {
       const m = opaque(img);
       const iw = img.width;
       const ih = img.height;
+      // (the feet where the view stands them: a pose drawn lower — oy > 0 — that much further south; actors.ts)
+      const fy = a.y + Math.max(0, a.oy);
       people.push({
         name: `${a.id} (${a.kind})`,
         kind: 'prop',
-        foot: a.y,
+        foot: fy,
         x: a.x,
         // (a vehicle is its body, not a board: its picture pushed back north — actors.ts; 改善会議 10-23 の2)
-        slabs: [{ x0: left, x1: left + iw, h0: 0, h1: ih, z0: a.data.vehicle ? a.y - vehicleBodyDepth(a.dir) : a.y, z1: a.y, face: true, at: (x, h) => !!m[(ih - 1 - Math.floor(h)) * iw + Math.floor(x - left)] }],
+        slabs: [{ x0: left, x1: left + iw, h0: 0, h1: ih, z0: a.data.vehicle ? fy - vehicleBodyDepth(a.dir) : fy, z1: fy, face: true, at: (x, h) => !!m[(ih - 1 - Math.floor(h)) * iw + Math.floor(x - left)] }],
       });
     }
     const names = new Set(people.map((p) => p.name));

@@ -183,6 +183,8 @@ const TARGETS: Target[] = [
 
 export class IsoPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

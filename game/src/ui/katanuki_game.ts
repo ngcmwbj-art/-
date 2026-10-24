@@ -388,6 +388,8 @@ export class KatanukiGame implements Widget {
     return { kata: this.kata, pos: Math.round(this.pos), len: this.sh.pts.length, crack: +this.crack.toFixed(2), maxCrack: +this.maxCrack.toFixed(2), wet: +this.wet.toFixed(2), melt: +this.melt.toFixed(2), result: this.done ? this.result : '' };
   }
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   result: KataResult = 'yame';
   grade: KataGrade = 'chon';

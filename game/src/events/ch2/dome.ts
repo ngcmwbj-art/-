@@ -148,6 +148,8 @@ type SkyMode = 'slit' | 'rot';
 
 export class DomeSkyPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   mode: SkyMode;
@@ -446,6 +448,8 @@ const BEST: Record<1 | 2 | 3, number> = { 1: 0.42, 2: -0.38, 3: 0.46 };
 
 export class DomeEyePanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   n: 1 | 2 | 3;
@@ -704,6 +708,8 @@ interface CardOpts {
 
 export class KanboCardPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   o: CardOpts;

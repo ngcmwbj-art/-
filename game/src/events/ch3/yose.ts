@@ -136,6 +136,8 @@ function ell(g: Gfx, cx: number, cy: number, rx: number, ry: number, color: stri
 
 export class NabePanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

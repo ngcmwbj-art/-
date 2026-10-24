@@ -216,6 +216,8 @@ function drawShishito(g: Gfx, x: number, y: number, len: number, heat: number, b
 
 export class ShichirinPanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   open = 0;

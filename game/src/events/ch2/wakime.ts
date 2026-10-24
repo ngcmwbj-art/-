@@ -183,6 +183,8 @@ function budIcon(done: boolean): HTMLCanvasElement {
 
 export class WakimePanel implements Widget {
   modal = true;
+  /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
+  closeup = true;
   done = false;
   t = 0;
   /** The plant shown (0..2), and the one sliding out (−1: none). */
