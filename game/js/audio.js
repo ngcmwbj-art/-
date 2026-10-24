@@ -149,10 +149,12 @@ export class GameAudio {
   }
 
   // パワーコード（ルート・5度・オクターブ）
-  chord(just) {
+  chord(just, bright = false) {
     if (!this.ready) return;
     const c = this.ctx, t = c.currentTime;
     const root = PROG[this.beatInfo().bar % 4] + 12;
+    // 無防備のボスを撃つときは、高い音を重ねて明るく
+    if (bright) { this.chime(t, mtof(root + 36), 0.07); this.chime(t + 0.03, mtof(root + 43), 0.05); }
     const g = c.createGain();
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(just ? 1 : 0.7, t + 0.004);
@@ -232,6 +234,20 @@ export class GameAudio {
     this.sweep(90, 30, 1.5, 'sine', 0.5 * v);
   }
   qGain() { if (this.ready) this.chime(this.ctx.currentTime, mtof(96), 0.04); }
+  // お知らせの合図音（大事さで分ける。0.6 秒に 1 回まで）
+  cue(kind) {
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    if (t - (this._cueAt || 0) < 0.6) return;
+    this._cueAt = t;
+    if (kind === 'big') { this.chime(t, mtof(52), 0.12); this.chime(t + 0.02, mtof(64), 0.08); }
+    else if (kind === 'good') this.chime(t, mtof(88), 0.05);
+    else if (kind === 'bad') this.sweep(330, 220, 0.12, 'square', 0.03);
+    else if (kind === 'step') { this.chime(t, mtof(84), 0.05); this.chime(t + 0.08, mtof(91), 0.05); }
+  }
+  // 使えないボタンを押したとき
+  denied() { if (this.ready) this.sweep(180, 140, 0.08, 'square', 0.04); }
+
   // 収穫の「ポンッ」
   pop() {
     if (!this.ready) return;

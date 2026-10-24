@@ -26,6 +26,9 @@ export class HUD {
       this.el.hotbar.appendChild(d);
     });
     this.lastToast = '';
+    // お知らせの交通整理：見出し → 吹き出し → お知らせ の順に、重ならないよう 1 つずつ出す
+    this.bannerUntil = 0; this.toastQ = []; this.sayQ = null; this.newsQ = null; this.lastToastAt = 0;
+    setInterval(() => this.pump(), 200);
     this.el.banner = $('banner'); this.el.obj = $('objective'); this.el.comboEl = $('combo');
     this.el.lane = $('lane'); this.el.arrows = $('arrows'); this.el.bossbar = $('bossbar');
     // 拍のレーン：右から流れてくる音符
@@ -78,28 +81,52 @@ export class HUD {
     }
   }
 
+  blocked() { return performance.now() < this.bannerUntil; }
+  visibleToasts() { return [...this.el.toasts.children].filter((d) => !d.classList.contains('out')).length; }
+
   toast(msg, kind = '') {
-    if (!msg || msg === this.lastToast) return;
+    if (!msg || msg === this.lastToast || this.toastQ.some((t) => t.msg === msg)) return;
     this.lastToast = msg;
     setTimeout(() => { if (this.lastToast === msg) this.lastToast = ''; }, 1500);
+    this.toastQ.push({ msg, kind });
+    // 待ちが多いときは、軽いお知らせ（ヒントなど）から捨てる
+    while (this.toastQ.length > 3) {
+      const i = this.toastQ.findIndex((t) => t.kind !== 'bad' && t.kind !== 'good');
+      this.toastQ.splice(i >= 0 ? i : 0, 1);
+    }
+    this.pump();
+  }
+  showToast({ msg, kind }) {
     const d = document.createElement('div');
     d.className = 'toast ' + kind;
     d.textContent = msg;
     this.el.toasts.prepend(d);
-    while (this.el.toasts.children.length > 4) this.el.toasts.lastChild.remove();
+    while (this.el.toasts.children.length > 3) this.el.toasts.lastChild.remove();
     setTimeout(() => d.classList.add('out'), 2600);
     setTimeout(() => d.remove(), 3200);
+    this.lastToastAt = performance.now();
+    // 音の合図（画面のお知らせと対）：悪い知らせは低く、良い知らせはチャイム
+    if (kind === 'bad') this.audio?.cue('bad'); else if (kind === 'good') this.audio?.cue('good');
+  }
+  // 順番待ちのものを、出してよいときに 1 つずつ出す
+  pump() {
+    if (this.blocked()) return;
+    const now = performance.now();
+    if (this.sayQ) { const t = this.sayQ; this.sayQ = null; this.showSay(t); return; }
+    if (this.newsQ && now - this.lastToastAt > 400) { const n = this.newsQ; this.newsQ = null; this.showNews(n.title, n.lines); }
+    if (this.toastQ.length && this.visibleToasts() < 2 && now - this.lastToastAt > 700) this.showToast(this.toastQ.shift());
+    if (!this.memoOn && this.memoQ?.length) this.nextMemo();
   }
 
   // 量子メモ：本当の物理／ゲームでは／言い伝え（ゲームの中の世界観）
   memo(card) {
     (this.memoQ ||= []).push(card);
-    if (!this.memoOn) this.nextMemo();
+    this.pump();
   }
   nextMemo() {
     const el = $('memo');
     const card = this.memoQ.shift();
-    if (!card) { this.memoOn = false; el.className = ''; document.body.classList.remove('memo-on'); return; }
+    if (!card || this.blocked()) { this.memoOn = false; el.className = ''; document.body.classList.remove('memo-on'); if (card) this.memoQ.unshift(card); return; }
     this.memoOn = true;
     document.body.classList.add('memo-on');
     el.innerHTML = `<span class="tag">${card.kind === 'weather' ? '気象メモ' : '量子メモ'}</span><h4>${card.title}</h4>
@@ -135,6 +162,10 @@ export class HUD {
 
   // マサトの吹き出し
   say(text) {
+    if (this.blocked()) { this.sayQ = text; return; } // 見出しが出ている間は待つ（最新の 1 つだけ）
+    this.showSay(text);
+  }
+  showSay(text) {
     const el = $('speech');
     el.textContent = text;
     el.classList.add('show');
@@ -153,6 +184,11 @@ export class HUD {
 
   // 台風情報ニュース（画面下のテロップ。8 秒かタップで消える）
   news(title, lines) {
+    if (this.blocked()) { this.newsQ = { title, lines }; return; }
+    this.showNews(title, lines);
+  }
+  showNews(title, lines) {
+    this._newsArgs = { title, lines };
     const el = $('news');
     el.innerHTML = `<span class="ch">銚子ローカル 台風情報</span><b>${title}</b>${lines.map((l) => `<p>${l}</p>`).join('')}<button class="map">進路図を見る</button><i class="x">×</i>`;
     el.querySelector('.map').onpointerdown = (e) => { e.stopPropagation(); el.className = ''; this.onOpenMap?.(); };
@@ -164,14 +200,22 @@ export class HUD {
   }
 
   // 画面中央の大きな見出し（台風接近・台風一過など）
-  banner(title, sub) {
+  banner(title, sub, ms = 3600) {
     const b = this.el.banner;
+    this.bannerUntil = performance.now() + ms;
+    this.audio?.cue('big');
+    // 見出しが出る瞬間、表示中のお知らせは引っ込める（あとで順番に出し直す）
+    for (const d of this.el.toasts.children) d.classList.add('out');
+    const sp = $('speech');
+    if (sp.classList.contains('show')) { this.sayQ = sp.textContent; sp.classList.remove('show'); clearTimeout(this._st); }
+    const nw = $('news');
+    if (nw.className === 'show' && this._newsArgs) { this.newsQ = this._newsArgs; nw.className = ''; }
     b.innerHTML = `<h2>${title}</h2><p>${sub || ''}</p>`;
     b.className = '';
     void b.offsetWidth;
     b.className = 'show';
     clearTimeout(this._bt);
-    this._bt = setTimeout(() => { b.className = ''; }, 3600);
+    this._bt = setTimeout(() => { b.className = ''; }, ms);
   }
 
   // チュートリアルのミッション表示
@@ -258,6 +302,9 @@ export class HUD {
     this.setHotbar(game.buildSel, game.q);
     el.cdR.style.setProperty('--p', Math.max(0, game.cd.teleport / (game.blessing === 'en' ? 1.5 : 3)));
     el.cdF.style.setProperty('--p', Math.max(0, game.cd.observe / 4));
+    el.cdF.classList.toggle('off', game.cd.observe > 0 || game.q < 8);
+    el.cdR.classList.toggle('off', game.cd.teleport > 0);
+    el.cdG.classList.toggle('off', game.cd.kekkai > 0 || game.q < 20);
     el.cdG.style.setProperty('--p', Math.max(0, game.cd.kekkai / (game.blessing === 'en' ? 6 : 12)));
 
     // 拍インジケーター

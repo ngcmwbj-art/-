@@ -66,6 +66,7 @@ export function setupTouch(game) {
     el.addEventListener('touchstart', (e) => {
       e.preventDefault(); e.stopPropagation();
       el.classList.add('down');
+      if (el.classList.contains('off')) game.audio.denied(); // 今は使えない：短い「ブッ」
       if (!game.paused) fn();
     }, { passive: false });
     el.addEventListener('touchend', () => el.classList.remove('down'));
@@ -101,6 +102,13 @@ export function updateTouch(game) {
   const label = game.mission ? '練習を飛ばす ▶' : '台風を迎え撃つ ▶';
   if (go.textContent !== label) go.textContent = label;
   document.getElementById('tb-solo').classList.toggle('ready', game.solo >= 100);
+  // 使えないボタンは薄く（Qが足りない・待ち時間中）。大きさは変えない
+  const off = (id, v) => document.getElementById(id).classList.toggle('off', v);
+  off('tb-observe', game.cd.observe > 0 || game.q < 8);
+  off('tb-teleport', game.cd.teleport > 0);
+  off('tb-kekkai', game.cd.kekkai > 0 || game.q < 20);
+  off('tb-solo', game.solo < 100);
+  if (game.buildSel) off('tb-build', game.q < game.towers.def(game.buildSel).cost * 0.9);
   document.getElementById('tb-observe').style.setProperty('--p', Math.max(0, game.cd.observe / 4));
   document.getElementById('tb-teleport').style.setProperty('--p', Math.max(0, game.cd.teleport / (game.blessing === 'en' ? 1.5 : 3)));
   document.getElementById('tb-kekkai').style.setProperty('--p', Math.max(0, game.cd.kekkai / (game.blessing === 'en' ? 6 : 12)));

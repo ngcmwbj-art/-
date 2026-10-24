@@ -154,11 +154,13 @@ class Tornado {
       }
     }
     this.hit = Math.max(0, this.hit - dt * 4);
+    // 観測で正体を見抜いた直後：無防備の間は白く脈打つ（文字は出さない）
+    const vuln = this.group.vulnUntil > sys.game.time ? 0.3 + 0.3 * Math.sin(t * 12) : 0;
     for (const m of this.mats) {
       const u = m.uniforms;
       u.uTime.value = t;
       u.uFogDensity.value = sys.weather.fogDensity;
-      u.uHit.value = this.hit;
+      u.uHit.value = Math.max(this.hit, vuln);
       u.uLean.value = Math.sin(t * 0.4 + this.seed) * 0.6;
     }
     this.mats[0].uniforms.uAlpha.value = 0.95 * alphaMul;
@@ -450,6 +452,7 @@ export class Threats {
   // 敵にダメージを与え、倒したら報酬
   // weak：弱点を突いたタワーの色（「弱点！」と表示し、その色で光らせる）
   hitEnemy(e, dmg, viaThread = false, weak = null) {
+    if (e.group && e.group.vulnUntil > this.game.time) dmg *= 1.5; // 見抜いた直後の無防備
     const p = e.pos.clone().add(new THREE.Vector3(0, e.type ? 1.5 : 8 * (e.baseScale || 1), 0));
     if (weak) {
       this.hud.floater(`弱点！ -${Math.round(dmg)}`, p, this.game.camera, weak);
@@ -514,6 +517,8 @@ export class Threats {
     }
     this.audio.collapse();
     this.game.memo(reason === 'decoherence' ? 'decoherence' : 'observe');
+    // 自分で見抜いたときだけ、ボスは 5 秒間無防備（ダメージ 1.5 倍）
+    if (group.boss && reason !== 'decoherence' && reason !== 'touch') group.vulnUntil = this.game.time + 5;
     const msg = {
       observe: '観測！波動関数が収束した ― 実体はこいつだ！',
       tower: '観測塔が竜巻を観測。波動関数が収束！',

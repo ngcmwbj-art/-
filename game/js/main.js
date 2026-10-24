@@ -149,6 +149,7 @@ class Game {
     this.bindInput();
     bindSettingsPanel(this);
     this.hud.onOpenMap = () => this.toggleMap(true);
+    this.hud.audio = this.audio;
     addEventListener('resize', () => this.resize());
     this.clock = new THREE.Clock();
     renderer.setAnimationLoop(() => this.frame());
@@ -247,7 +248,13 @@ class Game {
       this.cabbages.restore(r.cab);
       for (const t of r.towers || []) { const tw = this.towers.build(t.id, new THREE.Vector3(t.x, t.y, t.z)); tw.age = 5; }
       this.makePlan();
-      this.hud.banner('つづきから', `${this.waveName()}の準備タイムから再開`);
+      // 前回までのあらすじ（3 行）
+      const cardNames = [...this.cards].map((id) => CARDS.find((c) => c.id === id)?.name).filter(Boolean);
+      this.hud.banner('前回までのあらすじ', [
+        `${this.waveName()}の準備タイムから再開（全 ${WAVES.length} 台風）`,
+        `キャベツ ${this.cabbages.alive.toLocaleString()} / ${this.cabbages.total.toLocaleString()} 玉・タワー ${this.towers.list.length} 基`,
+        cardNames.length ? `量子カード：${cardNames.join('・')}` : '量子カード：まだなし',
+      ].join('<br>'), 6000);
     } else if (opts.wave > 0) {
       // 台風を選んで始める：途中の台風から（そのぶん Qビットを多めに）
       this.wave = Math.min(WAVES.length - 1, opts.wave);
@@ -278,7 +285,8 @@ class Game {
   doChord() {
     if (this.cd.chord > 0 || this.phase === 'result' || this.phase === 'gameover') return;
     this.cd.chord = 0.22;
-    this.audio.chord(true);
+    const b0 = this.threats.boss;
+    this.audio.chord(true, !!(b0 && b0.vulnUntil > this.time));
     this.score.chords++;
     // 続けて弾くほどアクションが派手に（8 連続ごとにギターを掲げる）
     this.streak = this.time - (this.lastStrumAt || -9) < 1.4 ? (this.streak || 0) + 1 : 1;
@@ -334,8 +342,8 @@ class Game {
   }
 
   doObserve() {
-    if (this.cd.observe > 0) return;
-    if (this.q < 8) { this.hud.toast('Qビットが足りない（観測には 8Q）', 'bad'); return; }
+    if (this.cd.observe > 0) { this.audio.denied(); return; }
+    if (this.q < 8) { this.audio.denied(); this.hud.toast('Qビットが足りない（観測には 8Q）', 'bad'); return; }
     this.q -= 8;
     this.cd.observe = 4;
     const p = this.player.pos.clone().add(new THREE.Vector3(0, 1.5, 0));
@@ -359,7 +367,7 @@ class Game {
 
   doTeleport() {
     if (this.wave === 0) return; // 最初の台風では使わない（覚えることを減らす）
-    if (this.cd.teleport > 0) return;
+    if (this.cd.teleport > 0) { this.audio.denied(); return; }
     const from = this.player.teleport(24);
     if (!from) return;
     this.cd.teleport = this.blessing === 'en' ? 1.5 : 3;
@@ -374,8 +382,9 @@ class Game {
   // 結界（不確定性原理）：周りの敵の位置を縛る。ほどけた瞬間、どこへ飛ぶかわからない
   doKekkai() {
     if (this.wave === 0) return; // 最初の台風では使わない（覚えることを減らす）
-    if (this.cd.kekkai > 0 || this.phase === 'result' || this.phase === 'gameover') return;
-    if (this.q < 20) { this.hud.toast('Qビットが足りない（結界には 20Q）', 'bad'); return; }
+    if (this.phase === 'result' || this.phase === 'gameover') return;
+    if (this.cd.kekkai > 0) { this.audio.denied(); return; }
+    if (this.q < 20) { this.audio.denied(); this.hud.toast('Qビットが足りない（結界には 20Q）', 'bad'); return; }
     this.q -= 20;
     this.cd.kekkai = this.blessing === 'en' ? 6 : 12;
     const p = this.player.pos.clone();
@@ -596,17 +605,24 @@ class Game {
     const amp = this.towers.list.some((t) => t.id === 'amp' && (t.pos.distanceTo(p.landing) < 60 || Math.hypot(t.pos.x - gp.x, t.pos.z - gp.z) < 60));
     const lost = this.cabbages.lostCount();
     const T = IS_TOUCH;
-    const items = [
-      ...(this.cows.active || this.cows.home ? [[this.cows.home >= this.cows.count, `牛を牛舎へ戻す（近づくとついてくる）${this.cows.home} / ${this.cows.count}　全員で +80Q`]] : []),
-      [this.prayed, this.prayed ? `量子の祠：御利益「${this.blessingName}」を授かった` : '量子の祠（家の裏の鳥居）で手を合わせる（紫の輪の中に 2 秒）'],
-      [amp, `雑魚の来る${p.gate.name}のオレンジの矢印か、赤い柱（ボスの上陸地点）の近くにスピーカーを建てる`],
-      [lost === 0, lost ? `やられたキャベツを植え直す（跡地を歩くだけ・1玉 1Q）残り ${lost} 玉` : 'キャベツ畑は無傷'],
-      [false, T ? `準備ができたら上のボタンで迎え撃つ（今なら +${left * 2}Q）` : `準備ができたら［Enter］で迎え撃つ（今なら +${left * 2}Q）`],
+    // 大事な順。終わったものは消し、残りの上から 3 つだけ見せる（1 つ目を太字）
+    const all = [
+      ['amp', amp, `${p.gate.name}の矢印か赤い柱の近くにスピーカーを建てる`],
+      ['replant', lost === 0, `やられたキャベツを植え直す（跡地を歩くだけ）残り ${lost} 玉`],
+      ...(this.cows.active || this.cows.home ? [['cows', this.cows.home >= this.cows.count, `牛を牛舎へ戻す（近づくとついてくる）${this.cows.home} / ${this.cows.count}`]] : []),
+      ['pray', this.prayed, '量子の祠で手を合わせる（紫の輪に 2 秒）'],
+      ['go', false, T ? `準備ができたら上のボタンで迎え撃つ（+${left * 2}Q）` : `準備ができたら［Enter］で迎え撃つ（+${left * 2}Q）`],
     ];
+    // 1 つ終わるたびにチャイム（画面の繰り上がりと対）
+    this.prepDone ||= new Set();
+    for (const [k, done] of all) if (done && !this.prepDone.has(k)) { this.prepDone.add(k); if (this.phaseT > 1) this.audio.cue('step'); }
+    const items = all.filter(([, done]) => !done).slice(0, 3).map(([, , text], i) => [false, i === 0 ? `<b>${text}</b>` : text]);
     const c = p.counts;
-    const tip = this.weaknessTip();
+    const n = c.mushi + c.karasu + c.tsumuji + c.pair * 2 + (c.inoshishi || 0) + (c.chou || 0);
+    // コツや注意は 1 つだけ（大事な順：モンシロチョウ → イノシシ → 弱点）
+    const tip = c.chou ? 'モンシロチョウの光る卵は早めに割ろう' : c.inoshishi ? 'イノシシが止まって土煙を上げたら、結界［G］で止めよう' : this.weaknessTip();
     this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
-      `${tip ? `<span class="tip">今回のコツ：${tip}</span>` : ''}${c.inoshishi ? '<span class="tip">イノシシ注意：止まって土煙を上げたら突進の合図。結界［G］で止めよう</span>' : ''}${c.chou ? '<span class="tip">モンシロチョウ注意：光る卵は青虫がわく前に割ろう</span>' : ''}予報：雑魚は<span class="hl">${p.gate.name}</span>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2 + (c.inoshishi || 0) + (c.chou || 0)} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}${c.inoshishi ? `・イノシシ ${c.inoshishi}` : ''}${c.chou ? `・モンシロチョウ ${c.chou}` : ''}）→ 大ボス（分身 ${p.ghosts} 体${WAVES[Math.min(this.wave, WAVES.length - 1)].phase2 ? '・体力半分で回り込む' : ''}）`, items);
+      `${tip ? `<span class="tip">${tip}</span>` : ''}雑魚 ${n} 匹が<span class="hl">${p.gate.name}</span>から → 大ボス（分身 ${p.ghosts} 体）　くわしくは地図の進路図で`, items);
   }
 
   skipPrep() {
@@ -1130,6 +1146,7 @@ class Game {
         this.wave++;
         this.phase = 'prep';
         this.hud.prepFolded = false; this.hud.prepTouched = false;
+        this.prepDone = new Set();
         this.phaseT = 0;
         this.makePlan();
         this.cows.reset(true);
