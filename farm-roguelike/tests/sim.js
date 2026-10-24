@@ -8,7 +8,7 @@ const path = require('path');
 global.window = global;
 const root = path.join(__dirname, '..');
 ['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/relics.js', 'data/farmers.js',
- 'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/score.js']
+ 'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/market.js', 'js/score.js']
   .forEach(f => vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }));
 
 let failures = 0;
@@ -193,6 +193,25 @@ const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].u
   if ((b.barns[0].eggs || 0) !== 1) fail('卵の数が数えられていない');
   if (!FR.Battle.harvestOne(b, 'barn', 0) || b.barns[0]) fail('鶏を1羽だけ出荷できない');
 }
+// 市場：3回ごとに開く・買う・売る・最低枚数
+for (const farmerId of Object.keys(FR.Farmers)) {
+  const run = FR.Run.create(farmerId, 21);
+  run.stats.battlesWon = 2; if (FR.Market.opensAfter(run)) fail('2回で市場が開いた');
+  run.stats.battlesWon = 3; if (!FR.Market.opensAfter(run)) fail('3回で市場が開かない');
+  run.market = FR.Market.make(run);
+  const m2 = FR.Market.make(run);
+  if (JSON.stringify(run.market) !== JSON.stringify(m2)) fail('市場の品ぞろえが毎回変わる');
+  if (run.market.stock.length !== FR.Market.STOCK) fail('品数が ' + run.market.stock.length);
+  run.market.stock.forEach(it => { const c = FR.Cards[it.id]; if (!(c.pool.includes('common') || c.pool.includes(farmerId)) || c.retired) fail('市場に出ないはずのカード ' + it.id); });
+  run.gold = 0; if (FR.Market.buy(run, 0)) fail('銭がないのに買えた');
+  run.gold = 999; const n0 = run.deck.length;
+  if (!FR.Market.buy(run, 0) || run.deck.length !== n0 + 1 || run.gold !== 999 - run.market.stock[0].price) fail('買えない／銭の計算が違う');
+  if (FR.Market.buy(run, 0)) fail('同じ品を2回買えた');
+  while (FR.Market.canSell(run)) { const g = run.gold; const got = FR.Market.sell(run, run.deck[0].uid); if (!got || run.gold !== g + got) fail('売れない'); }
+  if (run.deck.length !== FR.Market.MIN_DECK) fail('デッキが最低枚数より減った');
+  if (FR.Market.sell(run, run.deck[0].uid)) fail('最低枚数なのに売れた');
+}
+
 // エネルギーの状態：次のターン・毎ターン
 {
   const run = FR.Run.create('vegetable', 3);

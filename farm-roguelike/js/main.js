@@ -65,6 +65,32 @@ const App = {
     };
     // 報酬
     document.getElementById('reward-take').onclick = () => App.takeReward(App.rewardPick);
+    // 市場
+    document.getElementById('tab-buy').onclick = () => { App.marketTab = 'buy'; App.marketArmed = null; App.renderMarket(); };
+    document.getElementById('tab-sell').onclick = () => { App.marketTab = 'sell'; App.marketArmed = null; App.renderMarket(); };
+    document.getElementById('market-leave').onclick = () => App.leaveMarket();
+    document.getElementById('screen-market').onclick = ev => {
+      const run = App.data.run;
+      const buy = ev.target.closest('[data-buy]');
+      const sell = ev.target.closest('[data-sell]');
+      if (buy && !buy.disabled) {
+        const k = +buy.dataset.buy;
+        const name = FR.Cards[run.market.stock[k].id].name;
+        if (FR.Market.buy(run, k)) { App.save(); FR.Screens.toast(`${name}を買った`, 'harvest'); }
+        App.renderMarket();
+      } else if (sell && !sell.disabled) {
+        const uid = +sell.dataset.sell;
+        if (App.marketArmed !== uid) { App.marketArmed = uid; App.renderMarket(); return; }
+        const inst = run.deck.find(c => c.uid === uid);
+        const name = inst && FR.cardView(inst).name;
+        const got = FR.Market.sell(run, uid);
+        App.marketArmed = null;
+        if (got) { App.save(); FR.Screens.toast(`${name}を売った（銭 +${got}）`, 'harvest'); }
+        App.renderMarket();
+      }
+    };
+    // 自分の農家をタップすると状態
+    document.getElementById('b-player-art').onclick = () => App.showPlayer();
     document.getElementById('reward-skip').onclick = () => App.takeReward(null);
     document.getElementById('reward-cards').onclick = ev => {
       const c = ev.target.closest('.card');
@@ -122,6 +148,7 @@ const App = {
     const run = App.data.run;
     if (!run) return App.showTitle();
     if (run.phase === 'reward') App.showReward();
+    else if (run.phase === 'market' && run.market) App.showMarket();
     else App.startBattle();
   },
 
@@ -392,7 +419,101 @@ const App = {
     if (cardId) FR.Run.addCard(run, cardId, false);
     run.reward = null;
     run.battleIndex++;
+    // 3回追い払うごとに市場が開く
+    if (FR.Market.opensAfter(run)) {
+      run.phase = 'market';
+      run.market = FR.Market.make(run);
+      App.save();
+      App.showMarket();
+      return;
+    }
     App.startBattle();
+  },
+
+  // ── 市場 ─────────────────────────────────
+  marketTab: 'buy',
+  marketArmed: null,   // 売るときに1回目で選んだカード（もう一度押すと売る）
+
+  showMarket() {
+    App.marketArmed = null;
+    App.renderMarket();
+    FR.Screens.show('market');
+  },
+
+  renderMarket() {
+    const run = App.data.run;
+    const m = run.market;
+    const E = FR.Util.escape;
+    document.getElementById('market-gold').textContent = run.gold;
+    const buying = App.marketTab === 'buy';
+    document.getElementById('tab-buy').classList.toggle('active', buying);
+    document.getElementById('tab-sell').classList.toggle('active', !buying);
+    document.getElementById('tab-buy').setAttribute('aria-selected', buying);
+    document.getElementById('tab-sell').setAttribute('aria-selected', !buying);
+    document.getElementById('market-buy').hidden = !buying;
+    document.getElementById('market-sell').hidden = buying;
+    document.getElementById('market-buy').innerHTML = m.stock.map((it, k) => {
+      const v = FR.cardView({ id: it.id, uid: 0 });
+      const cant = !it.sold && run.gold < it.price;
+      return `<div class="market-item ${it.sold ? 'sold' : ''}">
+        ${FR.renderCard(v)}
+        <button class="btn price" data-buy="${k}" ${it.sold || cant ? 'disabled' : ''}>${it.sold ? '買った' : `銭 ${it.price} で買う`}</button>
+        ${cant ? '<span class="why">銭が足りない</span>' : ''}
+      </div>`;
+    }).join('');
+    const canSell = FR.Market.canSell(run);
+    const deck = run.deck.slice().sort((a, b) => FR.cardView(a).name.localeCompare(FR.cardView(b).name, 'ja'));
+    document.getElementById('market-sell').innerHTML = deck.map(inst => {
+      const v = FR.cardView(inst);
+      const price = FR.Market.sellPrice(inst);
+      const armed = App.marketArmed === inst.uid;
+      return `<div class="market-item">
+        ${FR.renderCard(v)}
+        <button class="btn price ${armed ? 'armed' : ''}" data-sell="${inst.uid}" ${canSell ? '' : 'disabled'}>${armed ? 'もう一度押すと売る' : `売る（銭 ${price}）`}</button>
+      </div>`;
+    }).join('');
+    document.getElementById('market-note').textContent = buying
+      ? `買ったカードはデッキに加わります。デッキ ${run.deck.length}枚`
+      : (canSell ? `売ったカードはデッキからなくなります（デッキを絞ると、強いカードを引きやすくなる）。デッキ ${run.deck.length}枚・${FR.Market.MIN_DECK}枚より減らせません`
+                 : `デッキが${FR.Market.MIN_DECK}枚なので、これ以上は売れません`);
+  },
+
+  leaveMarket() {
+    const run = App.data.run;
+    run.market = null;
+    App.startBattle();
+  },
+
+  // ── 自分の状態（戦闘中に農家をタップ）───────────────────
+  showPlayer() {
+    const b = App.battle;
+    if (!b) return;
+    const r = b.run;
+    const f = FR.Farmers[r.farmerId];
+    const E = FR.Util.escape;
+    const sts = Object.keys(b.statuses).filter(k => b.statuses[k] > 0 && FR.Statuses[k]);
+    const rows = [
+      ['農場の健康度', `${r.hp} / ${r.maxHp}`, r.hp <= r.maxHp * 0.3 ? 'あぶない。守りを固めるか、回復を' : '0 になると離農（挑戦の終わり）'],
+      ['守り', `${b.block}`, '敵から受ける被害を先に受け止める。ターンの始めに 0 に戻る'],
+      ['エネルギー', `${b.energy} / ${FR.Config.energy}`, '毎ターン始めに 3 に戻る。カードを使うと減る'],
+      ['銭', `${r.gold}`, '市場でカードを買える（3回追い払うごとに市が立つ）'],
+      ['このターン', `${b.playedThisTurn}枚`, '使ったカードの数'],
+      ['山札・捨て札', `${b.draw.length}・${b.discard.length}`, b.exhaust.length ? `廃棄 ${b.exhaust.length}枚` : 'デッキ ' + r.deck.length + '枚']
+    ];
+    const nextMarket = FR.Market.EVERY - (r.stats.battlesWon % FR.Market.EVERY);
+    FR.Screens.modal(f.name, `
+      <div class="animal-info">
+        ${rows.map(([k, v, n]) => `<div class="ai-row"><span>${k}</span><b>${E(v)}</b><em>${E(n)}</em></div>`).join('')}
+      </div>
+      <h4 class="sub-title">かかっている状態</h4>
+      ${sts.length ? `<div class="status-list">${sts.map(k => {
+        const st = FR.Statuses[k];
+        return `<div class="status-item ${st.bad ? 'bad' : ''}"><b>${E(st.name)} ${b.statuses[k]}</b><span>${E(st.text)}</span></div>`;
+      }).join('')}</div>` : '<p class="menu-note">ありません</p>'}
+      <h4 class="sub-title">レリック</h4>
+      <div class="status-list">${r.relics.map(id => `<div class="status-item"><b>${E(FR.Relics[id].name)}</b><span>${E(FR.Relics[id].text)}</span></div>`).join('')}</div>
+      <h4 class="sub-title">この挑戦</h4>
+      <p class="menu-note">追い払った数 ${r.stats.battlesWon}・収穫量 ${r.stats.harvest}・受けた被害 ${r.stats.damageTaken}・次の市場まで あと${nextMarket}回</p>`);
   },
 
   // ── 経営評価 ──────────────────────────────

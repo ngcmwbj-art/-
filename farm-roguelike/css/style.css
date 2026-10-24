@@ -466,6 +466,32 @@ img { -webkit-user-drag: none; }
 @keyframes hitFlashMirror { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; }
 .unit-bar .bar > b { transition: width .7s cubic-bezier(.3,.7,.3,1); }
+/* 市場 */
+.market-page { gap: 10px; }
+.market-lead { font-size: 14px; color: var(--panel-text-soft); text-align: center; max-width: 34em; line-height: 1.6; }
+.market-gold { font-family: var(--mincho); font-size: 16px; }
+.market-gold b { color: var(--gold); font-size: 22px; margin-left: 4px; }
+.market-tabs { display: flex; gap: 6px; }
+.tab { font-family: var(--mincho); font-weight: 700; font-size: 16px; padding: 6px 22px; background: rgba(20, 18, 14, .7); border: 1px solid var(--panel-line); border-radius: 3px; color: var(--panel-text-soft); }
+.tab.active { color: #2a1a08; background: var(--gold); border-color: #fff1c0; }
+.market-grid { display: flex; flex-wrap: wrap; gap: 16px 12px; justify-content: center; --cw: clamp(96px, 26vw, 140px); max-width: 960px; }
+.market-grid[hidden] { display: none; }
+.market-item { display: grid; justify-items: center; gap: 6px; }
+.market-item .card { cursor: default; }
+.market-item.sold .card { filter: grayscale(.8) brightness(.6); }
+.btn.price { min-width: 0; width: calc(var(--cw) + 8px); padding: 7px 4px; font-size: 13px; letter-spacing: .04em; }
+.btn.price.armed { background: linear-gradient(180deg, #8e3422, #5e1f13); border-color: #f0c86a; }
+.market-item .why { font-size: 11px; color: #e08a6a; }
+.market-note { font-size: 12px; color: var(--panel-text-soft); text-align: center; max-width: 40em; }
+/* 自分の状態 */
+#b-player-art { cursor: pointer; }
+.sub-title { font-family: var(--mincho); font-size: 14px; letter-spacing: .1em; margin: 12px 0 6px; color: var(--panel-text); border-bottom: 1px solid rgba(214, 190, 140, .25); padding-bottom: 3px; }
+.status-list { display: grid; gap: 6px; }
+.status-item { display: grid; grid-template-columns: 8em 1fr; gap: 8px; font-size: 13px; align-items: baseline; }
+.status-item b { color: #cfe0b0; font-family: var(--mincho); }
+.status-item.bad b { color: #f0a08a; }
+.status-item span { color: var(--panel-text-soft); min-width: 0; }
+
 /* 出荷票 */
 #ship-slip {
   position: fixed; left: 50%; top: 30%; z-index: 88; width: min(300px, 84vw); pointer-events: none;

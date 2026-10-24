@@ -17,7 +17,8 @@ FR.Run = {
       deck: [],
       relics: f.relic ? [f.relic] : [],
       battleIndex: 0,          // 何戦目か（0 から）
-      phase: 'battle',         // battle 戦闘 / reward 報酬を選ぶところ / over 終わり
+      phase: 'battle',         // battle 戦闘 / reward 報酬を選ぶところ / market 市場 / over 終わり
+      market: null,            // 市場の品ぞろえ（開いている間だけ）
       reward: null,            // 報酬の中身（選んでいる途中で閉じても同じものが出るように保存）
       nextUid: 1,
       stats: { harvest: 0, goldEarned: 0, damageTaken: 0, battlesWon: 0, cropsLost: 0, shipped: 0 }
@@ -32,7 +33,7 @@ FR.Run = {
 
   // 今の戦闘・報酬のための乱数（シード＋何戦目＋用途で決まるので、やり直しても同じになる）
   rngFor(run, purpose) {
-    const salt = { battle: 1, reward: 2 }[purpose] || 9;
+    const salt = { battle: 1, reward: 2, market: 3 }[purpose] || 9;
     return FR.Util.rng(run.seed + run.battleIndex * 7919 + salt * 104729);
   }
 };

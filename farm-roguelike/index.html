@@ -91,6 +91,23 @@
   </div>
 </section>
 
+<!-- ── 市場（カードのお店）──────────────────────────── -->
+<section class="screen" id="screen-market">
+  <div class="panel-page market-page">
+    <h2 class="page-title">市場</h2>
+    <p class="market-lead">3度追い払ったので、市が立った。カードを買ったり、デッキのカードを売ったりできる。</p>
+    <p class="market-gold">手元の銭 <b id="market-gold"></b></p>
+    <div class="market-tabs" role="tablist">
+      <button class="tab active" id="tab-buy" role="tab" aria-selected="true">買う</button>
+      <button class="tab" id="tab-sell" role="tab" aria-selected="false">売る</button>
+    </div>
+    <div id="market-buy" class="market-grid"></div>
+    <div id="market-sell" class="market-grid" hidden></div>
+    <p class="market-note" id="market-note"></p>
+    <div class="reward-actions"><button class="btn primary" id="market-leave">市場を出る</button></div>
+  </div>
+</section>
+
 <!-- ── 経営評価 ───────────────────────────────── -->
 <section class="screen" id="screen-result">
   <div class="panel-page">
@@ -134,6 +151,7 @@
 <script src="js/core/effects.js"></script>
 <script src="js/battle.js"></script>
 <script src="js/reward.js"></script>
+<script src="js/market.js"></script>
 <script src="js/score.js"></script>
 <script src="js/save.js"></script>
 <!-- 画面 -->
