@@ -120,7 +120,8 @@ const Modal = (() => {
     buttons.forEach((b) => {
       btnBox.append(
         h('button', {
-          class: 'btn' + (b.primary ? ' primary' : ''),
+          // small：小さめのボタン（「一手もどす」など、ときどき使うもの）
+          class: 'btn' + (b.primary ? ' primary' : '') + (b.small ? ' small' : ''),
           onclick: () => {
             close();
             if (b.onClick) b.onClick();

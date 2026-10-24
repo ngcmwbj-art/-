@@ -286,6 +286,16 @@ body {
 .modal-body { white-space: pre-line; line-height: 1.7; margin-bottom: 16px; }
 .modal-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .modal-buttons .btn { flex: 1 1 140px; }
+/* 小さめのボタン（ときどき使うもの）。指で押せる大きさは残す */
+.modal-buttons .btn.small { flex: 1 1 110px; min-height: 40px; padding: 6px 10px; font-size: 0.88rem; background: #faf6ee; box-shadow: none; }
+/* 小さめのボタンがあるとき（ゲームオーバー）は、大きい2つ・小さい2つを2列ずつに */
+.modal-buttons:has(.btn.small) .btn { flex: 1 1 40%; padding-left: 6px; padding-right: 6px; word-break: keep-all; }
+.modal-buttons .btn.small { font-size: 0.82rem; }
+/* ゲームオーバー：持ち帰り（大きく）・次の目標・点数（小さく） */
+.over { text-align: center; line-height: 1.7; }
+.over-brought { font-size: 1.1rem; font-weight: bold; }
+.over-goal { color: var(--green-dark); font-weight: bold; }
+.over-score { margin-top: 6px; font-size: 0.88rem; color: var(--sub); }
 
 .load-error {
   position: fixed;

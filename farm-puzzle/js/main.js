@@ -32,7 +32,7 @@
     const s = Farm.season();
     const max = Farm.limits();
     const prog = Farm.seasonProgress();
-    document.getElementById('hud-season').textContent = `${s.icon}${s.name} ${prog.got}/${prog.total}`;
+    document.getElementById('hud-season').textContent = Msg.t('hud.season', { icon: s.icon, season: s.name, got: prog.got, total: prog.total });
     // ⑧ 季節ごとに背景と盤面のふちの色を変える（ブロックとマスの色はそのまま）
     document.documentElement.dataset.season = s.id;
     document.getElementById('hud-water').textContent = save.resources.water;
@@ -273,22 +273,26 @@
     onGameOver: ({ score, isNewBest, water, fertilizer, marks }) => {
       // 点数より先に「畑に持ち帰ったもの」と、畑で次にできることを見せる（負けではなく前進に）
       const goal = Farm.nextGoal();
-      const lines = [];
+      // 1行目：持ち帰ったもの（大きく）、2行目：畑で次にできること、3行目：点数（小さく）
+      let brought = null;
       if (water || fertilizer) {
-        lines.push(Msg.t('puzzle.brought', { water: `${Msg.t('icons.water')}${water}`, fertilizer: `${Msg.t('icons.fertilizer')}${fertilizer}` }));
+        brought = Msg.t('puzzle.brought', { water: `${Msg.t('icons.water')}${water}`, fertilizer: `${Msg.t('icons.fertilizer')}${fertilizer}` });
       } else if (marks) {
-        lines.push(Msg.t('puzzle.broughtFull'));   // マークは消したが、水がめ・肥料袋がいっぱいだった
+        brought = Msg.t('puzzle.broughtFull');   // マークは消したが、水がめ・肥料袋がいっぱいだった
       }
-      if (water || fertilizer || marks) lines.push(goal.text);
-      lines.push(Msg.t('puzzle.gameOverBody', { score }));
-      if (isNewBest) lines.push(Msg.t('puzzle.newBest'));
-      const buttons = [];
+      const body = h('div', { class: 'over' },
+        brought ? h('div', { class: 'over-brought' }, brought) : null,
+        brought ? h('div', { class: 'over-goal' }, goal.text) : null,
+        h('div', { class: 'over-score' }, Msg.t('puzzle.gameOverBody', { score }) + (isNewBest ? '　' + Msg.t('puzzle.newBest') : '')));
+      // 大きいボタン2つ（畑へ・もう一度）を先に。「一手もどす」「とりかえ」は小さく下に（消さずに残す）
+      const buttons = [
+        { label: Msg.t('puzzle.toFarm'), primary: goal.go, onClick: () => { finishGame('farm'); if (goal.go) Farm.flash(goal.plot); } },
+        { label: Msg.t('puzzle.retry'), primary: !goal.go, onClick: () => finishGame() },
+      ];
       // 置き間違えで終わったときのために、ここでも「一手もどす」を選べる
-      if (Puzzle.canUndo()) buttons.push({ label: Msg.t('puzzle.undo'), onClick: () => Puzzle.undo() });
-      if (Puzzle.canShuffle()) buttons.push({ label: Msg.t('puzzle.shuffleOver'), onClick: () => Puzzle.shuffle() });
-      buttons.push({ label: Msg.t('puzzle.toFarm'), primary: goal.go, onClick: () => { finishGame('farm'); if (goal.go) Farm.flash(goal.plot); } });
-      buttons.push({ label: Msg.t('puzzle.retry'), primary: !goal.go, onClick: () => finishGame() });
-      Modal.open({ title: Msg.t('puzzle.gameOverTitle'), body: lines.join('\n'), buttons });
+      if (Puzzle.canUndo()) buttons.push({ label: Msg.t('puzzle.undo'), small: true, onClick: () => Puzzle.undo() });
+      if (Puzzle.canShuffle()) buttons.push({ label: Msg.t('puzzle.shuffleOver'), small: true, onClick: () => Puzzle.shuffle() });
+      Modal.open({ title: Msg.t('puzzle.gameOverTitle'), body, buttons });
     },
   });
 

@@ -33,7 +33,9 @@ const Quiz = (() => {
   function review(vegs) {
     let i = 0;
     let right = 0;
-    const wrong = [];   // まちがえた野菜（結果のあとで育て方カードを開けるように）
+    const wrong = [];
+    // 出す順をはじめにまぜておき、先頭から順に出す（同じ野菜が続かないように。5種より少なければ一巡してもどる）
+    const order = shuffle(vegs);   // まちがえた野菜（結果のあとで育て方カードを開けるように）
     const next = () => {
       if (i >= ROUND) {
         // 結果を閉じたあとも戻ってこられるように、カードを閉じたら結果をもう一度出す
@@ -54,7 +56,7 @@ const Quiz = (() => {
         return;
       }
       i += 1;
-      const v = vegs[Math.floor(Math.random() * vegs.length)];
+      const v = order[(i - 1) % order.length];
       const q = makeQuestion(v, ['plant', 'harvest', 'pests', 'planter']);
       const choose = (c) => {
         const ok = c === q.answer;

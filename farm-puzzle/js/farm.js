@@ -606,6 +606,9 @@ const Farm = (() => {
     if (ready) return { text: Msg.t('goal.harvest'), go: true, plot: at(ready) };
     const doable = plots.find((p) => p.stage < 2 && canAfford(costOf(p)));
     if (doable) return { text: Msg.t(doable.stage === 0 ? 'goal.canWater' : 'goal.canFert'), go: true, plot: at(doable) };
+    // コインが足りて、まだ広げられるなら区画をふやそう（今まで最後にあって出なかった）
+    const price = nextPlotPrice();
+    if (price != null && data.plots.length < maxPlots() && data.resources.coins >= price) return { text: Msg.t('goal.plot'), go: true, plot: 'expand' };
     // まだ何も植えていないときは種まきから（種まきに水や肥料はいらない）
     if (!plots.length) return { text: Msg.t('goal.firstSow'), go: true, plot: data.plots.indexOf(null) };
     // 資源が足りない作業のうち、いちばん近いもの
@@ -619,7 +622,7 @@ const Farm = (() => {
     if (data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true, plot: data.plots.indexOf(null) };
     const growing = plots.filter((p) => p.stage === 2).sort((a, b) => a.growLeft - b.growLeft)[0];
     if (growing) return { text: Msg.t('goal.grow', { name: veg(growing.vegId).name, n: growing.growLeft }), go: false };
-    return { text: Msg.t('goal.plot'), go: true, plot: 'expand' };
+    return { text: Msg.t('goal.sow'), go: true };
   }
 
   // 次の目標の場所を、はじめの案内と同じ光り方で2秒だけ光らせる（1回きり。せかさない）

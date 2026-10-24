@@ -66,7 +66,7 @@
     "seedOthers": "ほかの季節の野菜",
     "seedGot": "収穫ずみ",
     "seedGrow": "育ち{n}列",
-    "seasonCount": "{got} / {total}",
+    "seasonCount": "とれた {got}/{total}",
     "bulk": {
       "water": "ぜんぶ水やり（{n}）",
       "fertilize": "ぜんぶ{追肥|ついひ}（{n}）",
@@ -81,7 +81,7 @@
     "seasonChallengeLabel": "チャレンジ：",
     "seedChallenge": "いまが旬のチャレンジ野菜（{season}）",
     "osusume": "はじめてさんにおすすめ",
-    "challengeCount": "チャレンジ {got}/{total}",
+    "challengeCount": "チャレンジの種 {got}/{total}",
     "eat": "🍽 おいしい食べ方：{text}",
     "word": "📘 {term}（{reading}）：{text}",
     "mistake": "🌱 失敗しないコツ：{text}",
@@ -100,7 +100,7 @@
   },
   "zukan": {
     "title": "やさい図鑑",
-    "count": "ぜんぶで {found}/{total}",
+    "count": "図鑑ぜんぶ {found}/{total}",
     "season": "旬：{text}",
     "times": "収穫 {n}回",
     "unknownName": "？？？",
@@ -123,14 +123,15 @@
     "monthHarvestNote": "旬の野菜は、スーパーで選ぶときの目安にも。",
     "harvestMonths": "🧺 収穫：{months}",
     "monthSow": "🌱 {m}月にまける野菜",
-    "countNow": "{icon}{season}の野菜 {n}/{total}"
+    "countNow": "図鑑 {icon}{season} {n}/{total}"
   },
   "hud": {
     "water": "水",
     "fertilizer": "肥料",
     "help": "遊び方・設定",
     "soundOn": "音：オン",
-    "soundOff": "音：オフ"
+    "soundOff": "音：オフ",
+    "season": "{icon}{season} とれた{got}/{total}"
   },
   "guide": {
     "title": "遊び方（{n}/{total}）",
@@ -273,7 +274,7 @@
       },
       {
         "n": 5,
-        "name": "畑のなかま"
+        "name": "畑のおてつだい"
       },
       {
         "n": 15,
