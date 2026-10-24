@@ -151,7 +151,8 @@ const Quiz = (() => {
 
   // 気をつけたい病気・虫：まちがいは「1つも重ならない、ほかの野菜の病気・虫」から選ぶ
   function pestQuestion(v) {
-    const split = (s) => s.split('、').map((x) => x.trim());
+    // 「アワノメイガ（実に入る虫）」のような説明つきでも、名前だけで同じかどうかを見る
+    const split = (s) => s.split('、').map((x) => x.replace(/（[^）]*）/g, '').trim());
     const right = split(v.guide.pests);
     const answer = v.guide.pests;
     const wrong = [];

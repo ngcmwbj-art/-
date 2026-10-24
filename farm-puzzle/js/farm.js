@@ -169,7 +169,7 @@ const Farm = (() => {
   function sow(index, vegId) {
     const v = veg(vegId);
     // 前にこの区画で同じなかまを育てていたら「連作」のひとこと（罰はなし。本物の畑の知識として）
-    const rotation = v.family && data.lastFamily[index] === v.family;
+    const rotation = v.family && !v.perennial && data.lastFamily[index] === v.family;
     data.lastFamily[index] = null;   // ひとことは1回だけ
     data.plots[index] = { vegId, stage: 0, growLeft: 0 };
     if (data.onboardStep === 0) data.onboardStep = 1;   // 案内：次は水やり
@@ -225,7 +225,7 @@ const Farm = (() => {
     });
     if (!count) return;
     toast(Msg.t('farm.bulkDone', { step: Msg.t('farm.stepNames.' + step), n: count }) +
-      `\n${Msg.t('farm.stepNames.' + step)}：${Msg.plain(veg(last.vegId).steps[step])}`);
+      `\n${veg(last.vegId).name}の${Msg.t('farm.stepNames.' + step)}：${Msg.plain(veg(last.vegId).steps[step])}`);
     Sound.play('work');
     acted();
   }
@@ -324,7 +324,7 @@ const Farm = (() => {
 
   // 連作のひとこと（2行まで。何年あけるかの目安も）
   function tellRotation(v) {
-    const years = (Msg.get('farm.rotationYears') || {})[v.family] || Msg.t('farm.rotationYearsOther');
+    const years = v.rotationYears || (Msg.get('farm.rotationYears') || {})[v.family] || Msg.t('farm.rotationYearsOther');
     toast(Msg.t('farm.rotation', { family: v.family, years }), 7000);
   }
 
@@ -580,7 +580,7 @@ const Farm = (() => {
     vegs.forEach((v) => {
       v.tips.forEach((t) => pool.push({ v, t }));
       pool.push({ v, t: v.guide.point });
-      if (v.mistake) pool.push({ v, t: Msg.t('farm.mistake', { text: v.mistake }) });
+      if (v.mistake) pool.push({ v, t: Msg.get('farm.mistake').replace('{text}', v.mistake) });
       if (v.eat) pool.push({ v, t: Msg.t('farm.eat', { text: v.eat }) });
     });
     const d = new Date();

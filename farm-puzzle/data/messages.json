@@ -165,7 +165,12 @@
     "rubyOn": "読みがな：オン",
     "rubyOff": "読みがな：オフ",
     "bigTextOn": "文字：大きめ",
-    "bigTextOff": "文字：ふつう"
+    "bigTextOff": "文字：ふつう",
+    "sound": {
+      "off": "音：オフ",
+      "small": "音：小さめ",
+      "normal": "音：ふつう"
+    }
   },
   "season": {
     "completeTitle": "{icon}{season}の旬をコンプリート！",
@@ -215,7 +220,7 @@
     "eat": "おいしい食べ方",
     "now": "いまここ",
     "family": "なかま",
-    "familyText": "{family}のなかま（{family}科）",
+    "familyText": "{family}のなかま（{ka}科）",
     "mistake": "失敗しないコツ",
     "familyOnly": "　※このゲームでは、ほかに同じなかまの野菜はいません"
   },

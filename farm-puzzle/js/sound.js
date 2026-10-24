@@ -52,6 +52,11 @@ const Sound = (() => {
     });
   }
 
+  // 音の大きさ（小さめは半分）
+  function volume() {
+    return settings.volume === 'small' ? VOLUME / 2 : VOLUME;
+  }
+
   function tone(ac, from, to, start, dur, type) {
     const t = ac.currentTime + start;
     const osc = ac.createOscillator();
@@ -60,7 +65,7 @@ const Sound = (() => {
     osc.frequency.setValueAtTime(from, t);
     osc.frequency.exponentialRampToValueAtTime(to, t + dur);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(VOLUME, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(volume(), t + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(gain).connect(ac.destination);
     osc.start(t);

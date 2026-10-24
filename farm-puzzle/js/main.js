@@ -105,6 +105,20 @@
       buttons: [
         { label: Msg.t('help.guide'), primary: true, onClick: () => Guide.show() },
         {
+          // 音：オフ → 小さめ → ふつう → オフ（右上の🔊とも同じ設定）
+          label: Msg.t('help.sound.' + (!save.settings.sound ? 'off' : save.settings.volume === 'small' ? 'small' : 'normal')),
+          onClick: () => {
+            const s = save.settings;
+            if (!s.sound) { s.sound = true; s.volume = 'small'; }
+            else if (s.volume === 'small') s.volume = 'normal';
+            else s.sound = false;
+            Sound.setSound(s.sound);
+            refreshSoundBtn();
+            persist();
+            openHelp();
+          },
+        },
+        {
           label: Msg.t(save.showRuby ? 'help.rubyOn' : 'help.rubyOff'),
           onClick: () => {
             save.showRuby = !save.showRuby;
@@ -137,7 +151,7 @@
     });
   }
 
-  // 文字の大きさ（大きめ＝文字だけ大きく。盤面の大きさは変えない）
+  // 文字の大きさ（大きめ＝文字が約1.1倍。小さい画面では盤面を少し小さくして収める）
   function applyTextSize() {
     document.documentElement.classList.toggle('big-text', !!save.settings.bigText);
   }

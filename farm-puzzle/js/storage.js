@@ -31,7 +31,7 @@ const SaveData = (() => {
       seasonClears: {},                                // 季節ごとの賞状の記録 { spring: { count, y, m, d, total, n, all } }
       lastFamily: [],                                  // 区画ごとに、前に収穫した野菜のなかま（連作のひとこと用）
       tipHiddenDay: '',                                // 「今日のひとこと」を出さない日（「今日はもう出さない」を押した日）
-      settings: { sound: false, vibrate: true, bigText: false },       // 音は最初オフ
+      settings: { sound: false, vibrate: true, bigText: false, volume: 'normal' },       // 音は最初オフ
     };
   }
 

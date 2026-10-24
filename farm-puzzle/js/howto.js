@@ -80,7 +80,7 @@ const HowTo = (() => {
   // カードの文に出てくる言葉だけを説明する
   function words(v) {
     const g = v.guide;
-    const text = [g.sun, g.plant, g.pests, g.point, g.planter ? g.planter.note : '', ...Object.values(v.steps), ...v.tips,
+    const text = [g.sun, g.plant, g.pests, g.point, v.mistake || '', g.planter ? g.planter.note : '', ...Object.values(v.steps), ...v.tips,
       Msg.t('farm.stepNames.fertilize')].join(' ');
     const found = glossary.filter((w) => Msg.plain(text).includes(w.term));   // 読みがなの印を外してからさがす
     if (!found.length) return null;
@@ -94,7 +94,7 @@ const HowTo = (() => {
   // なかま：「ナスのなかま（ナス科）：トマト・なす・ピーマン」のように、同じなかまの野菜も並べる
   function familyText(v) {
     const others = allVegs.filter((x) => x.family === v.family && x.id !== v.id).map((x) => x.name);
-    return Msg.t('howto.familyText', { family: v.family }) + (others.length ? `：${others.join('・')}` : Msg.t('howto.familyOnly'));
+    return Msg.t('howto.familyText', { family: v.family, ka: v.familyKa || v.family }) + (others.length ? `：${others.join('・')}` : Msg.t('howto.familyOnly'));
   }
 
   function row(label, text) {

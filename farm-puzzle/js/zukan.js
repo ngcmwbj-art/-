@@ -126,7 +126,8 @@ const Zukan = (() => {
       h('div', { class: 'cert-title' }, Msg.t('season.certTitle')),
       rec.count > 1 ? h('div', { class: 'cert-count' }, Msg.t('season.certCount', { icon: s.icon, season: s.name, n: rec.count })) : null,
       h('div', { class: 'cert-text' }, Msg.t('season.certText', { icon: s.icon, season: s.name })),
-      h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
+      // 絵だけでは何の野菜か分からないので、名前も小さく
+      h('div', { class: 'cert-vegs' }, vegs.map((v) => h('span', { class: 'cert-veg' }, vegIcon(v), h('small', {}, v.name)))),
       h('div', { class: 'cert-stats' }, Msg.t('season.certStats', { total: rec.total, n: rec.n, all: rec.all })),
       h('div', { class: 'cert-date' }, Msg.t('season.certDate', { y: rec.y, m: rec.m, d: rec.d })));
   }
@@ -215,7 +216,7 @@ const Zukan = (() => {
         h('h3', { class: 'zukan-name' }, Msg.t('zukan.unknownName')),
         h('div', { class: 'zukan-meta' }, seasonBand(v)),
         h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.unknownText', { season: seasons })),
-        v.unlock ? h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.challengeText')) : null
+        Missions.isLocked(v) ? h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.challengeText')) : null
       )
     );
   }
