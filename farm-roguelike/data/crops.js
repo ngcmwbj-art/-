@@ -28,6 +28,11 @@ FR.Crops = {
     onHarvest: [{ op: 'draw', amount: 2 }], harvestText: '2枚引く',
     art: { growing: 'sprout', ripe: 'eggplant' }
   },
+  yomogi: {
+    name: 'ヨモギ', stages: 2, gold: 2, yield: 3,
+    onHarvest: [{ op: 'heal', amount: 5 }], harvestText: '健康度+5',
+    art: { growing: 'sprout', ripe: 'spinach' }
+  },
   daikon: {
     name: '大根', stages: 3, gold: 6, yield: 8,
     onHarvest: [{ op: 'damage', amount: 6 }, { op: 'block', amount: 6 }], harvestText: '勢いに6・守り6',

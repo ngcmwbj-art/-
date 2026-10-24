@@ -218,6 +218,34 @@ FR.Cards = {
     upgrade: { name: 'トラクター+', text: '勢いに18。作物をすべて2段育てる', effects: [{ op: 'damage', amount: 18 }, { op: 'grow', amount: 2 }] }
   },
 
+  /* ── 野菜農家の回復 ── */
+  vegSoup: {
+    name: '野菜スープ', type: 'skill', cost: 1, rarity: 'common', pool: ['vegetable'], art: 'jar',
+    text: '健康度+6、1枚引く。廃棄',
+    exhaust: true,
+    effects: [{ op: 'heal', amount: 6 }, { op: 'draw', amount: 1 }],
+    upgrade: { name: '野菜スープ+', text: '健康度+9、1枚引く。廃棄', effects: [{ op: 'heal', amount: 9 }, { op: 'draw', amount: 1 }] }
+  },
+  sowYomogi: {
+    name: 'ヨモギの株分け', type: 'crop', cost: 1, rarity: 'common', pool: ['vegetable'], art: 'spinach',
+    text: 'ヨモギを植える。2段で実り、収穫で健康度+5・銭2',
+    needs: 'emptyPlot',
+    effects: [{ op: 'plant', crop: 'yomogi' }],
+    upgrade: { name: 'ヨモギの株分け+', cost: 0 }
+  },
+  restInField: {
+    name: '畑で一息', type: 'skill', cost: 1, rarity: 'uncommon', pool: ['vegetable'], art: 'komatsuna',
+    text: '守り4。植えてある作物1つにつき健康度+2',
+    effects: [{ op: 'block', amount: 4 }, { op: 'healPerCrop', per: 2 }],
+    upgrade: { name: '畑で一息+', text: '守り6。植えてある作物1つにつき健康度+3', effects: [{ op: 'block', amount: 6 }, { op: 'healPerCrop', per: 3 }] }
+  },
+  soilBlessing: {
+    name: '土の恵み', type: 'power', cost: 2, rarity: 'rare', pool: ['vegetable'], art: 'compost',
+    text: 'この戦闘の間、作物を1つ収穫するたび健康度+2',
+    effects: [{ op: 'status', id: 'harvestHeal', amount: 2 }],
+    upgrade: { name: '土の恵み+', cost: 1 }
+  },
+
   goodHarvestSign: {
     name: '豊作の気配', type: 'growth', cost: 0, rarity: 'uncommon', pool: ['vegetable'], art: 'basket',
     text: '実った作物1つにつきエネルギー+1',

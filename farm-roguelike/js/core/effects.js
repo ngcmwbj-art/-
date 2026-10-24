@@ -25,6 +25,7 @@ FR.Effects = {
     blockPerAnimal(b, e) { const n = FR.Battle.animalCount(b); if (n) FR.Battle.gainBlock(b, e.per * n); },
     blockPerFruit(b, e) { const n = FR.Battle.fruitCount(b); if (n) FR.Battle.gainBlock(b, e.per * n); },
     blockPerCrop(b, e) { const n = FR.Battle.cropCount(b); if (n) FR.Battle.gainBlock(b, e.per * n); },
+    healPerCrop(b, e) { const n = FR.Battle.cropCount(b); if (n) FR.Battle.heal(b, e.per * n); },
     drawPerCrop(b, e) { FR.Battle.drawCards(b, e.per * FR.Battle.cropCount(b)); },
     // エネルギー：実った作物と実のなった木の数／家畜の頭数／成木の本数に応じて
     energyPerRipe(b, e) { const n = b.plots.filter(FR.Battle.isRipe).length; if (n) FR.Battle.gainEnergy(b, e.per * n); },

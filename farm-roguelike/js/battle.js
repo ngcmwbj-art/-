@@ -349,6 +349,7 @@ FR.Battle = {
       FR.Battle.gainGold(b, c.gold);
       FR.Effects.run(b, c.onHarvest);
       FR.Effects.relicHook(b, 'harvest');
+      if (st.harvestHeal) FR.Battle.heal(b, st.harvestHeal);
       return 1;
     }
     if (early && p.growth >= 1) {
@@ -357,6 +358,7 @@ FR.Battle = {
       b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を早どり' });
       FR.Battle.gainGold(b, Math.floor(c.gold / 2));
       FR.Effects.relicHook(b, 'harvest');
+      if (st.harvestHeal) FR.Battle.heal(b, st.harvestHeal);
       return 1;
     }
     return 0;

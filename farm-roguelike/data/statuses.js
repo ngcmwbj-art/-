@@ -23,6 +23,7 @@ FR.Statuses = {
   immune:     { name: '防疫', text: '家畜が病気にかからない' },
   bigFruit:   { name: '摘果', text: '次に実を収穫するとき、実1つごとの効果が2倍' },
   ripening:   { name: '完熟', text: '実1つごとの銭+3・守り+2（×この数）' },
+  harvestHeal: { name: '土の恵み', text: '作物を1つ収穫するたび、この数だけ健康度が回復する' },
   nextEnergy: { name: '段取り済み', text: '次のターン始めに、この数だけエネルギーが増える',
                 turnStart(b, n) { FR.Battle.gainEnergy(b, n); b.statuses.nextEnergy = 0; } },
   energyUp:   { name: '人手', text: '毎ターン始めに、この数だけエネルギーが増える',
