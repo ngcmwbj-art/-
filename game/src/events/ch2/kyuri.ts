@@ -7,7 +7,7 @@
 //   ・ソワカ（無人販売所の 横の 丸いす (23,37)）：今の 会話の あと（flag_ky_heard）、もう 1回 話すと〔kyuri〕
 //     （flag_ky_start）。店番（tenban.ts）や 朝の 前の 色（asairo.ts）の 用は 先に 出る（この ファイルは それらより
 //     前に import する）。
-//   ・きゅうりの 棚 obj_ky_tana（ソワカの 家の 西の 壁ぞい (20,34)–(20,35)。(19,34)・(19,35) から 東向き）：
+//   ・きゅうりの 棚 obj_ky_tana（ソワカの 家の 西の 路地 (19,33)–(19,34)。(20,33)・(20,34) から 西向き）：
 //     大写し「葉の かげ」KyPanel（←→↑↓ 灯りを 1目ずつ 大きく 動かす、けってい 切る。灯りの 当たった 所だけ
 //     実が 見える）。3本（flag_ky_got の ビット）：ちょうど (1,1)・大きめ (3,0)・とり遅れ (0,2)＝いちばん 奥の 低い 所。
 //     何も ない 所は「大きな 葉」（失敗に しない）。かくし：1本目の 所で もう 1回 けってい → グソっ君（flag_ky_nido）。
@@ -61,8 +61,8 @@ export const KY_SANBON = 'item_ky_sanbon';
 export const KY_TORE = 'item_ky_tore';
 /** 棚（2つの 物。北が 奥）。 */
 export const KY_TANA: [number, number][] = [
-  [20, 34],
-  [20, 35],
+  [19, 33],
+  [19, 34],
 ];
 
 export function kanenariHere(): boolean {
@@ -114,9 +114,10 @@ export function wrap(id: string, fn: (ctx: ScriptCtx, orig: () => Co) => Co): vo
   const def = getMapDef(VILLAGE);
   if (def) {
     def.objects.push(
-      // the trellis along the west wall of ソワカ's house (the alley between the houses stays open on its west side)
+      // the trellis in the alley west of ソワカ's house (along it, on the alley's west side: the east side stays open,
+      // and there one stands clear of the pole at (19,37))
       ...KY_TANA.map(([x, y], i) => ({ t: 'prop', prop: 'prop_ky_tana', x, y, opts: { i }, solid: [0, 0, 1, 1] }) as unknown as MapObj),
-      ...KY_TANA.map(([x, y], i) => ({ t: 'obj', id: i ? `obj_ky_tana_${i}` : 'obj_ky_tana', x, y, face: 'right', script: 'obj_ky_tana' }) as unknown as MapObj),
+      ...KY_TANA.map(([x, y], i) => ({ t: 'obj', id: i ? `obj_ky_tana_${i}` : 'obj_ky_tana', x, y, face: 'left', script: 'obj_ky_tana' }) as unknown as MapObj),
     );
     registerMap(def);
   }
@@ -464,7 +465,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  * QA: __game.cmd.kyuri(step = 'sawako', stage = 'h1', auto = false)（トマトの 灯り）
  *   'h0'      段階0、ソワカの 前 (23,38) 上向き（今の 会話の あと：1 の 2ページと「暗くて」）
  *   'sawako'  今の 会話を 聞いた あと、ソワカの 前（話すと〔kyuri〕）
- *   'tana'    〔kyuri〕の あと、棚の 前 (19,35) 東向き（大写し）
+ *   'tana'    〔kyuri〕の あと、棚の 前 (20,34) 西向き（大写し）
  *   'fuda'    3本 持って、無人販売所の 札の 前 (21,38) 上向き（札と くらべる → 4・5）
  *   'yoshie'  3本 持って、集会所の ぴょん夫人の 前 (3,5) 西向き（お茶の あとに かくしの 1行）
  *   'after'   すんだ あと、販売所の 台の 前
@@ -477,11 +478,15 @@ if (import.meta.env.DEV) {
     for (const id of Object.values(KF)) setFlag(id, 0);
     for (const it of [KY_SANBON, KY_TORE]) while (state.inventory.includes(it)) removeItem(it);
     qaAuto = !!auto;
+    // (the stand's ムジン販売員 already calmed down: the stand is free to examine)
+    state.taken['sym_hoshi_02'] = true;
+    setFlag('flag_book_enemy_mujin_hanbaiin', 1);
+    setFlag('flag_seen_npc_hoshi_sawako_mujin_done', 1);
     const go = (m: string, x: number, y: number, d: string) => cmd().warp?.(m, x, y, d);
     setFlag(KF.heard, step === 'h0' ? 1 : 2);
     if (step === 'h0' || step === 'sawako') return go(VILLAGE, 23, 38, 'up');
     setFlag(KF.start, 1);
-    if (step === 'tana') return go(VILLAGE, 19, 35, 'right');
+    if (step === 'tana') return go(VILLAGE, 20, 34, 'left');
     setFlag(KF.intro, 1);
     setFlag(KF.got, 7);
     addItem(KY_SANBON);
