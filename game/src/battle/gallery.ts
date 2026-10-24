@@ -1,0 +1,102 @@
+// QA gallery for enemy battle art: ?scene=enemies[&id=<enemy_id>][&zoom=2]
+
+import type { Scene } from '../engine/game';
+import type { Gfx } from '../engine/gfx';
+import { enemyArt, enemyArtIds, type EnemyView } from '../art/enemies';
+import { desaturate } from '../art/enemies/lib';
+import { makeBackground, type Background } from './bg';
+
+export class EnemyGalleryScene implements Scene {
+  private t = 0;
+  private ids: string[];
+  private zoom: number;
+  /** Skip the first N gallery poses (QA paging at high zoom). */
+  private from: number;
+  /** &night=1: the chapter-2 night bands (with the tomato's one) behind the sprites. */
+  private night: boolean;
+
+  constructor(params: URLSearchParams) {
+    const id = params.get('id');
+    this.ids = id ? id.split(',') : enemyArtIds();
+    this.zoom = Math.max(1, Number(params.get('zoom') ?? '1'));
+    this.from = Math.max(0, Number(params.get('from') ?? '0'));
+    this.night = params.get('night') === '1';
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+  }
+
+  draw(g: Gfx): void {
+    // sunset-ish backdrop bands so contrast can be judged
+    const bands = this.night ? ['#0B0B14', '#1B1733', '#2A2440', '#3A2B5C', '#5B4A7A', '#F2894B', '#2A2440'] : ['#F7C27A', '#F2894B', '#D9728A', '#7A5AA0', '#3A2B5C'];
+    for (let i = 0; i < bands.length; i++) g.rect(0, Math.floor((i * 216) / bands.length), 384, Math.ceil(216 / bands.length), bands[i]);
+    let x = 4;
+    let y = 4;
+    let rowH = 0;
+    const z = this.zoom;
+    for (const id of this.ids) {
+      const art = enemyArt(id);
+      if (!art) continue;
+      const poses = [...art.gallery, { pose: 'idle', flags: { bokemake: 1 } }].slice(this.from);
+      for (const gp of poses) {
+        const v: EnemyView = { pose: gp.pose, t: gp.t ?? this.t % 1000, gt: this.t, skill: gp.skill, hpRate: 1, flags: gp.flags ?? {} };
+        let c = art.frame(v);
+        if (gp.flags?.bokemake) c = desaturate(c, 0.4);
+        const w = c.width * z;
+        const h = c.height * z;
+        if (x + w > 384) {
+          x = 4;
+          y += rowH + 4;
+          rowH = 0;
+        }
+        g.rect(x - 1, y - 1, w + 2, h + 2, '#00000022');
+        art.under?.(g, x, y, v);
+        g.ctx.drawImage(c, x, y, w, h);
+        if (z === 1) art.over?.(g, x, y, v);
+        x += w + 4;
+        rowH = Math.max(rowH, h);
+      }
+      if (z === 1) {
+        const r = art.restored();
+        g.img(r, x, y + rowH - r.height);
+        x += r.width + 8;
+      }
+    }
+  }
+}
+
+/**
+ * QA gallery for battle backgrounds: ?scene=bgs&id=bg_h_fence[&enemy=<id>][&flags=charge:1,light:1]
+ * — the background alone (and optionally its enemy standing where it would),
+ * with the flags a battle hands it.
+ */
+export class BgGalleryScene implements Scene {
+  private t = 0;
+  private bg: Background;
+  private enemy: string | null;
+  constructor(params: URLSearchParams) {
+    const id = params.get('id') ?? 'bg_h_house';
+    this.enemy = params.get('enemy');
+    this.bg = makeBackground(id, this.enemy ?? '');
+    for (const kv of (params.get('flags') ?? '').split(',').filter(Boolean)) {
+      const [k, v] = kv.split(':');
+      this.bg.flags[k] = Number(v ?? 1);
+    }
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    this.bg.update(dt);
+  }
+
+  draw(g: Gfx): void {
+    this.bg.draw(g);
+    const art = this.enemy ? enemyArt(this.enemy) : null;
+    if (!art) return;
+    const v: EnemyView = { pose: 'idle', t: this.t, gt: this.t, hpRate: 1, flags: {} };
+    const c = art.frame(v);
+    // core at (192, 104), like a lone enemy in battle
+    g.img(c, Math.round(192 - c.width / 2), Math.round(104 - c.height / 2));
+  }
+}
