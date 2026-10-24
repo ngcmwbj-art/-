@@ -119,6 +119,34 @@ const Zukan = (() => {
     );
   }
 
+  // 賞状（季節をそろえたときと、図鑑のバッジから見返すときの共通の部品）
+  function certificate(s, rec) {
+    const vegs = cfg.vegetables.filter((v) => v.seasons.includes(s.id) && !Missions.isChallenge(v));
+    return h('div', { class: 'certificate' },
+      h('div', { class: 'cert-title' }, Msg.t('season.certTitle')),
+      rec.count > 1 ? h('div', { class: 'cert-count' }, Msg.t('season.certCount', { icon: s.icon, season: s.name, n: rec.count })) : null,
+      h('div', { class: 'cert-text' }, Msg.t('season.certText', { icon: s.icon, season: s.name })),
+      h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
+      h('div', { class: 'cert-stats' }, Msg.t('season.certStats', { total: rec.total, n: rec.n, all: rec.all })),
+      h('div', { class: 'cert-date' }, Msg.t('season.certDate', { y: rec.y, m: rec.m, d: rec.d })));
+  }
+
+  // 季節の畑しごと（3行）と、その季節の献立（料理名だけ。押すとその野菜の育て方カード＝食べ方へ）
+  function seasonWork(s) {
+    if (!s.work) return null;
+    // 収穫したことのある野菜の料理を先に（とれた野菜で作れる、が分かるように）
+    const dishes = (s.dishes || []).slice().sort((a, b) => (data.harvested[b.veg] ? 1 : 0) - (data.harvested[a.veg] ? 1 : 0));
+    return h('div', { class: 'season-work' },
+      h('div', { class: 'season-work-title' }, Msg.t('season.work', { season: s.name })),
+      h('ul', {}, s.work.map((w) => h('li', {}, w))),
+      dishes.length ? h('div', { class: 'season-dishes' },
+        h('div', { class: 'season-work-title' }, Msg.t('season.dishes', { season: s.name })),
+        h('div', { class: 'dish-list' }, dishes.map((x) => {
+          const v = cfg.vegetables.find((y) => y.id === x.veg);
+          return h('button', { class: 'dish-chip' + (data.harvested[x.veg] ? ' got' : ''), type: 'button', onclick: () => HowTo.open(v) }, '🍳 ' + x.name);
+        }))) : null);
+  }
+
   // 季節のバッジ：その季節の基本の野菜をぜんぶ収穫したら色がつく。4つそろうと🏆
   function badges() {
     const done = cfg.seasons.map((s) => cfg.vegetables
@@ -132,13 +160,17 @@ const Zukan = (() => {
         class: 'badge-season' + (done[i] ? ' got' : ''),
         type: 'button',
         title: Msg.t(done[i] ? 'zukan.badgeGot' : 'zukan.badgeNot', { season: s.name }),
-        onclick: () => Modal.open({
-          title: s.icon + ' ' + Msg.t('season.work', { season: s.name }),
-          body: h('div', { class: 'season-work' },
-            h('p', {}, Msg.t(done[i] ? 'zukan.badgeGot' : 'zukan.badgeNot', { season: s.name })),
-            h('ul', {}, (s.work || []).map((w) => h('li', {}, w)))),
-          buttons: [{ label: Msg.t('common.close'), primary: true }],
-        }),
+        // そろえた記録があれば賞状を見返せる。前から遊んでいて記録がない季節は、畑しごとだけ
+        onclick: () => {
+          const rec = (data.seasonClears || {})[s.id];
+          Modal.open({
+            title: s.icon + ' ' + s.name,
+            body: h('div', { class: 'season-complete' },
+              rec ? certificate(s, rec) : h('p', { class: 'badge-note' }, Msg.t(done[i] ? 'zukan.badgeGot' : 'zukan.badgeNot', { season: s.name })),
+              seasonWork(s)),
+            buttons: [{ label: Msg.t('common.close'), primary: true }],
+          });
+        },
       }, s.icon)),
       h('span', { class: 'badge-season trophy' + (all ? ' got' : ''), title: Msg.t('zukan.badgeAll') }, '🏆'));
   }
@@ -206,5 +238,5 @@ const Zukan = (() => {
     });
   }
 
-  return { init, render, announce };
+  return { init, render, announce, certificate, seasonWork };
 })();

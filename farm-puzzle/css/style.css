@@ -1110,6 +1110,14 @@ ruby { white-space: nowrap; }
 .quiz-wrong-btn { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 6px; padding: 6px 10px; }
 .quiz-wrong-btn .veg-icon, .quiz-wrong-btn > :first-child { font-size: 1.5rem; }
 
+/* 賞状の回数・季節の献立 */
+.cert-count { display: inline-block; margin-bottom: 6px; padding: 1px 10px; border-radius: 999px; background: #fdf0dc; color: #a8622a; font-size: 0.8rem; font-weight: bold; }
+.season-dishes { margin-top: 10px; }
+.dish-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.dish-chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--text); }
+.dish-chip.got { border-color: #f3cf9f; background: #fdf0dc; }
+.badge-note { margin: 0 0 8px; font-size: 0.85rem; color: var(--sub); }
+
 /* 季節の畑しごと */
 .season-work-note { margin: 8px 0 0; font-size: 0.8rem; color: var(--sub); }
 .season-work { margin-top: 12px; text-align: left; background: #f6f9ef; border-radius: 12px; padding: 10px 12px; }

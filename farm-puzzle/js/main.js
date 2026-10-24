@@ -180,21 +180,24 @@
   });
 
   function celebrateSeason({ done, next, vegs }) {
+    // 賞状の中身を記録しておく（図鑑の季節バッジからいつでも見返せるように。回数は季節が進んだときだけ数える）
     const today = new Date();
-    Sound.play('harvest', 5);
+    const prev = save.seasonClears[done.id];
+    const rec = {
+      count: (prev ? prev.count : 0) + 1,
+      y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate(),
+      total: Object.values(save.harvested).reduce((a, b) => a + b, 0),
+      n: Object.keys(save.harvested).length, all: config.vegetables.length,
+    };
+    save.seasonClears[done.id] = rec;
+    persist();
+    // 収穫の音とぶつからないよう、少し待ってからお祝いのメロディ（音オンのときだけ）
+    setTimeout(() => Sound.play('fanfare'), 300);
     Modal.open({
       title: Msg.t('season.completeTitle', { icon: done.icon, season: done.name }),
       body: h('div', { class: 'season-complete' },
         // 賞状：ふち飾りの中に、そろえた野菜・日付・これまでの収穫数・図鑑の登録数（スクショして見せたくなるように）
-        h('div', { class: 'certificate' },
-          h('div', { class: 'cert-title' }, Msg.t('season.certTitle')),
-          h('div', { class: 'cert-text' }, Msg.t('season.certText', { icon: done.icon, season: done.name })),
-          h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
-          h('div', { class: 'cert-stats' }, Msg.t('season.certStats', {
-            total: Object.values(save.harvested).reduce((a, b) => a + b, 0),
-            n: Object.keys(save.harvested).length, all: config.vegetables.length,
-          })),
-          h('div', { class: 'cert-date' }, Msg.t('season.certDate', { y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate() }))),
+        Zukan.certificate(done, rec),
         h('p', {}, Msg.t('season.completeBody', { done: done.name, icon: next.icon, season: next.name }))
       ),
       buttons: [{ label: Msg.t('season.toNext', { icon: next.icon, season: next.name }), primary: true, onClick: () => welcomeSeason(next) }],
@@ -235,10 +238,7 @@
 
   // その季節の畑しごと（2〜3行。図鑑の季節バッジからも読み返せる）
   function seasonWork(s) {
-    if (!s.work) return null;
-    return h('div', { class: 'season-work' },
-      h('div', { class: 'season-work-title' }, Msg.t('season.work', { season: s.name })),
-      h('ul', {}, s.work.map((w) => h('li', {}, w))));
+    return Zukan.seasonWork(s);
   }
 
   // 1プレイが終わったら次のプレイへ（季節は畑で旬の野菜をぜんぶ収穫すると進む）

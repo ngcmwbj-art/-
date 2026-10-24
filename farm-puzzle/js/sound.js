@@ -13,11 +13,12 @@ const Sound = (() => {
     work:    [[520, 0, 0.1, 'sine', 640]],                                         // 畑の作業
     harvest: [[784, 0, 0.12, 'sine'], [988, 0.09, 0.12, 'sine'], [1175, 0.18, 0.22, 'sine']],
     ripen:   [[1047, 0, 0.25, 'sine'], [1319, 0.12, 0.3, 'sine']],                 // 実ったよ
+    fanfare: [[523, 0, 0.13, 'sine'], [659, 0.12, 0.13, 'sine'], [784, 0.24, 0.13, 'sine'], [1047, 0.36, 0.5, 'sine'], [659, 0.36, 0.5, 'triangle']],  // 季節をそろえた：ドミソド
     drop:    [[1600, 0.08, 0.09, 'sine', 700]],                                    // 💧を消した：ぽちゃん（ポンのすぐあとに1回）
     leaf:    [[260, 0.08, 0.07, 'triangle', 180], [300, 0.12, 0.05, 'triangle', 220]],  // 🍂を消した：カサッ
   };
   // 振動の長さ（ミリ秒）
-  const VIBES = { place: 8, clear: 25, harvest: [20, 40, 20] };
+  const VIBES = { place: 8, clear: 25, harvest: [20, 40, 20], fanfare: [20, 40, 20] };
   const VOLUME = 0.16;
 
   let settings = { sound: false, vibrate: true };
