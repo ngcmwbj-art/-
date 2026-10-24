@@ -14,7 +14,8 @@ function charaTex(){if(TEX.cshell)return;
   TEX.cshellN=normalTex(heightField(S,(u,v)=>fbm(u*10,v*10,5,10)*.7+Math.pow(fbm(u*40,v*40,2,40),2)*.3),S,6);
   TEX.cshell.repeat.set(2,2);TEX.cshellN.repeat.set(2,2)}
 function toon(col,o){o=o||{};charaTex();const m=new THREE.MeshPhysicalMaterial(Object.assign({color:col,map:TEX.cshell,roughness:.34,metalness:0,clearcoat:.9,clearcoatRoughness:.14,
-  sheen:.4,sheenColor:new THREE.Color('#ffe3c6'),sheenRoughness:.45,normalMap:TEX.cshellN,normalScale:new THREE.Vector2(.24,.24),clearcoatNormalMap:TEX.cshellN,clearcoatNormalScale:new THREE.Vector2(.12,.12),envMapIntensity:1.5},o));addCaustics(m,.7);return m}
+  sheen:.4,sheenColor:new THREE.Color('#ffe3c6'),sheenRoughness:.45,normalMap:TEX.cshellN,normalScale:new THREE.Vector2(.24,.24),clearcoatNormalMap:TEX.cshellN,clearcoatNormalScale:new THREE.Vector2(.12,.12),envMapIntensity:1.5},o));
+  m.userData.hq={cc:m.clearcoat,sh:m.sheen};if(qName==='eco'){m.clearcoat=0;m.sheen=0}addCaustics(m,.7);return m}
 function clothMat(col){
   if(!TEX.weaveN){const S=128;TEX.weaveN=normalTex(heightField(S,(u,v)=>{const a=Math.sin(u*TAU*24),b=Math.sin(v*TAU*24);return .5+.25*(Math.sin(v*TAU*24+(a>0?0:Math.PI))*.5+a*.5)*(.6+.4*Math.abs(b))+fbm(u*8,v*8,3,8)*.15}),S,3);TEX.weaveN.repeat.set(6,1)}
   const m=new THREE.MeshPhysicalMaterial({color:col,roughness:.88,clearcoat:0,sheen:1,sheenColor:new THREE.Color('#ffffff'),sheenRoughness:.75,normalMap:TEX.weaveN,normalScale:new THREE.Vector2(.5,.5),side:THREE.DoubleSide,envMapIntensity:.6});addCaustics(m,.5);return m}
@@ -118,6 +119,11 @@ function buildIsopod(opt){
   mk(vc(new THREE.SphereGeometry(1,20,12).scale(.15,.06,.07)),shellMat,head,[0,-.13,.48],null,.012); // clypeus
   [-1,1].forEach(s=>{
     const e=mk(new THREE.SphereGeometry(.135,32,24),eyeMat,head,[s*.24,.0,.43],null,.016,{keep:true});e.scale.set(1,1.05,.8);I.eyes.push(e);
+    // drowsy lid: the upper half of the eye, in shell colour, drooping forward
+    const lid=mk(vc(new THREE.SphereGeometry(.145,28,12,0,TAU,0,Math.PI*.5)),shellMat,e,null,[.5,0,0],0,{keep:true,noShadow:true});lid.visible=false;(I.lids=I.lids||[]).push(lid);
+    // smiling eye: a closed upside-down arc
+    const ac=new THREE.CatmullRomCurve3([0,1,2,3,4,5,6].map(i=>{const a=Math.PI*(.12+.76*i/6);return new V3(Math.cos(a)*.1,Math.sin(a)*.075-.03,-Math.abs(Math.cos(a))*.03)}));
+    const arc=mk(new THREE.TubeGeometry(ac,24,.017,8),new THREE.MeshStandardMaterial({color:'#1c0f0b',roughness:.5}),head,[s*.24,.0,.545],null,0,{keep:true,noShadow:true});arc.visible=false;(I.smileArcs=I.smileArcs||[]).push(arc);
     mk(new THREE.SphereGeometry(.036,14,10),white,e,[-.035,.05,.11],null,0,{keep:true,noShadow:true});
     mk(new THREE.SphereGeometry(.016,10,8),white,e,[.04,-.03,.115],null,0,{keep:true,noShadow:true});
     const bx=s*.36,by=-.12,bz=.54*Math.sqrt(Math.max(0,1-Math.pow(.36/.64,2)-Math.pow(.12/.5,2)));const nrm=new V3(bx/(.64*.64),by/(.5*.5),bz/(.54*.54)).normalize();const b=mk(new THREE.CircleGeometry(1,24).scale(.08,.05,1),blushMat,head,[bx+nrm.x*.012,by+nrm.y*.012,bz+nrm.z*.012],null,0,{keep:true,noShadow:true});b.lookAt(b.position.clone().add(nrm));b.renderOrder=2;
@@ -224,7 +230,10 @@ function poseIsopod(I,P,dt,time){
   // eyes: blink, close when asleep or curled, widen when startled
   I.nextBlink-=dt;if(I.nextBlink<0){I.blink=.14;I.nextBlink=2.2+rnd()*4}I.blink=Math.max(0,I.blink-dt);
   const close=Math.max(I.blink>0?1:0,sl,smooth(.5,.9,cu));const ey=lerp(1.05,.08,close)*(1+Math.min(1,P.startle)*.15);
-  I.eyes.forEach(e=>{e.scale.y=ey;e.scale.x=1+Math.min(1,P.startle)*.12});
+  const smile=smooth(.35,.75,P.smile||0)*(1-Math.min(1,P.startle))*(1-close),drowsy=smooth(.2,.8,P.drowsy||0)*(1-close)*(1-smile);
+  I.eyes.forEach(e=>{e.scale.y=lerp(ey,.001,smile)*(1-drowsy*.15);e.scale.x=1+Math.min(1,P.startle)*.12});
+  if(I.smileArcs){I.smileArcs.forEach(a=>{a.visible=smile>.5;a.scale.setScalar(.85+.15*smile)});I.eyes.forEach(e=>e.visible=smile<=.5)}
+  if(I.lids)I.lids.forEach(l=>{l.visible=drowsy>.05;l.rotation.x=lerp(-.5,.3,drowsy)});
   const shock=smooth(.15,.6,Math.min(1,P.startle));
   const mOpen=Math.max(P.talk>0?.25+Math.abs(Math.sin(time*13))*.75:0,P.eat?Math.abs(Math.sin(time*9))*.7:0,shock*1.15,.02);
   I.mouthOpen.scale.set(1+shock*.15,mOpen,1);

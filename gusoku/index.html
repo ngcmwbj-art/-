@@ -183,6 +183,12 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 .yuru .lt-paper{border-radius:16px;background-color:#fff4e0}
 #glowfx{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;background:radial-gradient(55% 45% at 50% 55%,rgba(255,236,180,.30),transparent 70%)}
 #glowfx.go{animation:glowfx 1.8s ease-out}
+.kp{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.kp-row{display:flex;align-items:center;gap:12px;font-size:13px}
+.kp-row>svg{flex:none}
+.kp-s{fill:rgba(143,211,255,.1);stroke:var(--glow);stroke-width:1.2;stroke-linecap:round}
+.kp-row.now .kp-s{fill:rgba(143,211,255,.28)}
+.kp-row .r{color:var(--dim);font-size:11.5px}
 .dpanel .og{display:flex;gap:6px;padding:2px 2px 8px;margin-bottom:6px;border-bottom:1px solid var(--line);color:#ffd9b0;font-size:12.5px}
 .dpanel .og.done{color:var(--dim)}
 @keyframes glowfx{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
@@ -471,7 +477,7 @@ body.kbd #tutchip{display:none}
 </div></div>
 <div class="modal" id="zukan" hidden><div class="sheet" role="dialog" aria-labelledby="zk-title">
   <header><h3 id="zk-title">図鑑</h3><button type="button" id="zk-close">閉じる</button></header>
-  <div class="zk-tabs" id="zk-tabs"><button type="button" data-t="items">宝物</button><button type="button" data-t="vis">来客</button><button type="button" data-t="morph">姿</button><button type="button" data-t="line">家系</button></div>
+  <div class="zk-tabs" id="zk-tabs"><button type="button" data-t="items">宝物</button><button type="button" data-t="vis">来客</button><button type="button" data-t="morph">姿</button><button type="button" data-t="shell">殻</button><button type="button" data-t="line">家系</button></div>
   <div id="zk-body"></div>
 </div></div>
 <div class="modal" id="uranai" hidden><div class="sheet ur" role="dialog" aria-labelledby="ur-title">
@@ -1748,7 +1754,7 @@ const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
       this.once('crack',3,()=>{Audio2.crack();this.cur=this.shed([0,1,2,3,4]);this.cur.dir=fwd.clone();
         say('（今度は前半分。頭の殻が割れ、眼の表面や触角、口の部品まで、古い殻ごと脱ぎ捨てていく）',{narr:true})});
       if(this.cur){if(t<20){this.slide(this.cur,dt,this.cur.dir,2.1*C.size);C.pos.addScaledVector(fwd,-dt*.02*C.size);C.walk-=dt*2}else this.settle(this.cur,dt)}
-      this.once('grow',20,()=>{S.molts++;ev('molt',S.molts);S.stage=stageOf(S.molts);S.lastMolt=Date.now();S.fedSinceMolt=0;C.sizeT=sizeOf(S.molts);remember('脱皮'+S.molts+'回目：飼育'+dayNo()+'日目（体長約'+MMS[S.molts]+'mm）');save();refreshHUD()});
+      this.once('grow',20,()=>{S.molts++;ev('molt',S.molts);Keep.add();S.stage=stageOf(S.molts);S.lastMolt=Date.now();S.fedSinceMolt=0;C.sizeT=sizeOf(S.molts);remember('脱皮'+S.molts+'回目：飼育'+dayNo()+'日目（体長約'+MMS[S.molts]+'mm）');save();refreshHUD()});
       if(t>=20){I.joints[5].scale.setScalar(damp(I.joints[5].scale.x,1,.35,dt));I.calcMat.opacity=.92*(1-smooth(20,26,t))}
       if(t>this.T.ant){this.phase='soft';this.t=0;this.fired={};I.calc.forEach(c=>c.visible=false);I.shellMat.roughness=.36;I.shellMat.clearcoat=.85;C.curlT=0;
         say('（脱皮完了。新しい殻はまだ柔らかく、白っぽい。水を吸って一回り大きくなった。硬くなるまで数日かかる）',{narr:true})}
@@ -2983,6 +2989,7 @@ const Zukan={tabK:'items',
     }else if(this.tabK==='morph'){
       sum('見つけた姿　'+Object.keys(c.morphs).length+' / '+Object.keys(MORPHS).length+'　・　脱皮のたびに、それまでの育ち方で姿が決まります。');
       Object.entries(MORPHS).forEach(([k,M])=>grid.appendChild(c.morphs[k]?this.card('<b>'+M.n+(S.morph===k||(!S.morph&&k==='std')?'　<span class="r">いまの姿</span>':'')+'</b><span>'+M.d+'</span>'):this.card('<b>？？？</b><span>'+M.hint+'</span>','unk')));
+    }else if(this.tabK==='shell'){Keep.render(B,sum)
     }else{
       let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}
       sum('グソクの家系　'+(gr.length+1)+'代');
@@ -3654,6 +3661,64 @@ $('m-mate').addEventListener('click',e=>{e.stopPropagation();$('mate-sub').hidde
 $('m-name').addEventListener('click',()=>{closePops();$('set-name').click()});
 $('btn-more').addEventListener('click',()=>{$('mate-sub').hidden=true;MenuGrid.sync()});
 
+/* =====================================================================
+   ENERGY SAVER — no setting needed. While nobody touches the screen the tank is drawn
+   with fewer frames; any touch brings full smoothness back at once. Never in photo mode.
+   ===================================================================== */
+const Eco={last:performance.now(),slow:false,
+  touch(){this.last=performance.now()},
+  cap(now){
+    const base=IdleTank.on?24:Q.fps;
+    if(Photo.on||Hashi.on||Nade.on||Cine.on||Dream.on||!started){this.slow=false;return base}
+    const idle=(now-this.last)/1000,c=idle>180?15:idle>45?20:base;this.slow=c<base;return Math.min(base,c)
+  }
+};
+['pointerdown','pointermove','keydown','input','wheel','touchstart'].forEach(e=>addEventListener(e,()=>Eco.touch(),{passive:true,capture:true}));
+document.addEventListener('visibilitychange',()=>Eco.touch());
+// 省電力 quality: グソっ君's clear-coat and sheen are switched off (heat), restored on other settings
+{const f=applyQuality;applyQuality=function(){f.apply(this,arguments);Eco.gloss()}}
+Eco.gloss=function(){if(!ISO||!ISO.chara)return;const eco=qName==='eco';ISO.root.traverse(o=>{const m=o.material;if(!m||!m.isMeshPhysicalMaterial||!m.userData.hq)return;
+  const cc=eco?0:m.userData.hq.cc,sh=eco?0:m.userData.hq.sh;if((m.clearcoat>0)!==(cc>0)||(m.sheen>0)!==(sh>0))m.needsUpdate=true;m.clearcoat=cc;m.sheen=sh})};
+
+/* =====================================================================
+   FACES — グソっ君 narrows its eyes into a smile when happy, and gets heavy lids when drowsy.
+   ===================================================================== */
+const Expr={smileT:0,sleepyT:0,
+  set(emo,dur){if(emo==='happy'||emo==='proud')this.smileT=Math.max(this.smileT,dur);else if(emo==='sleepy')this.sleepyT=Math.max(this.sleepyT,dur);else if(emo==='annoyed'||emo==='scared'||emo==='sad')this.smileT=0},
+  post(dt){
+    this.smileT=Math.max(0,this.smileT-dt);this.sleepyT=Math.max(0,this.sleepyT-dt);
+    const sm=this.smileT>0||(Kibun.v>.75&&C.state==='idle'&&Math.sin(performance.now()/4000)>.85)?1:0;
+    const h=new Date().getHours(),late=(h>=22||h<6)&&!Life.asleep;
+    const dr=this.sleepyT>0||late||(S&&S.health<40&&!Life.dead)?1:0;
+    C.smile=damp(C.smile||0,sm,6,dt);C.drowsy=damp(C.drowsy||0,dr,3,dt);
+  }
+};
+{const f=speak;speak=function(text,emo){const r=f.apply(this,arguments);Expr.set(emo,2.2+String(text).length*.09);return r}}
+{const f=updateCreature;updateCreature=function(dt,time){Expr.post(dt);f(dt,time)}}
+
+/* =====================================================================
+   KEEPSAKE SHELLS — every moult leaves a record of the old shell's size in the 図鑑,
+   so the shells can be lined up and compared (the creature still eats the real one).
+   ===================================================================== */
+const Keep={
+  list(){if(!S)return[];if(!Array.isArray(S.shells))S.shells=[];
+    for(let n=1;n<=(S.molts||0);n++)if(!S.shells.some(x=>x.n===n))S.shells.push({n,mm:MMS[n-1],d:null});
+    S.shells.sort((a,b)=>a.n-b.n);return S.shells},
+  add(){const L=this.list(),n=S.molts;const x=L.find(s=>s.n===n);if(x)x.d=x.d||dkey();save();
+    if(!S.keepHint){S.keepHint=1;save();setTimeout(()=>{if(!Life.dead)say('（脱いだ殻の大きさを、図鑑の「殻」に記念として残しました）',{narr:true})},26000)}},
+  svg(mm,max){const w=Math.round(22+96*mm/max),h=Math.round(w*.62),seg=[];for(let i=1;i<7;i++){const x=(w*(.2+i*.1)).toFixed(1);seg.push('<path d="M'+x+' '+(h*.1).toFixed(1)+'Q'+(+x+3)+' '+(h/2).toFixed(1)+' '+x+' '+(h*.9).toFixed(1)+'"/>')}
+    return '<svg class="kp-s" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><ellipse cx="'+(w/2)+'" cy="'+(h/2)+'" rx="'+(w/2-1.5)+'" ry="'+(h/2-1.5)+'"/>'+seg.join('')+'</svg>'},
+  render(B,sum){const L=this.list();
+    if(!L.length){sum('まだ脱皮していません。脱皮すると、脱いだ殻の大きさがここに残ります。');return}
+    const max=Math.max(MMS[S.molts||0],...L.map(x=>x.mm));
+    sum('脱いだ殻　'+L.length+'枚　・　いまの体長 '+MMS[S.molts||0]+'mm');
+    const wrap=document.createElement('div');wrap.className='kp';
+    L.forEach(x=>{const d=document.createElement('div');d.className='kp-row';
+      d.innerHTML=this.svg(x.mm,max)+'<span><b>'+x.n+'回目の殻</b>　'+x.mm+'mm'+(x.d?'<br><span class="r">'+x.d.replace(/^\d+-0?(\d+)-0?(\d+)$/,'$1月$2日')+'</span>':'')+'</span>';wrap.appendChild(d)});
+    const now=document.createElement('div');now.className='kp-row now';now.innerHTML=this.svg(MMS[S.molts||0],max)+'<span><b>いまの'+Zukan.esc(gname())+'</b>　'+MMS[S.molts||0]+'mm</span>';wrap.appendChild(now);
+    B.appendChild(wrap)}
+};
+
 let started=false;
 function boot(){
   load();
@@ -3682,11 +3747,11 @@ let last=performance.now(),acc=0,hudT=0,idleT=0,nextIdle=45;
 let lastDraw=0;
 function loop(now){
   requestAnimationFrame(loop);
-  const capF=IdleTank.on?24:Q.fps;if(capF<60&&now-lastDraw<1000/capF-3)return;
+  const capF=Eco.cap(now);if(capF<60&&now-lastDraw<1000/capF-3)return;
   const frameMs=now-lastDraw;lastDraw=now;
   const dt=Math.min(.05,(now-last)/1000);last=now;const time=now/1000;
-  if(frameMs<250)adaptRes(frameMs);
-  perf.frame++;if(Q.shadowEvery&&perf.frame%Q.shadowEvery===0)renderer.shadowMap.needsUpdate=true;
+  if(frameMs<250&&!Eco.slow)adaptRes(frameMs);
+  perf.frame++;if(Q.shadowEvery&&perf.frame%(Q.shadowEvery*(Eco.slow?2:1))===0)renderer.shadowMap.needsUpdate=true;
   U.time.value=time;grade.uniforms.uTime.value=time;grade.uniforms.uShock.value=Math.max(0,grade.uniforms.uShock.value-dt*3);
   updateLights(dt);
   if(Molt.phase)Molt.update(dt,time);
@@ -3863,7 +3928,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
