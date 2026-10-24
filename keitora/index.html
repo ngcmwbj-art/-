@@ -1048,6 +1048,7 @@ canvas { display: block; width: 100%; height: 100%; }
     if (state === 'play') { jumpBuf = 0.12; holding = true; }
     else if (state === 'title') start();
     else if (state === 'over' && dieT > 0.7) start();
+    else if (state === 'dying') { slowT = 0; dieT += 0.5; }   // スローを飛ばして、早く結果へ
   }
   function release() {
     holding = false;
@@ -1120,6 +1121,8 @@ canvas { display: block; width: 100%; height: 100%; }
     rk.rival = null;
     pace = [0];
     react = { kind: '', t: 0, dur: 1 };
+    jig = jigV = 0;
+    slowT = 0;
     state = 'play';
     paused = false;
     titleEl.hidden = true;
@@ -1177,10 +1180,12 @@ canvas { display: block; width: 100%; height: 100%; }
     flat: ['タイヤがパンクした!', 'ボコボコ道に 3 回乗り上げた'],
     wall: ['あぜに激突!', '段差を登りきれなかった…'],
   };
+  let slowT = 0;                    // やられた直後のスローの残り時間（ゲームの時間で）
   function die(kind) {
     if (state !== 'play') return;
     state = 'dying';
     dieT = 0;
+    slowT = reduceMotion ? 0 : 1;
     truck.dead = true;
     truck.deathKind = kind;
     pauseBtn.hidden = true;
@@ -1244,6 +1249,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   // ---- 更新 ----
   function update(dt) {
+    if (state === 'dying' && slowT > 0) { slowT -= dt; dt *= 0.35; }   // やられた瞬間をゆっくり見せる
     const tx = state === 'title' ? 560 : TRUCK_X;
     truckX += (tx - truckX) * Math.min(1, dt * (reduceMotion ? 60 : 5));
     if (state === 'title') { cam += 70 * dt; wheelA += 70 * dt / 11; updateParts(dt); return; }
@@ -1259,6 +1265,7 @@ canvas { display: block; width: 100%; height: 100%; }
     if (state === 'play') {
       runTime += dt;
       if (react.t > 0) react.t -= dt;
+      updateCargo(dt);
       speed = cruise(meters());
       generate();
       const m = meters();
@@ -1397,6 +1404,7 @@ canvas { display: block; width: 100%; height: 100%; }
           if (Math.random() < clamp((hit - 600) / 400, 0, 0.95)) loseTomato(hit > 900 ? 2 : 1, `ドスン! ${cargo.unit}が落ちた`);
           sfx('land');
           truck.squash = 1;
+          shakeCargo(Math.min(260, hit * 0.2));
           emit(8, cam + TRUCK_X + 20, supportY(), { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
         }
         truck.y = supportY(); truck.vy = 0;
@@ -1413,6 +1421,7 @@ canvas { display: block; width: 100%; height: 100%; }
           bo.hit = true;
           bumpHits++;
           stats.slows++;
+          shakeCargo(140);
           tireFlash = 1;
           sfx('clunk');
           if (bumpHits >= BUMP_LIMIT) die('flat');
@@ -1840,6 +1849,19 @@ canvas { display: block; width: 100%; height: 100%; }
       const x = i * poleGap - pOff;
       ctx.fillRect(x - 2, 188, 4, 70);
       ctx.fillRect(x - 10, 194, 20, 3);
+    }
+    if (env.night > 0.25) {
+      const a = clamp((env.night - 0.25) / 0.5, 0, 1);
+      for (let i = -1; i < 4; i++) {
+        const x = i * poleGap - pOff + 8;
+        const g = ctx.createRadialGradient(x, 200, 0, x, 200, 26);
+        g.addColorStop(0, `rgba(255,232,170,${0.85 * a})`);
+        g.addColorStop(1, 'rgba(255,220,150,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, 200, 26, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(255,246,210,${a})`;
+        ctx.beginPath(); ctx.arc(x, 200, 2.6, 0, Math.PI * 2); ctx.fill();
+      }
     }
     if (env.harvest > 0.02) drawHarvest();
   }
@@ -2522,19 +2544,41 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillText(text, x, gy - 44 - 9);
   }
   // 注意の看板（ボコボコ道・水たまり）：黄色い板に太い字
-  function drawWarnSign(x, gy, text, bg, fg) {
+  // 危なさのきまり：'stop'＝落ちたら・当たったら終わり（赤に白い ×）、'slow'＝遅くなるだけ（黄に黒い ！）
+  const DANGER = { stop: { bg: '#d8452e', fg: '#ffffff', mark: '×' }, slow: { bg: '#f2c230', fg: '#2a1d08', mark: '！' } };
+  function drawWarnSign(x, gy, text, kind) {
+    const d = DANGER[kind];
     ctx.font = 'bold 15px ' + FONT;
-    const bw = Math.ceil(ctx.measureText(text).width) + 16, bh = 24;
+    const tw = Math.ceil(ctx.measureText(text).width);
+    const bh = 26, mw = 24, bw = mw + tw + 14;
     ctx.fillStyle = '#6a4b2a';
     ctx.fillRect(x - 2, gy - 40, 4, 40);
     ctx.fillStyle = '#3a2a14';
     ctx.fillRect(x - bw / 2 - 2, gy - 40 - bh - 2, bw + 4, bh + 4);
-    ctx.fillStyle = bg;
+    ctx.fillStyle = d.bg;
     ctx.fillRect(x - bw / 2, gy - 40 - bh, bw, bh);
-    ctx.fillStyle = fg;
+    // 左に大きな記号（字が読めない子や、色が分かりにくい人にも伝わるように）
+    ctx.fillStyle = d.fg;
+    ctx.font = 'bold 22px ' + FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(text, x, gy - 40 - 7);
+    ctx.fillText(d.mark, x - bw / 2 + 4 + mw / 2, gy - 40 - 5);
+    ctx.font = 'bold 15px ' + FONT;
+    ctx.fillText(text, x - bw / 2 + mw + 6 + tw / 2, gy - 40 - 8);
+  }
+  // 泥の穴の縁の紅白の杭（2D の絵。3D では立体の杭を立てるので描かない）
+  function drawPitStakes(sx, w) {
+    for (const px of [sx - 4, sx + w + 4]) {
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = i % 2 ? '#ffffff' : '#d8452e';
+        ctx.fillRect(px - 2.5, GROUND - 34 + i * 7, 5, 7);
+      }
+    }
+    ctx.strokeStyle = '#d8452e';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(sx - 4, GROUND - 30); ctx.quadraticCurveTo(sx + w / 2, GROUND - 18, sx + w + 4, GROUND - 30); ctx.stroke();
+    ctx.setLineDash([]);
   }
   // トマト畑の直売所（道の奥）
   function drawStand(sx) {
@@ -2595,11 +2639,15 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawHazard(o, sx) {
     {
       if (o.t === 'puddle') {
-        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '水たまり', '#7fc4ec', '#123a5a');
+        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '水たまり', 'slow');
         if (sx > W || sx + o.w < 0 || r3.drawing) return;
         drawPuddle(sx, o.w);
+      } else if (o.t === 'gap') {
+        if (sx - 46 > -80 && sx - 46 < W + 40) drawWarnSign(sx - 46, GROUND, '穴', 'stop');
+        if (!r3.drawing && sx < W + 20 && sx + o.w > -20) drawPitStakes(sx, o.w);
       } else if (o.t === 'cow') {
         if (sx > W + 60 || sx < -80) return;
+        if (!o.hit && sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '牛', 'slow');
         drawCow(sx, GROUND, o);
       } else if (o.t === 'pick') {
         if (o.taken || sx > W + 10 || sx < -20) return;
@@ -2614,7 +2662,7 @@ canvas { display: block; width: 100%; height: 100%; }
       } else if (o.t === 'bump') {
         if (sx > W || sx + o.w < 0) return;
         if (!r3.drawing) drawBumps(sx, o.w, o.seed);
-        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '悪路 注意', '#f2c230', '#2a1d08');
+        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '悪路', 'slow');
       }
     }
   }
@@ -2666,10 +2714,14 @@ canvas { display: block; width: 100%; height: 100%; }
       if (!onScreen || blink) {
         ctx.save();
         ctx.translate(x, y);
-        ctx.fillStyle = hi ? '#e2543a' : '#f2b33d';
+        ctx.fillStyle = DANGER.stop.bg;            // 段差の壁は当たれば終わり → 赤
         ctx.strokeStyle = '#fffbea';
         ctx.lineWidth = 3;
         ctx.beginPath(); ctx.roundRect(-34, -24, 68, 42, 8); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fffbea';
+        ctx.font = bold(12);
+        ctx.textAlign = 'center';
+        ctx.fillText('×', 26, -12);
         // 上向きの矢印（石垣は2本＝2段ジャンプ）
         ctx.fillStyle = '#fffbea';
         const arrows = hi ? [-8, 8] : [0];
@@ -2716,16 +2768,17 @@ canvas { display: block; width: 100%; height: 100%; }
     {
       if (o.state === 'warn') {
         if (Math.floor(o.wt * 10) % 2 === 0) {
-          ctx.fillStyle = '#e2543a';
+          // 当たれば終わり → 赤に白い ×。下にイノシシと書く
+          ctx.fillStyle = DANGER.stop.bg;
           ctx.strokeStyle = '#fffbea';
           ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(W - 36, GROUND - 76); ctx.lineTo(W - 8, GROUND - 26); ctx.lineTo(W - 64, GROUND - 26);
-          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.roundRect(W - 70, GROUND - 82, 60, 56, 10); ctx.fill(); ctx.stroke();
           ctx.fillStyle = '#fffbea';
-          ctx.font = bold(28);
+          ctx.font = bold(30);
           ctx.textAlign = 'center';
-          ctx.fillText('!', W - 36, GROUND - 32);
+          ctx.fillText('×', W - 40, GROUND - 46);
+          ctx.font = bold(11);
+          ctx.fillText('イノシシ', W - 40, GROUND - 32);
         }
       } else if (o.state === 'run' || o.state === 'hit') {
         const sx = o.px - cam;
@@ -2845,16 +2898,25 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(26, -49, 18, 3);
   }
   const CALF_HAY = TOMATOES.map((p, i) => i).filter(i => TOMATOES[i][0] <= 21);
-  function drawTomatoes(n) {
+  let jig = 0, jigV = 0;            // 荷台の積み荷の揺れ（px。正は押しつぶされる向き）
+  function shakeCargo(v) { jigV += v; }
+  function updateCargo(dt) {
+    jigV += (-150 * jig - 8 * jigV) * dt;
+    jig = clamp(jig + jigV * dt, -9, 6);
+  }
+  function drawTomatoes(n, jg = 0) {
     if (cargo.id === 'calf') {
       const k = Math.ceil(n * CALF_HAY.length / TOMATO_MAX);
-      for (let j = 0; j < k; j++) { const [x, y] = TOMATOES[CALF_HAY[j]]; drawItem('hay', x, y, j); }
+      for (let j = 0; j < k; j++) { const [x, y] = TOMATOES[CALF_HAY[j]]; drawItem('hay', x, y + jg * 0.6, j); }
       drawCalf();
       return;
     }
     for (let i = 0; i < n; i++) {
       const [x, y] = TOMATOES[i];
-      drawItem(cargo.id, x, y, i);
+      // 上の段ほど大きく揺れる。跳ね上がったときは少しずつずれて、落ちそうに見える
+      const lvl = (-y - 37) / 8;
+      const dy = jg * (0.35 + lvl * 0.45), dx = jg < 0 ? Math.sin(i * 2.1) * -jg * 0.25 : 0;
+      drawItem(cargo.id, x + dx, y + dy, i);
     }
   }
 
@@ -2864,6 +2926,7 @@ canvas { display: block; width: 100%; height: 100%; }
       wob: slip > 0 ? Math.sin(runTime * 32) : 0, squash: truck.squash, dent: truck.dent, flat: truck.flat,
       load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling && !r3.drawing, gy: state === 'title' ? GROUND : supportY(),
       driver: driverPose(),
+      jig: truck.falling ? 0 : jig,
     };
   }
   // 落ちている積み荷の上を通ると1個積み戻す（高く跳んでいると取れない。音は鳴らさない）
@@ -2920,7 +2983,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const { dent: d, flat, load } = sp;
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(4, -16, 90, 7);
-    drawTomatoes(load);
+    drawTomatoes(load, sp.jig || 0);
     // 荷台
     ctx.fillStyle = '#eef0f0';
     ctx.fillRect(2, -32, 58, 17);
@@ -3547,6 +3610,29 @@ canvas { display: block; width: 100%; height: 100%; }
     t.wrapS = t.wrapT = T.RepeatWrapping;
     return t;
   }
+  // 紅白のしま（杭）
+  function stripeTex(T) {
+    const c = document.createElement('canvas');
+    c.width = 2; c.height = 8;
+    const g = c.getContext('2d');
+    for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#d8452e'; g.fillRect(0, i * 2, 2, 2); }
+    return pixelTex(T, c);
+  }
+  // ぼんやり丸い光（街灯の光のにじみと、道に落ちる光の輪）
+  function glowTex(T) {
+    if (r3.glowTex) return r3.glowTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,236,180,1)');
+    gr.addColorStop(0.35, 'rgba(255,214,140,.55)');
+    gr.addColorStop(1, 'rgba(255,200,120,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+    r3.glowTex = new T.CanvasTexture(c);
+    return r3.glowTex;
+  }
   // 水たまり：空を映した青に、ゆらゆら流れる白い光のすじ
   function puddleTex(T) {
     const c = document.createElement('canvas');
@@ -3594,6 +3680,11 @@ canvas { display: block; width: 100%; height: 100%; }
       puddle: new T.MeshPhongMaterial({ map: puddleTex(T), color: 0xffffff, emissive: 0x1d4a6e, shininess: 120, specular: 0xaaccee }),
       puddleRim: L({ color: 0x5c4630 }),
       bump: L({ color: 0x6b4e30 }),
+      stake: L({ map: stripeTex(T) }),
+      rope: new T.LineBasicMaterial({ color: 0xd8452e }),
+      bulb: new T.MeshBasicMaterial({ color: 0xffe2a0, transparent: true, opacity: 0, fog: false }),
+      glow: new T.MeshBasicMaterial({ map: glowTex(T), transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending, fog: false }),
+      pool: new T.MeshBasicMaterial({ map: glowTex(T), color: 0xffd88a, transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending }),
       bumpLight: L({ color: 0x9a7a4e }),
       rut: L({ color: 0x7a5a36 }),
       rice: L({ color: 0x86c45a, side: T.DoubleSide }),
@@ -3776,6 +3867,18 @@ canvas { display: block; width: 100%; height: 100%; }
       for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push(new T.Vector3((x + POLE * t) * M, gy + 7.3 - Math.sin(t * Math.PI) * 0.7, -6)); }
       const wire = new T.Line(new T.BufferGeometry().setFromPoints(pts), mt.wire);
       group.add(pole, arm, wire);
+      // 夜だけ灯る街灯（電柱から道の方へ腕を伸ばした裸電球）
+      const lampArm = new T.Mesh(new T.BoxGeometry(0.08, 0.08, 3.4), mt.pole);
+      lampArm.position.set(x * M, gy + 5.6, -4.3);
+      const bulb = new T.Mesh(new T.SphereGeometry(0.16, 8, 6), mt.bulb);
+      bulb.position.set(x * M, gy + 5.4, -2.6);
+      const glow = new T.Mesh(new T.PlaneGeometry(3.2, 3.2), mt.glow);
+      glow.position.set(x * M, gy + 5.4, -2.5);
+      const pool = new T.Mesh(new T.PlaneGeometry(7, 4.4), mt.pool);
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(x * M, levelAt(x) * M + 0.04, -0.4);
+      for (const o of [bulb, glow, pool]) o.userData.lamp = true;
+      group.add(lampArm, bulb, glow, pool);
     }
     // 飾り（ドット絵の板）：カモ・はさ掛け・コンバイン・稲束を運ぶ人・トマト畑の小屋
     addDecor(T, group, a, b);
@@ -3802,6 +3905,21 @@ canvas { display: block; width: 100%; height: 100%; }
     wat.rotation.x = -Math.PI / 2;
     wat.position.set(X + w * M / 2, top - FIELD_DROP, 0);
     g.add(ex, wat);
+    // 紅白の杭（両端・道の手前と奥）と、それをつなぐ赤いロープ：遠くからでも「ここは穴」と分かる
+    const stakeGeo = new T.CylinderGeometry(0.07, 0.07, 1.5, 6);
+    for (const sx of [X - 0.15, X + w * M + 0.15]) {
+      for (const sz of [ROAD_D + 0.15, -ROAD_D - 0.15]) {
+        const st = new T.Mesh(stakeGeo, r3.mat.stake);
+        st.position.set(sx, top + 0.75, sz);
+        st.castShadow = true;
+        g.add(st);
+      }
+    }
+    for (const sz of [ROAD_D + 0.15, -ROAD_D - 0.15]) {
+      const pts = [];
+      for (let i = 0; i <= 10; i++) { const t = i / 10; pts.push(new T.Vector3(X - 0.15 + (w * M + 0.3) * t, top + 1.25 - Math.sin(t * Math.PI) * 0.35, sz)); }
+      g.add(new T.Line(new T.BufferGeometry().setFromPoints(pts), r3.mat.rope));
+    }
     return g;
   }
   // 稲：細い葉を 3 枚組み合わせた株を、手前と奥の田んぼに並べる（1 つの命令でまとめて描く）
@@ -3918,8 +4036,8 @@ canvas { display: block; width: 100%; height: 100%; }
         '  vec3 sharp = texture2D(s, vUv).rgb; vec3 bl = texture2D(b, vUv).rgb;',
         '  float z = -viewZ(texture2D(dep, vUv).x);',
         '  float coc = smoothstep(sharpR, sharpR + blurR, abs(z - focus));',
-        '  coc = max(coc, smoothstep(sharpR * 0.6, sharpR * 0.6 + blurR * 0.45, focus - z));',
-        '  vec3 c = mix(sharp, bl, coc);',
+        '  coc = max(coc, smoothstep(sharpR * 0.8, sharpR * 0.8 + blurR * 0.6, focus - z));',
+        '  vec3 c = mix(sharp, bl, coc * 0.75);',
         '  float l = dot(bl, vec3(0.299, 0.587, 0.114));',
         '  c += bl * max(l - 0.84, 0.0) * (0.8 + night * 3.6);',
         '  c = mix(c, sqrt(max(c, 0.0)), night * 0.4);',
@@ -3928,7 +4046,7 @@ canvas { display: block; width: 100%; height: 100%; }
         '  vec2 q = (vUv - 0.5) * vec2(1.0, 0.85); c *= 1.0 - 0.34 * pow(clamp(length(q) * 1.35, 0.0, 1.0), 2.4);',
         '  gl_FragColor = vec4(c, 1.0);',
         '}'].join('\n'),
-        { s: { value: null }, b: { value: null }, dep: { value: null }, cn: { value: 1 }, cf: { value: 1200 }, focus: { value: 38 }, sharpR: { value: 5 }, blurR: { value: 30 }, night: { value: 0 } }),
+        { s: { value: null }, b: { value: null }, dep: { value: null }, cn: { value: 1 }, cf: { value: 1200 }, focus: { value: 38 }, sharpR: { value: 10 }, blurR: { value: 70 }, night: { value: 0 } }),
     };
     r3.quadScene = new T.Scene();
     r3.quadCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -4068,6 +4186,8 @@ canvas { display: block; width: 100%; height: 100%; }
     mt.water.color.lerp(new T.Color('#5b7f98'), n * 0.6);            // 夜の田んぼは月明かりで少し明るく
     mt.puddle.emissive.set(0x1d4a6e).lerp(new T.Color('#3a78b0'), n);  // 水たまりは夜もはっきり
     mt.puddle.map.offset.x = (clock * 0.06) % 1;
+    const lamp = clamp((n - 0.25) / 0.5, 0, 1);
+    mt.bulb.opacity = lamp; mt.glow.opacity = lamp * 0.9; mt.pool.opacity = lamp * 0.55;
     col(mt.rice.color, env.rice);
     col(mt.plain.color, env.field);
     col(mt.mtnNear.color, env.mtnNear);
@@ -4096,6 +4216,7 @@ canvas { display: block; width: 100%; height: 100%; }
         if (o.userData.rice) o.scale.y = riceH;
         if (o.userData.kind === 'duck') o.visible = env.duck > 0.3;
         if (o.userData.kind === 'harvest') o.visible = env.harvest > 0.3;
+        if (o.userData.lamp) o.visible = lamp > 0.01;
       });
     }
     const tint = new T.Color(1, 1, 1).lerp(new T.Color('#8a96c0'), n * 0.7);
@@ -4136,7 +4257,7 @@ canvas { display: block; width: 100%; height: 100%; }
     runPass(P.down, r3.half);
     P.down.uniforms.t.value = r3.half.texture; P.down.uniforms.px.value.set(1 / r3.half.width, 1 / r3.half.height);
     runPass(P.down, r3.qa);
-    for (const k of [1, 2.2]) {
+    for (const k of [1, 1.6]) {
       P.blur.uniforms.t.value = r3.qa.texture; P.blur.uniforms.dir.value.set(k / r3.qa.width, 0);
       runPass(P.blur, r3.qb);
       P.blur.uniforms.t.value = r3.qb.texture; P.blur.uniforms.dir.value.set(0, k / r3.qa.height);
