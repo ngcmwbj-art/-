@@ -215,6 +215,8 @@ img { -webkit-user-drag: none; }
 .plot small { position: absolute; bottom: 2px; right: 5px; font-size: 11px; color: #f0dca8; font-weight: 700; text-shadow: 0 1px 2px #000; }
 .plot .crop-name { position: absolute; top: 2px; left: 5px; font-size: 10px; color: var(--panel-text-soft); text-shadow: 0 1px 2px #000; }
 .plot.empty small { left: 0; right: 0; text-align: center; bottom: auto; color: rgba(233, 223, 198, .35); font-weight: 500; }
+.plot.ripe, .barn.ripe { cursor: pointer; }
+.plot.ripe small, .barn.ripe small { color: var(--gold); }
 .plot.ripe { box-shadow: inset 0 4px 6px rgba(0, 0, 0, .3), 0 0 0 1px var(--gold), 0 0 12px rgba(240, 190, 90, .6); }
 .pulse-plant, .pulse-grow { animation: pulse .5s ease; }
 .pulse-harvest { animation: harvested .6s ease; }
@@ -226,7 +228,7 @@ img { -webkit-user-drag: none; }
 .field-row .field[hidden] + .harvest-btn { display: none; }
 .harvest-btn {
   flex: none; width: clamp(56px, 15vw, 92px); align-self: flex-end; height: clamp(46px, 7.5vh, 76px);
-  font-family: var(--mincho); font-weight: 800; font-size: 15px; letter-spacing: .1em; color: var(--panel-text-soft);
+  font-family: var(--mincho); font-weight: 800; font-size: 13px; letter-spacing: .05em; color: var(--panel-text-soft);
   background: rgba(20, 18, 14, .75); border: 1px solid var(--panel-line); border-radius: 3px; line-height: 1.2;
 }
 .harvest-btn:disabled { opacity: .45; }

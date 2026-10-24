@@ -92,7 +92,7 @@ FR.BattleView = {
       const ripe = FR.Battle.isRipe(p);
       let label;
       if (p.tree) label = mature ? `実 ${p.fruits}/${p.maxFruits}` : `${p.growth}/${p.stages}`;
-      else label = mature ? '実った' : `${p.growth}/${p.stages}`;
+      else label = mature ? '収穫できる' : `${p.growth}/${p.stages}`;
       return `<div class="plot ${ripe ? 'ripe' : ''} ${p.tree ? 'tree' : ''}" data-plot="${i}">
         ${FR.Art.img(mature ? c.art.ripe : c.art.growing, '', c.name)}
         <span class="crop-name">${E(c.name)}</span>
@@ -117,8 +117,8 @@ FR.BattleView = {
     const canH = FR.Battle.canHarvestNow(b) && !FR.HandInput.locked;
     const hb = $('b-harvest');
     hb.disabled = !canH;
-    hb.textContent = b.plots.length ? '収穫' : '出荷';
-    hb.title = b.plots.length && b.barns.length ? '実った作物と、出荷できる家畜をすべて取る' : '';
+    hb.innerHTML = 'まとめて<br>' + (b.plots.length ? '収穫' : '出荷');
+    hb.title = '実った作物・木の実・出荷できる家畜をすべて取る（1つずつ選ぶときは区画や畜舎をタップ）';
 
     // 下：エネルギー・山札・捨て札・ターン終了
     $('b-energy').innerHTML = `<b>${b.energy}</b><small>/${FR.Config.energy}</small>`;

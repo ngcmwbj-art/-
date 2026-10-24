@@ -315,51 +315,61 @@ FR.Battle = {
   // 実った作物と、木の実をすべて収穫する。early なら1段以上育った野菜も（半分の値・効果なし）
   harvestAll(b, early) {
     let count = 0;
-    const st = b.statuses;
-    let pickedFruit = false;
-    b.plots.forEach((p, i) => {
-      if (!p || b.over) return;
-      const c = FR.Crops[p.crop];
-      if (p.tree) {
-        if (p.fruits <= 0) return;
-        const n = p.fruits;
-        p.fruits = 0;
-        pickedFruit = true;
-        const times = st.bigFruit > 0 ? 2 : 1;
-        const ripen = st.ripening || 0;
-        b.fx.push({ kind: 'harvest', plot: i, text: `${c.name}を${n}つ摘んだ` });
-        for (let k = 0; k < n && !b.over; k++) {
-          count++;
-          b.run.stats.harvest += c.fruitYield;
-          FR.Battle.gainGold(b, c.fruitGold + ripen * 3);
-          if (ripen) FR.Battle.gainBlock(b, ripen * 2);
-          for (let t = 0; t < times; t++) FR.Effects.run(b, c.onPick);
-          FR.Effects.relicHook(b, 'pick');
-        }
-        return;
-      }
-      if (p.growth >= p.stages) {
-        b.plots[i] = null;
-        count++;
-        b.run.stats.harvest += c.yield;
-        b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を収穫' });
-        FR.Battle.gainGold(b, c.gold);
-        FR.Effects.run(b, c.onHarvest);
-        FR.Effects.relicHook(b, 'harvest');
-      } else if (early && p.growth >= 1) {
-        b.plots[i] = null;
-        count++;
-        b.run.stats.harvest += Math.floor(c.yield / 2);
-        b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を早どり' });
-        FR.Battle.gainGold(b, Math.floor(c.gold / 2));
-        FR.Effects.relicHook(b, 'harvest');
-      }
-    });
-    if (pickedFruit) st.bigFruit = 0;
+    b.plots.forEach((p, i) => { if (!b.over) count += FR.Battle.harvestPlot(b, i, early); });
     b.lastHarvested = count;
   },
 
-  // 収穫ボタン：自分のターンならいつでも、エネルギーを使わずに、実った作物・木の実・出荷できる家畜をすべて取る
+  // 区画1つを収穫する。収穫した数（木なら摘んだ実の数）を返す
+  harvestPlot(b, i, early) {
+    const p = b.plots[i];
+    if (!p || b.over) return 0;
+    const st = b.statuses;
+    const c = FR.Crops[p.crop];
+    if (p.tree) {
+      if (p.fruits <= 0) return 0;
+      const n = p.fruits;
+      p.fruits = 0;
+      const times = st.bigFruit > 0 ? 2 : 1;
+      const ripen = st.ripening || 0;
+      st.bigFruit = 0;   // 摘果の効果は、実を摘んだ1本で使い切る
+      b.fx.push({ kind: 'harvest', plot: i, text: `${c.name}を${n}つ摘んだ` });
+      for (let k = 0; k < n && !b.over; k++) {
+        b.run.stats.harvest += c.fruitYield;
+        FR.Battle.gainGold(b, c.fruitGold + ripen * 3);
+        if (ripen) FR.Battle.gainBlock(b, ripen * 2);
+        for (let t = 0; t < times; t++) FR.Effects.run(b, c.onPick);
+        FR.Effects.relicHook(b, 'pick');
+      }
+      return n;
+    }
+    if (p.growth >= p.stages) {
+      b.plots[i] = null;
+      b.run.stats.harvest += c.yield;
+      b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を収穫' });
+      FR.Battle.gainGold(b, c.gold);
+      FR.Effects.run(b, c.onHarvest);
+      FR.Effects.relicHook(b, 'harvest');
+      return 1;
+    }
+    if (early && p.growth >= 1) {
+      b.plots[i] = null;
+      b.run.stats.harvest += Math.floor(c.yield / 2);
+      b.fx.push({ kind: 'harvest', plot: i, text: c.name + 'を早どり' });
+      FR.Battle.gainGold(b, Math.floor(c.gold / 2));
+      FR.Effects.relicHook(b, 'harvest');
+      return 1;
+    }
+    return 0;
+  },
+
+  // 区画・畜舎を1つ選んで収穫／出荷する（エネルギー不要）
+  harvestOne(b, kind, i) {
+    if (b.over) return false;
+    if (kind === 'plot') { const n = FR.Battle.harvestPlot(b, i, false); b.lastHarvested = n; return n > 0; }
+    return FR.Battle.shipBarn(b, i, 0);
+  },
+
+  // まとめて収穫ボタン：自分のターンならいつでも、エネルギーを使わずに、実った作物・木の実・出荷できる家畜をすべて取る
   canHarvestNow(b) {
     return !b.over && (FR.Battle.hasHarvestable(b) || b.barns.some(a => a && a.growth >= a.stages));
   },
@@ -409,24 +419,30 @@ FR.Battle = {
   },
 
   shipAll(b, gradeBonus) {
-    const contract = 1 + 0.5 * (b.statuses.contract || 0);
-    b.barns.forEach((a, i) => {
-      if (!a || a.growth < a.stages || b.over) return;
-      const def = FR.Animals[a.animal];
-      const g = FR.Battle.gradeOf(a.care, gradeBonus);
-      const gold = Math.round(def.gold * g.mult * contract);
-      b.barns[i] = null;
-      b.run.stats.harvest += Math.round(def.yield * g.mult);
-      b.run.stats.shipped = (b.run.stats.shipped || 0) + 1;
-      // 出荷票：何がいくらになったかを画面に出すための中身
-      b.fx.push({ kind: 'harvest', barn: i, text: '' });
-      b.fx.push({ kind: 'ship', barn: i, name: def.matureName, grade: g.label, care: a.care, base: def.gold,
-                  mult: g.mult, bonus: gradeBonus || 0, contract, gold, effect: def.shipText });
-      FR.Battle.gainGold(b, gold);
-      FR.Effects.run(b, def.onShip);
-      FR.Effects.relicHook(b, 'ship');
-    });
+    b.barns.forEach((a, i) => FR.Battle.shipBarn(b, i, gradeBonus));
   },
+
+  // 畜舎1つを出荷する。出荷したら true
+  shipBarn(b, i, gradeBonus) {
+    const a = b.barns[i];
+    if (!a || a.growth < a.stages || b.over) return false;
+    const contract = 1 + 0.5 * (b.statuses.contract || 0);
+    const def = FR.Animals[a.animal];
+    const g = FR.Battle.gradeOf(a.care, gradeBonus);
+    const gold = Math.round(def.gold * g.mult * contract);
+    b.barns[i] = null;
+    b.run.stats.harvest += Math.round(def.yield * g.mult);
+    b.run.stats.shipped = (b.run.stats.shipped || 0) + 1;
+    // 出荷票：何がいくらになったかを画面に出すための中身
+    b.fx.push({ kind: 'harvest', barn: i, text: '' });
+    b.fx.push({ kind: 'ship', barn: i, name: def.matureName, grade: g.label, care: a.care, base: def.gold,
+                mult: g.mult, bonus: gradeBonus || 0, contract, gold, effect: def.shipText });
+    FR.Battle.gainGold(b, gold);
+    FR.Effects.run(b, def.onShip);
+    FR.Effects.relicHook(b, 'ship');
+    return true;
+  },
+
 
   // ── 敵 ────────────────────────────────────
   chooseIntents(b) {

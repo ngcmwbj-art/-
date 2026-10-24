@@ -46,20 +46,13 @@ const App = {
       const pe = ev.target.closest('.plot');
       const be = ev.target.closest('.barn');
       if (pe) {
-        const p = bt.plots[+pe.dataset.plot];
-        if (!p) { FR.Screens.toast('空いた区画。種まきや苗木の植え付けで使う'); return; }
-        const c = FR.Crops[p.crop];
-        if (p.tree) {
-          FR.Screens.toast(p.growth < p.stages
-            ? `${c.name}の苗木　${p.growth}/${p.stages}段で成木`
-            : `${c.name}　実 ${p.fruits}/${p.maxFruits}　${c.harvestText}・銭${c.fruitGold}`);
-        } else {
-          FR.Screens.toast(`${c.name}　${p.growth}/${p.stages}段　収穫で${c.harvestText}・銭${c.gold}`);
-        }
+        const i = +pe.dataset.plot;
+        if (!bt.plots[i]) { FR.Screens.toast('空いた区画。種まきや苗木の植え付けで使う'); return; }
+        App.showCrop(i);
       } else if (be) {
-        const a = bt.barns[+be.dataset.barn];
-        if (!a) { FR.Screens.toast('空いた畜舎。子牛導入などで使う'); return; }
-        App.showAnimal(a);
+        const i = +be.dataset.barn;
+        if (!bt.barns[i]) { FR.Screens.toast('空いた畜舎。子牛導入などで使う'); return; }
+        App.showAnimal(i);
       }
     };
     FR.HandInput.attach(document.getElementById('hand'), {
@@ -263,9 +256,58 @@ const App = {
     }, App.TEMPO.endBattle);
   },
 
-  // 家畜の説明：育ち・手入れ・格付け・出荷の見込みと、格付けの表
-  showAnimal(a) {
+  // 選んだ区画・畜舎だけを収穫／出荷する
+  harvestOne(kind, i) {
     const b = App.battle;
+    if (!b || b.over || FR.HandInput.locked) return;
+    FR.Screens.closeModal();
+    if (!FR.Battle.harvestOne(b, kind, i)) return;
+    App.refresh();
+    if (b.over) App.afterBattle();
+  },
+
+  // 説明の下に置く「収穫する」ボタン（押せないときは理由を出す）
+  actionButton(kind, i, ok, label, why) {
+    const can = ok && !FR.HandInput.locked;
+    return `<div class="menu-actions"><button class="btn primary" id="act-one" data-kind="${kind}" data-i="${i}" ${can ? '' : 'disabled'}>${label}</button></div>
+      ${!can ? `<p class="menu-note act-why">${FR.HandInput.locked ? '敵のターンが終わるまで待ってください' : why}</p>` : ''}`;
+  },
+  bindAction() {
+    const btn = document.getElementById('act-one');
+    if (btn) btn.onclick = () => App.harvestOne(btn.dataset.kind, +btn.dataset.i);
+  },
+
+  // 作物・木の説明と「収穫する」
+  showCrop(i) {
+    const b = App.battle;
+    const p = b.plots[i];
+    const E = FR.Util.escape;
+    const c = FR.Crops[p.crop];
+    const mature = p.growth >= p.stages;
+    let rows, ok, label, why;
+    if (p.tree) {
+      const ripen = b.statuses.ripening || 0;
+      const gold = c.fruitGold + ripen * 3;
+      rows = `
+        <div class="ai-row"><span>育ち</span><b>${p.growth} / ${p.stages}段</b><em>${mature ? '成木。毎ターン終わりに実が1つなる' : `あと${p.stages - p.growth}段で成木`}</em></div>
+        <div class="ai-row"><span>実</span><b>${p.fruits} / ${p.maxFruits}</b><em>上限までなると、それ以上はならない</em></div>
+        <div class="ai-row"><span>実1つで</span><b>銭 ${gold}</b><em>${E(c.harvestText)}${b.statuses.bigFruit ? '（摘果で効果2倍）' : ''}${ripen ? `・守り+${ripen * 2}` : ''}</em></div>
+        <div class="ai-row"><span>いま摘むと</span><b>銭 ${gold * p.fruits}</b><em>木は残る</em></div>`;
+      ok = p.fruits > 0; label = p.fruits ? `実を${p.fruits}つ摘む` : '実を摘む'; why = 'まだ実がなっていない';
+    } else {
+      rows = `
+        <div class="ai-row"><span>育ち</span><b>${p.growth} / ${p.stages}段</b><em>${mature ? '実った' : `あと${p.stages - p.growth}段。ターンの終わりや水やり・肥料で育つ`}</em></div>
+        <div class="ai-row"><span>収穫すると</span><b>銭 ${c.gold}</b><em>${E(c.harvestText)}。区画が空く</em></div>`;
+      ok = mature; label = 'この作物を収穫する'; why = 'まだ実っていない';
+    }
+    FR.Screens.modal(p.tree && !mature ? c.name + 'の苗木' : c.name, `<div class="animal-info">${rows}</div>` + App.actionButton('plot', i, ok, label, why));
+    App.bindAction();
+  },
+
+  // 家畜の説明：育ち・手入れ・格付け・出荷の見込みと、格付けの表、「出荷する」
+  showAnimal(i) {
+    const b = App.battle;
+    const a = b.barns[i];
     const E = FR.Util.escape;
     const def = FR.Animals[a.animal];
     const g = FR.Battle.gradeOf(a.care, 0);
@@ -274,7 +316,7 @@ const App = {
     const value = FR.Battle.shipValue(b, a);
     FR.Screens.modal(mature ? def.matureName : def.name, `
       <div class="animal-info">
-        <div class="ai-row"><span>育ち</span><b>${a.growth} / ${a.stages}段</b><em>${mature ? '出荷できる（収穫ボタン）' : `あと${a.stages - a.growth}段。給餌などで育つ（自然には育たない）`}</em></div>
+        <div class="ai-row"><span>育ち</span><b>${a.growth} / ${a.stages}段</b><em>${mature ? '出荷できる' : `あと${a.stages - a.growth}段。給餌などで育つ（自然には育たない）`}</em></div>
         <div class="ai-row"><span>手入れ</span><b>${a.care}</b><em>${nx ? `あと${nx.need}で ${nx.grade.label}` : 'いちばん上の格付け'}</em></div>
         <div class="ai-row"><span>格付け</span><b>${g.label}</b><em>銭が ×${g.mult}</em></div>
         <div class="ai-row"><span>出荷すると</span><b>銭 ${value}</b><em>基本 ${def.gold} × ${g.mult}${b.statuses.contract ? ` × 契約${1 + 0.5 * b.statuses.contract}` : ''}。${E(def.shipText)}</em></div>
@@ -283,7 +325,9 @@ const App = {
       <table class="grade-table"><thead><tr><th>格付け</th>${FR.Grades.map(x => `<th class="${x.label === g.label ? 'now' : ''}">${x.label}</th>`).join('')}</tr></thead>
         <tbody><tr><td>手入れ</td>${FR.Grades.map(x => `<td class="${x.label === g.label ? 'now' : ''}">${x.care}〜</td>`).join('')}</tr>
         <tr><td>銭</td>${FR.Grades.map(x => `<td class="${x.label === g.label ? 'now' : ''}">×${x.mult}</td>`).join('')}</tr></tbody></table>
-      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>`);
+      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>`
+      + App.actionButton('barn', i, mature, `${g.label}で出荷する（銭${value}）`, 'まだ出荷できるまで育っていない'));
+    App.bindAction();
   },
 
   showMenu() {
