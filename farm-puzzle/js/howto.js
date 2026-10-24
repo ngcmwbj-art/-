@@ -52,7 +52,7 @@ const HowTo = (() => {
         STEPS.map((step) => h('li', { class: step === options.now ? 'now' : null },
           h('b', {}, Msg.t('farm.stepNames.' + step)),
           step === options.now ? h('span', { class: 'now-tag' }, Msg.t('howto.now')) : null,
-          h('span', {}, v.steps[step])))),
+          h('span', {}, Msg.richText(v.steps[step]))))),
       h('div', { class: 'howto-sub' }, Msg.t('howto.tips')),
       h('ul', { class: 'howto-tips' }, v.tips.map((tip) => h('li', {}, tip))),
       words(v),
@@ -82,7 +82,7 @@ const HowTo = (() => {
     const g = v.guide;
     const text = [g.sun, g.plant, g.pests, g.point, g.planter ? g.planter.note : '', ...Object.values(v.steps), ...v.tips,
       Msg.t('farm.stepNames.fertilize')].join(' ');
-    const found = glossary.filter((w) => text.includes(w.term));
+    const found = glossary.filter((w) => Msg.plain(text).includes(w.term));   // 読みがなの印を外してからさがす
     if (!found.length) return null;
     return h('div', { class: 'howto-words' },
       h('div', { class: 'howto-sub' }, Msg.t('howto.words')),

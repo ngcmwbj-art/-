@@ -1097,6 +1097,13 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .howto-row dd ruby rt { font-size: 0.55em; }
 .howto-row dd { line-height: 1.9; }
 
+/* おさらいクイズの結果：まちがえた野菜の育て方へ */
+.quiz-result { white-space: pre-line; }
+.quiz-wrong { margin-top: 10px; text-align: left; }
+.quiz-wrong-title { font-size: 0.85rem; color: var(--sub); margin-bottom: 6px; }
+.quiz-wrong-btn { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 6px; padding: 6px 10px; }
+.quiz-wrong-btn .veg-icon, .quiz-wrong-btn > :first-child { font-size: 1.5rem; }
+
 /* 季節の畑しごと */
 .season-work-note { margin: 8px 0 0; font-size: 0.8rem; color: var(--sub); }
 .season-work { margin-top: 12px; text-align: left; background: #f6f9ef; border-radius: 12px; padding: 10px 12px; }

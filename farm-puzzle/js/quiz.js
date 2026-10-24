@@ -33,11 +33,19 @@ const Quiz = (() => {
   function review(vegs) {
     let i = 0;
     let right = 0;
+    const wrong = [];   // まちがえた野菜（結果のあとで育て方カードを開けるように）
     const next = () => {
       if (i >= ROUND) {
+        // 結果を閉じたあとも戻ってこられるように、カードを閉じたら結果をもう一度出す
+        const reopen = () => next();
         Modal.open({
           title: Msg.t('quiz.reviewDone'),
-          body: Msg.t('quiz.reviewResult', { right, total: ROUND, sum: data.quizCorrect, title: title() }),
+          body: h('div', { class: 'quiz' },
+            h('p', { class: 'quiz-result' }, Msg.t('quiz.reviewResult', { right, total: ROUND, sum: data.quizCorrect, title: title() })),
+            wrong.length ? h('div', { class: 'quiz-wrong' },
+              h('div', { class: 'quiz-wrong-title' }, Msg.t('quiz.reviewWrong')),
+              wrong.map((v) => h('button', { class: 'btn quiz-wrong-btn', type: 'button', onclick: () => HowTo.open(v, { onClose: reopen }) },
+                vegIcon(v), h('span', {}, '📖 ' + v.name)))) : null),
           buttons: [
             { label: Msg.t('common.close') },
             { label: Msg.t('quiz.reviewAgain'), primary: true, onClick: () => review(vegs) },
@@ -50,6 +58,7 @@ const Quiz = (() => {
       const q = makeQuestion(v, ['plant', 'harvest', 'pests', 'planter']);
       const choose = (c) => {
         const ok = c === q.answer;
+        if (!ok && !wrong.includes(v)) wrong.push(v);
         if (ok) {
           right += 1;
           data.quizCorrect += 1;

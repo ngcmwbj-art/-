@@ -225,7 +225,7 @@ const Farm = (() => {
     });
     if (!count) return;
     toast(Msg.t('farm.bulkDone', { step: Msg.t('farm.stepNames.' + step), n: count }) +
-      `\n${Msg.t('farm.stepNames.' + step)}：${veg(last.vegId).steps[step]}`);
+      `\n${Msg.t('farm.stepNames.' + step)}：${Msg.plain(veg(last.vegId).steps[step])}`);
     Sound.play('work');
     acted();
   }
@@ -272,7 +272,7 @@ const Farm = (() => {
     if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
     // 旬の残りが1種になったら、ゴールが近いことを知らせる（その野菜の名前も）
     else if (leftBefore > 1 && seasonLeft().length === 1) text += '\n' + Msg.t('farm.oneLeft', { name: seasonLeft()[0].name, icon: done.icon });
-    else if (single) text += '\n' + (single.eat ? Msg.t('farm.eat', { text: single.eat }) : single.steps.harvest);
+    else if (single) text += '\n' + (single.eat ? Msg.t('farm.eat', { text: single.eat }) : Msg.plain(single.steps.harvest));
     toast(text);
     Sound.play('harvest');
     acted();
@@ -313,7 +313,7 @@ const Farm = (() => {
 
   // 種まきのときは、育てる前に知っておきたい「失敗しないコツ」も1行（data の mistake。ある野菜だけ）
   function tellStep(v, step) {
-    const text = v.steps[step];
+    const text = Msg.plain(v.steps[step]);
     const tip = step === 'sow' && v.mistake ? Msg.plain(v.mistake) : '';
     const word = (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && (text + tip).includes(w.term));
     let msg = `${Msg.t('farm.stepNames.' + step)}：${text}`;
@@ -487,7 +487,7 @@ const Farm = (() => {
       }, label),
       hint ? h('div', { class: 'plot-hint' }, hint) : null,
       h('div', { class: 'plot-tip' },
-        h('b', {}, Msg.t('farm.nextTip', { step: Msg.t('farm.stepNames.' + nextStep) })), v.steps[nextStep])
+        h('b', {}, Msg.t('farm.nextTip', { step: Msg.t('farm.stepNames.' + nextStep) })), Msg.richText(v.steps[nextStep]))
     );
   }
 
