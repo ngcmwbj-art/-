@@ -167,7 +167,7 @@
     {
       "id": "cabbage",
       "name": "キャベツ",
-      "icon": "draw:ball:#dcefd0:#5f9c6a",
+      "icon": "draw:ball:#d8e8de:#6f9a8a",
       "water": 8,
       "fertilizer": 6,
       "grow": 4,
@@ -525,7 +525,7 @@
     {
       "id": "lettuce",
       "name": "レタス",
-      "icon": "draw:ball:#f4fbc8:#b4dc5a",
+      "icon": "draw:ball:#f2f9b8:#9ccc3c",
       "water": 5,
       "fertilizer": 2,
       "grow": 2,
@@ -870,7 +870,7 @@
     {
       "id": "okra",
       "name": "オクラ",
-      "icon": "draw:long:#80c05c:#5d9a48",
+      "icon": "draw:long:#a8d878:#78b450",
       "water": 6,
       "fertilizer": 4,
       "grow": 3,
@@ -920,7 +920,7 @@
     {
       "id": "goya",
       "name": "ゴーヤ",
-      "icon": "draw:long:#5aa04a:#47863c",
+      "icon": "draw:long:#4f9444:#2f6a30",
       "water": 8,
       "fertilizer": 5,
       "grow": 4,

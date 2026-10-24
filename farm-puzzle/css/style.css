@@ -562,7 +562,9 @@ body {
   margin: 4px 0 12px;
 }
 .zukan-title { font-size: 1.15rem; font-weight: bold; color: var(--green-dark); }
-.zukan-count { color: var(--sub); font-weight: bold; }
+.zukan-count { color: var(--sub); font-weight: bold; text-align: right; }
+.zukan-count-now { color: var(--green-dark); font-size: 1rem; }
+.zukan-count-all { font-size: 0.78rem; font-weight: normal; }
 .zukan-list { display: flex; flex-direction: column; gap: 12px; }
 .zukan-card {
   display: flex;
@@ -1093,6 +1095,10 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .certificate .season-complete-vegs { margin: 8px 0; }
 .cert-stats { font-size: 0.85rem; color: var(--green-dark); font-weight: bold; }
 .cert-date { margin-top: 6px; font-size: 0.78rem; color: var(--sub); }
+/* 読みがな付きの言葉は途中で折り返さない（「収／穫」のように割れないように） */
+ruby { white-space: nowrap; }
+/* 育てやすさの「やさしい」などを途中で折り返さない */
+.howto-level { word-break: keep-all; }
 /* 育て方カード：読みがなで行がつまらないように */
 .howto-row dd ruby rt { font-size: 0.55em; }
 .howto-row dd { line-height: 1.9; }

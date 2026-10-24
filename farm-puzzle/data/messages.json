@@ -100,7 +100,7 @@
   },
   "zukan": {
     "title": "やさい図鑑",
-    "count": "{found} / {total} しゅるい",
+    "count": "ぜんぶで {found}/{total}",
     "season": "旬：{text}",
     "times": "収穫 {n}回",
     "unknownName": "？？？",
@@ -122,7 +122,8 @@
     "monthHarvest": "🧺 {m}月にとれる野菜",
     "monthHarvestNote": "旬の野菜は、スーパーで選ぶときの目安にも。",
     "harvestMonths": "🧺 収穫：{months}",
-    "monthSow": "🌱 {m}月にまける野菜"
+    "monthSow": "🌱 {m}月にまける野菜",
+    "countNow": "{icon}{season}の野菜 {n}/{total}"
   },
   "hud": {
     "water": "水",

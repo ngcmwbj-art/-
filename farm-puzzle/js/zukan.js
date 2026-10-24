@@ -23,10 +23,16 @@ const Zukan = (() => {
     root.innerHTML = '';
     const found = cfg.vegetables.filter((v) => data.harvested[v.id]).length;
 
+    // 今の季節の数：基本の旬と、種が手に入ったチャレンジ野菜だけを数える（届かない数を分母に入れない）
+    const s = cfg.seasons[data.seasonIndex % cfg.seasons.length];
+    const now = cfg.vegetables.filter((v) => v.seasons.includes(s.id) && !Missions.isLocked(v));
+    const nowFound = now.filter((v) => data.harvested[v.id]).length;
     root.append(
       h('div', { class: 'zukan-head' },
         h('div', { class: 'zukan-title' }, Msg.t('zukan.title')),
-        h('div', { class: 'zukan-count' }, Msg.t('zukan.count', { found, total: cfg.vegetables.length }))
+        h('div', { class: 'zukan-count' },
+          h('div', { class: 'zukan-count-now' }, Msg.t('zukan.countNow', { icon: s.icon, season: s.name, n: nowFound, total: now.length })),
+          h('div', { class: 'zukan-count-all' }, Msg.t('zukan.count', { found, total: cfg.vegetables.length })))
       )
     );
 
