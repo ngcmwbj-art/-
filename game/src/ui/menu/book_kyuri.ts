@@ -21,7 +21,7 @@ export const KY_ROW_LABEL = KY_BOOK.title;
 
 const TITLE_H = 17;
 const LINE_H = 16;
-const PIC_H = 46;
+const PIC_H = 56;
 
 /** きゅうり 1本（鉛筆。たて）。k 0 まっすぐ・1 くの字・2 腕くらい・3 札の 絵（細くて まっすぐ、色つき）。 */
 function cuke(g: Gfx, x: number, y: number, k: number): void {

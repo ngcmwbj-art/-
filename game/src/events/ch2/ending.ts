@@ -26,6 +26,7 @@
 // (ui/cut_sunrise.ts). The times, the lines and the sounds are the 2D's.
 
 import type { Co } from '../../engine/co';
+import { H, W } from '../../engine/screen';
 import { all } from '../../engine/co';
 import { game } from '../../engine/game';
 import { animate, ease } from '../../engine/tween';
@@ -347,6 +348,14 @@ function* cut1Hill(): Co {
   yield* cut.close(300);
   // (HD-2D: the plaza from a little lower)
   endingView.shot(f, 'h1_plaza');
+  // (HD-2D: the plaza's camera holds over its middle (12,4) and the two stand at the east fence — through
+  // the 3D lens グソっ君 spoke from the screen's right edge (改善会議 10-24 の3, talkEdgeLog): the look
+  // goes 4 tiles east, the pole still in. 2D: the whole plaza is on screen, nothing moves)
+  const hdLook = !!f.projected(p.x, p.y);
+  if (hdLook) {
+    f.camOverride = { x: 16 * 16 + 8, y: f.camY + H / 2 };
+    f.camX = f.camOverride.x - W / 2;
+  }
   // back on the plaza in the morning's colours: they look east (1.5 s)
   poseIf(p, 'look_up');
   if (k) poseIf(k, 'look_up');
@@ -375,6 +384,8 @@ function* cut1Hill(): Co {
     k.anim = null;
     delete k.data.scripted;
   }
+  // (the next cut snaps to its own place)
+  if (hdLook) f.camOverride = null;
 }
 
 // ---------------------------------------------------------------- カット2 村の朝

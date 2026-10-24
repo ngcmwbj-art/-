@@ -431,9 +431,8 @@ export const KR_BOOK = {
   title: '明日の 朝の 氷',
   titleLines: ['明日の 朝の 氷'],
   aizu: 'いきまーす！',
-  fact: '角氷 1本 135キロ',
   count: (n: number) => `${n}回で 3本`,
-  quote: ['氷を 作るんは、', '明日が 来ると', '思うとる もんだけじゃ。'],
+  quote: ['氷を 作るんは、', '明日が 来ると', '思うとる', 'もんだけじゃ。'],
 };
 
 export const KR_TEXTS: Record<string, unknown> = {

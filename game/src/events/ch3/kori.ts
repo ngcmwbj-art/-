@@ -284,7 +284,7 @@ function makeKaku(f: FieldScene, x: number, y: number): Actor {
   a.data.noSpace = true;
   a.drawFn = (g, sx, sy) => {
     const img = kakuImg();
-    g.img(img, sx - 8, sy - 15, a.alpha < 1 ? { alpha: a.alpha } : {});
+    g.img(img, sx - 8, sy - 20, a.alpha < 1 ? { alpha: a.alpha } : {});
   };
   void f;
   return a;
@@ -829,6 +829,7 @@ function solve(): void {
  *   'r1'     1本 すんだ あと（2本目。分かれ道 2つ 変わっている）、積み場の 前
  *   'r2'     2本 すんだ あと（3本目。止め板も）、積み場の 前
  *   'push'   'r2' で 角氷を 口に 出して、プッシャーの 前 (1,3) 下向き
+ *   'asa'    3本 すんだ ところから「明日の 朝」（荷さばき場）の 場面
  *   'done'   すんだ あと、段階2 の 荷さばき場 (40,21) 上向き
  *   'namie'  すんだ あと、かち割りを 持って 食堂かもめの ナミエの 前
  */
@@ -851,6 +852,14 @@ if (import.meta.env.DEV) {
     setFlag(KRF.coat, 1);
     setFlag(KRF.hiku1, 1);
     const n = step === 'r1' ? 1 : step === 'r2' || step === 'push' ? 2 : 0;
+    if (step === 'asa') {
+      // the end of the third: straight to 5 (from the cold store)
+      setFlag(KRF.n, 3);
+      setFlag(KRF.push, 3);
+      go(KORI, 7, 8, 'up');
+      setTimeout(() => field()?.startScript(asa()), 1200);
+      return 'asa';
+    }
     if (step === 'done' || step === 'namie') {
       setFlag(KRF.n, 3);
       setFlag(KRF.done, 1);

@@ -20,10 +20,10 @@ import type { PropArt, PropEnv } from './types';
 import { KR_BUNKI, KR_RAIL } from '../../data/maps/c3_kori';
 
 /** 角氷の 色：まわりは すきとおった 青み、まん中は 白い 芯。 */
-const ICE_EDGE = '#BFE6F4';
-const ICE_CLEAR = '#DDF2FA';
+const ICE_EDGE = '#9ECFE4';
+const ICE_CLEAR = '#C2E4F2';
 const ICE_CORE = '#FFFFFF';
-const ICE_DK = '#8EC4DA';
+const ICE_DK = '#6AA4C4';
 const STEEL = '#8E95A6';
 const STEEL_LT = '#B8BEC8';
 const STEEL_DK = '#5E6478';
@@ -135,26 +135,25 @@ registerProp('prop_kr_bunki', (opts) => {
   return { ox: 0, oy: 0, w: 16, h: 16, foot: 0, flat: true, img: (env: PropEnv) => imgs[env.flag(`flag_kr_sw_${k}`) ? 1 : 0] } satisfies PropArt;
 });
 
-/** 角氷 1本（横に ねかせた 形、16×14）：まわりが すきとおって、まん中が 白い。 */
+/** 角氷 1本（氷道に 立てた 形、16×20）：まわりが すきとおって、まん中が 白い。 */
 let kakuCache: HTMLCanvasElement | null = null;
 export function kakuImg(): HTMLCanvasElement {
   if (kakuCache) return kakuCache;
-  const p = new PixelCanvas(16, 14);
+  const p = new PixelCanvas(16, 20);
   // the top face (lighter), the front face
-  p.rect(1, 1, 14, 4, ICE_CLEAR);
-  p.hline(1, 14, 1, ICE_CORE);
-  p.rect(1, 5, 14, 8, ICE_EDGE);
-  // the white core through the middle of the front, soft at its ends
-  p.rect(4, 7, 8, 4, ICE_CORE);
-  p.hline(3, 12, 8, '#F4FAFF');
-  p.hline(3, 12, 9, '#F4FAFF');
-  p.set(5, 6, '#F4FAFF');
+  p.rect(2, 1, 12, 4, ICE_CLEAR);
+  p.hline(2, 13, 1, ICE_CORE);
+  p.rect(2, 5, 12, 14, ICE_EDGE);
+  // the white core down the middle of the front, soft at its ends
+  p.rect(5, 8, 6, 8, ICE_CORE);
+  p.vline(4, 9, 14, '#F4FAFF');
+  p.vline(11, 9, 14, '#F4FAFF');
   // edges and a glint
-  p.vline(1, 2, 12, ICE_DK);
-  p.vline(14, 2, 12, ICE_DK);
-  p.hline(1, 14, 12, ICE_DK);
-  p.set(2, 2, '#FFFFFF');
-  p.set(3, 2, '#FFFFFF');
+  p.vline(2, 2, 18, ICE_DK);
+  p.vline(13, 2, 18, ICE_DK);
+  p.hline(2, 13, 18, ICE_DK);
+  p.set(3, 6, '#FFFFFF');
+  p.set(3, 7, '#FFFFFF');
   p.outline('#4A6A80');
   kakuCache = p.toCanvas();
   return kakuCache;
