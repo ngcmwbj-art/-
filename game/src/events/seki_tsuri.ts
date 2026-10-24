@@ -727,7 +727,7 @@ function idleFloat(p: SekiPanel): void {
 
 /** Wait `ms`; a press in it ends the wait early with the given outcome (null: waited it out). */
 function* waitPress(p: SekiPanel, ms: number, each?: (t: number) => void): Co<boolean> {
-  for (let t = 0; t < ms; t += 16.7) {
+  for (let t = 0, t0 = game.time; t < ms; t = game.time - t0) {
     each?.(t);
     if (!p.auto && p.take('confirm')) return true;
     yield null;
@@ -752,12 +752,12 @@ export function* playSeki(p: SekiPanel, o: SekiOpts): Co<SekiResult> {
   if (o.force?.spot) p.spot = o.force.spot;
   p.clearInput();
   // ---- pick the place
-  let autoWait = 700;
+  const autoT0 = game.time;
   for (;;) {
     idleFloat(p);
     p.baitY = 20;
     if (p.auto) {
-      if ((autoWait -= 16.7) <= 0) break;
+      if (game.time - autoT0 >= 700) break;
       yield null;
       continue;
     }
@@ -903,9 +903,10 @@ export function* playSeki(p: SekiPanel, o: SekiOpts): Co<SekiResult> {
   p.depth = 0;
   p.danger = p.still1 ? 1.01 : spec.danger - (stage === 2 ? 0.03 : 0);
   yield* animate(160, (k) => (p.gauge = k), ease.backOut);
-  const window = p.still1 ? Infinity : 2600;
+  // (2600 → 2900ms: 改善会議 10-24 の 2：少し ゆるく)
+  const window = p.still1 ? Infinity : 2900;
   let started = false;
-  for (let t = 0; t < window; t += 16.7) {
+  for (let t = 0, t0 = game.time; t < window; t = game.time - t0) {
     if (p.auto ? t > 350 : p.take('confirm') || (p.hold && t > 120)) {
       started = true;
       break;
@@ -936,8 +937,12 @@ export function* playSeki(p: SekiPanel, o: SekiOpts): Co<SekiResult> {
   const bx = p.baitX;
   const fxs = p.floatX;
   let creak = 0;
+  let tPrev = game.time;
   for (;;) {
-    const dt = 16.7 / 1000;
+    // the game clock (ms of play), not a count of frames
+    const stepMs = Math.max(0, Math.min(100, game.time - tPrev));
+    tPrev = game.time;
+    const dt = stepMs / 1000;
     let holding: boolean;
     if (p.auto) {
       if (autoHeld && p.tension > p.danger - 0.06) autoHeld = false;
@@ -956,7 +961,7 @@ export function* playSeki(p: SekiPanel, o: SekiOpts): Co<SekiResult> {
     lastZone = zone;
     HOLD_CUE(p, zone ? 'zone' : 'hold');
     if (!p.still1 && spec.thrash > 0) {
-      thrashT -= 16.7;
+      thrashT -= stepMs;
       if (thrashT <= 0) {
         thrashT = 1400 + Math.random() * 1200;
         if (Math.random() < spec.thrash) {
@@ -966,7 +971,7 @@ export function* playSeki(p: SekiPanel, o: SekiOpts): Co<SekiResult> {
         }
       }
     }
-    if (holding && (creak -= 16.7) <= 0) {
+    if (holding && (creak -= stepMs) <= 0) {
       creak = 82;
       sfx('se_tsuri_reel', { pitch: 1.15 + 0.6 * p.tension, vol: zone ? 1 : 0.8 });
     }
@@ -983,8 +988,8 @@ export function* playSeki(p: SekiPanel, o: SekiOpts): Co<SekiResult> {
       break;
     }
     if (p.depth <= 0.001 && !holding) {
-      bottomT += 16.7;
-      if (bottomT > 2500 && !p.still1) {
+      bottomT += stepMs;
+      if (bottomT > 2800 && !p.still1) { // (2500 → 2800ms: 改善会議 10-24 の 2：少し ゆるく)
         result = 'lost';
         break;
       }

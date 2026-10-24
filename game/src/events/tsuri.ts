@@ -852,11 +852,11 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
   if (o.force?.spot) p.spot = o.force.spot;
   p.clearInput();
   // ---- pick the place
-  let autoWait = 700;
+  const autoT0 = game.time;
   for (;;) {
     hangBait(p);
     if (p.auto) {
-      if ((autoWait -= 16.7) <= 0) break;
+      if (game.time - autoT0 >= 700) break;
       yield null;
       continue;
     }
@@ -924,7 +924,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     p.crayX = geo.x - 18;
     p.crayY = FLOOR_Y;
     const w = 900 + Math.random() * 1000;
-    for (let t = 0; t < w; t += 16.7) {
+    for (let t = 0, t0 = game.time; t < w; t = game.time - t0) {
       if (!p.auto) {
         const e = early();
         if (e) return { ...e, outcome: 'early' };
@@ -948,7 +948,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
       sfx('se_tsuri_nushi');
       p.shake = 1;
     }
-    for (let t = 0; t < w; t += 16.7) {
+    for (let t = 0, t0 = game.time; t < w; t = game.time - t0) {
       if (!p.auto) {
         const e = early();
         if (e) return yield* fleeFrom(p, e);
@@ -959,7 +959,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     const dist = Math.abs(atBaitX - p.crayX);
     const ms = (dist / spec.walk) * 1000;
     const x0 = p.crayX;
-    for (let t = 0; t < ms; t += 16.7) {
+    for (let t = 0, t0 = game.time; t < ms; t = game.time - t0) {
       const k = t / ms;
       p.crayX = x0 + (atBaitX - x0) * k;
       p.crayA = Math.min(1, k * 4);
@@ -975,7 +975,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     const feints = o.first ? 1 : [0, 1, 1, 2][Math.floor(Math.random() * 4)];
     for (let f = 0; f < feints; f++) {
       const gap = 420 + Math.random() * 520;
-      for (let t = 0; t < gap; t += 16.7) {
+      for (let t = 0, t0 = game.time; t < gap; t = game.time - t0) {
         if (!p.auto) {
           const e = early();
           if (e) return yield* fleeFrom(p, e);
@@ -989,7 +989,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
       p.baitX += face * -1;
       sfx('se_tsuri_tsun');
       p.word(TSURI_UI.tsun, geo.x + 10, WATER_Y - 16, UI.bg, 650);
-      for (let t = 0; t < 220; t += 16.7) {
+      for (let t = 0, t0 = game.time; t < 220; t = game.time - t0) {
         if (!p.auto) {
           const e = early();
           if (e) return yield* fleeFrom(p, e);
@@ -999,7 +999,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
       p.baitX -= face * -1;
     }
     const last = 300 + Math.random() * 500;
-    for (let t = 0; t < last; t += 16.7) {
+    for (let t = 0, t0 = game.time; t < last; t = game.time - t0) {
       if (!p.auto) {
         const e = early();
         if (e) return yield* fleeFrom(p, e);
@@ -1038,15 +1038,19 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
   p.danger = p.still1 ? 1.01 : spec.danger - (stage === 2 ? 0.03 : 0);
   yield* animate(160, (k) => (p.gauge = k), ease.backOut);
   const homeX = geo.home[0] - side * 4;
-  const window = p.still1 ? Infinity : 2600;
+  // (2600 → 2900ms: 改善会議 10-24 の 2：少し ゆるく)
+  const window = p.still1 ? Infinity : 2900;
   let started = false;
-  for (let t = 0; t < window; t += 16.7) {
+  let tLast = 0;
+  for (let t = 0, t0 = game.time; t < window; t = game.time - t0) {
     if (p.auto ? t > 350 : p.take('confirm')) {
       started = true;
       break;
     }
+    const step = Math.max(0, t - tLast);
+    tLast = t;
     if (!p.still1 && kind !== 'boot') {
-      const dx = ((homeX - p.baitX) * 16.7) / Math.max(1, window - t);
+      const dx = ((homeX - p.baitX) * step) / Math.max(1, window - t);
       p.baitX += dx;
       p.crayX += dx;
     }
@@ -1074,8 +1078,12 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
   const bottom = FLOOR_Y - 2;
   const top = WATER_Y - 8;
   let result: Outcome | null = null;
+  let tPrev = game.time;
   for (;;) {
-    const dt = 16.7 / 1000;
+    // the game clock (ms of play), not a count of frames
+    const stepMs = Math.max(0, Math.min(100, game.time - tPrev));
+    tPrev = game.time;
+    const dt = stepMs / 1000;
     let holding: boolean;
     if (p.auto) {
       // a good rhythm: let go just before the red, press again when it has eased
@@ -1099,7 +1107,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     HOLD_CUE(p, zone ? 'zone' : 'hold');
     // thrashing (the big ones): the line jumps
     if (!p.still1 && spec.thrash > 0) {
-      thrashT -= 16.7;
+      thrashT -= stepMs;
       if (thrashT <= 0) {
         thrashT = 1400 + Math.random() * 1200;
         if (Math.random() < spec.thrash) {
@@ -1126,8 +1134,8 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
       break;
     }
     if (p.depth <= 0.001 && !holding) {
-      bottomT += 16.7;
-      if (bottomT > 2500 && !p.still1) {
+      bottomT += stepMs;
+      if (bottomT > 2800 && !p.still1) { // (2500 → 2800ms: 改善会議 10-24 の 2：少し ゆるく)
         result = 'lost';
         break;
       }

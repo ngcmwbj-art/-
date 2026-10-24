@@ -130,7 +130,8 @@ function watchPace(): void {
   const now = performance.now();
   const dt = now - lastDraw;
   lastDraw = now;
-  if (qualityFixed || quality === 'light' || game.paused || dt > 250) return;
+  // (resting — left alone, engine/game.ts — draws slowly on purpose: not a slow device)
+  if (qualityFixed || quality === 'light' || game.paused || game.resting || dt > 250) return;
   sampled++;
   if (dt > 26) slowFrames++;
   if (sampled >= 120) {

@@ -483,8 +483,10 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_hoshi_tome', x: 15, y: 2, dir: 'left', talk: htalk('npc_hoshi_tome'), cond: { stage: 1, flag: 'flag_ch2_sawa_wait' } },
   { t: 'npc', id: 'npc_hoshi_tome', x: 15, y: 2, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_tome'), cond: { stage: 2, flag: 'flag_ch2_sawa_wait' } },
   { t: 'npc', id: 'npc_hoshi_sawako', x: 23, y: 37, dir: 'down', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_sawako'), noTurn: false },
-  { t: 'npc', id: 'npc_hoshi_busdriver', x: 36, y: 40, dir: 'down', pose: 'lean', talk: htalk('npc_hoshi_busdriver'), cond: s01 },
-  { t: 'npc', id: 'npc_hoshi_busdriver', x: 36, y: 40, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_busdriver'), cond: s2 },
+  // さんかど leans on the bus's back (east end, 39,41): at its north side (36,40) the bus stood in front of him —
+  // in HD-2D only his cap showed over its roof (改善会議 10-24 の3)
+  { t: 'npc', id: 'npc_hoshi_busdriver', x: 39, y: 41, dir: 'down', pose: 'lean', talk: htalk('npc_hoshi_busdriver'), cond: s01 },
+  { t: 'npc', id: 'npc_hoshi_busdriver', x: 39, y: 41, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_busdriver'), cond: s2 },
   { t: 'npc', id: 'npc_hoshi_gon', x: 53, y: 33, dir: 'down', pose: 'lie', animal: true, noTurn: true, talk: htalk('npc_hoshi_gon'), cond: s0 },
   { t: 'npc', id: 'npc_hoshi_gon', x: 53, y: 33, dir: 'down', pose: 'sit', animal: true, talk: htalk('npc_hoshi_gon'), cond: s1 },
   { t: 'npc', id: 'npc_hoshi_gon', x: 53, y: 33, dir: 'up', pose: 'stand_n', animal: true, talk: htalk('npc_hoshi_gon'), cond: s2 },

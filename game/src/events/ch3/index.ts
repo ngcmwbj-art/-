@@ -40,6 +40,12 @@ import './sakana';
 // 落とすけえ、甘うなる（げむきか 10/23 の 案1）：段階1、干物屋の 2人 → みかん畑の 作業道の 奥の 石の 段 → 上の 段
 // （新しい 地図）。干物屋の 2人・ナミエの 台本を 包むので、shokudo の あとに import する
 import './mikan';
+// 背中から、1回で（げむきか 10/24 の 案1）：段階1、空き地の 虫かごの 子 → ぬけがら 4つ → 名人の 判定。子ども 3人・
+// 掲示板の 台本を 包むので、siren・mizukiri・sakana の あとに import する
+import './nukegara';
+// 明日の 朝の 氷（げむきか 10/24 の 案2）：段階2、市場の 口の ゲン・ツグミ → 港の 倉庫の 西の 戸 → 氷の 蔵（新しい
+// 地図）。ゲン・ツグミ・ナミエの 台本を 包むので、ichiba・shokudo・mikan の あとに import する
+import './kori';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

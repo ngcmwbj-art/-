@@ -69,7 +69,18 @@ export function flag(id: string): number {
   return state.flags[id] ?? 0;
 }
 export function setFlag(id: string, v: number | boolean = 1): void {
+  const was = state.flags[id] ?? 0;
   state.flags[id] = typeof v === 'boolean' ? (v ? 1 : 0) : v;
+  if (!was && state.flags[id]) for (const fn of raised) fn(id);
+}
+/**
+ * Called when setFlag raises a flag from 0 (a save loaded or a new game sets
+ * state.flags whole, not through here): audio/yorimichi.ts — a side errand
+ * begins (改善会議 2026-10-24 の4).
+ */
+const raised: ((id: string) => void)[] = [];
+export function onFlagRaised(fn: (id: string) => void): void {
+  raised.push(fn);
 }
 
 // ---- inventory --------------------------------------------------------

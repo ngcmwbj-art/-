@@ -4,6 +4,8 @@
 // (40_audio 15.4): it registers under import.meta.env.DEV, so `vite build`
 // drops it.
 import './sounds';
+// 寄り道が 始まった ときの 音（flag の 表。改善会議 10-24 の4）
+import './yorimichi';
 import { registerAudioCommands } from './debugcmds';
 import { registerReportCommands } from './report';
 import { registerCh2QaCommands } from './qa_ch2';

@@ -514,11 +514,8 @@ export function* card(p: UriboPanel, gu: boolean, part: 'list' | 'yoshi'): Co {
 }
 
 function* waitUntil(cond: () => boolean, max: number): Co {
-  let t = 0;
-  while (!cond() && t < max) {
-    t += 16.7;
-    yield null;
-  }
+  const t0 = game.time;
+  while (!cond() && game.time - t0 < max) yield null;
 }
 
 export function uriboGuideRows(): [string[], string][] {

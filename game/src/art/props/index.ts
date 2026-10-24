@@ -56,6 +56,8 @@ import './neru_art';
 import './kutsu_art';
 // 当たりは、かじって みんと：ペロの 畑の シシトウの 株・縁側の 七輪・集会所の 皿（02_ch2_index）
 import './shishito_art';
+// 絵の きゅうりは、とり遅れない：ソワカの 家の 横の きゅうりの 棚（02_ch2_index）
+import './kyuri_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

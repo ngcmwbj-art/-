@@ -76,6 +76,9 @@
 // with --fushigi-all 12/12 ふしぎ before the boss.
 // Tempo: a page counter in the page tallies, per beat and outside battles, the dialog pages,
 // choices and other modal screens the player has to press through (stdout + summary.counts).
+// Talk edge (改善会議 2026-10-24 の3, with --hd2d): the conversations whose speaker stood near the
+// screen's edge through HD-2D's camera (world/placecheck.ts talkEdgeLog): one line at the end
+// ("talk edge: …"), summary.talkEdge, the first ones' pictures as <out>/talkedge_NN.png.
 // Screenshots: <out>/NN_<beat>_*.png. Result: stdout + <out>/summary.json. Exit code 1 on failure.
 
 import { chromium } from 'playwright';
@@ -3413,7 +3416,20 @@ const summary = {
 };
 // (2026-10-21: the conversations whose window went up or still covers someone — events/stage.ts autoPos)
 const boxPos = await page.evaluate(() => window.__game?.cmd.boxPosLog?.() ?? null).catch(() => null);
-fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, boxPos, files: shots, ...(HD2D ? { hd2dLog } : {}) }, null, 2));
+// (改善会議 2026-10-24 の3: the conversations whose speaker stood near the screen's edge — HD-2D's camera,
+// world/placecheck.ts talkEdgeLog; the first ones with the picture of that moment → <out>/talkedge_NN.png)
+const talkEdge = await page.evaluate(() => window.__game?.cmd.talkEdgeLog?.() ?? null).catch(() => null);
+for (const f of fs.readdirSync(OUT)) if (/^talkedge_\d\d\.png$/.test(f)) fs.rmSync(path.join(OUT, f));
+if (talkEdge) {
+  talkEdge.forEach((e, i) => {
+    if (!e.shot) return;
+    const file = `talkedge_${String(i).padStart(2, '0')}.png`;
+    fs.writeFileSync(path.join(OUT, file), Buffer.from(e.shot.split(',')[1], 'base64'));
+    e.shot = file;
+  });
+  console.log(`talk edge: ${HD2D ? `${talkEdge.length} near the edge` : '(2D: not counted)'}${talkEdge.length ? ' — ' + talkEdge.slice(0, 6).map((e) => `${e.map.replace(/^map_/, '')} ${e.name || e.who} ${e.side}(${e.x},${e.y})×${e.n}`).join(' / ') + (talkEdge.length > 6 ? ` …ほか ${talkEdge.length - 6}` : '') : ''}`);
+}
+fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, boxPos, talkEdge, files: shots, ...(HD2D ? { hd2dLog } : {}) }, null, 2));
 console.log(JSON.stringify(summary, null, 2));
 await browser.close();
 process.exit(summary.ok ? 0 : 1);

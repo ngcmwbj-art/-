@@ -39,6 +39,8 @@ import './sfx_dome';
 import './sfx_matsuri';
 // 二人十五脚・ハンチングの 値札（02_ch2_index #82・#83）
 import './sfx_kotei';
+// 寄り道が 始まった（改善会議 10-24 の4）
+import './sfx_yorimichi';
 import './ambience_ch2';
 // chapter 3 (63_ch3_audio)
 import './sfx_ch3';

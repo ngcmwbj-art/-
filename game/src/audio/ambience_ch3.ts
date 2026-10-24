@@ -290,6 +290,11 @@ registerAmbience('amb_c3_semi', (c) => {
       for (const a of abura) a.pump(u);
       minmin.pump(u);
     },
+    // ambientEvent('amb_c3_semi', 'tsuku', pan)：ツクツクボウシが 1匹 ふえる（いつも 終わりまで。背中から、1回で の
+    // 段階2、防波堤の 子どもたちの そば：events/ch3/nukegara.ts）
+    event(name, pan, at) {
+      if (name === 'tsuku') tsukutsuku(c, at, 0.007, typeof pan === 'number' ? pan : 0.3, c.dest, false);
+    },
     stop() {},
   };
 });

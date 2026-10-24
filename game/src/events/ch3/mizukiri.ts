@@ -345,7 +345,8 @@ const KEYS_Y = 62;
 /** 腰が 1往復 する ms（押さえた まま だと 下まで 行って もどる）。 */
 const KOSHI_MS = 1500;
 /** はなした 高さ v（0 上〜1 下）の 帯。 */
-const BAND = { best: 0.86, mid: 0.6, low: 0.3 };
+// (best .86 → .82・mid .6 → .56: 改善会議 10-24 の 2：少し ゆるく。いちばんの 帯が 約 0.36 → 0.44 秒)
+const BAND = { best: 0.82, mid: 0.56, low: 0.3 };
 
 export type Katachi = 'usui' | 'futsu' | 'buatsui';
 

@@ -645,6 +645,22 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// かち割り（明日の 朝の 氷、03_ch3_index）：砕いた 氷を 入れた 透明な 袋、口を 赤い ひもで しばる
+Object.assign(ITEM_ROWS, {
+  item_c3_kachiwari: [
+    '....rr....',
+    '...kRRk...',
+    '..kCCCCk..',
+    '.kCWcCWCk.',
+    '.kCcWCcCk.',
+    '.kWCCcWCk.',
+    '.kCcWCCck.',
+    '.kCCcWCCk.',
+    '..kkkkkk..',
+    '..........',
+  ],
+});
+
 // ゴムボール（掃除は 上から、03_ch3_index）：赤い 小さな ボール、空気が 少し ぬけて へこんでいる
 Object.assign(ITEM_ROWS, {
   item_c3_ball: [

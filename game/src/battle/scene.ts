@@ -95,6 +95,8 @@ const NUM_H_BIG = 19;
 const NUM_RISE = 16;
 
 export class BattleScene implements Scene {
+  /** (the screen never rests in a battle: engine/game.ts resting, 改善会議 10-24 の5) */
+  keepAwake = true;
   transparent = true;
   result: BattleResult | null = null;
   finished = false;

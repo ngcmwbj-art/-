@@ -52,6 +52,8 @@ function owariSeal(size: number): HTMLCanvasElement {
 }
 
 class NotebookCh3Scene implements Scene {
+  /** (an ending is watched, not left: the screen doesn't rest — engine/game.ts) */
+  keepAwake = true;
   transparent = false;
   t = 0;
   written = 0;

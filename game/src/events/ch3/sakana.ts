@@ -405,9 +405,12 @@ function* closeUki(p: UkiPanel): Co {
   forceBoxPos(null);
 }
 
+/** The small 「つん」 comes this long before the float goes under. */
+const PRE_SINK_MS = 200;
+
 /** Wait `ms`; true if confirm was pressed in it (QA auto never presses here). */
 function* waitPress(p: UkiPanel, ms: number): Co<boolean> {
-  for (let t = 0; t < ms; t += 16.7) {
+  for (let t = 0, t0 = game.time; t < ms; t = game.time - t0) {
     if (!p.auto && p.take('confirm')) return true;
     yield null;
   }
@@ -431,7 +434,7 @@ function* uki(p: UkiPanel): Co<UkiOutcome> {
   p.phase = 'wait';
   // waiting: a press now is too early; もどる stops here
   const waitMs = 1400 + Math.random() * 1800;
-  for (let t = 0; t < waitMs; t += 16.7) {
+  for (let t = 0, t0 = game.time; t < waitMs; t = game.time - t0) {
     if (p.take('cancel')) {
       p.floatOn = false;
       p.phase = 'idle';
@@ -443,6 +446,7 @@ function* uki(p: UkiPanel): Co<UkiOutcome> {
   // ぴくっ（1〜2回）
   p.phase = 'piku';
   const n = 1 + (Math.random() < 0.5 ? 1 : 0);
+  let preHit = false;
   for (let i = 0; i < n; i++) {
     p.dip = 3;
     p.rings.push({ x: FX, t: 0 });
@@ -450,15 +454,26 @@ function* uki(p: UkiPanel): Co<UkiOutcome> {
     p.word(SK_UI.pikun, 600);
     if (yield* waitPress(p, 260)) return 'early';
     p.dip = 0;
-    if (yield* waitPress(p, 480 + Math.random() * 420)) return 'early';
+    const gap = 480 + Math.random() * 420;
+    if (i < n - 1) {
+      if (yield* waitPress(p, gap)) return 'early';
+      continue;
+    }
+    // (a press from the 「つん」 on is not 早い: it counts as the bite)
+    // the last gap: a small 「つん」 a moment before it goes under (改善会議 10-24 の 2:
+    // the ear gets ready; the ぴくっ before was the 「ツン」 of a taste)
+    if (yield* waitPress(p, gap - PRE_SINK_MS)) return 'early';
+    se('se_uki_maetsun');
+    preHit = yield* waitPress(p, PRE_SINK_MS);
   }
   // 沈む：the float goes under; this is the moment (a generous second)
   p.phase = 'sink';
   se('se_tsuri_gui', { vol: 0.5 });
-  const SINK = 1100;
-  for (let t = 0; t < SINK; t += 16.7) {
+  // (1100 → 1250ms: 改善会議 10-24 の 2：少し ゆるく)
+  const SINK = 1250;
+  for (let t = 0, t0 = game.time; t < SINK; t = game.time - t0) {
     p.dip = Math.min(20, 4 + (t / 180) * 16);
-    if (p.auto ? t > 260 : p.take('confirm')) return 'hit';
+    if (preHit || (p.auto ? t > 260 : p.take('confirm'))) return 'hit';
     yield null;
   }
   return 'late';

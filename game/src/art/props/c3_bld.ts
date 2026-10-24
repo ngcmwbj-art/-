@@ -622,6 +622,15 @@ registerBuilding({
     p.rect(30, fY + 2, 36, 4, '#6B7186');
     p.hline(30, 65, fY + 2, '#9AA0A8');
     p.rect(46, fY + 27, 4, 2, P.charcoal);
+    // the small iron door at the west end (45,23)：氷の 蔵（明日の 朝の 氷、events/ch3/kori.ts）。札と 取っ手、霜の すじ
+    p.rect(18, fY + 9, 12, 23, '#6B7186');
+    p.hline(18, 29, fY + 9, '#9AA0A8');
+    p.vline(18, fY + 10, fY + 31, '#8E95A6');
+    p.vline(29, fY + 10, fY + 31, '#4A5068');
+    p.rect(20, fY + 13, 8, 4, '#F4F1E8');
+    p.hline(21, 26, fY + 15, '#3A3F48');
+    p.rect(26, fY + 21, 2, 3, '#C8CCD4');
+    for (let x = 19; x < 29; x += 3) p.set(x, fY + 30, '#E8F0F4');
     // rust streaks from the roof
     for (let x = 6; x < 92; x += 11) for (let k = 0; k < 6 + (x % 5); k++) p.set(x, fY + 3 + k, mix('#8A6A4A', '#A8A8A0', k / 10));
     footing(p, 0, b.botY, 96, '#B8B4AA', 9);

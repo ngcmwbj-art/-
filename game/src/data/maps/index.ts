@@ -54,3 +54,5 @@ import './c3_aq_okujou';
 import './c3_koishi';
 // みかん畑の 上の 段（落とすけえ、甘うなる 03_ch3_index、events/ch3/mikan.ts）
 import './c3_mikan_ue';
+// 氷の 蔵（明日の 朝の 氷 03_ch3_index、events/ch3/kori.ts）
+import './c3_kori';

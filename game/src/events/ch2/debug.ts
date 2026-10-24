@@ -71,11 +71,15 @@ import { OJ_TEXTS } from '../../data/text/c3_okujou';
 import { MZ_TEXTS } from '../../data/text/c3_mizukiri';
 import { SK_TEXTS } from '../../data/text/c3_sakana';
 import { MK_TEXTS } from '../../data/text/c3_mikan';
+import { KR_TEXTS } from '../../data/text/c3_kori';
+import { NG_TEXTS } from '../../data/text/c3_nukegara';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
 import { KU_TEXTS } from '../../data/text/hoshi_kutsu';
 import { SS_TEXTS } from '../../data/text/hoshi_shishito';
 import { BM_TEXTS } from '../../data/text/hoshi_busmaku';
+import { UB_TEXTS } from '../../data/text/hoshi_ushibana';
+import { KY_TEXTS } from '../../data/text/hoshi_kyuri';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -538,6 +542,10 @@ function collectTexts(): [string, string][] {
   walk('shishito', SS_TEXTS);
   // げむきか10/23の案4（幕の 中の 停留所。02_ch2_index）
   walk('busmaku', BM_TEXTS);
+  // げむきか10/24の案4（鼻が しゃべる。02_ch2_index）
+  walk('ushibana', UB_TEXTS);
+  // げむきか10/24の案5（絵の きゅうりは、とり遅れない。02_ch2_index）
+  walk('kyuri', KY_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -576,6 +584,10 @@ function collectTexts(): [string, string][] {
   walk('c3Sakana', SK_TEXTS);
   // げむきか10/23の案1（落とすけえ、甘うなる。第3章の クリア前、03_ch3_index）
   walk('c3Mikan', MK_TEXTS);
+  // げむきか10/24の案2（明日の 朝の 氷。第3章の クリア前、03_ch3_index）
+  walk('c3Kori', KR_TEXTS);
+  // げむきか10/24の案1（背中から、1回で。第3章の クリア前、03_ch3_index）
+  walk('c3Nukegara', NG_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());

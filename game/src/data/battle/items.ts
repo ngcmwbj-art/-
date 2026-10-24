@@ -14,8 +14,10 @@ import { MH_ITEM_CAMERA_DESC, MH_ITEM_FUTA_DESC } from '../text/c3_mahiru';
 import { YD_ITEM_BIN_DESC, YD_ITEM_DOFU_DESC } from '../text/c3_yose';
 import { OJ_ITEM_BALL_DESC } from '../text/c3_okujou';
 import { MK_ITEM_DESC } from '../text/c3_mikan';
+import { KR_ITEM_DESC } from '../text/c3_kori';
 import { HM_ITEM_HANA_DESC } from '../text/hoshi_himo';
 import { SS_ITEM_DESC, SS_SARA_DESC } from '../text/hoshi_shishito';
+import { KY_ITEM_DESC, KY_SANBON_DESC } from '../text/hoshi_kyuri';
 
 const items: ItemDef[] = [
   // QA round 1 balance: with 500円 (and the yakisoba shop's tab) the bag could
@@ -165,6 +167,10 @@ const items: ItemDef[] = [
   // 当たりは、かじって みんと（02_ch2_index）：ペロの 七輪の 焼きシシトウ（非売品、2つ）と、寄り合いへの 皿（集会所の 区長へ）
   { id: 'item_ss_yaki', name: '焼きシシトウ', target: 'ally', heal: 51, desc: SS_ITEM_DESC },
   { id: 'item_ss_sara', name: '寄り合いの皿', key: true, target: 'none', desc: SS_SARA_DESC, battleText: ['皿を 見せた。\n$enemyは シシトウの においを かいだ。'] },
+  // 絵の きゅうりは、とり遅れない（02_ch2_index）：ソワカの 棚で とった 3本（札と くらべると ソワカへ）と、とれたての きゅうり
+  // （非売品、2つ。値は きゅうりの一本漬けと 同じ 51 6.1 の 小さい 回復）
+  { id: 'item_ky_sanbon', name: 'とったきゅうり', key: true, target: 'none', desc: KY_SANBON_DESC, battleText: ['きゅうりを 見せた。\n$enemyは いちばん 太い 1本を 見た。'] },
+  { id: 'item_ky_tore', name: 'きゅうり（とれたて）', target: 'ally', heal: 45, desc: KY_ITEM_DESC },
   { id: 'item_hg_bin', name: '便の分のおにぎり', key: true, target: 'none', desc: HG_ITEM_BIN_DESC, battleText: ['おにぎりを 見せた。\n$enemyは おこげの においを かいだ。'] },
   // 湯を わかしてから（02 #106）：裏の 畑で もいだ 2本（集会所の ぴょん夫人に とどけると なべへ）
   { id: 'item_yw_moigi', name: 'もいだとうもろこし', key: true, target: 'none', desc: YW_ITEM_DESC, battleText: ['とうもろこしを 見せた。\n$enemyは ひげの 色を 見た。'] },
@@ -180,6 +186,8 @@ const items: ItemDef[] = [
   { id: 'item_c3_ball', name: 'ゴムボール', key: true, target: 'none', desc: OJ_ITEM_BALL_DESC, battleText: ['ゴムボールを 見せた。\n$enemyは ボールを 目で 追った。'] },
   // 落とすけえ、甘うなる（03_ch3_index）：摘果した 青い 実。値は かき氷の 回復と 同じ（61 7.1 の 小さい 回復）
   { id: 'item_c3_ao_mikan', name: '青いみかん', target: 'ally', heal: 20, desc: MK_ITEM_DESC },
+  // 明日の 朝の 氷（03_ch3_index）：砕いた 角氷を 袋に 入れた 物。値は 青い みかんと 同じ（61 7.1 の 小さい 回復）
+  { id: 'item_c3_kachiwari', name: 'かち割り', target: 'ally', heal: 20, desc: KR_ITEM_DESC },
   // 下の 紙の 字（03_ch3_index）：入口の 売店の 売れ残りの えんぴつ（S28 の あと 消える）
   { id: 'item_c3_enpitsu', name: 'ペンギンのえんぴつ', key: true, target: 'none', desc: SH_ITEM_DESC, battleText: ['えんぴつを 見せた。\n$enemyは おしりの ペンギンを 見た。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）

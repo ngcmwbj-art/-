@@ -25,6 +25,10 @@ import { coverage, opaque } from './occlusion';
 import type { NpcObj } from './types';
 import { registerDebug } from '../debug';
 import { vehicleBodyDepth, type VehicleView } from '../art/props/vehicles';
+import { game } from '../engine/game';
+import { H, W } from '../engine/screen';
+import { dialogSpeech, dialogVisible } from '../ui/dialog';
+import { lastSpeaker, speakerOf } from './msg';
 
 export interface PlaceIssue {
   /** 'マス:かべ' 'マス:物' 'マス:人どうし' '物:かべ' '物:物' '絵:人どうし' '絵:かくれる' '車:かべ' '車:物' '車:人' */
@@ -236,5 +240,114 @@ if (import.meta.env.DEV) {
     }
     f.loadMap(back.map, back.x, back.y, back.dir);
     return res;
+  });
+}
+
+// ---------------------------------------------------------------- 会話の カメラ（改善会議 2026-10-24 の3）
+//
+// 会話の あいだ、話している人が 画面の 端に 寄りすぎて いないか（第2章 集会所の 件、10-23：HD-2D の
+// 部屋の カメラが 区長たちを 端に 映していた）。HD-2D の f.projected で その人の 足と 頭の 画面の
+// 位置を 数え、ページを 打ち終えて キーを 待つ ときに 1回ずつ 見る（カメラの 寄せが 終わった あと）。
+// 横の 端から EDGE_X px より 内に 足が ない、頭が 上の 端の 外、足が 下の 外 のとき 記録する。
+//
+//   __game.cmd.talkEdgeLog()        記録（地図・話す人・画面の 位置・どちらの 端・数）
+//   __game.cmd.talkEdgeLog(true)    記録を 空に（通しテストの 初めに）
+//   __game.cmd.talkEdgeLog(true, 190)  空にして 端の 幅を 変える（点検の 点検：190 なら だれでも 数える）
+//
+// 記録の 初めの SHOT_MAX 件は その ときの 画面の 絵（data URL、tools/playthrough.mjs が png に 書き出す）。
+// 遊ぶ人には 見えない（開発サーバーだけ）。
+
+/** 横の 端から これより 内に 足が あると「寄りすぎ」（画面 384 の 1/8）。 */
+let EDGE_X = 48;
+const SHOT_MAX = 12;
+export interface TalkEdge {
+  map: string;
+  /** 話す人の id（メッセージの 話し手、なければ 話しかけた 相手）。 */
+  who: string;
+  /** 名札。 */
+  name: string;
+  /** 足の 画面の 位置（384×216）。 */
+  x: number;
+  y: number;
+  /** '左' '右' '上' '下'（上：頭が 画面の 上の 外、下：足が 下の 外）。 */
+  side: string;
+  /** 同じ 地図・人・端で 見つかった ページの 数。 */
+  n: number;
+  /** ページの 初めの 字。 */
+  text: string;
+  shot?: string;
+}
+const edgeLog: TalkEdge[] = [];
+const edgeSeen = new Set<string>();
+let edgePending: TalkEdge | null = null;
+let edgeShots = 0;
+
+function talkEdgeSample(): void {
+  // the picture of the frame just shown (the 3D town under the 2D buffer): taken one draw after the find
+  if (edgePending) {
+    try {
+      const d = game.screen.display;
+      const c = document.createElement('canvas');
+      c.width = W * 2;
+      c.height = H * 2;
+      const cx = c.getContext('2d')!;
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(d, 0, 0, c.width, c.height);
+      edgePending.shot = c.toDataURL('image/png');
+    } catch {
+      // (a tainted or lost canvas: the list without the picture)
+    }
+    edgePending = null;
+  }
+  const f = field();
+  if (!f || game.top !== f || f.viewScale !== 1 || !dialogVisible()) return;
+  const sp = dialogSpeech();
+  if (!sp || sp.typing) return;
+  // who speaks: the msg block's speaker, the voice's person, else the one spoken to — not when the
+  // words are someone not standing here (the loudspeaker's 防災無線, a voice off the map)
+  const tag = (lastSpeaker() ?? '').split(':')[0];
+  const byTag = tag === 'flip' || tag === 'npc_kanenari' ? (f.follower ?? f.actorById('npc_kanenari')) : tag ? f.actorById(tag) : undefined;
+  if (tag && tag !== 'narr' && !byTag) return;
+  const byVoice = !byTag && sp.voice ? f.actorById(`npc_${sp.voice}`) : undefined;
+  const t = f.talking;
+  const talkingSpeaks = !!t && (!sp.voice || speakerOf(t.id).voice === undefined || speakerOf(t.id).voice === sp.voice);
+  const a = byTag ?? byVoice ?? (talkingSpeaks ? t : null);
+  if (!a || !a.visible || a.alpha <= 0.5 || a === f.player) return;
+  const key = `${f.map.id}|${a.id}|${sp.page}|${sp.text.slice(0, 12)}`;
+  if (edgeSeen.has(key)) return;
+  edgeSeen.add(key);
+  const foot = a.y + Math.max(0, a.oy);
+  const fp = f.projected(a.x + a.ox, foot, foot);
+  // (2D: only HD-2D's camera is counted — the game is played in HD-2D)
+  if (!fp) return;
+  const hp = f.projected(a.x + a.ox, foot - 26, foot);
+  const [x, y] = fp;
+  const side = x < EDGE_X ? '左' : x > W - EDGE_X ? '右' : hp && hp[1] < 0 ? '上' : y > H ? '下' : '';
+  if (!side) return;
+  const old = edgeLog.find((e) => e.map === f.map.id && e.who === a.id && e.side === side);
+  if (old) {
+    old.n++;
+    return;
+  }
+  const e: TalkEdge = { map: f.map.id, who: a.id, name: sp.name, x: Math.round(x), y: Math.round(y), side, n: 1, text: sp.text.replace(/\n/g, ' ').slice(0, 16) };
+  edgeLog.push(e);
+  if (edgeLog.length > 200) edgeLog.shift();
+  if (edgeShots < SHOT_MAX) {
+    edgeShots++;
+    edgePending = e;
+  }
+}
+
+if (import.meta.env.DEV) {
+  game.overlays.push(talkEdgeSample);
+  registerDebug('talkEdgeLog', (clear = false, edge?: number) => {
+    if (edge !== undefined) EDGE_X = edge;
+    const r = edgeLog.slice();
+    if (clear) {
+      edgeLog.length = 0;
+      edgeSeen.clear();
+      edgeShots = 0;
+    }
+    return r;
   });
 }

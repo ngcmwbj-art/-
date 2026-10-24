@@ -29,7 +29,7 @@ se('se_page', { label: 'ページをめくる', group: UI, layers: ['noise env=1
 se('se_slider', { label: '目盛り（鉛筆「ツ」）', group: UI, max: 2, layers: ['tri f=1760 env=1/15/0/8 dur=10 v=.06'] });
 // 大写しの あいだ、絵の 外の 黒い 所を タッチした（改善会議 10-24 の 1）：指が 紙に ふれる ごく 小さな「とん」。
 // 遊びの 音の じゃまに ならない よう 低く 短く（カーソルの「チョン」より 低い、決定の「ぽん」より ずっと 小さい）。
-se('se_touch_any', { label: '大写しで 画面の外を タッチ（とん）', group: UI, max: 2, rand: [0.02, 0.05], layers: ['sine f=560→430/30 env=0/28/0/12 dur=14 v=.05', 'noise env=0/8/0/4 dur=5 v=.012 flt=BP1800q1.5'] });
+se('se_touch_any', { label: '大写しの外をタッチ（とん）', group: UI, max: 2, rand: [0.02, 0.05], layers: ['sine f=560→430/30 env=0/28/0/12 dur=14 v=.05', 'noise env=0/8/0/4 dur=5 v=.012 flt=BP1800q1.5'] });
 se('se_save', {
   label: 'セーブ（判＋承認の鈴）',
   group: UI,

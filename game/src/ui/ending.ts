@@ -72,6 +72,8 @@ const TILT_PX = 5;
 const TILT_MS = 3400;
 
 class NightSkyScene implements Scene {
+  /** (an ending is watched, not left: the screen doesn't rest — engine/game.ts) */
+  keepAwake = true;
   /** (HD-2D: the night town fills the frame, so the field under it — the home — isn't drawn) */
   get transparent(): boolean {
     return !nightTown.img;
@@ -357,6 +359,7 @@ function tsuzukuSeal(size: number): HTMLCanvasElement {
 }
 
 class NotebookScene implements Scene {
+  keepAwake = true;
   transparent = false;
   done = false;
   t = 0;
@@ -774,6 +777,7 @@ function drawItadakimasuOutline(g: Gfx, x: number, y: number, t: number): void {
 }
 
 class NotebookCh2Scene implements Scene {
+  keepAwake = true;
   transparent = false;
   done = false;
   t = 0;

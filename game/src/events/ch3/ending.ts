@@ -339,6 +339,8 @@ function* cut1Lunch(): Co {
 
 /** The three memories (W's cut_c3_kioku_1〜3; else three tinted frames, 0.8 s each). */
 class MemoryScene implements Scene {
+  /** (an ending is watched, not left: the screen doesn't rest — engine/game.ts) */
+  keepAwake = true;
   transparent = false;
   t = 0;
   constructor(private readonly n: number) {}
@@ -477,6 +479,7 @@ function* cut2Truth(): Co {
 
 /** The photo (fallback): what is on the screen, in a white border, a little tilted (62 12.8). */
 class PhotoScene implements Scene {
+  keepAwake = true;
   transparent = false;
   t = 0;
   constructor(private readonly img: HTMLCanvasElement) {}

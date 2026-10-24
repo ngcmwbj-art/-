@@ -21,6 +21,8 @@ export interface Scene {
   resume?(): void;
   update(dt: number): void;
   draw(g: Gfx): void;
+  /** While this scene is on the stack the screen never rests (a battle, the endings): Game.resting. */
+  keepAwake?: boolean;
 }
 
 export interface Widget {
@@ -106,11 +108,42 @@ export class Game {
   freezeMs = 0;
   /** Debug: when true the rAF loop doesn't advance the simulation. */
   paused = false;
+  /**
+   * Left alone (改善会議 2026-10-24 の5): no key, touch, click or pad for
+   * REST_AFTER_MS, the picture is drawn only REST_FPS times a second and a
+   * little darker; the first input brings it back at once. Only the drawing
+   * slows: the game's time (the scenes, the dialog's typing, the clock) ticks
+   * at 60 Hz as always, and the sound goes on (audio/keepalive.ts — a sound
+   * stopped on the iPad did not come back). Never in a battle or a close-up
+   * game (keepAwake scenes, closeup widgets).
+   */
+  resting = false;
+  /** Real time (performance.now) of the last input. */
+  lastInputAt = performance.now();
+  /** How dark the resting picture is now (0 → REST_DIM, eased in; 0 at once on input). */
+  private restDim = 0;
+  /** QA: frames drawn (the rest's pace is seen from this). */
+  drawn = 0;
 
   init(canvas: HTMLCanvasElement): void {
     this.screen = new Screen(canvas);
     this.gfx = new Gfx(this.screen.ctx, W, H);
     this.input = new Input(canvas);
+    // any key, touch, click, mouse move or wheel is someone there (capture: before a handler stops it)
+    const wake = () => this.wake();
+    for (const ev of ['keydown', 'pointerdown', 'pointermove', 'touchstart', 'wheel']) window.addEventListener(ev, wake, { capture: true, passive: true });
+  }
+
+  /** Someone is there: the full pace and brightness come back on the next frame. */
+  wake(): void {
+    this.lastInputAt = performance.now();
+  }
+
+  /** Should the screen rest now (left alone long enough, nothing that must stay smooth on screen)? */
+  private wantsRest(now: number): boolean {
+    if (this.paused || now - this.lastInputAt < REST_AFTER_MS) return false;
+    if (this.scenes.some((s) => s.keepAwake)) return false;
+    return !this.ui.widgets.some((w) => w.closeup && !w.done);
   }
 
   get top(): Scene | undefined {
@@ -177,6 +210,8 @@ export class Game {
     this.time += dt;
     this.frame++;
     this.input.update(dt);
+    // (a pad's buttons have no DOM event: a press seen here wakes the screen too)
+    if (this.input.anyKeyThisFrame) this.wake();
     this.ui.update(dt, this.input);
     this.scripts.update(dt);
     if (this.freezeMs > 0) this.freezeMs -= dt;
@@ -206,7 +241,10 @@ export class Game {
     if (this.flashAlpha > 0) g.rect(0, 0, W, H, this.flashColor, Math.min(1, this.flashAlpha));
     if (this.fadeAlpha > 0) g.rect(0, 0, W, H, this.fadeColor, Math.min(1, this.fadeAlpha));
     for (const o of this.overlays) o(g);
+    // resting: a little darker (over the HD-2D town too — the buffer lies on top of it)
+    if (this.restDim > 0) g.rect(0, 0, W, H, '#000000', this.restDim);
     this.screen.present(this.shakeX, this.shakeY);
+    this.drawn++;
   }
 
   start(): void {
@@ -216,6 +254,9 @@ export class Game {
     // calls back 2× as often as the game ticks, and drawing (and scaling up)
     // the same picture twice was half of what made phones run hot
     // (2026-09-28). A paused game (QA stepping) still draws each callback.
+    // Resting (left alone): the ticks go on as they are, the drawing waits for its slower beat
+    let lastDrawAt = 0;
+    let restFrom = 0;
     const loop = (now: number) => {
       let el = now - last;
       last = now;
@@ -230,7 +271,20 @@ export class Game {
         }
         if (steps === 5) acc = 0;
       }
-      if (steps > 0 || this.paused) this.draw();
+      const rest = this.wantsRest(now);
+      if (rest !== this.resting) {
+        this.resting = rest;
+        restFrom = now;
+        // (back at once: the next frame is drawn bright)
+        if (!rest) this.restDim = 0;
+      }
+      if (rest) this.restDim = REST_DIM * Math.min(1, (now - restFrom) / REST_DIM_MS);
+      // (a frame's worth of slack: the beat is kept on a 60 Hz callback)
+      const due = !rest || now - lastDrawAt >= 1000 / REST_FPS - 8;
+      if ((steps > 0 && due) || this.paused) {
+        this.draw();
+        lastDrawAt = now;
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -243,5 +297,13 @@ export class Game {
     this.draw();
   }
 }
+
+/** Left alone this long (ms of real time), the screen rests (Game.resting). */
+export const REST_AFTER_MS = 120000;
+/** Frames drawn a second while resting. */
+export const REST_FPS = 15;
+/** How much darker the resting picture is (black over it), reached over REST_DIM_MS. */
+const REST_DIM = 0.28;
+const REST_DIM_MS = 1500;
 
 export const game = new Game();

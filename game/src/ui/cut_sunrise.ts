@@ -346,6 +346,8 @@ function buildLayers(): Layers {
 }
 
 class SunriseScene implements Scene {
+  /** (watched, not left: the screen doesn't rest — engine/game.ts) */
+  keepAwake = true;
   transparent = true;
   done = false;
   t = 0;
