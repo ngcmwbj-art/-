@@ -135,7 +135,7 @@ FR.BattleView = {
       const v = FR.cardView(inst);
       const off = i - (n - 1) / 2;
       const rot = off * spread;
-      const ty = Math.abs(off) * Math.abs(off) * 2.5;
+      const ty = Math.abs(off) * Math.abs(off) * 1.6;
       const ok = FR.Battle.canPlay(b, inst).ok;
       const cls = [];
       if (FR.HandInput.selected === inst.uid) cls.push('selected');
@@ -150,12 +150,23 @@ FR.BattleView = {
     FR.BattleView.updateTargeting(b);
   },
 
-  // 敵を選ぶ必要があるカードを選んでいる間は、敵を光らせる
+  // 敵を選ぶ必要があるカードを選んでいる間は、敵を光らせる。選んだカードは大きく表示する
   updateTargeting(b) {
     const uid = FR.HandInput.selected;
     const inst = uid && b.hand.find(c => c.uid === uid);
     const on = !!(inst && FR.Battle.needsTarget(b, inst));
     document.getElementById('b-stage').classList.toggle('targeting', on);
+    FR.BattleView.preview(b, inst && !FR.HandInput.drag ? inst : null);
+  },
+
+  preview(b, inst) {
+    const el = document.getElementById('card-preview');
+    if (!el) return;
+    if (!inst) { el.className = ''; return; }
+    const chk = FR.Battle.canPlay(b, inst);
+    const hint = !chk.ok ? chk.reason : FR.Battle.needsTarget(b, inst) ? '敵をタップして使う' : 'もう一度タップで使う';
+    el.innerHTML = FR.renderCard(FR.cardView(inst), { unplayable: !chk.ok }) + `<div class="hint">${FR.Util.escape(hint)}</div>`;
+    el.className = 'show';
   },
 
   // 手札が画面幅に収まるように、カードの重なりを枚数に合わせて決める

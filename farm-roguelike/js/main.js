@@ -89,6 +89,11 @@ const App = {
         App.renderMarket();
       }
     };
+    // 舞台の何もないところをタップすると、選んだカードを取り消す
+    document.getElementById('b-stage').addEventListener('click', ev => {
+      if (ev.target.closest('.enemy-unit, #b-player-art')) return;
+      if (FR.HandInput.selected) { FR.HandInput.clear(); App.battle && FR.BattleView.render(App.battle); }
+    });
     // 自分の農家をタップすると状態
     document.getElementById('b-player-art').onclick = () => App.showPlayer();
     document.getElementById('reward-skip').onclick = () => App.takeReward(null);

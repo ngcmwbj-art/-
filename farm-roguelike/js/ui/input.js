@@ -36,6 +36,7 @@ FR.HandInput = {
       d.moved = true;
       d.el.classList.add('dragging');
       FR.HandInput.select(d.uid);
+      const pv = document.getElementById('card-preview'); if (pv) pv.className = '';
     }
     if (d.moved) {
       ev.preventDefault();
@@ -96,5 +97,7 @@ FR.HandInput = {
     document.querySelectorAll('#hand .card.selected').forEach(c => c.classList.remove('selected'));
     const st = document.getElementById('b-stage');
     if (st) st.classList.remove('targeting');
+    const pv = document.getElementById('card-preview');
+    if (pv) pv.className = '';
   }
 };
