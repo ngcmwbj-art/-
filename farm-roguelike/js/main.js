@@ -213,10 +213,11 @@ const App = {
       <div class="card-list">${deck.map(v => FR.renderCard(v)).join('')}</div>
       <div class="menu-actions"><button class="btn danger" id="btn-giveup">この挑戦をあきらめる</button></div>`);
     document.getElementById('btn-giveup').onclick = () => {
-      if (confirm('この挑戦を終えて、経営評価に進みますか？')) {
-        FR.Screens.closeModal();
-        App.endRun();
-      }
+      // 1回目は確認の表示、もう一度押すと終える（confirm() が使えない環境のため）
+      const btn = document.getElementById('btn-giveup');
+      if (btn.dataset.armed) { FR.Screens.closeModal(); App.endRun(); return; }
+      btn.dataset.armed = '1';
+      btn.textContent = 'もう一度押すと、経営評価に進みます';
     };
   },
 
