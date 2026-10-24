@@ -16,6 +16,8 @@
 // QA: __game.cmd.pgE()  今の合流・時刻・帯（W の pg() と組み合わせて使う）
 
 import type { Co } from '../engine/co';
+import { H, W } from '../engine/screen';
+import { animate, ease } from '../engine/tween';
 import { flag, setFlag, state, type Dir } from '../game/state';
 import { registerDebug } from '../debug';
 import { despawn, registerScript } from '../world/api';
@@ -27,7 +29,7 @@ import { fieldCurtain, notifyYarinokoshi } from '../ui/hud';
 import { pgClockRun } from '../ui/pg_clock';
 import { pgKizami, pgRideArrive, pgRideBoard } from '../world/pgaudio';
 import { se } from './ch2/compat';
-import { F } from './lib';
+import { F, panBack, panTo } from './lib';
 import { addToMap, say3 } from './ch3/common';
 import { jumpMap } from './ch3/prologue';
 import { deliveryOn, pgDeliveryOffer } from './ch2/tsugao';
@@ -216,7 +218,29 @@ export function* pgTruck(): Co {
 function* arrived(to: PgTown): Co {
   if (to === 'hoshi' && pgBand() === 'yoru' && !flag('flag_pg_pero_lamp')) {
     setFlag('flag_pg_pero_lamp', 1);
+    // ペロ is at 3号ハウスの 前 (3,32), far west of the turning circle: the camera goes to her for her
+    // words and comes back (she spoke from off the screen's left edge — 改善会議 10-24 の3, talkEdgeLog)
+    // (HD-2D: its frame is narrower than the 2D's, and the map's west edge stops a pan with her at the
+    // screen's edge — there the look goes on past the edge, she a little left of the middle)
+    const f = F();
+    const pero = f.actorById('npc_hoshi_mitsu');
+    if (pero?.visible && f.projected(pero.x, pero.y)) {
+      const x0 = f.camX;
+      const y0 = f.camY;
+      const x1 = pero.x + 40 - W / 2;
+      const y1 = pero.y - 12 - H / 2;
+      f.camOverride = { x: x1 + W / 2, y: y1 + H / 2 };
+      yield* animate(
+        1100,
+        (k) => {
+          f.camX = x0 + (x1 - x0) * k;
+          f.camY = y0 + (y1 - y0) * k;
+        },
+        ease.sineInOut,
+      );
+    } else if (pero?.visible) yield* panTo(pero.tileX, pero.tileY, 1100);
     yield* say3(T.PG_PERO_LAMP);
+    if (pero?.visible) yield* panBack(900);
     if (pgKnWith()) yield* say3(T.PG_PERO_LAMP_KN);
   }
 }
