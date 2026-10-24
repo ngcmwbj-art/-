@@ -304,29 +304,49 @@ const App = {
     App.bindAction();
   },
 
-  // 家畜の説明：育ち・手入れ・格付け・出荷の見込みと、格付けの表、「出荷する」
+  // 家畜の説明：育ち・手入れ・格付け・出荷の見込みと、格付けの表、「出荷する」。採卵鶏は卵の説明
   showAnimal(i) {
     const b = App.battle;
     const a = b.barns[i];
     const E = FR.Util.escape;
     const def = FR.Animals[a.animal];
-    const g = FR.Battle.gradeOf(a.care, 0);
-    const nx = FR.Battle.nextGrade(a.care);
     const mature = a.growth >= a.stages;
     const value = FR.Battle.shipValue(b, a);
+    const contractText = b.statuses.contract ? ` × 契約${1 + 0.5 * b.statuses.contract}` : '';
+    const growRow = `<div class="ai-row"><span>育ち</span><b>${a.growth} / ${a.stages}段</b><em>${mature
+      ? (def.layer ? '成鶏。卵を産んでいる' : '出荷できる')
+      : `あと${a.stages - a.growth}段。給餌などで育つ（自然には育たない）`}</em></div>`;
+
+    if (def.layer) {
+      FR.Screens.modal(mature ? def.matureName : def.name, `
+        <div class="animal-info">
+          ${growRow}
+          <div class="ai-row"><span>産卵</span><b>${mature ? 'あり' : 'まだ'}</b><em>成鶏になると、毎ターン始めに卵を1つ産む（${E(def.turnText.replace('毎ターン卵：', ''))}）</em></div>
+          <div class="ai-row"><span>産んだ卵</span><b>${a.eggs || 0}個</b><em>この戦闘で</em></div>
+          <div class="ai-row"><span>廃鶏で出荷</span><b>銭 ${value}</b><em>卵を産み終えた鶏として引き取ってもらう。${E(def.shipText)}。「まとめて出荷」では出荷されない</em></div>
+        </div>
+        <p class="menu-note">採卵鶏に格付けはありません。手入れをしても値段は変わらず、置いておくほど卵で稼げます。</p>`
+        + App.actionButton('barn', i, mature, `廃鶏として出荷する（銭${value}）`, 'まだ成鶏になっていない'));
+      App.bindAction();
+      return;
+    }
+
+    const table = FR.Battle.gradeTable(a.animal);
+    const g = FR.Battle.gradeOf(a.care, 0, a.animal);
+    const nx = FR.Battle.nextGrade(a.care, a.animal);
+    const kind = def.grading === 'pork' ? '豚の格付け' : '牛の格付け';
     FR.Screens.modal(mature ? def.matureName : def.name, `
       <div class="animal-info">
-        <div class="ai-row"><span>育ち</span><b>${a.growth} / ${a.stages}段</b><em>${mature ? '出荷できる' : `あと${a.stages - a.growth}段。給餌などで育つ（自然には育たない）`}</em></div>
-        <div class="ai-row"><span>手入れ</span><b>${a.care}</b><em>${nx ? `あと${nx.need}で ${nx.grade.label}` : 'いちばん上の格付け'}</em></div>
+        ${growRow}
+        <div class="ai-row"><span>手入れ</span><b>${a.care}</b><em>${nx ? `あと${nx.need}で「${nx.grade.label}」` : 'いちばん上の格付け'}</em></div>
         <div class="ai-row"><span>格付け</span><b>${g.label}</b><em>銭が ×${g.mult}</em></div>
-        <div class="ai-row"><span>出荷すると</span><b>銭 ${value}</b><em>基本 ${def.gold} × ${g.mult}${b.statuses.contract ? ` × 契約${1 + 0.5 * b.statuses.contract}` : ''}。${E(def.shipText)}</em></div>
-        ${def.turnText ? `<div class="ai-row"><span>育つと</span><b></b><em>${E(def.turnText)}</em></div>` : ''}
+        <div class="ai-row"><span>出荷すると</span><b>銭 ${value}</b><em>基本 ${def.gold} × ${g.mult}${contractText}。${E(def.shipText)}</em></div>
       </div>
-      <table class="grade-table"><thead><tr><th>格付け</th>${FR.Grades.map(x => `<th class="${x.label === g.label ? 'now' : ''}">${x.label}</th>`).join('')}</tr></thead>
-        <tbody><tr><td>手入れ</td>${FR.Grades.map(x => `<td class="${x.label === g.label ? 'now' : ''}">${x.care}〜</td>`).join('')}</tr>
-        <tr><td>銭</td>${FR.Grades.map(x => `<td class="${x.label === g.label ? 'now' : ''}">×${x.mult}</td>`).join('')}</tr></tbody></table>
+      <table class="grade-table"><thead><tr><th>${kind}</th>${table.map(x => `<th class="${x.label === g.label ? 'now' : ''}">${x.label}</th>`).join('')}</tr></thead>
+        <tbody><tr><td>手入れ</td>${table.map(x => `<td class="${x.label === g.label ? 'now' : ''}">${x.care}〜</td>`).join('')}</tr>
+        <tr><td>銭</td>${table.map(x => `<td class="${x.label === g.label ? 'now' : ''}">×${x.mult}</td>`).join('')}</tr></tbody></table>
       <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>`
-      + App.actionButton('barn', i, mature, `${g.label}で出荷する（銭${value}）`, 'まだ出荷できるまで育っていない'));
+      + App.actionButton('barn', i, mature, `「${g.label}」で出荷する（銭${value}）`, 'まだ出荷できるまで育っていない'));
     App.bindAction();
   },
 

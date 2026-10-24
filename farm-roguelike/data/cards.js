@@ -262,14 +262,14 @@ FR.Cards = {
   },
   buyPiglet: {
     name: '子豚導入', type: 'livestock', cost: 1, rarity: 'common', pool: ['livestock'], art: 'piglet',
-    text: '子豚を入れる。2段育つと出荷でき、銭14×格付け・守り8',
+    text: '子豚を入れる。2段育つと出荷でき、銭14×豚の格付け・守り8',
     needs: 'emptyBarn',
     effects: [{ op: 'addAnimal', animal: 'piglet' }],
     upgrade: { name: '子豚導入+', cost: 0 }
   },
   buyChicks: {
     name: 'ひよこ導入', type: 'livestock', cost: 0, rarity: 'common', pool: ['livestock'], art: 'chick',
-    text: 'ひよこを畜舎に入れる（2段で鶏になり、毎ターン始めに卵：守り2・銭1）',
+    text: 'ひよこを入れる。給餌などで2段育つと成鶏になり、毎ターン始めに卵（守り2・銭1）',
     needs: 'emptyBarn',
     effects: [{ op: 'addAnimal', animal: 'chick' }],
     upgrade: { name: 'ひよこ導入+', text: 'ひよこを畜舎に入れ、1段育てる', effects: [{ op: 'addAnimal', animal: 'chick', grow: 1 }] }

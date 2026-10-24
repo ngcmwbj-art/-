@@ -178,6 +178,21 @@ const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].u
   if (run.gold <= g0) fail('収穫ボタンで銭が増えない');
   if (FR.Battle.harvestButton(b)) fail('取るものがないのに収穫ボタンが押せた');
 }
+// 採卵鶏：格付けなし・まとめて出荷では残る・1羽ずつなら廃鶏で出荷できる・卵を数える
+{
+  const run = FR.Run.create('livestock', 4);
+  const b = FR.Battle.create(run);
+  run.hp = run.maxHp = 9999;
+  b.barns = [{ animal: 'chick', growth: 2, stages: 2, care: 9 }, { animal: 'calf', growth: 3, stages: 3, care: 0 }, null];
+  if (!FR.Battle.gradeOf(9, 0, 'chick').none) fail('鶏に格付けがついた');
+  if (FR.Battle.shipValue(b, b.barns[0]) !== FR.Animals.chick.gold) fail('鶏の出荷の銭が手入れで変わった');
+  if (FR.Battle.gradeOf(4, 0, 'piglet').label !== '中') fail('豚の格付けの表が違う');
+  FR.Battle.harvestButton(b);
+  if (!b.barns[0] || b.barns[1]) fail('まとめて出荷で鶏が出荷された、または牛が残った');
+  FR.Battle.endTurn(b);
+  if ((b.barns[0].eggs || 0) !== 1) fail('卵の数が数えられていない');
+  if (!FR.Battle.harvestOne(b, 'barn', 0) || b.barns[0]) fail('鶏を1羽だけ出荷できない');
+}
 // エネルギーの状態：次のターン・毎ターン
 {
   const run = FR.Run.create('vegetable', 3);

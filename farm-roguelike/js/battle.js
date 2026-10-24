@@ -72,7 +72,7 @@ FR.Battle = {
     b.barns.forEach(a => {
       if (!a || a.growth < a.stages) return;
       const def = FR.Animals[a.animal];
-      if (def.onTurnMature) FR.Effects.run(b, def.onTurnMature);
+      if (def.onTurnMature) { FR.Effects.run(b, def.onTurnMature); a.eggs = (a.eggs || 0) + 1; }
     });
     FR.Effects.relicHook(b, 'turnStart');
     FR.Battle.drawCards(b, FR.Config.handSize);
@@ -129,7 +129,7 @@ FR.Battle = {
     tree:          { test: b => FR.Battle.treeCount(b) > 0, reason: '木が植わっていない' },
     emptyBarn:     { test: b => b.barns.some(a => !a), reason: b => b.barns.length ? '空いた畜舎がない' : '畜舎がない' },
     animal:        { test: b => FR.Battle.animalCount(b) > 0, reason: '家畜がいない' },
-    matureAnimal:  { test: b => b.barns.some(a => a && a.growth >= a.stages), reason: '出荷できる家畜がいない' },
+    matureAnimal:  { test: b => FR.Battle.hasShippable(b), reason: '出荷できる家畜がいない（卵を産む鶏は除く）' },
     cropInDiscard: { test: b => b.discard.some(c => FR.cardView(c).type === 'crop'), reason: '捨て札に作物のカードがない' }
   },
 
@@ -362,6 +362,9 @@ FR.Battle = {
     return 0;
   },
 
+  // まとめて出荷できる家畜がいるか（採卵鶏は数えない）
+  hasShippable(b) { return b.barns.some(a => a && a.growth >= a.stages && !FR.Animals[a.animal].layer); },
+
   // 区画・畜舎を1つ選んで収穫／出荷する（エネルギー不要）
   harvestOne(b, kind, i) {
     if (b.over) return false;
@@ -371,12 +374,12 @@ FR.Battle = {
 
   // まとめて収穫ボタン：自分のターンならいつでも、エネルギーを使わずに、実った作物・木の実・出荷できる家畜をすべて取る
   canHarvestNow(b) {
-    return !b.over && (FR.Battle.hasHarvestable(b) || b.barns.some(a => a && a.growth >= a.stages));
+    return !b.over && (FR.Battle.hasHarvestable(b) || FR.Battle.hasShippable(b));
   },
   harvestButton(b) {
     if (!FR.Battle.canHarvestNow(b)) return false;
     if (FR.Battle.hasHarvestable(b)) FR.Battle.harvestAll(b, false);
-    if (!b.over && b.barns.some(a => a && a.growth >= a.stages)) FR.Battle.shipAll(b, 0);
+    if (!b.over && FR.Battle.hasShippable(b)) FR.Battle.shipAll(b, 0);
     return true;
   },
 
@@ -401,25 +404,36 @@ FR.Battle = {
   // 出荷したらいくらになるかの見込み（畜舎の表示用）
   shipValue(b, a, gradeBonus) {
     const def = FR.Animals[a.animal];
-    const g = FR.Battle.gradeOf(a.care, gradeBonus || 0);
+    const g = FR.Battle.gradeOf(a.care, gradeBonus || 0, a.animal);
     return Math.round(def.gold * g.mult * (1 + 0.5 * (b.statuses.contract || 0)));
   },
   // 次の格付けまで、あと手入れいくつか（いちばん上なら null）
-  nextGrade(care) {
-    const nx = FR.Grades.find(g => g.care > care);
+  nextGrade(care, animalId) {
+    const table = FR.Battle.gradeTable(animalId);
+    if (!table) return null;
+    const nx = table.find(g => g.care > care);
     return nx ? { grade: nx, need: nx.care - care } : null;
   },
 
   // 手入れの合計から格付けを決める（bonus 段だけ上げる）
-  gradeOf(care, bonus) {
+  // 家畜の格付けの表（格付けのない家畜は null）。animalId を省くと牛の表
+  gradeTable(animalId) {
+    const def = animalId && FR.Animals[animalId];
+    if (def && def.grading === null) return null;
+    return FR.GradeTables[(def && def.grading) || 'beef'];
+  },
+  gradeOf(care, bonus, animalId) {
+    const table = FR.Battle.gradeTable(animalId);
+    if (!table) return { label: '', mult: 1, none: true };
     let idx = 0;
-    FR.Grades.forEach((g, k) => { if (care >= g.care) idx = k; });
-    idx = Math.min(FR.Grades.length - 1, idx + (bonus || 0));
-    return FR.Grades[idx];
+    table.forEach((g, k) => { if (care >= g.care) idx = k; });
+    idx = Math.min(table.length - 1, idx + (bonus || 0));
+    return table[idx];
   },
 
+  // まとめて出荷（ボタン・セリなどのカード）。卵を産んでいる鶏は残す（廃鶏にするときは畜舎をタップして1羽ずつ）
   shipAll(b, gradeBonus) {
-    b.barns.forEach((a, i) => FR.Battle.shipBarn(b, i, gradeBonus));
+    b.barns.forEach((a, i) => { if (a && !FR.Animals[a.animal].layer) FR.Battle.shipBarn(b, i, gradeBonus); });
   },
 
   // 畜舎1つを出荷する。出荷したら true
@@ -428,14 +442,14 @@ FR.Battle = {
     if (!a || a.growth < a.stages || b.over) return false;
     const contract = 1 + 0.5 * (b.statuses.contract || 0);
     const def = FR.Animals[a.animal];
-    const g = FR.Battle.gradeOf(a.care, gradeBonus);
+    const g = FR.Battle.gradeOf(a.care, gradeBonus, a.animal);
     const gold = Math.round(def.gold * g.mult * contract);
     b.barns[i] = null;
     b.run.stats.harvest += Math.round(def.yield * g.mult);
     b.run.stats.shipped = (b.run.stats.shipped || 0) + 1;
     // 出荷票：何がいくらになったかを画面に出すための中身
     b.fx.push({ kind: 'harvest', barn: i, text: '' });
-    b.fx.push({ kind: 'ship', barn: i, name: def.matureName, grade: g.label, care: a.care, base: def.gold,
+    b.fx.push({ kind: 'ship', barn: i, name: def.shipName || def.matureName, grade: g.label, care: a.care, base: def.gold,
                 mult: g.mult, bonus: gradeBonus || 0, contract, gold, effect: def.shipText });
     FR.Battle.gainGold(b, gold);
     FR.Effects.run(b, def.onShip);
@@ -604,7 +618,7 @@ FR.Battle = {
     b.barns.forEach(a => {
       if (!a || a.growth < a.stages) return;
       const def = FR.Animals[a.animal];
-      const g = FR.Battle.gradeOf(a.care, 0);
+      const g = FR.Battle.gradeOf(a.care, 0, a.animal);
       r.stats.harvest += Math.floor(def.yield * g.mult / 2);
       auto += Math.floor(def.gold * g.mult / 2);
     });

@@ -103,12 +103,14 @@ FR.BattleView = {
       if (!a) return `<div class="barn empty" data-barn="${i}"><small>空き</small></div>`;
       const def = FR.Animals[a.animal];
       const mature = a.growth >= a.stages;
-      const g = FR.Battle.gradeOf(a.care, 0);
+      const g = FR.Battle.gradeOf(a.care, 0, a.animal);
+      // 採卵鶏は格付けの代わりに産んだ卵の数
+      const badge = def.layer ? (mature ? `卵${a.eggs || 0}` : '') : g.label;
       return `<div class="barn ${mature ? 'ripe' : ''}" data-barn="${i}">
         ${FR.Art.img(mature ? def.art.ripe : def.art.growing, '', def.name)}
         <span class="crop-name">${E(mature ? def.matureName : def.name)}</span>
-        <span class="grade">${g.label}</span>
-        <small>${mature ? `出荷で銭${FR.Battle.shipValue(b, a)}` : a.growth + '/' + a.stages}</small>
+        <span class="grade">${badge}</span>
+        <small>${mature ? (def.layer ? '産卵中' : `出荷で銭${FR.Battle.shipValue(b, a)}`) : a.growth + '/' + a.stages}</small>
       </div>`;
     }).join('');
     $('b-field').innerHTML = plotsHtml + barnsHtml;
@@ -242,12 +244,12 @@ FR.BattleView = {
     const el = document.getElementById('ship-slip');
     if (!f || !el) return;
     const E = FR.Util.escape;
-    const calc = [`基本 ${f.base}`, `格付け ×${f.mult}`];
+    const calc = f.grade ? [`基本 ${f.base}`, `格付け ×${f.mult}`] : [`基本 ${f.base}`];
     if (f.contract > 1) calc.push(`契約 ×${f.contract}`);
     el.innerHTML = `<div class="slip-head">出荷票</div>
       <div class="slip-name">${E(f.name)}</div>
-      <div class="slip-grade"><span>格付け</span><b>${E(f.grade)}</b></div>
-      <div class="slip-row">手入れ ${f.care}${f.bonus ? `（セリで +${f.bonus}段）` : ''}</div>
+      ${f.grade ? `<div class="slip-grade"><span>格付け</span><b>${E(f.grade)}</b></div>
+      <div class="slip-row">手入れ ${f.care}${f.bonus ? `（セリで +${f.bonus}段）` : ''}</div>` : '<div class="slip-row">格付けなし</div>'}
       <div class="slip-row calc">${calc.join(' ・ ')}</div>
       <div class="slip-gold">銭 +${f.gold}</div>
       <div class="slip-row">${E(f.effect)}</div>`;
