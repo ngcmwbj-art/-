@@ -220,6 +220,22 @@ img { -webkit-user-drag: none; }
 .pulse-harvest { animation: harvested .6s ease; }
 .pulse-stolen { animation: stolen .6s ease; }
 
+/* 収穫ボタン：畑の右端。収穫できるときだけ光る */
+.field-row { display: flex; gap: 6px; align-items: stretch; justify-content: center; }
+.field-row .field { flex: 1; min-width: 0; }
+.field-row .field[hidden] + .harvest-btn { display: none; }
+.harvest-btn {
+  flex: none; width: clamp(56px, 15vw, 92px); align-self: flex-end; height: clamp(46px, 7.5vh, 76px);
+  font-family: var(--mincho); font-weight: 800; font-size: 15px; letter-spacing: .1em; color: var(--panel-text-soft);
+  background: rgba(20, 18, 14, .75); border: 1px solid var(--panel-line); border-radius: 3px; line-height: 1.2;
+}
+.harvest-btn:disabled { opacity: .45; }
+.harvest-btn:not(:disabled) {
+  color: #2a1a08; background: radial-gradient(circle at 40% 35%, #fff1c0, var(--gold) 60%, #a8761a);
+  border-color: #fff1c0; box-shadow: 0 0 14px rgba(240, 190, 90, .7); animation: harvestGlow 1.6s ease-in-out infinite;
+}
+@keyframes harvestGlow { 50% { box-shadow: 0 0 22px rgba(240, 190, 90, 1); } }
+
 /* 畜舎：古い板張りと屋根 */
 .barn {
   height: clamp(46px, 7.5vh, 76px); border-radius: 2px; position: relative; display: grid; place-items: center; margin-top: 10px;
@@ -316,7 +332,15 @@ img { -webkit-user-drag: none; }
   border: 1px solid #241c15; display: grid; place-items: center; z-index: 1;
   font-family: var(--mincho); font-weight: 800; font-size: calc(var(--cw) * .15); color: #2a1a08;
 }
-.card .name { font-family: var(--mincho); font-weight: 800; font-size: calc(var(--cw) * .13); text-align: center; padding-top: calc(var(--cw) * .07); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.card .name {
+  font-family: var(--mincho); font-weight: 800; font-size: calc(var(--cw) * .13); text-align: center; white-space: nowrap; overflow: hidden;
+  /* 左上のコストの丸に重ならないよう、左を空ける */
+  padding: calc(var(--cw) * .07) calc(var(--cw) * .07) 0 calc(var(--cw) * .2);
+}
+.card.name-m .name { font-size: calc(var(--cw) * .118); }
+.card.name-l .name { font-size: calc(var(--cw) * .104); }
+.card.name-xl .name { font-size: calc(var(--cw) * .088); padding-top: calc(var(--cw) * .085); }
+.card.name-xxl .name { font-size: calc(var(--cw) * .072); padding-top: calc(var(--cw) * .1); }
 .card.upgraded .name { color: #4f6f2e; }
 .card .art { margin: calc(var(--cw) * .03) calc(var(--cw) * .09) 0; height: calc(var(--cw) * .5); border: 1px solid var(--ink); display: grid; place-items: center; background: #d6cfb8; }
 .card .art img { width: auto; height: calc(var(--cw) * .46); }
@@ -333,7 +357,10 @@ img { -webkit-user-drag: none; }
 .card.type-status { background: linear-gradient(160deg, #b9b0a0, #8a8070); }
 .card.type-status .art { background: #6e6a5e; }
 .card .kind { font-size: calc(var(--cw) * .085); text-align: center; color: var(--ink-soft); letter-spacing: .2em; margin-top: 2px; }
-.card .text { font-size: calc(var(--cw) * .1); line-height: 1.35; text-align: center; padding: 0 calc(var(--cw) * .08) 4px; overflow: hidden; }
+.card .text { font-size: calc(var(--cw) * .1); line-height: 1.3; text-align: center; padding: 0 calc(var(--cw) * .07) 4px; overflow: hidden; }
+.card.text-m .text { font-size: calc(var(--cw) * .09); }
+.card.text-l .text { font-size: calc(var(--cw) * .08); }
+.card.text-xl .text { font-size: calc(var(--cw) * .07); line-height: 1.25; }
 
 /* 手札（扇形） */
 .hand {
@@ -404,21 +431,49 @@ img { -webkit-user-drag: none; }
 .float-text {
   position: fixed; z-index: 80; transform: translate(-50%, 0); pointer-events: none;
   font-family: var(--mincho); font-weight: 800; font-size: 26px; text-shadow: 0 2px 4px #000, 0 0 2px #000;
-  animation: floatUp 1.1s ease-out both;
+  animation: floatUp 1.9s ease-out both;
 }
 .float-text.damage.enemy { color: #ffe0b0; }
 .float-text.damage.player { color: #ff8a6a; }
 .float-text.block, .float-text.blocked { color: #b8d4e4; font-size: 18px; }
 .float-text.gold { color: var(--gold); font-size: 18px; }
 .float-text.heal { color: #b8e08a; }
+.float-text.energy { color: #ffd27a; font-size: 18px; }
+.float-text.damage { font-size: 34px; }
 .float-text.buff { color: #e08a6a; font-size: 18px; }
 .float-text.move { color: #f3e6c8; font-size: 15px; letter-spacing: .1em; background: rgba(60, 14, 8, .8); padding: 1px 8px; border: 1px solid #d6a86a; }
 
 /* ── 動き ──────────────────────────────────────── */
-@keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50px); } }
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); }
+  12% { opacity: 1; transform: translate(-50%, -8px) scale(1.25); }
+  25% { transform: translate(-50%, -12px) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -54px) scale(1); }
+}
 @keyframes shakeX { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
 .shake { animation: shakeX .35s ease; }
 .lunge { animation: lunge .45s ease; }
+.lunge-left { animation: lungeL .5s cubic-bezier(.3,.7,.3,1); }
+.lunge-right { animation: lungeR .5s cubic-bezier(.3,.7,.3,1); }
+@keyframes lungeL { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(-46px, 4px) scale(1.06); } }
+@keyframes lungeR { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(46px, -2px) scale(1.04); } }
+.hit-flash img { animation: hitFlash .5s ease; }
+@keyframes hitFlash { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
+.enemy-unit .unit-art.hit-flash img { animation: hitFlashMirror .5s ease; }
+@keyframes hitFlashMirror { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
+.card-ghost { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; }
+.unit-bar .bar > b { transition: width .7s cubic-bezier(.3,.7,.3,1); }
+/* 「敵のターン」「あなたのターン」 */
+#turn-banner {
+  position: fixed; left: 0; right: 0; top: 38%; z-index: 85; text-align: center; pointer-events: none;
+  font-family: var(--mincho); font-weight: 800; font-size: clamp(28px, 7vw, 56px); letter-spacing: .3em; color: #f3e6c8;
+  text-shadow: 0 2px 10px #000, 0 0 20px rgba(0, 0, 0, .8);
+  background: linear-gradient(90deg, transparent, rgba(15, 13, 10, .75) 20%, rgba(15, 13, 10, .75) 80%, transparent);
+  padding: 10px 0; opacity: 0; transform: scaleY(.6); transition: opacity .25s, transform .25s;
+}
+#turn-banner.show { opacity: 1; transform: scaleY(1); }
+#turn-banner.enemy { color: #f0a08a; }
 @keyframes lunge { 0%, 100% { transform: translate(0, 0) scale(1); } 40% { transform: translate(-22px, 4px) scale(1.08); } }
 @keyframes pulse { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
 @keyframes harvested { 0% { box-shadow: 0 0 0 0 rgba(240, 190, 90, .9); } 100% { box-shadow: 0 0 0 16px rgba(240, 190, 90, 0); } }

@@ -9,6 +9,11 @@ FR.renderCard = function (v, opts) {
   if (opts.unplayable) cls.push('unplayable');
   if (opts.extraClass) cls.push(opts.extraClass);
   const E = FR.Util.escape;
+  // 名前と説明の長さで文字の大きさを変え、カードに収める
+  const nl = [...v.name].length;
+  cls.push(nl <= 4 ? 'name-s' : nl <= 5 ? 'name-m' : nl <= 6 ? 'name-l' : nl <= 8 ? 'name-xl' : 'name-xxl');
+  const tl = [...v.text].length;
+  cls.push(tl <= 16 ? 'text-s' : tl <= 26 ? 'text-m' : tl <= 36 ? 'text-l' : 'text-xl');
   return `<div class="${cls.join(' ')}" data-uid="${v.uid || ''}" data-id="${v.id}" ${opts.style ? `style="${opts.style}"` : ''}>
     <span class="cost">${v.cost}</span>
     <div class="name">${E(v.name)}</div>

@@ -61,7 +61,10 @@
       <div class="enemies" id="b-enemies"></div>
     </section>
 
-    <section class="field" id="b-field" aria-label="畑と畜舎"></section>
+    <div class="field-row">
+      <section class="field" id="b-field" aria-label="畑と畜舎"></section>
+      <button class="harvest-btn" id="b-harvest">収穫</button>
+    </div>
 
     <section class="bottom">
       <div class="energy" id="b-energy" aria-label="エネルギー"></div>
@@ -112,6 +115,7 @@
   </div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="turn-banner" aria-hidden="true"></div>
 
 <!-- データ（ここを足すだけでカード・敵・農家タイプが増える） -->
 <script src="data/config.js"></script>

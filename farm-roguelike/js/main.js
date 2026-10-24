@@ -20,6 +20,7 @@ const App = {
     document.getElementById('btn-continue').onclick = () => App.resume();
     // 戦闘
     document.getElementById('b-end').onclick = () => App.endTurn();
+    document.getElementById('b-harvest').onclick = () => App.harvestNow();
     document.getElementById('b-menu').onclick = () => App.showMenu();
     document.getElementById('b-pile-draw').onclick = () => App.showPile('山札', App.battle.draw, true);
     document.getElementById('b-pile-discard').onclick = () => App.showPile('捨て札', App.battle.discard);
@@ -151,6 +152,18 @@ const App = {
     FR.BattleView.playFx(App.battle);
   },
 
+  // 戦闘のテンポ（ミリ秒）。数を大きくするとゆっくりになる
+  TEMPO: {
+    fly: 380,         // カードが飛んでいく時間
+    afterPlay: 350,   // カードの効果が出たあと、次の操作ができるまで
+    discard: 450,     // ターン終了で手札を捨てる
+    banner: 900,      // 「敵のターン」の文字
+    enemyWindup: 320, // 敵が前に出てから当たるまで
+    enemyGap: 950,    // 敵1体ごとの間
+    endBattle: 1700   // 勝ち負けが決まってから次の画面まで
+  },
+  wait(ms) { return new Promise(r => setTimeout(r, ms)); },
+
   playCard(uid, targetUid) {
     const b = App.battle;
     if (!b || b.over || FR.HandInput.locked) return;
@@ -162,34 +175,81 @@ const App = {
       FR.Screens.toast('どの敵に使う？　敵をタップ');
       return;
     }
-    const ok = FR.Battle.play(b, uid, targetUid);
-    if (ok) FR.HandInput.clear();
+    const chk = FR.Battle.canPlay(b, inst);
+    if (!chk.ok) { FR.Screens.toast(chk.reason, 'warn'); return; }
+    const v = FR.cardView(inst);
+    const T = App.TEMPO;
+    // 狙う先：1体狙いなら選んだ敵、攻撃なら先頭の敵、それ以外は自分の畑のあたり
+    const alive = FR.Battle.aliveEnemies(b);
+    const targetEnemy = b.enemies.find(e => e.uid === targetUid && !e.dead) || (alive.length === 1 ? alive[0] : null);
+    const isAttack = v.effects.some(e => /^damage/.test(e.op));
+    const enemyEl = e => e && document.querySelector(`.enemy-unit[data-uid="${e.uid}"] .unit-art`);
+    const flyTo = isAttack ? (enemyEl(targetEnemy) || document.getElementById('b-enemies')) : document.getElementById('b-player-art');
+    FR.HandInput.locked = true;
+    FR.HandInput.clear();
+    const cardEl = document.querySelector(`#hand .card[data-uid="${uid}"]`);
+    FR.BattleView.flyCard(cardEl, flyTo);
+    if (cardEl) cardEl.style.visibility = 'hidden';
+    if (isAttack) FR.BattleView.lunge(document.getElementById('b-player-art'), 'right');
+    setTimeout(() => {
+      FR.Battle.play(b, uid, targetUid);
+      App.refresh();
+      setTimeout(() => {
+        FR.HandInput.locked = false;
+        if (b.over) App.afterBattle(); else FR.BattleView.render(b);
+      }, T.afterPlay);
+    }, T.fly);
+  },
+
+  // 収穫ボタン（エネルギーを使わない）
+  harvestNow() {
+    const b = App.battle;
+    if (!b || b.over || FR.HandInput.locked || !FR.Battle.canHarvestNow(b)) return;
+    FR.Battle.harvestButton(b);
     App.refresh();
     if (b.over) App.afterBattle();
   },
 
-  endTurn() {
+  // ターン終了：手札を捨てる → 「敵のターン」 → 敵が1体ずつ動く → 作物が育つ → 「あなたのターン」
+  async endTurn() {
     const b = App.battle;
     if (!b || b.over || FR.HandInput.locked) return;
+    const T = App.TEMPO;
     FR.HandInput.locked = true;
     FR.HandInput.clear();
     document.getElementById('b-end').disabled = true;
+    document.getElementById('b-harvest').disabled = true;
     document.getElementById('hand').classList.add('discarding');
-    // 敵が動く前に一呼吸おく
-    setTimeout(() => {
-      document.getElementById('hand').classList.remove('discarding');
-      document.querySelectorAll('.enemy-unit:not(.dead) .unit-art').forEach(el => el.classList.add('lunge'));
-      FR.Battle.endTurn(b);
+    await App.wait(T.discard);
+    FR.Battle.endTurnBegin(b);
+    document.getElementById('hand').classList.remove('discarding');
+    FR.BattleView.render(b);
+    FR.BattleView.banner('敵のターン', 'enemy');
+    await App.wait(T.banner);
+    for (const e of FR.Battle.aliveEnemies(b)) {
+      if (b.over) break;
+      FR.BattleView.lunge(document.querySelector(`.enemy-unit[data-uid="${e.uid}"] .unit-art`), 'left');
+      await App.wait(T.enemyWindup);
+      FR.Battle.enemyActOne(b, e);
+      App.refresh();
+      await App.wait(T.enemyGap);
+    }
+    if (!b.over) {
+      FR.Battle.endTurnFinish(b);
       FR.HandInput.locked = false;
       App.refresh();
-      setTimeout(() => document.querySelectorAll('.unit-art.lunge').forEach(el => el.classList.remove('lunge')), 500);
-      if (b.over) App.afterBattle();
-    }, 380);
+      if (!b.over) FR.BattleView.banner('あなたのターン');
+    }
+    FR.HandInput.locked = false;
+    FR.BattleView.render(b);
+    if (b.over) App.afterBattle();
   },
 
   afterBattle() {
     const b = App.battle;
     FR.HandInput.locked = true;
+    FR.BattleView.render(b);
+    FR.BattleView.banner(b.won ? '追い払った' : '力尽きた', b.won ? '' : 'enemy');
     setTimeout(() => {
       if (b.won) {
         const run = App.data.run;
@@ -203,7 +263,7 @@ const App = {
       } else {
         App.endRun();
       }
-    }, 900);
+    }, App.TEMPO.endBattle);
   },
 
   showMenu() {

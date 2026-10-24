@@ -53,19 +53,33 @@ FR.BattleView = {
     $('b-statuses').innerHTML = Object.keys(b.statuses).filter(k => b.statuses[k] > 0 && FR.Statuses[k]).map(k =>
       `<span class="status ${FR.Statuses[k].bad ? 'bad' : ''}" title="${E(FR.Statuses[k].text)}" data-status="${k}">${E(FR.Statuses[k].name)}<b>${b.statuses[k]}</b></span>`).join('');
 
-    // 敵（左から順に。倒れた敵も場所は残して消えていく）
+    // 敵（左から順に）。並びが変わらなければ要素を作り直さず中身だけ変える（勢いのバーがなめらかに減る）
     const count = b.enemies.length;
-    $('b-enemies').innerHTML = b.enemies.map(e => {
-      const it = FR.Battle.intentLabel(b, e);
-      const size = e.def.size || 1;
-      return `<div class="unit enemy-unit ${e.dead ? 'dead' : ''}" data-uid="${e.uid}" style="--size:${size};--count:${count}">
-        <div class="intent ${it ? it.kind : ''}" title="${it ? E(it.name) : ''}">${it && !e.dead && !b.over ? FR.BattleView.icon(it.kind) + `<b>${E(it.value)}</b>` : ''}</div>
+    const box = $('b-enemies');
+    const same = box.children.length === count && b.enemies.every((e, k) => box.children[k].dataset.uid == e.uid);
+    if (!same) {
+      box.innerHTML = b.enemies.map(e => `<div class="unit enemy-unit" data-uid="${e.uid}" style="--size:${e.def.size || 1};--count:${count}">
+        <div class="intent"></div>
         <div class="unit-art">${FR.Art.img(e.def.art, '', e.name)}</div>
-        <div class="unit-bar"><div class="bar"><b style="width:${100 * e.hp / e.maxHp}%"></b><span>${e.hp}/${e.maxHp}</span></div></div>
-        <div class="unit-name">${E(e.name)}${e.strength ? `<em>力${e.strength}</em>` : ''}</div>
-        ${e.turnsLeft && !e.dead ? `<div class="turns-left">あと${e.turnsLeft}ターンで過ぎ去る</div>` : ''}
-      </div>`;
-    }).join('');
+        <div class="unit-bar"><div class="bar"><b></b><span></span></div></div>
+        <div class="unit-name"></div>
+        <div class="turns-left"></div>
+      </div>`).join('');
+    }
+    b.enemies.forEach((e, k) => {
+      const el = box.children[k];
+      const it = FR.Battle.intentLabel(b, e);
+      const show = it && !e.dead && !b.over;
+      const intent = el.querySelector('.intent');
+      intent.className = 'intent ' + (show ? it.kind : '');
+      intent.title = show ? it.name : '';
+      intent.innerHTML = show ? FR.BattleView.icon(it.kind) + `<b>${E(it.value)}</b>` : '';
+      el.querySelector('.bar > b').style.width = (100 * e.hp / e.maxHp) + '%';
+      el.querySelector('.bar > span').textContent = `${e.hp}/${e.maxHp}`;
+      el.querySelector('.unit-name').innerHTML = E(e.name) + (e.strength ? `<em>力${e.strength}</em>` : '');
+      el.querySelector('.turns-left').textContent = e.turnsLeft && !e.dead ? `あと${e.turnsLeft}ターンで過ぎ去る` : '';
+      el.classList.toggle('dead', e.dead);
+    });
 
     // 畑と畜舎
     const slots = b.plots.length + b.barns.length;
@@ -99,6 +113,12 @@ FR.BattleView = {
     }).join('');
     $('b-field').innerHTML = plotsHtml + barnsHtml;
     $('b-field').hidden = slots === 0;
+    // 収穫ボタン（畜舎だけなら「出荷」）
+    const canH = FR.Battle.canHarvestNow(b) && !FR.HandInput.locked;
+    const hb = $('b-harvest');
+    hb.disabled = !canH;
+    hb.textContent = b.plots.length ? '収穫' : '出荷';
+    hb.title = b.plots.length && b.barns.length ? '実った作物と、出荷できる家畜をすべて取る' : '';
 
     // 下：エネルギー・山札・捨て札・ターン終了
     $('b-energy').innerHTML = `<b>${b.energy}</b><small>/${FR.Config.energy}</small>`;
@@ -156,11 +176,11 @@ FR.BattleView = {
     let delay = 0;
     const enemyArt = uid => document.querySelector(`.enemy-unit[data-uid="${uid}"] .unit-art`);
     for (const f of fx) {
-      if (['damage', 'block', 'gold', 'heal', 'blocked', 'buff'].includes(f.kind)) {
+      if (['damage', 'block', 'gold', 'heal', 'blocked', 'buff', 'energy'].includes(f.kind)) {
         const anchor = f.target === 'enemy' ? enemyArt(f.enemy) : document.getElementById('b-player-art');
         FR.BattleView.floatText(anchor, f.text, f.kind + ' ' + (f.target || ''), delay);
-        delay += 90;
-        if (f.kind === 'damage') FR.BattleView.shake(anchor);
+        if (f.kind === 'damage') FR.BattleView.hit(anchor, delay);
+        delay += FR.BattleView.STAGGER;
       } else if (f.kind === 'enemyMove') {
         FR.BattleView.floatText(enemyArt(f.enemy), f.text.split('：')[1], 'move', delay);
       } else if (['harvest', 'stolen', 'plant', 'grow'].includes(f.kind)) {
@@ -172,11 +192,11 @@ FR.BattleView = {
           void el.offsetWidth;
           el.classList.add('pulse-' + f.kind);
         }
-        if (f.kind === 'harvest' || f.kind === 'stolen') FR.Screens.toast(f.text, f.kind);
+        if (f.kind === 'harvest' || f.kind === 'stolen') { const t = f.text, k = f.kind; setTimeout(() => FR.Screens.toast(t, k), delay); delay += FR.BattleView.STAGGER; }
       } else if (f.kind === 'warn') {
         FR.Screens.toast(f.text, 'warn');
       } else if (f.kind === 'note') {
-        FR.Screens.toast(f.text, 'note');
+        const t = f.text; setTimeout(() => FR.Screens.toast(t, 'note'), delay);
       }
     }
   },
@@ -191,13 +211,59 @@ FR.BattleView = {
     el.style.top = (rect.top + rect.height * (cls === 'move' ? 0.05 : 0.3)) + 'px';
     el.style.animationDelay = delay + 'ms';
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1400 + delay);
+    setTimeout(() => el.remove(), 2200 + delay);
   },
 
-  shake(el) {
+  // 数字を出す間隔（ミリ秒）。大きくするとゆっくりになる
+  STAGGER: 280,
+
+  // 当たったとき：赤く光ってゆれる
+  hit(el, delay) {
     if (!el) return;
-    el.classList.remove('shake');
+    setTimeout(() => {
+      el.classList.remove('shake', 'hit-flash');
+      void el.offsetWidth;
+      el.classList.add('shake', 'hit-flash');
+    }, delay || 0);
+  },
+
+  shake(el) { FR.BattleView.hit(el, 0); },
+
+  // 画面中央に大きく文字を出す（「敵のターン」など）
+  banner(text, cls) {
+    const el = document.getElementById('turn-banner');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'show ' + (cls || '');
+    clearTimeout(FR.BattleView._bannerTimer);
+    FR.BattleView._bannerTimer = setTimeout(() => { el.className = ''; }, 900);
+  },
+
+  // カードを使ったとき：手札から狙った先へ飛んで消える
+  flyCard(cardEl, targetEl) {
+    if (!cardEl) return;
+    const from = cardEl.getBoundingClientRect();
+    const to = (targetEl || document.getElementById('b-stage')).getBoundingClientRect();
+    const ghost = cardEl.cloneNode(true);
+    ghost.classList.remove('selected', 'dragging', 'will-play');
+    ghost.classList.add('card-ghost');
+    Object.assign(ghost.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', margin: 0 });
+    document.body.appendChild(ghost);
+    const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+    const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+    ghost.animate([
+      { transform: 'translate(0, 0) scale(1.1) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx * .55}px, ${dy * .55}px) scale(1.15) rotate(0deg)`, opacity: 1, offset: .55 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.35) rotate(8deg)`, opacity: 0 }
+    ], { duration: 420, easing: 'cubic-bezier(.3,.6,.3,1)' }).onfinish = () => ghost.remove();
+  },
+
+  // 農家・敵が前に出る（攻撃のしぐさ）
+  lunge(el, dir) {
+    if (!el) return;
+    el.classList.remove('lunge-left', 'lunge-right');
     void el.offsetWidth;
-    el.classList.add('shake');
+    el.classList.add(dir === 'right' ? 'lunge-right' : 'lunge-left');
+    setTimeout(() => el.classList.remove('lunge-left', 'lunge-right'), 520);
   }
 };

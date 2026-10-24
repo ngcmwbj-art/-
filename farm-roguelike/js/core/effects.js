@@ -11,7 +11,7 @@ FR.Effects = {
     damageAll(b, e) { FR.Battle.aliveEnemies(b).forEach(en => FR.Battle.damageEnemy(b, e.amount, en)); },
     block(b, e) { FR.Battle.gainBlock(b, e.amount); },
     draw(b, e) { FR.Battle.drawCards(b, e.amount); },
-    energy(b, e) { b.energy += e.amount; },
+    energy(b, e) { FR.Battle.gainEnergy(b, e.amount); },
     heal(b, e) { FR.Battle.heal(b, e.amount); },
     gold(b, e) { FR.Battle.gainGold(b, e.amount); },
     status(b, e) { b.statuses[e.id] = (b.statuses[e.id] || 0) + e.amount; },
@@ -26,6 +26,10 @@ FR.Effects = {
     blockPerFruit(b, e) { const n = FR.Battle.fruitCount(b); if (n) FR.Battle.gainBlock(b, e.per * n); },
     blockPerCrop(b, e) { const n = FR.Battle.cropCount(b); if (n) FR.Battle.gainBlock(b, e.per * n); },
     drawPerCrop(b, e) { FR.Battle.drawCards(b, e.per * FR.Battle.cropCount(b)); },
+    // エネルギー：実った作物と実のなった木の数／家畜の頭数／成木の本数に応じて
+    energyPerRipe(b, e) { const n = b.plots.filter(FR.Battle.isRipe).length; if (n) FR.Battle.gainEnergy(b, e.per * n); },
+    energyPerAnimal(b, e) { const n = FR.Battle.animalCount(b); if (n) FR.Battle.gainEnergy(b, e.per * n); },
+    energyPerTree(b, e) { const n = b.plots.filter(p => p && p.tree && p.growth >= p.stages).length; if (n) FR.Battle.gainEnergy(b, e.per * n); },
     goldPerFruit(b, e) { const n = FR.Battle.fruitCount(b); if (n) FR.Battle.gainGold(b, e.per * n); },
 
     // ── 畑と木 ──

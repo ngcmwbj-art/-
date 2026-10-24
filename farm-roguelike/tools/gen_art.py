@@ -562,4 +562,18 @@ svg('avianflu',
   cel('M92 52 L108 54 C108 58 100 60 92 58Z', '#b8a04a', '#8a7428', off=(-1, -1), lw=1.6) +
   eye_s(86, 48, 2.2, '#7a2e14') +
   ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#9a7aaa" opacity=".55"/>' for x, y, r in [(30, 54, 3), (18, 60, 2), (100, 70, 2.6), (106, 40, 2), (40, 46, 1.8)]))
+
+# ── 早起き：山の端から昇る朝日 ──
+import math as _m
+svg('sunrise',
+  ''.join(f'<path d="M60 78 L{60+50*_m.cos(a):.1f} {78+50*_m.sin(a):.1f}" stroke="#e8a83a" stroke-width="4" stroke-linecap="round" opacity=".8"/>' for a in [_m.pi + k * _m.pi / 8 for k in range(1, 8)]) +
+  cel('M30 78 A30 30 0 0 1 90 78Z', '#f0b84a', '#c88a2a', off=(-3, -3)) +
+  cel('M4 104 L30 70 L48 86 L70 62 L116 104Z', '#4a5a4a', '#2e3a2e', off=(-4, -4)) +
+  line('M0 104 L120 104', 2.6))
+# ── 補助金：銭の束 ──
+def coin(x, y):
+    return cel(f'M{x-14} {y} A14 9 0 1 1 {x+14} {y} A14 9 0 1 1 {x-14} {y}Z', '#d9a441', '#a8761a', off=(-2, -2),
+               extra=f'<rect x="{x-4}" y="{y-3}" width="8" height="6" fill="none" stroke="#6e4a14" stroke-width="1.6"/>')
+svg('coin', coin(40, 92) + coin(40, 82) + coin(40, 72) + coin(78, 92) + coin(78, 82) + coin(60, 60) + coin(60, 50) +
+  line('M24 104 L96 104', 2.4))
 print('ok')

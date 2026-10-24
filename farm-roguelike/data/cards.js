@@ -28,7 +28,7 @@ FR.Cards = {
     upgrade: { name: 'マルチ+', text: '守り8', effects: [{ op: 'block', amount: 8 }] }
   },
   harvest: {
-    name: '収穫', type: 'crop', cost: 0, rarity: 'basic', pool: ['common'], art: 'basket',
+    name: '収穫', type: 'crop', cost: 0, rarity: 'basic', pool: [], art: 'basket', retired: true,  // 収穫ボタンに置きかえ（古い保存データ用に残す）
     text: '実った作物と、木になった実をすべて収穫する',
     needs: 'ripeCrop',
     effects: [{ op: 'harvest' }],
@@ -53,7 +53,28 @@ FR.Cards = {
     upgrade: { name: 'かかし+', text: '勢いに6。この先4ターン、毎ターン始めに勢いに4', effects: [{ op: 'damage', amount: 6 }, { op: 'status', id: 'scarecrow', amount: 4 }] }
   },
 
-  /* ════════ 野菜農家：回転が速い。たくさん植えて、続けて使うほど強い ════════ */
+    /* ── エネルギーを増やすカード ── */
+  earlyRise: {
+    name: '早起き', type: 'skill', cost: 0, rarity: 'common', pool: ['common'], art: 'sunrise',
+    text: 'エネルギー+1。廃棄',
+    exhaust: true,
+    effects: [{ op: 'energy', amount: 1 }],
+    upgrade: { name: '早起き+', text: 'エネルギー+1、1枚引く。廃棄', effects: [{ op: 'energy', amount: 1 }, { op: 'draw', amount: 1 }] }
+  },
+  subsidy: {
+    name: '農協の補助金', type: 'skill', cost: 1, rarity: 'common', pool: ['common'], art: 'coin',
+    text: '次のターン始めにエネルギー+2',
+    effects: [{ op: 'status', id: 'nextEnergy', amount: 2 }],
+    upgrade: { name: '農協の補助金+', cost: 0 }
+  },
+  familyHelp: {
+    name: '家族の手伝い', type: 'power', cost: 2, rarity: 'rare', pool: ['common'], art: 'farmer_vegetable',
+    text: 'この戦闘の間、毎ターン始めにエネルギー+1',
+    effects: [{ op: 'status', id: 'energyUp', amount: 1 }],
+    upgrade: { name: '家族の手伝い+', cost: 1 }
+  },
+
+/* ════════ 野菜農家：回転が速い。たくさん植えて、続けて使うほど強い ════════ */
   sowKomatsuna: {
     name: '種まき', type: 'crop', cost: 1, rarity: 'basic', pool: ['vegetable'], art: 'seeds',
     text: '小松菜を植える（2段で実る。収穫で守り4・銭4）',
@@ -197,6 +218,14 @@ FR.Cards = {
     upgrade: { name: 'トラクター+', text: '勢いに18。作物をすべて2段育てる', effects: [{ op: 'damage', amount: 18 }, { op: 'grow', amount: 2 }] }
   },
 
+  goodHarvestSign: {
+    name: '豊作の気配', type: 'growth', cost: 0, rarity: 'uncommon', pool: ['vegetable'], art: 'basket',
+    text: '実った作物1つにつきエネルギー+1',
+    needs: 'ripeCrop',
+    effects: [{ op: 'energyPerRipe', per: 1 }],
+    upgrade: { name: '豊作の気配+', text: '実った作物1つにつきエネルギー+1、1枚引く', effects: [{ op: 'energyPerRipe', per: 1 }, { op: 'draw', amount: 1 }] }
+  },
+
   /* ════════ 畜産農家：家畜を導入し、手をかけて育て、出荷で大きく稼ぐ ════════ */
   shoo: {
     name: '追い払う', type: 'attack', cost: 1, rarity: 'basic', pool: ['livestock'], art: 'dog',
@@ -225,7 +254,7 @@ FR.Cards = {
     upgrade: { name: '給餌+', text: '家畜をすべて1段育て、手入れ+1。1枚引く', effects: [{ op: 'feed', grow: 1, care: 1 }, { op: 'draw', amount: 1 }] }
   },
   ship: {
-    name: '出荷', type: 'livestock', cost: 0, rarity: 'basic', pool: ['livestock'], art: 'truck',
+    name: '出荷', type: 'livestock', cost: 0, rarity: 'basic', pool: [], art: 'truck', retired: true,  // 収穫ボタンに置きかえ（古い保存データ用に残す）
     text: '出荷できる家畜をすべて出荷する。手入れが多いほど格付けが上がり、高く売れる',
     needs: 'matureAnimal',
     effects: [{ op: 'ship' }],
@@ -335,6 +364,14 @@ FR.Cards = {
     needs: 'animal',
     effects: [{ op: 'feed', grow: 2, care: 2 }, { op: 'block', amount: 6 }],
     upgrade: { name: '飼料ミキサー+', cost: 2 }
+  },
+
+  morningRounds: {
+    name: '朝の見回り', type: 'livestock', cost: 0, rarity: 'uncommon', pool: ['livestock'], art: 'dog',
+    text: '家畜1頭につきエネルギー+1。廃棄',
+    needs: 'animal', exhaust: true,
+    effects: [{ op: 'energyPerAnimal', per: 1 }],
+    upgrade: { name: '朝の見回り+', text: '家畜1頭につきエネルギー+1。（廃棄しない）', exhaust: false }
   },
 
   /* ════════ 柑橘農家：木を植えると毎ターン実がなる。守って摘み続ける ════════ */
@@ -482,6 +519,14 @@ FR.Cards.lesion = {
   text: '使えない。この戦闘の間だけ山札に混ざる',
   unplayable: true,
   effects: []
+};
+
+FR.Cards.mikanMorning = {
+  name: 'みかん山の朝', type: 'growth', cost: 0, rarity: 'uncommon', pool: ['citrus'], art: 'mikantree',
+  text: '成木1本につきエネルギー+1。廃棄',
+  needs: 'tree', exhaust: true,
+  effects: [{ op: 'energyPerTree', per: 1 }],
+  upgrade: { name: 'みかん山の朝+', text: '成木1本につきエネルギー+1。（廃棄しない）', exhaust: false }
 };
 
 // 種類の表示名

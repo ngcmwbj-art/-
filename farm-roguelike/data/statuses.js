@@ -23,6 +23,10 @@ FR.Statuses = {
   immune:     { name: '防疫', text: '家畜が病気にかからない' },
   bigFruit:   { name: '摘果', text: '次に実を収穫するとき、実1つごとの効果が2倍' },
   ripening:   { name: '完熟', text: '実1つごとの銭+3・守り+2（×この数）' },
+  nextEnergy: { name: '段取り済み', text: '次のターン始めに、この数だけエネルギーが増える',
+                turnStart(b, n) { FR.Battle.gainEnergy(b, n); b.statuses.nextEnergy = 0; } },
+  energyUp:   { name: '人手', text: '毎ターン始めに、この数だけエネルギーが増える',
+                turnStart(b, n) { FR.Battle.gainEnergy(b, n); } },
   // ── 敵からかけられる悪い状態（残りターン数）──
   weak:       { name: '疲労', text: '敵の勢いを減らす量が25%少ない（残りターン数）', bad: true, decay: true },
   fragile:    { name: '荒れ', text: '受ける被害が50%多い（残りターン数）', bad: true, decay: true },

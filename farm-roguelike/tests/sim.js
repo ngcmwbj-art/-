@@ -12,6 +12,7 @@ const root = path.join(__dirname, '..');
   .forEach(f => vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }));
 
 let failures = 0;
+const noPhoto = [];
 const fail = msg => { failures++; console.log('NG:', msg); };
 
 // データの整合性：art・crop・animal・status の参照先があるか
@@ -19,7 +20,7 @@ const artNames = new Set(fs.readdirSync(path.join(root, 'assets/img/art')).map(f
 for (const [id, c] of Object.entries(FR.Cards)) {
   if (c.unplayable) continue;
   if (!artNames.has(c.art)) fail(`カード ${id} の絵 ${c.art} がない`);
-  if (!fs.existsSync(path.join(root, 'assets/img/cards', id + '.jpg'))) fail(`カード ${id} の絵（JPEG）がない`);
+  if (!fs.existsSync(path.join(root, 'assets/img/cards', id + '.jpg'))) noPhoto.push(c.name);
   if (!FR.CardTypes[c.type]) fail(`カード ${id} の種類 ${c.type} が不明`);
   if (c.needs && !FR.Battle.NEEDS[c.needs]) fail(`カード ${id} の条件 ${c.needs} が不明`);
   for (const e of [...c.effects, ...((c.upgrade && c.upgrade.effects) || [])]) {
@@ -37,6 +38,8 @@ function botBattle(run, rnd, played) {
   let guard = 0;
   while (!b.over) {
     if (++guard > 5000) { fail('戦闘が終わらない'); break; }
+    // 収穫ボタン：押せるときは、たまに押す
+    if (FR.Battle.canHarvestNow(b) && rnd() < 0.5) { FR.Battle.harvestButton(b); b.fx.length = 0; continue; }
     const playable = b.hand.filter(c => FR.Battle.canPlay(b, c).ok);
     if (playable.length && rnd() < 0.9) {
       const inst = playable[Math.floor(rnd() * playable.length)];
@@ -136,7 +139,7 @@ for (const [id, def] of Object.entries(FR.Enemies)) {
 for (const [id, c] of Object.entries(FR.Cards)) {
   if (c.unplayable) continue;
   for (const upgraded of [false, true]) {
-    const farmerId = c.pool.includes('common') ? 'livestock' : c.pool[0];
+    const farmerId = c.pool.includes('common') || !c.pool.length ? 'livestock' : c.pool[0];
     const run = FR.Run.create(farmerId, 7);
     const b = FR.Battle.create(run);
     b.enemies.forEach(e => { e.hp = e.maxHp = 999; });
@@ -161,9 +164,34 @@ for (const [id, c] of Object.entries(FR.Cards)) {
 }
 
 // すべてのカードが使われたか（強化前）
-const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].unplayable);
+const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].unplayable && !FR.Cards[id].retired);
+// 収穫ボタン：実ったものだけを取り、エネルギーは使わない
+{
+  const run = FR.Run.create('livestock', 3);
+  const b = FR.Battle.create(run);
+  b.plots = [{ crop: 'komatsuna', growth: 2, stages: 2 }, { crop: 'tomato', growth: 1, stages: 3 }];
+  b.barns = [{ animal: 'calf', growth: 3, stages: 3, care: 8 }, { animal: 'piglet', growth: 1, stages: 2, care: 0 }];
+  const e0 = b.energy, g0 = run.gold;
+  if (!FR.Battle.harvestButton(b)) fail('収穫ボタンが押せない');
+  if (b.energy !== e0) fail('収穫ボタンでエネルギーが減った');
+  if (b.plots[0] || !b.plots[1] || b.barns[0] || !b.barns[1]) fail('収穫ボタンで取るものが違う');
+  if (run.gold <= g0) fail('収穫ボタンで銭が増えない');
+  if (FR.Battle.harvestButton(b)) fail('取るものがないのに収穫ボタンが押せた');
+}
+// エネルギーの状態：次のターン・毎ターン
+{
+  const run = FR.Run.create('vegetable', 3);
+  const b = FR.Battle.create(run);
+  run.hp = run.maxHp = 9999;
+  b.statuses.nextEnergy = 2; b.statuses.energyUp = 1;
+  FR.Battle.endTurn(b);
+  if (b.energy !== FR.Config.energy + 3) fail('次のターンのエネルギーが ' + b.energy);
+  FR.Battle.endTurn(b);
+  if (b.energy !== FR.Config.energy + 1) fail('2ターン目のエネルギーが ' + b.energy);
+}
 if (unused.length) fail('一度も使われなかったカード: ' + unused.join(', '));
 console.log('ボットの成績（ランダムに遊んだ場合）', results);
 console.log('使われたカード', Object.keys(played).length, '種（強化後を含む）');
+if (noPhoto.length) console.log('いただいた絵がまだないカード（道具の絵で表示）:', noPhoto.join('、'));
 console.log(failures ? `失敗 ${failures} 件` : 'すべて OK');
 process.exit(failures ? 1 : 0);

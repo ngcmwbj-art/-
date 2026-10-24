@@ -78,11 +78,23 @@ FR.Battle = {
     FR.Battle.drawCards(b, FR.Config.handSize);
   },
 
+  // ターン終了をまとめて行う（テストや自動プレイ用。画面では endTurnBegin → enemyActOne × 敵の数 → endTurnFinish を間をあけて呼ぶ）
   endTurn(b) {
     if (b.over) return;
+    FR.Battle.endTurnBegin(b);
+    FR.Battle.enemyAct(b);
+    if (b.over) return;
+    FR.Battle.endTurnFinish(b);
+  },
+
+  // 手札を捨てる
+  endTurnBegin(b) {
     b.discard.push(...b.hand);
     b.hand = [];
-    FR.Battle.enemyAct(b);
+  },
+
+  // 敵が動いたあと：覆いが外れ、作物が育ち、悪い状態が減り、天候が進み、次のターンへ
+  endTurnFinish(b) {
     if (b.over) return;
     for (const id of Object.keys(FR.Statuses)) {
       if (FR.Statuses[id].clearAtTurnEnd) b.statuses[id] = 0;
@@ -222,6 +234,12 @@ FR.Battle = {
     if (b.run.hp <= 0) FR.Battle.lose(b);
   },
 
+  gainEnergy(b, amount) {
+    if (amount <= 0) return;
+    b.energy += amount;
+    b.fx.push({ kind: 'energy', target: 'player', text: 'エネルギー +' + amount });
+  },
+
   gainBlock(b, amount) {
     if (amount <= 0) return;
     b.block += amount;
@@ -341,6 +359,17 @@ FR.Battle = {
     b.lastHarvested = count;
   },
 
+  // 収穫ボタン：自分のターンならいつでも、エネルギーを使わずに、実った作物・木の実・出荷できる家畜をすべて取る
+  canHarvestNow(b) {
+    return !b.over && (FR.Battle.hasHarvestable(b) || b.barns.some(a => a && a.growth >= a.stages));
+  },
+  harvestButton(b) {
+    if (!FR.Battle.canHarvestNow(b)) return false;
+    if (FR.Battle.hasHarvestable(b)) FR.Battle.harvestAll(b, false);
+    if (!b.over && b.barns.some(a => a && a.growth >= a.stages)) FR.Battle.shipAll(b, 0);
+    return true;
+  },
+
   // ── 家畜 ───────────────────────────────────
   addAnimal(b, animalId, care, grow) {
     const i = b.barns.findIndex(a => !a);
@@ -445,6 +474,14 @@ FR.Battle = {
   enemyAct(b) {
     for (const e of FR.Battle.aliveEnemies(b)) {
       if (b.over) return;
+      FR.Battle.enemyActOne(b, e);
+    }
+  },
+
+  // 敵1体の行動
+  enemyActOne(b, e) {
+    if (b.over || e.dead) return;
+    {
       const it = e.intent;
       const dmg = (it.damage || 0) + e.strength;
       b.fx.push({ kind: 'enemyMove', enemy: e.uid, text: `${e.name}：${it.name}` });

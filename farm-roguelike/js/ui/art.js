@@ -26,7 +26,8 @@ FR.Art = {
     net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.svg',
     greenhouse: 'greenhouse.svg', sprayer: 'sprayer.svg', tractor: 'tractor.svg', feed: 'feed.svg',
     vaccine: 'vaccine.svg', fence: 'fence.svg', truck: 'truck.svg', hay: 'hay.svg', shears: 'shears.svg',
-    firework: 'firework.svg', fan: 'fan.svg', stonewall: 'stonewall.svg', cowbell: 'cowbell.svg'
+    firework: 'firework.svg', fan: 'fan.svg', stonewall: 'stonewall.svg', cowbell: 'cowbell.svg',
+    sunrise: 'sunrise.svg', coin: 'coin.svg'
   },
   // 敵の絵（いただいた絵から切り出し、背景を透明にした PNG）
   ENEMY_BASE: 'assets/img/enemies/',
