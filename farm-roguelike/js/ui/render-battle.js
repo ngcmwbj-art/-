@@ -108,7 +108,7 @@ FR.BattleView = {
         ${FR.Art.img(mature ? def.art.ripe : def.art.growing, '', def.name)}
         <span class="crop-name">${E(mature ? def.matureName : def.name)}</span>
         <span class="grade">${g.label}</span>
-        <small>${mature ? '出荷できる' : a.growth + '/' + a.stages}</small>
+        <small>${mature ? `出荷で銭${FR.Battle.shipValue(b, a)}` : a.growth + '/' + a.stages}</small>
       </div>`;
     }).join('');
     $('b-field').innerHTML = plotsHtml + barnsHtml;
@@ -192,7 +192,9 @@ FR.BattleView = {
           void el.offsetWidth;
           el.classList.add('pulse-' + f.kind);
         }
-        if (f.kind === 'harvest' || f.kind === 'stolen') { const t = f.text, k = f.kind; setTimeout(() => FR.Screens.toast(t, k), delay); delay += FR.BattleView.STAGGER; }
+        if ((f.kind === 'harvest' || f.kind === 'stolen') && f.text) { const t = f.text, k = f.kind; setTimeout(() => FR.Screens.toast(t, k), delay); delay += FR.BattleView.STAGGER; }
+      } else if (f.kind === 'ship') {
+        FR.BattleView.shipSlip(f);
       } else if (f.kind === 'warn') {
         FR.Screens.toast(f.text, 'warn');
       } else if (f.kind === 'note') {
@@ -228,6 +230,33 @@ FR.BattleView = {
   },
 
   shake(el) { FR.BattleView.hit(el, 0); },
+
+  // 出荷票：出荷した家畜の格付けと、銭の計算を数秒見せる（何頭も出荷したら順番に）
+  _slips: [],
+  shipSlip(f) {
+    FR.BattleView._slips.push(f);
+    if (FR.BattleView._slips.length === 1) FR.BattleView._nextSlip();
+  },
+  _nextSlip() {
+    const f = FR.BattleView._slips[0];
+    const el = document.getElementById('ship-slip');
+    if (!f || !el) return;
+    const E = FR.Util.escape;
+    const calc = [`基本 ${f.base}`, `格付け ×${f.mult}`];
+    if (f.contract > 1) calc.push(`契約 ×${f.contract}`);
+    el.innerHTML = `<div class="slip-head">出荷票</div>
+      <div class="slip-name">${E(f.name)}</div>
+      <div class="slip-grade"><span>格付け</span><b>${E(f.grade)}</b></div>
+      <div class="slip-row">手入れ ${f.care}${f.bonus ? `（セリで +${f.bonus}段）` : ''}</div>
+      <div class="slip-row calc">${calc.join(' ・ ')}</div>
+      <div class="slip-gold">銭 +${f.gold}</div>
+      <div class="slip-row">${E(f.effect)}</div>`;
+    el.className = 'show';
+    setTimeout(() => {
+      el.className = '';
+      setTimeout(() => { FR.BattleView._slips.shift(); FR.BattleView._nextSlip(); }, 300);
+    }, 2400);
+  },
 
   // 画面中央に大きく文字を出す（「敵のターン」など）
   banner(text, cls) {

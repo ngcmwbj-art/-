@@ -388,6 +388,18 @@ FR.Battle = {
     });
   },
 
+  // 出荷したらいくらになるかの見込み（畜舎の表示用）
+  shipValue(b, a, gradeBonus) {
+    const def = FR.Animals[a.animal];
+    const g = FR.Battle.gradeOf(a.care, gradeBonus || 0);
+    return Math.round(def.gold * g.mult * (1 + 0.5 * (b.statuses.contract || 0)));
+  },
+  // 次の格付けまで、あと手入れいくつか（いちばん上なら null）
+  nextGrade(care) {
+    const nx = FR.Grades.find(g => g.care > care);
+    return nx ? { grade: nx, need: nx.care - care } : null;
+  },
+
   // 手入れの合計から格付けを決める（bonus 段だけ上げる）
   gradeOf(care, bonus) {
     let idx = 0;
@@ -406,7 +418,10 @@ FR.Battle = {
       b.barns[i] = null;
       b.run.stats.harvest += Math.round(def.yield * g.mult);
       b.run.stats.shipped = (b.run.stats.shipped || 0) + 1;
-      b.fx.push({ kind: 'harvest', barn: i, text: `${def.matureName}を出荷 格付け${g.label}` });
+      // 出荷票：何がいくらになったかを画面に出すための中身
+      b.fx.push({ kind: 'harvest', barn: i, text: '' });
+      b.fx.push({ kind: 'ship', barn: i, name: def.matureName, grade: g.label, care: a.care, base: def.gold,
+                  mult: g.mult, bonus: gradeBonus || 0, contract, gold, effect: def.shipText });
       FR.Battle.gainGold(b, gold);
       FR.Effects.run(b, def.onShip);
       FR.Effects.relicHook(b, 'ship');

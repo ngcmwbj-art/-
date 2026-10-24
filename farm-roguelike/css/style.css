@@ -464,6 +464,35 @@ img { -webkit-user-drag: none; }
 @keyframes hitFlashMirror { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; }
 .unit-bar .bar > b { transition: width .7s cubic-bezier(.3,.7,.3,1); }
+/* 出荷票 */
+#ship-slip {
+  position: fixed; left: 50%; top: 30%; z-index: 88; width: min(300px, 84vw); pointer-events: none;
+  transform: translate(-50%, 0) rotate(-2deg) scale(.85); opacity: 0; transition: opacity .25s, transform .25s;
+  background: linear-gradient(160deg, #efe6cf, var(--paper) 60%, #d9cba8); color: var(--ink);
+  border: 1px solid #3a2c20; outline: 3px solid rgba(36, 28, 21, .85); outline-offset: -7px; border-radius: 3px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .6); padding: 14px 18px 16px; display: grid; gap: 4px; text-align: center;
+}
+#ship-slip.show { opacity: 1; transform: translate(-50%, 0) rotate(-2deg) scale(1); }
+#ship-slip .slip-head { font-family: var(--mincho); font-size: 12px; letter-spacing: .5em; color: var(--ink-soft); border-bottom: 1px solid rgba(36, 28, 21, .3); padding-bottom: 4px; }
+#ship-slip .slip-name { font-family: var(--mincho); font-weight: 800; font-size: 20px; letter-spacing: .1em; }
+#ship-slip .slip-grade { display: flex; justify-content: center; align-items: baseline; gap: 8px; }
+#ship-slip .slip-grade span { font-size: 12px; color: var(--ink-soft); }
+#ship-slip .slip-grade b { font-family: var(--mincho); font-weight: 800; font-size: 44px; color: #8e2f1e; line-height: 1; }
+#ship-slip .slip-row { font-size: 13px; }
+#ship-slip .slip-row.calc { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+#ship-slip .slip-gold { font-family: var(--mincho); font-weight: 800; font-size: 24px; color: #6e4a14; }
+/* 家畜の説明 */
+.animal-info { display: grid; gap: 8px; margin-bottom: 12px; }
+.ai-row { display: grid; grid-template-columns: 5.5em 4.5em 1fr; gap: 8px; align-items: baseline; font-size: 14px; }
+.ai-row span { color: var(--panel-text-soft); font-size: 12px; }
+.ai-row b { font-family: var(--mincho); font-size: 17px; color: var(--gold); }
+.ai-row em { font-style: normal; color: var(--panel-text-soft); font-size: 12px; min-width: 0; }
+.grade-table { border-collapse: collapse; width: 100%; font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; margin-bottom: 8px; }
+.grade-table th, .grade-table td { border: 1px solid rgba(214, 190, 140, .25); padding: 4px; }
+.grade-table th { font-family: var(--mincho); }
+.grade-table td:first-child { color: var(--panel-text-soft); }
+.grade-table .now { background: rgba(232, 194, 122, .25); color: var(--gold); font-weight: 700; }
+
 /* 「敵のターン」「あなたのターン」 */
 #turn-banner {
   position: fixed; left: 0; right: 0; top: 38%; z-index: 85; text-align: center; pointer-events: none;

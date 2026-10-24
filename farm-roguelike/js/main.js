@@ -59,10 +59,7 @@ const App = {
       } else if (be) {
         const a = bt.barns[+be.dataset.barn];
         if (!a) { FR.Screens.toast('空いた畜舎。子牛導入などで使う'); return; }
-        const def = FR.Animals[a.animal];
-        const g = FR.Battle.gradeOf(a.care, 0);
-        FR.Screens.toast(`${def.name}　${a.growth}/${a.stages}段　手入れ${a.care}（格付け${g.label}・×${g.mult}）　出荷で${def.shipText}`
-          + (def.turnText ? `　育つと${def.turnText}` : ''));
+        App.showAnimal(a);
       }
     };
     FR.HandInput.attach(document.getElementById('hand'), {
@@ -264,6 +261,29 @@ const App = {
         App.endRun();
       }
     }, App.TEMPO.endBattle);
+  },
+
+  // 家畜の説明：育ち・手入れ・格付け・出荷の見込みと、格付けの表
+  showAnimal(a) {
+    const b = App.battle;
+    const E = FR.Util.escape;
+    const def = FR.Animals[a.animal];
+    const g = FR.Battle.gradeOf(a.care, 0);
+    const nx = FR.Battle.nextGrade(a.care);
+    const mature = a.growth >= a.stages;
+    const value = FR.Battle.shipValue(b, a);
+    FR.Screens.modal(mature ? def.matureName : def.name, `
+      <div class="animal-info">
+        <div class="ai-row"><span>育ち</span><b>${a.growth} / ${a.stages}段</b><em>${mature ? '出荷できる（収穫ボタン）' : `あと${a.stages - a.growth}段。給餌などで育つ（自然には育たない）`}</em></div>
+        <div class="ai-row"><span>手入れ</span><b>${a.care}</b><em>${nx ? `あと${nx.need}で ${nx.grade.label}` : 'いちばん上の格付け'}</em></div>
+        <div class="ai-row"><span>格付け</span><b>${g.label}</b><em>銭が ×${g.mult}</em></div>
+        <div class="ai-row"><span>出荷すると</span><b>銭 ${value}</b><em>基本 ${def.gold} × ${g.mult}${b.statuses.contract ? ` × 契約${1 + 0.5 * b.statuses.contract}` : ''}。${E(def.shipText)}</em></div>
+        ${def.turnText ? `<div class="ai-row"><span>育つと</span><b></b><em>${E(def.turnText)}</em></div>` : ''}
+      </div>
+      <table class="grade-table"><thead><tr><th>格付け</th>${FR.Grades.map(x => `<th class="${x.label === g.label ? 'now' : ''}">${x.label}</th>`).join('')}</tr></thead>
+        <tbody><tr><td>手入れ</td>${FR.Grades.map(x => `<td class="${x.label === g.label ? 'now' : ''}">${x.care}〜</td>`).join('')}</tr>
+        <tr><td>銭</td>${FR.Grades.map(x => `<td class="${x.label === g.label ? 'now' : ''}">×${x.mult}</td>`).join('')}</tr></tbody></table>
+      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>`);
   },
 
   showMenu() {

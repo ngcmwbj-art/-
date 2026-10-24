@@ -241,14 +241,14 @@ FR.Cards = {
   },
   buyCalf: {
     name: '子牛導入', type: 'livestock', cost: 1, rarity: 'basic', pool: ['livestock'], art: 'calf',
-    text: 'F1の子牛を畜舎に入れる（3段で出荷できる。出荷で健康度+6・銭24）',
+    text: 'F1子牛を入れる。給餌などで3段育つと出荷でき、銭24×格付け・健康度+6',
     needs: 'emptyBarn',
     effects: [{ op: 'addAnimal', animal: 'calf' }],
-    upgrade: { name: '子牛導入+', text: 'F1の子牛を畜舎に入れ、手入れ+1', effects: [{ op: 'addAnimal', animal: 'calf', care: 1 }] }
+    upgrade: { name: '子牛導入+', text: 'F1子牛を入れ、手入れ+1。3段で出荷でき、銭24×格付け・健康度+6', effects: [{ op: 'addAnimal', animal: 'calf', care: 1 }] }
   },
   feed: {
     name: '給餌', type: 'livestock', cost: 1, rarity: 'basic', pool: ['livestock'], art: 'feed',
-    text: '家畜をすべて1段育て、手入れ+1',
+    text: '家畜をすべて1段育て、手入れ+1（手入れが多いほど格付けが上がる）',
     needs: 'animal',
     effects: [{ op: 'feed', grow: 1, care: 1 }],
     upgrade: { name: '給餌+', text: '家畜をすべて1段育て、手入れ+1。1枚引く', effects: [{ op: 'feed', grow: 1, care: 1 }, { op: 'draw', amount: 1 }] }
@@ -262,7 +262,7 @@ FR.Cards = {
   },
   buyPiglet: {
     name: '子豚導入', type: 'livestock', cost: 1, rarity: 'common', pool: ['livestock'], art: 'piglet',
-    text: '子豚を畜舎に入れる（2段で出荷できる。出荷で守り8・銭14）',
+    text: '子豚を入れる。2段育つと出荷でき、銭14×格付け・守り8',
     needs: 'emptyBarn',
     effects: [{ op: 'addAnimal', animal: 'piglet' }],
     upgrade: { name: '子豚導入+', cost: 0 }
