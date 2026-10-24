@@ -302,7 +302,8 @@ function talkEdgeSample(): void {
   const f = field();
   if (!f || game.top !== f || f.viewScale !== 1 || !dialogVisible()) return;
   const sp = dialogSpeech();
-  if (!sp || sp.typing) return;
+  // (an empty page: the window lingering as it goes, the scene already cut elsewhere)
+  if (!sp || sp.typing || !sp.text.trim()) return;
   // who speaks: the msg block's speaker, the voice's person, else the one spoken to — not when the
   // words are someone not standing here (the loudspeaker's 防災無線, a voice off the map)
   const tag = (lastSpeaker() ?? '').split(':')[0];
