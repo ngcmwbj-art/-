@@ -9,11 +9,12 @@ FR.Config = {
   title: 'タイトル未定',          // ゲーム名（考え中）
   subtitle: '山と森と畑の一年',
   saveKey: 'farm-roguelike-save',
-  saveVersion: 1,
   energy: 3,                      // 毎ターンのエネルギー
   handSize: 5,                    // 毎ターン引く枚数
   handMax: 10,                    // 手札の上限
   rewardChoices: 3,               // 戦闘後に選べるカードの数
-  // 戦闘を重ねるごとの敵の強化（最小プレイ版の「何戦続けられるか」用）
-  scaling: { hpPerBattle: 5, damageEveryBattles: 2 }
+  // 進み具合（レベル）ごとの敵の強化。レベル = 季節×3 ＋ 段÷2（春の最初が 0、冬の終わりが 11）
+  // 勢いは レベル1つにつき hpPerLevel 割増え、力（攻撃の上乗せ）は strengthEvery レベルごとに+1
+  scaling: { hpPerLevel: 0.10, strengthEvery: 3 },
+  saveVersion: 2
 };

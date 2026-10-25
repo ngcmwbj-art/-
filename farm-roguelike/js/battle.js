@@ -14,16 +14,24 @@ FR.Battle = {
   create(run) {
     const rnd = FR.Run.rngFor(run, 'battle');
     const farmer = FR.Farmers[run.farmerId];
-    const n = run.battleIndex;
-    // 顔ぶれを選ぶ（②でマップができたら、マスの種類から決める）
-    const pool = FR.Encounters.filter(en => n >= en.from);
-    const enc = FR.Util.weighted(rnd, pool.map(en => ({ value: en, weight: en.weight * ((en.bias && en.bias[run.farmerId]) || 1) })));
-    const strength = Math.floor(n / FR.Config.scaling.damageEveryBattles);
+    // 顔ぶれ：選んだ行き先（run.node）で決まる。なければ季節から選ぶ
+    const node = run.node || {};
+    const level = FR.Map.level(run);
+    const sc = FR.Config.scaling;
+    let enc;
+    if (node.type === 'boss') enc = { id: 'boss:' + node.boss, enemies: [node.boss] };
+    else {
+      const encId = FR.Encounters.some(en => en.id === node.enc) ? node.enc : FR.Map.pickEncounter(run, rnd, run.step === 0);
+      enc = FR.Encounters.find(en => en.id === encId);
+    }
+    const strength = Math.floor(level / sc.strengthEvery);
     const enemies = enc.enemies.map((id, k) => {
       const def = FR.Enemies[id];
-      const hp = FR.Util.randInt(rnd, def.hp[0], def.hp[1]) + n * (def.hpGrowth || 0);
+      // ボスは季節ごとに強さが決まっているので、レベルでは増やさない
+      const grow = def.kind === 'boss' ? 1 : 1 + level * sc.hpPerLevel;
+      const hp = Math.round(FR.Util.randInt(rnd, def.hp[0], def.hp[1]) * grow);
       return {
-        uid: k + 1, id, def, name: def.name, hp, maxHp: hp, strength, dead: false,
+        uid: k + 1, id, def, name: def.name, hp, maxHp: hp, strength: def.kind === 'boss' ? 0 : strength, dead: false,
         turnsLeft: def.turns || null,   // 天候：あと何ターンで過ぎ去るか
         moveIndex: def.randomStart ? FR.Util.randInt(rnd, 0, def.pattern.length - 1) : 0, intent: null
       };
@@ -32,6 +40,7 @@ FR.Battle = {
     const b = {
       run, rnd,
       encounter: enc.id,
+      boss: node.type === 'boss',
       enemies,
       target: null,     // いま使っているカードの狙い（敵）
       block: 0,
@@ -50,6 +59,8 @@ FR.Battle = {
       log: []
     };
     FR.Battle.chooseIntents(b);
+    // 休憩所でかけた状態（堆肥・消毒）
+    if (run.nextBattle) for (const [k, v] of Object.entries(run.nextBattle)) b.statuses[k] = (b.statuses[k] || 0) + v;
     FR.Effects.relicHook(b, 'battleStart');
     FR.Battle.startTurn(b);
     return b;
@@ -627,6 +638,7 @@ FR.Battle = {
     if (auto) { r.gold += auto; r.stats.goldEarned += auto; }
     b.autoHarvestGold = auto;
     r.stats.battlesWon++;
+    if (b.boss) r.stats.bossesWon = (r.stats.bossesWon || 0) + 1;
   },
 
   lose(b) {

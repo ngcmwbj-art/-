@@ -1,8 +1,8 @@
 'use strict';
 /* =========================================================
    起動と画面のつなぎ役
-   タイトル → 農家タイプ選択 → 戦闘 → 報酬 → 戦闘 … → 健康度0で経営評価
-   （②でマップ、③で市場・休憩・イベント、④で季節とボスが間に入る）
+   タイトル → 農家タイプ選択 → 行き先を選ぶ → 戦闘・市場・休憩所 → … → 季節のボス → 季節の終わり
+   → 次の季節 … 冬のボスを倒せばクリア。健康度が0になったら、その場で経営評価
    ========================================================= */
 const App = {
   data: null,     // 保存データ { run, meta }
@@ -101,9 +101,32 @@ const App = {
       const c = ev.target.closest('.card');
       if (!c) return;
       App.rewardPick = c.dataset.id;
+      document.getElementById('reward-terms').innerHTML = FR.Glossary.html(FR.cardView({ id: c.dataset.id, uid: 0 }));
       document.querySelectorAll('#reward-cards .card').forEach(x => x.classList.toggle('selected', x === c));
       document.getElementById('reward-take').disabled = false;
     };
+    // 行き先・休憩所・季節の終わり
+    document.getElementById('map-choices').onclick = ev => { const b = ev.target.closest('[data-k]'); if (b) App.pickNode(+b.dataset.k); };
+    document.getElementById('map-deck').onclick = () => App.showDeck();
+    document.getElementById('rest-options').onclick = ev => { const b = ev.target.closest('[data-rest]'); if (b && !b.disabled) App.restAction(b.dataset.rest); };
+    document.getElementById('rest-upgrade-back').onclick = () => App.showRest();
+    document.getElementById('rest-upgrade-list').onclick = ev => {
+      const b = ev.target.closest('[data-up]');
+      if (!b) return;
+      const run = App.data.run;
+      const inst = run.deck.find(c => c.uid === +b.dataset.up);
+      if (FR.Map.upgrade(run, +b.dataset.up)) { FR.Screens.toast(`${FR.cardView(inst).name}に強化した`, 'harvest'); App.advance(); }
+    };
+    document.getElementById('season-next').onclick = () => App.seasonNext();
+    // カードをタップすると大きく表示し、言葉の説明を出す（帳面・山札・市場・休憩所）
+    document.getElementById('modal').addEventListener('click', ev => {
+      const c = ev.target.closest('.card-list .card');
+      if (c && c.dataset.id) App.showCardDetail(c);
+    });
+    document.getElementById('screen-market').addEventListener('click', ev => {
+      const c = ev.target.closest('.market-item .card');
+      if (c && c.dataset.id) App.showCardDetail(c);
+    });
     // 経営評価
     document.getElementById('btn-again').onclick = () => App.showSelect();
     document.getElementById('btn-title').onclick = () => App.showTitle();
@@ -146,15 +169,176 @@ const App = {
   newRun(farmerId) {
     App.data.run = FR.Run.create(farmerId, FR.Util.newSeed());
     App.data.meta.runs++;
-    App.startBattle();
+    App.goMap();
   },
 
   resume() {
     const run = App.data.run;
     if (!run) return App.showTitle();
-    if (run.phase === 'reward') App.showReward();
+    if (run.phase === 'reward' && run.reward) App.showReward();
     else if (run.phase === 'market' && run.market) App.showMarket();
-    else App.startBattle();
+    else if (run.phase === 'rest') App.showRest();
+    else if (run.phase === 'season' && run.seasonResult) App.showSeasonEnd();
+    else if (run.phase === 'battle' && run.node) App.startBattle();
+    else App.goMap();
+  },
+
+  // ── 行き先を選ぶ ─────────────────────────────
+  goMap() {
+    const run = App.data.run;
+    run.phase = 'map';
+    run.node = null;
+    if (!run.choices) run.choices = FR.Map.makeChoices(run);
+    App.save();
+    App.showMap();
+  },
+
+  // 1つの段を終えて、次の段へ
+  advance() {
+    const run = App.data.run;
+    run.step++;
+    run.choices = null;
+    App.goMap();
+  },
+
+  showMap() {
+    const run = App.data.run;
+    const E = FR.Util.escape;
+    const se = FR.Map.season(run);
+    const boss = FR.Map.isBossStep(run);
+    document.getElementById('map-season').innerHTML = `<b>${E(se.name)}</b><span>${run.season + 1}つ目の季節・${run.step + 1} / ${se.steps}</span>`;
+    // 進み具合：済んだ段・今の段・ボス
+    document.getElementById('map-progress').innerHTML = Array.from({ length: se.steps }, (_, k) =>
+      `<span class="dot ${k < run.step ? 'done' : k === run.step ? 'now' : ''} ${k === se.steps - 1 ? 'boss' : ''}">${k === se.steps - 1 ? '主' : k + 1}</span>`).join('');
+    document.getElementById('map-lead').textContent = run.step === 0 ? se.text
+      : boss ? '季節の終わり。大きな災いがやってくる' : 'どこへ向かう？';
+    document.getElementById('map-choices').innerHTML = run.choices.map((c, k) => {
+      const t = FR.NodeTypes[c.type];
+      let art = t.art ? FR.Art.img(t.art, '', t.name) : '';
+      let title = t.name, sub = t.text;
+      if (c.type === 'battle') {
+        const en = FR.Encounters.find(x => x.id === c.enc);
+        const defs = en.enemies.map(id => FR.Enemies[id]);
+        art = `<img src="${FR.Art.url(defs[defs.length - 1].art)}" alt="">`;
+        // 同じ敵が並ぶときは「×3」にまとめる
+        const names = [];
+        defs.forEach(d => { const f = names.find(n => n.name === d.name); if (f) f.n++; else names.push({ name: d.name, n: 1 }); });
+        title = names.map(n => n.name + (n.n > 1 ? '×' + n.n : '')).join('・');
+        sub = defs.some(d => d.turns) ? '天候：決まったターン数を耐えても過ぎ去る' : '戦い。勝てばカード1枚と銭';
+      } else if (c.type === 'boss') {
+        const d = FR.Enemies[c.boss];
+        art = `<img src="${FR.Art.url(d.art)}" alt="">`;
+        title = d.name;
+        sub = '季節のボス。勝てば次の季節へ（耐えても過ぎ去らない）';
+      }
+      return `<button class="map-choice type-${c.type}" data-k="${k}">
+        <span class="mc-art">${art}</span>
+        <span class="mc-body"><span class="mc-kind">${E(t.name)}</span><b>${E(title)}</b><span class="mc-text">${E(sub)}</span></span>
+      </button>`;
+    }).join('');
+    document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚`;
+    FR.Screens.show('map');
+  },
+
+  pickNode(k) {
+    const run = App.data.run;
+    const c = run.choices && run.choices[k];
+    if (!c) return;
+    run.node = c;
+    if (c.type === 'battle' || c.type === 'boss') return App.startBattle();
+    if (c.type === 'market') {
+      run.phase = 'market';
+      run.market = FR.Market.make(run);
+      App.save();
+      return App.showMarket();
+    }
+    if (c.type === 'rest') {
+      run.phase = 'rest';
+      App.save();
+      return App.showRest();
+    }
+  },
+
+  // ── 休憩所 ──────────────────────────────────
+  showRest() {
+    const run = App.data.run;
+    const E = FR.Util.escape;
+    const ex = FR.Map.REST_EXTRA[run.farmerId] || FR.Map.REST_EXTRA.vegetable;
+    const heal = Math.min(FR.Map.restHealAmount(run), run.maxHp - run.hp);
+    const ups = FR.Map.upgradable(run).length;
+    document.getElementById('rest-options').innerHTML = [
+      ['heal', '休む', `健康度を ${heal} 回復する（最大の3割）`, run.hp >= run.maxHp ? '健康度はいっぱい' : ''],
+      ['upgrade', '腕を磨く', 'デッキのカードを1枚強化する（強化は休憩所でしかできない）', ups ? '' : '強化できるカードがない'],
+      ['extra', ex.name, ex.text, '']
+    ].map(([k, name, text, why]) => `<button class="map-choice rest-${k}" data-rest="${k}" ${why ? 'disabled' : ''}>
+      <span class="mc-body"><b>${E(name)}</b><span class="mc-text">${E(why || text)}</span></span></button>`).join('');
+    document.getElementById('rest-options').hidden = false;
+    document.getElementById('rest-upgrade').hidden = true;
+    document.getElementById('rest-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ デッキ ${run.deck.length}枚（強化済み ${run.deck.filter(c => c.upgraded).length}枚）`;
+    FR.Screens.show('rest');
+  },
+
+  restAction(kind) {
+    const run = App.data.run;
+    if (kind === 'heal') {
+      const got = FR.Map.restHeal(run);
+      FR.Screens.toast(`ひと休みした（健康度 +${got}）`, 'harvest');
+      return App.advance();
+    }
+    if (kind === 'extra') {
+      const ex = FR.Map.restExtra(run);
+      FR.Screens.toast(`${ex.name}：${ex.text}`, 'harvest');
+      return App.advance();
+    }
+    if (kind === 'upgrade') {
+      // 強化できるカードを、強化したあとの中身で並べる
+      const list = FR.Map.upgradable(run).sort((a, b) => FR.cardView(a).name.localeCompare(FR.cardView(b).name, 'ja'));
+      document.getElementById('rest-upgrade-list').innerHTML = list.map(inst => {
+        const before = FR.cardView(inst);
+        const after = FR.cardView(Object.assign({}, inst, { upgraded: true }));
+        return `<div class="market-item">${FR.renderCard(after)}
+          <span class="why up-from">今：${FR.Util.escape(before.cost !== after.cost ? `コスト${before.cost}` : before.text)}</span>
+          <button class="btn price" data-up="${inst.uid}">これを強化する</button></div>`;
+      }).join('');
+      document.getElementById('rest-options').hidden = true;
+      document.getElementById('rest-upgrade').hidden = false;
+    }
+  },
+
+  // ── 季節の終わり ──────────────────────────────
+  finishSeason() {
+    const run = App.data.run;
+    const st = run.stats;
+    const res = FR.Map.endSeason(run);
+    run.seasonResult = { season: run.season, heal: res.heal, clear: res.clear, harvest: st.harvest, gold: run.gold, damage: st.damageTaken };
+    run.phase = 'season';
+    App.save();
+    App.showSeasonEnd();
+  },
+
+  showSeasonEnd() {
+    const run = App.data.run;
+    const r = run.seasonResult;
+    const se = FR.Seasons[r.season];
+    const E = FR.Util.escape;
+    document.getElementById('season-title').textContent = r.clear ? '一年を乗り切った' : `${se.name}を越えた`;
+    document.getElementById('season-lead').textContent = r.clear
+      ? '冬の大災害を退けた。この一年の経営を振り返ろう。'
+      : `季節の変わり目に、ひと息ついた（健康度 +${r.heal}）。次は${FR.Seasons[r.season + 1].name}。`;
+    document.getElementById('season-parts').innerHTML = [
+      ['これまでの収穫量', r.harvest], ['手元の銭', r.gold], ['受けた被害', r.damage], ['健康度', `${run.hp} / ${run.maxHp}`]
+    ].map(([k, v]) => `<tr><th>${E(k)}</th><td>${E(v)}</td></tr>`).join('');
+    document.getElementById('season-next').textContent = r.clear ? '経営評価を見る' : `${FR.Seasons[r.season + 1].name}へ進む`;
+    FR.Screens.show('season');
+  },
+
+  seasonNext() {
+    const run = App.data.run;
+    const r = run.seasonResult;
+    run.seasonResult = null;
+    if (r.clear) { run.cleared = true; return App.endRun(); }
+    FR.Map.nextSeason(run);
+    App.goMap();
   },
 
   // ── 戦闘 ─────────────────────────────────
@@ -167,6 +351,7 @@ const App = {
     FR.HandInput.clear();
     FR.Screens.show('battle');
     App.refresh();
+    if (!App.data.meta.tutorialDone) setTimeout(() => FR.Tutorial.start(), 600);
   },
 
   refresh() {
@@ -275,6 +460,7 @@ const App = {
     setTimeout(() => {
       if (b.won) {
         const run = App.data.run;
+        run.nextBattle = null;   // 休憩所でかけた状態は、この戦闘で使い切り
         run.phase = 'reward';
         run.reward = FR.Reward.make(run);
         run.reward.autoHarvestGold = b.autoHarvestGold || 0;
@@ -382,12 +568,26 @@ const App = {
     App.bindAction();
   },
 
+  // デッキ一覧（行き先を選ぶ画面から）
+  showDeck() {
+    const deck = App.data.run.deck.map(FR.cardView).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    FR.Screens.modal(`デッキ（${deck.length}枚）`, `<p class="menu-note">カードをタップすると、言葉の説明が出ます</p><div class="card-list">${deck.map(v => FR.renderCard(v)).join('')}</div>`);
+  },
+
+  // カード1枚を大きく、言葉の説明つきで
+  showCardDetail(cardEl) {
+    const inst = { id: cardEl.dataset.id, uid: 0, upgraded: cardEl.classList.contains('upgraded') };
+    const v = FR.cardView(inst);
+    FR.Screens.modal(v.name, `<div class="card-detail">${FR.renderCard(v)}<div class="terms">${FR.Glossary.html(v)}</div></div>`);
+  },
+
   showMenu() {
     const deck = App.data.run.deck.map(FR.cardView);
     FR.Screens.modal('畑の帳面', `
       <p class="menu-note">デッキ ${deck.length}枚</p>
       <div class="card-list">${deck.map(v => FR.renderCard(v)).join('')}</div>
-      <div class="menu-actions"><button class="btn danger" id="btn-giveup">この挑戦をあきらめる</button></div>`);
+      <div class="menu-actions"><button class="btn" id="btn-tutorial">遊び方を見る</button><button class="btn danger" id="btn-giveup">この挑戦をあきらめる</button></div>`);
+    document.getElementById('btn-tutorial').onclick = () => { FR.Screens.closeModal(); FR.Tutorial.start(); };
     document.getElementById('btn-giveup').onclick = () => {
       // 1回目は確認の表示、もう一度押すと終える（confirm() が使えない環境のため）
       const btn = document.getElementById('btn-giveup');
@@ -415,6 +615,8 @@ const App = {
       `銭 +${rw.gold}` + (rw.autoHarvestGold ? `（実っていた作物を半値で収穫 +${rw.autoHarvestGold}）` : '');
     document.getElementById('reward-cards').innerHTML = rw.cards.map(id => FR.renderCard(FR.cardView({ id, uid: 0 }))).join('');
     document.getElementById('reward-take').disabled = true;
+    document.getElementById('reward-terms').innerHTML = '<p class="terms-hint">カードをタップすると、言葉の説明が出ます</p>';
+    document.querySelector('#screen-reward .page-title').textContent = run.reward.boss ? '季節の災いを退けた' : '追い払った';
     document.getElementById('reward-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚`;
     FR.Screens.show('reward');
   },
@@ -424,15 +626,9 @@ const App = {
     if (cardId) FR.Run.addCard(run, cardId, false);
     run.reward = null;
     run.battleIndex++;
-    // 3回追い払うごとに市場が開く
-    if (FR.Market.opensAfter(run)) {
-      run.phase = 'market';
-      run.market = FR.Market.make(run);
-      App.save();
-      App.showMarket();
-      return;
-    }
-    App.startBattle();
+    // ボスを倒したら季節の終わり。それ以外は次の段へ
+    if (run.node && run.node.type === 'boss') return App.finishSeason();
+    App.advance();
   },
 
   // ── 市場 ─────────────────────────────────
@@ -486,7 +682,7 @@ const App = {
   leaveMarket() {
     const run = App.data.run;
     run.market = null;
-    App.startBattle();
+    App.advance();
   },
 
   // ── 自分の状態（戦闘中に農家をタップ）───────────────────
@@ -501,11 +697,12 @@ const App = {
       ['農場の健康度', `${r.hp} / ${r.maxHp}`, r.hp <= r.maxHp * 0.3 ? 'あぶない。守りを固めるか、回復を' : '0 になると離農（挑戦の終わり）'],
       ['守り', `${b.block}`, '敵から受ける被害を先に受け止める。ターンの始めに 0 に戻る'],
       ['エネルギー', `${b.energy} / ${FR.Config.energy}`, '毎ターン始めに 3 に戻る。カードを使うと減る'],
-      ['銭', `${r.gold}`, '市場でカードを買える（3回追い払うごとに市が立つ）'],
+      ['銭', `${r.gold}`, '市場でカードを買える。経営評価の点にもなる'],
+      ['季節', `${se.name} ${r.step + 1}/${se.steps}`, `${se.steps}段目は季節のボス。冬を越えればクリア`],
       ['このターン', `${b.playedThisTurn}枚`, '使ったカードの数'],
       ['山札・捨て札', `${b.draw.length}・${b.discard.length}`, b.exhaust.length ? `廃棄 ${b.exhaust.length}枚` : 'デッキ ' + r.deck.length + '枚']
     ];
-    const nextMarket = FR.Market.EVERY - (r.stats.battlesWon % FR.Market.EVERY);
+    const se = FR.Map.season(r);
     FR.Screens.modal(f.name, `
       <div class="animal-info">
         ${rows.map(([k, v, n]) => `<div class="ai-row"><span>${k}</span><b>${E(v)}</b><em>${E(n)}</em></div>`).join('')}
@@ -518,7 +715,7 @@ const App = {
       <h4 class="sub-title">レリック</h4>
       <div class="status-list">${r.relics.map(id => `<div class="status-item"><b>${E(FR.Relics[id].name)}</b><span>${E(FR.Relics[id].text)}</span></div>`).join('')}</div>
       <h4 class="sub-title">この挑戦</h4>
-      <p class="menu-note">追い払った数 ${r.stats.battlesWon}・収穫量 ${r.stats.harvest}・受けた被害 ${r.stats.damageTaken}・次の市場まで あと${nextMarket}回</p>`);
+      <p class="menu-note">追い払った数 ${r.stats.battlesWon}・収穫量 ${r.stats.harvest}・受けた被害 ${r.stats.damageTaken}</p>`);
   },
 
   // ── 経営評価 ──────────────────────────────
@@ -527,6 +724,7 @@ const App = {
     const sc = FR.Score.calc(run);
     const isBest = sc.total > App.data.meta.best;
     App.data.meta.best = Math.max(App.data.meta.best, sc.total);
+    if (run.cleared) App.data.meta.clears++;
     App.data.run = null;
     App.save();
     const E = FR.Util.escape;
@@ -535,9 +733,12 @@ const App = {
     document.getElementById('result-total').textContent = sc.total + '点' + (isBest ? '（最高記録）' : '');
     document.getElementById('result-parts').innerHTML = sc.parts.map(p =>
       `<tr><th>${E(p.label)}</th><td>${p.value}</td><td class="${p.points < 0 ? 'minus' : ''}">${p.points >= 0 ? '+' : ''}${p.points}</td></tr>`).join('');
-    document.getElementById('result-lead').textContent = run.hp <= 0
-      ? `${run.stats.battlesWon}度、害獣を追い払ったが、農場は力尽きた。`
-      : `${run.stats.battlesWon}度、害獣を追い払い、この挑戦を終えた。`;
+    const se = FR.Seasons[run.season] || FR.Seasons[0];
+    document.getElementById('result-lead').textContent = run.cleared
+      ? `春夏秋冬を乗り切った。${run.stats.battlesWon}度の災いを退け、一年の経営を終えた。`
+      : run.hp <= 0
+        ? `${se.name}の${run.step + 1}段目で、農場は力尽きた。（${run.stats.battlesWon}度、災いを退けた）`
+        : `${se.name}の途中で、この挑戦を終えた。（${run.stats.battlesWon}度、災いを退けた）`;
     FR.Screens.show('result');
   }
 };

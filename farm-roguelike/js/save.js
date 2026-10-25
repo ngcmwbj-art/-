@@ -13,13 +13,23 @@ FR.Save = {
     } catch (e) { data = null; }
     if (!data || typeof data !== 'object') data = {};
     data = FR.Save.migrate(data);
-    data.meta = Object.assign({ best: 0, runs: 0, clears: 0 }, data.meta);
+    data.meta = Object.assign({ best: 0, runs: 0, clears: 0, tutorialDone: false }, data.meta);
     return data;
   },
 
   migrate(data) {
-    // いまは version 1 のみ。古い形を直す処理はここに足していく
-    if (data.run && data.run.version !== FR.Config.saveVersion) data.run = null;
+    const r = data.run;
+    // 1 → 2：季節と行き先ができた。遊びかけは春の途中として続ける
+    if (r && r.version === 1) {
+      r.season = 0;
+      r.step = Math.min(r.battleIndex || 0, FR.Seasons[0].steps - 2);
+      r.choices = null; r.node = null; r.nextBattle = null;
+      if (r.phase === 'battle') r.phase = 'map';
+      if (r.phase === 'reward') r.node = { type: 'battle' };
+      r.stats.seasonsCleared = 0; r.stats.bossesWon = 0;
+      r.version = 2;
+    }
+    if (r && r.version !== FR.Config.saveVersion) data.run = null;
     return data;
   },
 

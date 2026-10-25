@@ -40,6 +40,10 @@ FR.Screens = {
 
   show(name) {
     FR.Screens.setBackground(name);
+    // 戦闘で大きく表示していたカードは消す
+    const pv = document.getElementById('card-preview');
+    if (pv && name !== 'battle') pv.className = '';
+    if (name !== 'battle' && FR.HandInput) FR.HandInput.selected = null;
     // 前の画面のお知らせは持ち越さない
     clearTimeout(FR.Screens._toastTimer);
     document.getElementById('toast').className = '';

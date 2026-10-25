@@ -329,6 +329,12 @@ FR.Cards = {
     effects: [{ op: 'block', amount: 5 }, { op: 'feed', grow: 0, care: 1 }, { op: 'status', id: 'immune', amount: 1 }],
     upgrade: { name: 'ワクチン+', text: '守り8。家畜すべての手入れ+1。この戦闘の間、家畜が病気にかからない', effects: [{ op: 'block', amount: 8 }, { op: 'feed', grow: 0, care: 1 }, { op: 'status', id: 'immune', amount: 1 }] }
   },
+  disinfect: {
+    name: '消毒', type: 'livestock', cost: 1, rarity: 'common', pool: ['livestock'], art: 'sprayer',
+    text: '守り6。この戦闘の間、家畜が病気にかからない',
+    effects: [{ op: 'block', amount: 6 }, { op: 'status', id: 'immune', amount: 1 }],
+    upgrade: { name: '消毒+', text: '守り9。この戦闘の間、家畜が病気にかからない', effects: [{ op: 'block', amount: 9 }, { op: 'status', id: 'immune', amount: 1 }] }
+  },
   barnRepair: {
     name: '畜舎の補強', type: 'skill', cost: 2, rarity: 'common', pool: ['livestock'], art: 'fence',
     text: '守り13',

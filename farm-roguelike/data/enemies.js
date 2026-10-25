@@ -1,7 +1,7 @@
 'use strict';
 /* =========================================================
    敵の一覧（10体）
-   - kind：pest 害獣・害虫 / weed 雑草 / disease 病害・疫病 / weather 天候
+   - kind：pest 害獣・害虫 / weed 雑草 / disease 病害・疫病 / weather 天候 / boss 季節のボス
    - hp：勢い（敵の体力）の範囲 [最小, 最大]。hpGrowth：戦闘を重ねるごとに増える量
    - turns：天候だけ。このターン数を耐えきると過ぎ去る（勢いを0にしても勝ち）
    - art：'enemy:ID' は assets/img/enemies/ID.png（いただいた絵）。それ以外は js/ui/art.js の名前
@@ -120,5 +120,62 @@ FR.Enemies = {
       surge: { name: '勢力を増す', intent: 'buff', strength: 3 }
     },
     pattern: ['gust', 'storm', 'surge', 'gust', 'storm']
+  }
+  ,
+  // ── 季節のボス（耐えても過ぎ去らない。勢いを0にすると次の季節へ）──
+  lateFrostBoss: {
+    name: '大霜の夜', kind: 'boss', art: 'enemy:frost', size: 1.35,
+    hp: [62, 66], hpGrowth: 0,
+    moves: {
+      chill:     { name: '冷え込み', intent: 'debuff', status: 'weak', amount: 2, damage: 5 },
+      frostbite: { name: '霜が降りる', intent: 'blight', amount: 1, damage: 6 },
+      deep:      { name: '凍てつく夜', intent: 'attack', damage: 13 }
+    },
+    pattern: ['chill', 'frostbite', 'deep']
+  },
+  droughtBoss: {
+    name: '大干ばつ', kind: 'boss', art: 'enemy:drought', size: 1.45,
+    hp: [84, 90], hpGrowth: 0,
+    moves: {
+      parch:  { name: '干上がる', intent: 'debuff', status: 'dry', amount: 2, damage: 6 },
+      scorch: { name: '照りつける', intent: 'attack', damage: 12 },
+      wither: { name: '立ち枯れ', intent: 'blight', amount: 1, damage: 8 },
+      heat:   { name: '猛暑', intent: 'buff', strength: 3 }
+    },
+    pattern: ['parch', 'scorch', 'wither', 'heat']
+  },
+  typhoonBoss: {
+    name: '超大型台風', kind: 'boss', art: 'enemy:typhoon', size: 1.5,
+    hp: [112, 118], hpGrowth: 0,
+    moves: {
+      gust:  { name: '暴風', intent: 'attack', damage: 13 },
+      storm: { name: '横なぐりの雨', intent: 'trample', damage: 9 },
+      surge: { name: '勢力を増す', intent: 'buff', strength: 3 },
+      eye:   { name: '台風の目', intent: 'heal', amount: 12 }
+    },
+    pattern: ['gust', 'storm', 'surge', 'eye', 'gust', 'storm']
+  },
+  heavySnowBoss: {
+    name: '記録的な大雪', kind: 'boss', art: 'enemy:frost', size: 1.5,
+    hp: [150, 158], hpGrowth: 0,
+    moves: {
+      snowfall:  { name: '積もる雪', intent: 'blight', amount: 2, damage: 9 },
+      cold:      { name: '底冷え', intent: 'debuff', status: 'weak', amount: 2, damage: 8 },
+      avalanche: { name: '雪崩', intent: 'attack', damage: 21 },
+      drift:     { name: '吹きだまり', intent: 'trample', damage: 13 }
+    },
+    pattern: ['cold', 'snowfall', 'avalanche', 'drift']
+  },
+  plagueBoss: {
+    name: '家畜疫病', kind: 'boss', art: 'enemy:avianFlu', size: 1.45,
+    hp: [150, 158], hpGrowth: 0,
+    // 消毒やワクチン（防疫）があれば感染は防げる
+    moves: {
+      cough:  { name: '瘴気', intent: 'debuff', status: 'fragile', amount: 2, damage: 7 },
+      infect: { name: '感染が広がる', intent: 'infect', damage: 14 },
+      spread: { name: '病原を運ぶ', intent: 'addCard', card: 'lesion', count: 2, damage: 8 },
+      fever:  { name: '高熱', intent: 'attack', damage: 19 }
+    },
+    pattern: ['cough', 'infect', 'spread', 'fever']
   }
 };

@@ -7,8 +7,8 @@ const fs = require('fs');
 const path = require('path');
 global.window = global;
 const root = path.join(__dirname, '..');
-['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/relics.js', 'data/farmers.js',
- 'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/market.js', 'js/score.js']
+['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/seasons.js', 'data/glossary.js', 'data/relics.js', 'data/farmers.js',
+ 'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/market.js', 'js/map.js', 'js/score.js']
   .forEach(f => vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }));
 
 let failures = 0;
@@ -66,29 +66,97 @@ function botBattle(run, rnd, played) {
 
 // 顔ぶれ：すべての敵がどこかの顔ぶれに出てくるか
 const appear = new Set(FR.Encounters.flatMap(e => e.enemies));
+FR.Seasons.forEach(se => { appear.add(se.boss); Object.values(se.bossBy || {}).forEach(id => appear.add(id)); });
+FR.Seasons.forEach(se => [se.boss, ...Object.values(se.bossBy || {})].forEach(id => FR.Enemies[id] || fail('ボスの敵がない: ' + id)));
+for (let si = 0; si < FR.Seasons.length; si++) if (!FR.Encounters.some(e => e.seasons.includes(si) && e.first)) fail('季節の1戦目に出る顔ぶれがない: ' + si);
 Object.keys(FR.Enemies).forEach(id => appear.has(id) || fail('どの顔ぶれにも出ない敵: ' + id));
 FR.Encounters.forEach(e => e.enemies.forEach(id => FR.Enemies[id] || fail('顔ぶれの敵がない: ' + id)));
 
 const played = {};
 const results = {};
-for (const farmerId of Object.keys(FR.Farmers)) {
-  const scores = [];
-  for (let k = 0; k < 60; k++) {
-    const seed = 1000 + k;
-    const rnd = FR.Util.rng(seed * 31);
-    const run = FR.Run.create(farmerId, seed);
-    // 2戦に1回、強化済みのカードを混ぜる（強化後の効果も試す）
-    for (let n = 0; n < 30 && run.hp > 0; n++) {
-      const b = botBattle(run, rnd, played);
-      if (!b.won) break;
-      const rw = FR.Reward.make(run);
-      if (rw.cards.some(id => { const c = FR.Cards[id]; return !(c.pool.includes('common') || c.pool.includes(farmerId)); })) fail('他のタイプのカードが報酬に出た');
-      FR.Run.addCard(run, rw.cards[Math.floor(rnd() * rw.cards.length)], rnd() < 0.5);
-      run.battleIndex++;
-    }
-    scores.push(run.stats.battlesWon);
+
+// 少し考えて遊ぶボット：収穫できれば収穫、植えられれば植える、受ける被害が守りより多ければ守り、残りは攻撃
+function smartBattle(run, rnd) {
+  const b = FR.Battle.create(run);
+  let guard = 0, perTurn = 0, turn = b.turn;
+  while (!b.over && ++guard < 6000) {
+    if (b.turn !== turn) { turn = b.turn; perTurn = 0; }
+    if (FR.Battle.canHarvestNow(b)) { FR.Battle.harvestButton(b); b.fx.length = 0; continue; }
+    const incoming = FR.Battle.aliveEnemies(b).reduce((t, e) => t + (e.intent && e.intent.damage ? e.intent.damage + e.strength : 0), 0);
+    const ok = b.hand.filter(c => FR.Battle.canPlay(b, c).ok);
+    const kind = c => { const v = FR.cardView(c); const ops = v.effects.map(e => e.op);
+      if (['crop', 'livestock', 'growth', 'power'].includes(v.type) || ops.includes('energy')) return 0;
+      if (ops.some(o => /^damage/.test(o))) return 2; return 1; };
+    const pick = perTurn > 25 ? null : (ok.find(c => kind(c) === 0) || (incoming > b.block ? ok.find(c => kind(c) === 1) : null) || ok.find(c => kind(c) === 2) || ok[0]);
+    if (!pick) { FR.Battle.endTurn(b); b.fx.length = 0; continue; }
+    const alive = FR.Battle.aliveEnemies(b).sort((x, y) => x.hp - y.hp);
+    FR.Battle.play(b, pick.uid, alive[0].uid);
+    perTurn++;
+    played[pick.id] = (played[pick.id] || 0) + 1;
+    b.fx.length = 0;
   }
-  results[farmerId] = { 平均勝利数: (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1), 最大: Math.max(...scores) };
+  if (guard >= 6000) fail('戦闘が終わらない（かしこいボット）');
+  return b;
+}
+
+// 1年を通して遊ぶ（分かれ道・市場・休憩所・ボス・季節の終わり）
+function playYear(farmerId, seed, bot) {
+  const rnd = FR.Util.rng(seed * 31);
+  const run = FR.Run.create(farmerId, seed);
+  for (let guard = 0; guard < 200; guard++) {
+    if (!run.choices) run.choices = FR.Map.makeChoices(run);
+    const ch = run.choices;
+    if (FR.Map.isBossStep(run) && (ch.length !== 1 || ch[0].type !== 'boss')) fail('ボスの段に選択肢がボス以外');
+    if (run.step === FR.Map.season(run).steps - 2 && !ch.some(c => c.type === 'rest')) fail('ボスの手前に休憩所がない');
+    if (run.step === 0 && ch[0].type !== 'battle') fail('季節の1段目が戦いでない');
+    let c = ch[Math.floor(rnd() * ch.length)];
+    if (run.hp < run.maxHp * 0.5 && ch.some(x => x.type === 'rest')) c = ch.find(x => x.type === 'rest');
+    run.node = c;
+    if (c.type === 'battle' || c.type === 'boss') {
+      const b = bot(run, rnd);
+      if (!b.won) return run;
+      if (c.type === 'boss' && !b.boss) fail('ボスの戦闘になっていない');
+      run.nextBattle = null;
+      const rw = FR.Reward.make(run);
+      if (c.type === 'boss' && rw.cards.some(id => FR.Cards[id].rarity === 'common')) fail('ボスの報酬に「よく出る」カード');
+      if (rw.cards.some(id => { const cc = FR.Cards[id]; return !(cc.pool.includes('common') || cc.pool.includes(farmerId)); })) fail('他のタイプのカードが報酬に出た');
+      run.gold += rw.gold;
+      FR.Run.addCard(run, rw.cards[Math.floor(rnd() * rw.cards.length)], false);
+      run.battleIndex++;
+      if (c.type === 'boss') {
+        const res = FR.Map.endSeason(run);
+        if (res.clear) { run.cleared = true; return run; }
+        FR.Map.nextSeason(run);
+        continue;
+      }
+    } else if (c.type === 'market') {
+      run.market = FR.Market.make(run);
+      const k = run.market.stock.findIndex(it => it.price <= run.gold);
+      if (k >= 0) FR.Market.buy(run, k);
+      run.market = null;
+    } else if (c.type === 'rest') {
+      if (run.hp < run.maxHp * 0.7) FR.Map.restHeal(run);
+      else if (FR.Map.upgradable(run).length) FR.Map.upgrade(run, FR.Map.upgradable(run)[0].uid);
+      else FR.Map.restExtra(run);
+    }
+    run.step++; run.choices = null;
+  }
+  fail('1年が終わらない');
+  return run;
+}
+
+for (const farmerId of Object.keys(FR.Farmers)) {
+  const rand = [], smart = [];
+  for (let k = 0; k < 40; k++) {
+    rand.push(playYear(farmerId, 1000 + k, (r, rnd) => botBattle(r, rnd, played)));
+    smart.push(playYear(farmerId, 5000 + k, smartBattle));
+  }
+  const avg = a => (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1);
+  results[farmerId] = {
+    でたらめ_越えた季節: avg(rand.map(r => r.stats.seasonsCleared || 0)),
+    かしこい_越えた季節: avg(smart.map(r => r.stats.seasonsCleared || 0)),
+    かしこい_クリア率: Math.round(100 * smart.filter(r => r.cleared).length / smart.length) + '%'
+  };
 }
 
 // 敵：すべての行動を、作物・木・家畜がある状態で1回ずつ実行する
@@ -178,6 +246,28 @@ const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].u
   if (run.gold <= g0) fail('収穫ボタンで銭が増えない');
   if (FR.Battle.harvestButton(b)) fail('取るものがないのに収穫ボタンが押せた');
 }
+// 言葉の説明
+for (const id of Object.keys(FR.Cards)) { try { FR.Glossary.forCard(FR.cardView({ id, uid: 0 })); } catch (e) { fail('言葉の説明で例外 ' + id); } }
+if (!FR.Glossary.forCard(FR.cardView({ id: 'pickling', uid: 0 })).some(([w]) => w === '廃棄')) fail('漬物づくりに「廃棄」の説明がない');
+// 休憩所：回復・強化・次の戦闘の状態
+{
+  const run = FR.Run.create('livestock', 9);
+  run.hp = 10; const got = FR.Map.restHeal(run); if (got !== FR.Map.restHealAmount(run)) fail('休憩所の回復量が違う');
+  const u = FR.Map.upgradable(run)[0]; if (!FR.Map.upgrade(run, u.uid) || !run.deck.find(c => c.uid === u.uid).upgraded) fail('強化できない');
+  if (FR.Map.upgrade(run, u.uid)) fail('2回強化できた');
+  FR.Map.restExtra(run); const b = FR.Battle.create(run); if (!b.statuses.immune) fail('畜舎の消毒が次の戦闘に効かない');
+}
+// 保存の形 1 → 2
+{
+  global.localStorage = { _d: {}, getItem(k) { return this._d[k] || null; }, setItem(k, v) { this._d[k] = v; } };
+  vm.runInThisContext(fs.readFileSync(path.join(root, 'js/save.js'), 'utf8'));
+  const old = FR.Run.create('vegetable', 3); old.version = 1; old.battleIndex = 7; old.phase = 'battle';
+  delete old.season; delete old.step;
+  localStorage.setItem(FR.Config.saveKey, JSON.stringify({ run: old, meta: { best: 10 } }));
+  const d = FR.Save.load();
+  if (!d.run || d.run.version !== 2 || d.run.season !== 0 || d.run.step !== 4 || d.run.phase !== 'map') fail('古い保存が直らない ' + JSON.stringify(d.run && [d.run.version, d.run.season, d.run.step, d.run.phase]));
+}
+
 // 採卵鶏：格付けなし・まとめて出荷では残る・1羽ずつなら廃鶏で出荷できる・卵を数える
 {
   const run = FR.Run.create('livestock', 4);
@@ -193,11 +283,9 @@ const unused = Object.keys(FR.Cards).filter(id => !played[id] && !FR.Cards[id].u
   if ((b.barns[0].eggs || 0) !== 1) fail('卵の数が数えられていない');
   if (!FR.Battle.harvestOne(b, 'barn', 0) || b.barns[0]) fail('鶏を1羽だけ出荷できない');
 }
-// 市場：3回ごとに開く・買う・売る・最低枚数
+// 市場：買う・売る・最低枚数
 for (const farmerId of Object.keys(FR.Farmers)) {
   const run = FR.Run.create(farmerId, 21);
-  run.stats.battlesWon = 2; if (FR.Market.opensAfter(run)) fail('2回で市場が開いた');
-  run.stats.battlesWon = 3; if (!FR.Market.opensAfter(run)) fail('3回で市場が開かない');
   run.market = FR.Market.make(run);
   const m2 = FR.Market.make(run);
   if (JSON.stringify(run.market) !== JSON.stringify(m2)) fail('市場の品ぞろえが毎回変わる');
@@ -224,7 +312,7 @@ for (const farmerId of Object.keys(FR.Farmers)) {
   if (b.energy !== FR.Config.energy + 1) fail('2ターン目のエネルギーが ' + b.energy);
 }
 if (unused.length) fail('一度も使われなかったカード: ' + unused.join(', '));
-console.log('ボットの成績（ランダムに遊んだ場合）', results);
+console.log('ボットの成績（1年を通して）', results);
 console.log('使われたカード', Object.keys(played).length, '種（強化後を含む）');
 if (noPhoto.length) console.log('いただいた絵がまだないカード（道具の絵で表示）:', noPhoto.join('、'));
 console.log(failures ? `失敗 ${failures} 件` : 'すべて OK');

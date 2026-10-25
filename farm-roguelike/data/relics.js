@@ -18,7 +18,7 @@ FR.Relics = {
   },
   stoneWall: {
     name: '先祖代々の石垣', art: 'stonewall', rarity: 'basic',
-    text: '戦闘開始時、守り8',
-    hooks: { battleStart: [{ op: 'block', amount: 8 }] }
+    text: '戦闘開始時、守り6',
+    hooks: { battleStart: [{ op: 'block', amount: 6 }] }
   }
 };

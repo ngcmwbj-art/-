@@ -33,10 +33,11 @@ FR.BattleView = {
 
     // 上の帯
     $('b-farmer').textContent = f.name;
-    $('b-season').textContent = '夏';
+    const se = FR.Map.season(r);
+    $('b-season').textContent = b.boss ? `${se.name}・ボス` : `${se.name} ${r.step + 1}/${se.steps}`;
     $('b-hp-top').textContent = `${r.hp}/${r.maxHp}`;
     $('b-gold').textContent = r.gold;
-    $('b-floor').textContent = `${r.battleIndex + 1}戦目`;
+    $('b-floor').textContent = b.boss ? '季節の大災害' : '';
     $('b-deck-count').textContent = r.deck.length;
     $('b-relics').innerHTML = r.relics.map(id => {
       const rl = FR.Relics[id];
@@ -169,7 +170,9 @@ FR.BattleView = {
     if (!inst) { el.className = ''; return; }
     const chk = FR.Battle.canPlay(b, inst);
     const hint = !chk.ok ? chk.reason : FR.Battle.needsTarget(b, inst) ? '敵をタップして使う' : 'もう一度タップで使う';
-    el.innerHTML = FR.renderCard(FR.cardView(inst), { unplayable: !chk.ok }) + `<div class="hint">${FR.Util.escape(hint)}</div>`;
+    const v = FR.cardView(inst);
+    el.innerHTML = FR.renderCard(v, { unplayable: !chk.ok }) + `<div class="hint">${FR.Util.escape(hint)}</div>`
+      + `<div class="terms">${FR.Glossary.html(v)}</div>`;
     el.className = 'show';
   },
 
