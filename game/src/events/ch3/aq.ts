@@ -37,7 +37,7 @@ import { saveConfirm, saveWithStamp } from '../../ui/save';
 import { autosaveSoon } from '../../ui/autosave';
 import { C3_NAMES } from '../../data/text/c3_names';
 import * as T from '../../data/text/c3_story3';
-import { F, grace, tileFree } from '../lib';
+import { besideToward, dirTo, F, grace, tileFree, tileRoute } from '../lib';
 import { ambVol, se } from '../ch2/compat';
 import { addToMap, inCh3, say3 } from './common';
 import { jumpMap } from './prologue';
@@ -376,8 +376,25 @@ registerScript('evt_ch3_diorama', function* (): Co {
   if (!inCh3() || flag('flag_ch3_diorama_done') || flag('flag_c3_diorama_in')) return;
   setFlag('flag_c3_diorama_in', 1);
   yield 400;
-  F().player.dir = 'right';
-  yield* say3(T.DIORAMA_A);
+  const f = F();
+  f.player.dir = 'right';
+  // ヒロスケ comes over from the room's far side and says it beside しゅん, then goes back to his place
+  // (2026-10-25 改善会議「遠くから話す人はそばへ」: he spoke from 6+ tiles off, talkEdgeLog '遠')
+  const hiro = f.actorById('npc_hirosuke');
+  const p = f.player;
+  const home: [number, number] | null = hiro?.visible ? [hiro.tileX, hiro.tileY] : null;
+  const to = home ? besideToward(p.tileX, p.tileY, home[0], home[1]) : null;
+  const way = home && to && Math.hypot(home[0] - p.tileX, home[1] - p.tileY) >= 4 ? tileRoute(home, to, [[p.tileX, p.tileY]], 24) : null;
+  if (hiro && home && way?.length) {
+    const dir = hiro.dir;
+    yield* walk(hiro.id, way, { speed: 3 });
+    hiro.dir = dirTo(hiro.tileX, hiro.tileY, p.tileX, p.tileY);
+    p.dir = dirTo(p.tileX, p.tileY, hiro.tileX, hiro.tileY);
+    yield* say3(T.DIORAMA_A);
+    yield* walk(hiro.id, [...way.slice(0, -1).reverse(), home], { speed: 3 });
+    hiro.dir = dir;
+    delete hiro.data.scripted;
+  } else yield* say3(T.DIORAMA_A);
 });
 
 // ================================================================ S18 深海の展示室

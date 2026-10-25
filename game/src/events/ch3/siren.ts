@@ -218,6 +218,10 @@ export function* gochisouTown(): Co {
   se('se_c3_hanko_float', { level: 9 });
   const shown = yield* hankoLearn('skill_gochisousama');
   if (!shown) yield* say3(T.S13_GOT);
+  // ナミエ calls it from the 食堂: the camera goes to her first (she spoke from off the frame's left —
+  // 2026-10-25 改善会議「遠くから話す人はそばへ」, talkEdgeLog). panBack below brings it home.
+  const namie = onUmi ? f.actorById('npc_c3_shokudo') : undefined;
+  if (namie?.visible) yield* panTo(namie.tileX, namie.tileY, 700);
   yield* say3(T.S13_B);
   // the breakwater: everyone on the mats
   yield* game.fadeOut(500, '#FFF6D8');
