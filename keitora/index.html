@@ -859,6 +859,9 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let cam, speed, vel, runTime, truck, obs, parts, nextX, slip, shake, flash, jumpBuf, holding, dieT, wheelA;
   let stats, banner, lastMile, passedBest, popups, bumpHits, tireFlash;
+  let lastFamily = 0;            // イノシシの親子を出した 1000 m の区切り
+  let throws = [];               // トマト畑で農家さんが投げてくれる積み荷
+  const FARMER_DX = 96;          // 農家さんの立つ位置（小屋から先へ）
   let tomatoes, seasonIdx, score, scoreM, lastRefill;
   let steps = [];                // 段差：{ x: 壁の位置, h: そこから先の高さ（px） }
   let camY = 0;                  // 段の上に登ったとき、画面を少し上へずらす量
@@ -884,6 +887,7 @@ canvas { display: block; width: 100%; height: 100%; }
     tomatoes = TOMATO_MAX; seasonIdx = 0;
     score = 0; scoreM = 0; lastRefill = 0;
     banner = null; lastMile = 0; passedBest = best === 0; bumpHits = 0; tireFlash = 0;
+    lastFamily = 0; throws = [];
   }
 
   const meters = () => Math.floor(cam / PX_PER_M);
@@ -910,16 +914,19 @@ canvas { display: block; width: 100%; height: 100%; }
     for (const [k, w] of list) { if ((r -= w) < 0) return k; }
     return list[0][0];
   }
+  const FAMILY_GAP = 1.25;        // イノシシの親子が1頭ずつ来る間隔（秒）
   function generate() {
     while (nextX < cam + W + 900) {
       const nObs = obs.length, nSteps = steps.length;
       const m = nextX / PX_PER_M;
       const sp = cruise(m);
       const easy = easyRun && m < EASY_M;   // 練習道：イノシシと段差は出さない
-      const type = m < 80
+      let type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
         : easy ? pick([['gap', 50], ['puddle', 30], ['bump', 15]])
         : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0], ['cow', m > 300 ? 7 : 0], ['crow', m > 400 ? 7 : 0]]);
+      // 1000 m ごとの山場：最初に来る区切りで1回だけ、イノシシの親子にする
+      if (!easy && Math.floor(m / 1000) > lastFamily && m > 950) { lastFamily = Math.floor(m / 1000); type = 'family'; }
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
         // 500 m を過ぎると、ときどき2段ジャンプ前提の広い穴が混ざる（距離が伸びるほど増える）
@@ -963,12 +970,23 @@ canvas { display: block; width: 100%; height: 100%; }
         }
         for (const [px, ph] of plan) steps.push({ x: px, h: ph, seen: false });
         nextX = x + spacing() + sp * 0.35;
-      } else {
+      } else if (type === 'boar') {
         // イノシシは画面の右端から出てくるので、その手前を空けておく
         const bx = nextX + 650;
         const vx0 = rr(170, 300) + Math.min(bx / PX_PER_M * 0.04, 90);
         obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, vx0, leg: 0, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0, lv: levelAt(nextX) });
         nextX = bx + 220 + spacing();
+      } else if (type === 'family') {
+        // イノシシの親子（親1・子2）：同じ速さで、FAMILY_GAP 秒おきに続けて走ってくる。
+        // 1頭ずつ跳べば必ず越えられる間隔。警告の音と看板は最初の1回だけ。その間は平らな道にしておく
+        const bx = nextX + 650;
+        const vx0 = 230 + Math.min(bx / PX_PER_M * 0.03, 60);
+        const lv = levelAt(nextX);
+        for (let i = 0; i < 3; i++) {
+          obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, vx0, leg: i * 1.7, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0, lv,
+            sc: i ? 0.66 : 1, delay: i * FAMILY_GAP, quiet: i > 0 });
+        }
+        nextX = bx + 220 + sp * FAMILY_GAP * 2.6 + spacing();
       }
       // 道に落ちている積み荷：障害物と障害物のあいだの平らな所に、ときどき置く
       let endX = 0;
@@ -1025,6 +1043,17 @@ canvas { display: block; width: 100%; height: 100%; }
         x: wx, y, vx: rand(opt.vx[0], opt.vx[1]), vy: rand(opt.vy[0], opt.vy[1]),
         life, max: life, r: rand(opt.r[0], opt.r[1]), col: opt.col, g: opt.g ?? 900, tomato: !!opt.tomato, stick: !!opt.stick,
       });
+    }
+  }
+  // 着地の土煙：左右に広がって、ふくらみながら薄くなる（粒が多すぎるときは出さない）
+  function dustPuff(wx, y, k) {
+    if (parts.length > 320) return;
+    const n = 4 + Math.round(k * 6);
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 ? 1 : -1;
+      const life = rand(0.45, 0.8);
+      parts.push({ x: wx + side * rand(10, 46), y: y - 3, vx: side * rand(40, 150) * (0.6 + k * 0.6), vy: rand(-90, -30), life, max: life,
+        r: rand(5, 9) * (0.8 + k * 0.4), col: '#d8c49a', g: -40, puff: true });
     }
   }
   const spillTomatoes = (n, wx, y, vx) => emit(n, wx, y, { vx, vy: [-420, -150], life: [0.8, 1.4], r: [4, 6], col: cargo.col, tomato: true });
@@ -1265,6 +1294,11 @@ canvas { display: block; width: 100%; height: 100%; }
     if (state === 'play') {
       runTime += dt;
       if (react.t > 0) react.t -= dt;
+      for (const th of throws) {
+        th.t += dt;
+        if (th.t >= th.dur && !th.done) { th.done = true; tomatoes = Math.min(TOMATO_MAX, tomatoes + 1); shakeCargo(25); }
+      }
+      throws = throws.filter(th => !th.done);
       updateCargo(dt);
       speed = cruise(meters());
       generate();
@@ -1296,10 +1330,12 @@ canvas { display: block; width: 100%; height: 100%; }
       if (Math.floor(m / REFILL_M) > lastRefill) {
         lastRefill = Math.floor(m / REFILL_M);
         const add = TOMATO_MAX - tomatoes;
-        tomatoes = TOMATO_MAX;
+        // 小屋の前の農家さんが、1個ずつ荷台へ放り込む（届いたら1個増える）
+        const fx = lastRefill * REFILL_M * PX_PER_M + TRUCK_FRONT + FARMER_DX;
+        for (let i = 0; i < add; i++) throws.push({ t: -i * 0.07, dur: 0.5, fx, fy: GROUND - levelAt(fx) - 34, i });
         popup(add > 0 ? `${cargo.field}で積み直し +${add} 個` : `${cargo.field}を通過 全部無事!`, '#a8e27f');
         setReact('wave', 1.2);
-        sfx('dodge');
+        sfx(add > 0 ? 'tomato' : 'dodge');
       }
       const si = seasonAt(m).i;
       if (si !== seasonIdx) {
@@ -1405,6 +1441,7 @@ canvas { display: block; width: 100%; height: 100%; }
           sfx('land');
           truck.squash = 1;
           shakeCargo(Math.min(260, hit * 0.2));
+          dustPuff(cam + TRUCK_X + TRUCK_W / 2, supportY(), clamp((hit - 500) / 500, 0.3, 1));
           emit(8, cam + TRUCK_X + 20, supportY(), { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
         }
         truck.y = supportY(); truck.vy = 0;
@@ -1645,7 +1682,8 @@ canvas { display: block; width: 100%; height: 100%; }
     for (const o of obs) {
       if (o.t !== 'boar') continue;
       if (o.state === 'pending' && state === 'play' && cam + W >= o.x - speed * 0.9) {
-        o.state = 'warn'; o.wt = 0.9; sfx('warn');
+        o.state = 'warn'; o.wt = 0.9 + (o.delay || 0);
+        if (!o.quiet) sfx('warn');
       }
       if (o.state === 'warn') {
         o.wt -= dt;
@@ -1670,7 +1708,8 @@ canvas { display: block; width: 100%; height: 100%; }
           const tl = TRUCK_X + 10, tr = TRUCK_FRONT - 4;
           const tb = truck.y - 4, tt = truck.y - 46;
           const bg = GROUND - (o.lv || 0);
-          const bl = bs - 24, br = bs + 22, bt = bg - 30, bb = bg;
+          const k = o.sc || 1;
+          const bl = bs - 24 * k, br = bs + 22 * k, bt = bg - 30 * k, bb = bg;
           if (tr > bl && tl < br && tb > bt && tt < bb) {
             o.state = 'hit';
             o.fvx = 260; o.fvy = -520; o.fy = 0; o.rot = 0;
@@ -2005,7 +2044,14 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.beginPath(); ctx.ellipse(0, -31, 7.5, 2, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(0, -32, 3.6, Math.PI, 0); ctx.fill();
     ctx.strokeStyle = shirt; ctx.lineWidth = 2.4;
-    if (pose === 'hang') {
+    if (pose === 'wave') {
+      // 片手を大きく振る
+      const a = -2.1 + Math.sin(clock * 9 + k) * 0.45;
+      const hx = 3 + Math.cos(a) * 11, hy = -21 + Math.sin(a) * 11;
+      ctx.beginPath(); ctx.moveTo(3, -21); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.fillStyle = '#e8c9a4';
+      ctx.beginPath(); ctx.arc(hx, hy, 2, 0, Math.PI * 2); ctx.fill();
+    } else if (pose === 'hang') {
       // 腕を上げ下げして、稲束を竿へ
       const lift = (Math.sin(clock * 2.2 + k) + 1) / 2;
       const hx = -8 - lift * 3, hy = -20 - lift * 10;
@@ -2425,7 +2471,13 @@ canvas { display: block; width: 100%; height: 100%; }
       const k0 = Math.max(1, Math.floor((cam - 200) / (REFILL_M * PX_PER_M)));
       for (let k = k0; k <= k0 + 1; k++) {
         const sx = k * REFILL_M * PX_PER_M + TRUCK_FRONT - cam;
-        if (sx > -120 && sx < W + 120 && !r3.drawing) { ctx.save(); ctx.translate(0, -levelAt(sx + cam)); drawStand(sx); ctx.restore(); }
+        if (sx > -120 && sx < W + 120) {
+          ctx.save();
+          ctx.translate(0, -levelAt(sx + cam));
+          if (!r3.drawing) drawStand(sx);
+          drawFarmer(sx + FARMER_DX, GROUND, k, 1.2, 'wave');   // 小屋の先で手を振る農家さん（軽トラに隠れない所）
+          ctx.restore();
+        }
       }
     }
     if (best > 0) {
@@ -2767,7 +2819,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawBoarObj(o) {
     {
       if (o.state === 'warn') {
-        if (Math.floor(o.wt * 10) % 2 === 0) {
+        if (!o.quiet && Math.floor(o.wt * 10) % 2 === 0) {
           // 当たれば終わり → 赤に白い ×。下にイノシシと書く
           ctx.fillStyle = DANGER.stop.bg;
           ctx.strokeStyle = '#fffbea';
@@ -2784,7 +2836,12 @@ canvas { display: block; width: 100%; height: 100%; }
         const sx = o.px - cam;
         if (sx < -80 || sx > W + 80) return;
         const y = o.state === 'hit' ? GROUND + o.fy : (find('gap', o.px) ? GROUND - 26 : GROUND);
-        drawBoar(sx, y, o.leg, o.state === 'hit' ? o.rot : 0);
+        if (o.sc && o.sc !== 1) {
+          // 子イノシシ（小さく描く）
+          ctx.save(); ctx.translate(sx, y); ctx.scale(o.sc, o.sc);
+          drawBoar(0, 0, o.leg, o.state === 'hit' ? o.rot : 0);
+          ctx.restore();
+        } else drawBoar(sx, y, o.leg, o.state === 'hit' ? o.rot : 0);
         if (o.state === 'run' && Math.random() < 0.3) emit(1, o.px + 26, GROUND - (o.lv || 0) - 2, { vx: [20, 80], vy: [-50, -10], life: [0.2, 0.4], r: [2, 5], col: '#c7a77c', g: 50 });
         if (o.state === 'hit' && o.fy === 0) drawStars(sx, GROUND - 44);
       }
@@ -2942,6 +2999,37 @@ canvas { display: block; width: 100%; height: 100%; }
         popup(`${cargo.unit}を拾った +1`, '#a8e27f');
       }
       emit(5, o.x + 8, groundAt(o.x) - 6, { vx: [-40, 60], vy: [-180, -60], life: [0.25, 0.45], r: [1.5, 2.5], col: '#e9e2b8', g: 500 });
+    }
+  }
+  // 速さが見える風：速くなるほど白い筋が流れる（薄く、看板や障害物より奥に描く）
+  function drawWind() {
+    if (state !== 'play') return;
+    const a = clamp((vel - 430) / 330, 0, 1) * 0.32;
+    if (a < 0.02) return;
+    const lv = levelAt(cam + TRUCK_X), span = W + 240;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let i = 0; i < 14; i++) {
+      const len = 40 + hash(i * 3.3) * 80;
+      const x = ((hash(i * 7.1) * span - clock * vel * 1.5) % span + span) % span - 120;
+      const y = GROUND - lv - 18 - hash(i * 5.7) * 150;
+      ctx.moveTo(x, y); ctx.lineTo(x + len, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // 放り込まれている積み荷（農家さんの手から荷台へ弧を描いて飛ぶ）
+  function drawThrows() {
+    if (state !== 'play') return;
+    const kind = cargo.id === 'calf' ? 'hay' : cargo.id;
+    for (const th of throws) {
+      if (th.t < 0) continue;
+      const p = clamp(th.t / th.dur, 0, 1);
+      const x0 = th.fx - cam, y0 = th.fy, x1 = TRUCK_X + 22 + (th.i % 5) * 7, y1 = truck.y - 48;
+      const x = x0 + (x1 - x0) * p, y = y0 + (y1 - y0) * p - 70 * 4 * p * (1 - p);
+      drawItem(kind, x, y, th.i);
     }
   }
   // ---- 運転手（つがお）の反応：顔は小さくて見えないので、帽子と腕の大きな動きで見せる ----
@@ -3268,6 +3356,13 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function drawParts() {
     for (const p of parts) {
+      if (p.puff) {
+        const f = 1 - p.life / p.max;
+        ctx.globalAlpha = Math.max(0, (1 - f) * 0.6);
+        ctx.fillStyle = p.col;
+        ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r * (1 + f * 1.6), 0, Math.PI * 2); ctx.fill();
+        continue;
+      }
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * (p.tomato || p.stick ? 3 : 1)));
       ctx.fillStyle = p.col;
       ctx.beginPath();
@@ -3429,10 +3524,12 @@ canvas { display: block; width: 100%; height: 100%; }
     drawFarField();
     ctx.translate(0, camY);
     drawRoad();
+    drawWind();
     drawMarkers();
     drawHazards();
     drawGhost();
     drawTruck(mainTruckSpec());
+    drawThrows();
     if (truck.falling && truck.pit) {
       ctx.save();
       ctx.translate(0, -(truck.pit.lv || 0));
@@ -4116,10 +4213,12 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx = lc;
     r3.drawing = true;
     try {
+      drawWind();
       drawMarkers();
       drawHazards();
       drawGhost();
       if (!truck.falling) drawTruck(mainTruckSpec());
+      drawThrows();
       drawBoars();
       drawCrows();
       drawParts();
