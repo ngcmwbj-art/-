@@ -65,6 +65,7 @@
   /* ---------- 画面の切り替え ---------- */
   function showScreen(name) {
     document.querySelectorAll('.screen').forEach((el) => el.classList.toggle('active', el.id === 'screen-' + name));
+    document.body.dataset.screen = name;   // 画面ごとの見た目の切りかえ用（お知らせの位置など）
     document.querySelectorAll('.tab').forEach((el) => el.classList.toggle('active', el.dataset.screen === name));
     if (name === 'puzzle') Puzzle.measure();
     if (name === 'farm') Farm.render();
@@ -165,7 +166,7 @@
     data: save,
     config,
     onUnlock: (vegs) => {
-      toast(Msg.t('mission.unlocked', { list: vegs.map((v) => v.name).join('・') }));
+      toast(Msg.t('mission.unlocked', { list: vegs.map((v) => v.name).join('・') }), 5000, true);
       Sound.play('ripen');
       Farm.render();
     },
@@ -300,7 +301,7 @@
   // 起動したときにも、ミッションを満たしていれば種を渡して保存
   persist();
   // 保存データが読めなかったときは、黙って直さずに一言知らせる
-  if (SaveData.recoveredFrom()) toast(Msg.t('save.' + SaveData.recoveredFrom()), 6000);
+  if (SaveData.recoveredFrom()) toast(Msg.t('save.' + SaveData.recoveredFrom()), 6000, true);
 
   // 初めて遊ぶ人には遊び方を案内
   if (!save.tutorialDone) {

@@ -414,6 +414,30 @@ body {
   transition: opacity 0.25s, transform 0.25s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+/* 畑では「まとめて作業」の上に出す（ボタンの文字を隠さない） */
+body[data-screen="farm"] .toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
+
+/* スマホの横向き（高さが低い）：盤面と手元を左右に並べて、画面の高さに収める */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --board-size: clamp(170px, calc(100dvh - 150px), 400px); }
+  main { padding-bottom: 0; }
+  .topbar { padding-top: 4px; padding-bottom: 4px; }
+  .title-row .title { font-size: 1rem; }
+  #screen-puzzle.active {
+    display: grid;
+    grid-template-columns: var(--board-size) minmax(0, 300px);
+    grid-template-areas: "board score" "board goal" "board tray";
+    grid-template-rows: auto auto 1fr;
+    justify-content: center;
+    column-gap: 20px;
+    align-items: start;
+  }
+  #screen-puzzle .score-row { grid-area: score; margin: 0 0 4px; }
+  #screen-puzzle .score-row { width: 100%; }
+  #screen-puzzle .goal { grid-area: goal; width: 100%; margin: 0 0 4px; }
+  #screen-puzzle .board { grid-area: board; margin: 0; }
+  #screen-puzzle .tray { grid-area: tray; width: 100%; margin: 0; align-self: start; }
+}
 
 /* =========================================================
    野菜の絵

@@ -176,10 +176,24 @@ function vegIcon(veg) {
 /* ---------- 画面下にしばらく出るお知らせ ---------- */
 let toastTimer = null;
 // ms：表示する時間（長いお知らせは少し長めに）
-function toast(text, ms = 4000) {
+// important：大事なお知らせ（実った・種が手に入った など）。出ている間に来たお知らせは、消えてから順番に出す
+let toastImportant = false;
+const toastQueue = [];
+function toast(text, ms = 4000, important = false) {
+  if (toastImportant && !important) {
+    toastQueue.push([text, ms]);
+    if (toastQueue.length > 2) toastQueue.shift();   // ためるのは2つまで（古いものから捨てる）
+    return;
+  }
   const el = document.getElementById('toast');
   el.textContent = text;
   el.classList.add('show');
+  toastImportant = important;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    toastImportant = false;
+    const next = toastQueue.shift();
+    if (next) setTimeout(() => toast(next[0], next[1]), 250);
+  }, ms);
 }

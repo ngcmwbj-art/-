@@ -114,7 +114,7 @@ const Farm = (() => {
 
     // お知らせ（実った > あふれそう の順に大事）
     if (ripened.length) {
-      toast(Msg.t('farm.ripened', { list: ripened.join('・') }));
+      toast(Msg.t('farm.ripened', { list: ripened.join('・') }), 4000, true);   // 大事なお知らせ（ほかのお知らせで消さない）
       Sound.play('ripen');
     } else if (crossedNearFull(before, max)) {
       toast(Msg.t('farm.nearFull'));
