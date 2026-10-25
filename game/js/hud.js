@@ -352,6 +352,42 @@ export class HUD {
       el.lastChild.textContent = `${Math.round(t.pos.distanceTo(game.player.pos))}m`;
       ai++;
     }
+    // 画面外の雑魚の群れ：方角ごとに 1 本、近い順に 3 本まで。竜巻と違う色で、敵の絵つき
+    if (game.phase === 'storm') {
+      const ICON = { mushi: '🐛', karasu: '🐦', inoshishi: '🐗', chou: '🦋', egg: '🥚' };
+      const sectors = new Map();
+      const pp = game.player.pos;
+      for (const m of game.threats.minions) {
+        if (!m.alive) continue;
+        const p = m.pos.clone().add(new THREE.Vector3(0, 1, 0)).project(game.camera);
+        const behind = p.z > 1;
+        let x = (p.x + 1) / 2 * W, y = (1 - p.y) / 2 * H;
+        if (behind) { x = W - x; y = H - y; }
+        if (!behind && x > 40 && x < W - 40 && y > 40 && y < H - 40) continue;
+        const ang = Math.atan2(y - H / 2, x - W / 2);
+        const key = Math.round(ang / (Math.PI / 4));
+        const d = Math.hypot(m.pos.x - pp.x, m.pos.z - pp.z);
+        const cur = sectors.get(key);
+        if (!cur || d < cur.d) sectors.set(key, { m, x, y, d, behind, n: (cur?.n || 0) + 1 });
+        else cur.n++;
+      }
+      const list = [...sectors.values()].sort((a, b) => a.d - b.d).slice(0, 3);
+      for (const g2 of list) {
+        const cx = W / 2, cy = H / 2;
+        let dx = g2.x - cx, dy = g2.y - cy;
+        if (g2.behind && Math.abs(dy) < 1) dy = 1;
+        const sc = Math.min((W / 2 - 48) / Math.abs(dx || 1e-3), (H / 2 - 64) / Math.abs(dy || 1e-3));
+        let el = this.arrowEls[ai];
+        if (!el) { el = document.createElement('div'); el.className = 'arrow'; el.innerHTML = '<i></i><span></span>'; this.el.arrows.appendChild(el); this.arrowEls.push(el); }
+        el.style.display = '';
+        el.style.left = (cx + dx * sc) + 'px';
+        el.style.top = (cy + dy * sc) + 'px';
+        el.firstChild.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+        el.className = 'arrow minion';
+        el.lastChild.textContent = `${ICON[g2.m.type] || '●'}${g2.n > 1 ? '×' + g2.n : ''}`;
+        ai++;
+      }
+    }
     for (let i = ai; i < this.arrowEls.length; i++) this.arrowEls[i].style.display = 'none';
 
     // 大ボスの体力ゲージ（画面上部）

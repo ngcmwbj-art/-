@@ -376,7 +376,14 @@ export class Threats {
       this.game.memo('entangle');
       return;
     }
-    this.minions.push(new Minion(this, type, wave));
+    const m = new Minion(this, type, wave);
+    this.minions.push(m);
+    // 群れの親分：台風2号から、3 匹目の青虫が王冠つきの親分
+    if (type === 'mushi' && wave >= 1 && !this.oyabunDone && (this.mushiCount = (this.mushiCount || 0) + 1) === 3) {
+      this.oyabunDone = true;
+      m.makeOyabun();
+      this.hud.toast('王冠の青虫は群れの親分！ 倒すと残りが逃げ腰になる', 'tip');
+    }
   }
 
   // モンシロチョウの卵と、そこからわく青虫（1 回の台風で合わせて 8 まで）
@@ -466,6 +473,14 @@ export class Threats {
     }
     if (!e.damage(dmg)) return false;
     this.game.onKill?.(e, p);
+    if (e.oyabun) {
+      // 親分がやられると、残りの雑魚は 8 秒間逃げ腰（遅くなる）
+      for (const m of this.minions) if (m.alive) m.scaredUntil = this.game.time + 8;
+      this.fx.burst(p.clone().add(new THREE.Vector3(0, 1, 0)), '#ffd84a', 50, 10, 1, 0.4, 3);
+      this.hud.toast('親分を倒した！ 雑魚たちが逃げ腰になった', 'good');
+      this.game.say?.('親分は倒したぞ！', true);
+      this.game.addQ(20, p);
+    }
     if (e.type || e.group.mini) {
       this.minionKills++;
       this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : e.type === 'inoshishi' ? '#7a5a40' : e.type === 'egg' ? '#ffd84a' : e.type === 'chou' ? '#ffffff' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);

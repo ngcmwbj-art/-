@@ -457,3 +457,5 @@ body.lefty #stick-hint { left: auto; right: 14%; margin: -60px -60px; }
 /* 使えないボタンは薄く */
 #touch button.off { opacity: .38; filter: grayscale(.7); }
 .skill.off { opacity: .4; }
+#arrows .arrow.minion { color: #c8f05a; }
+#arrows .arrow.minion span { font-size: 14px; }

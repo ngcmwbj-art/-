@@ -246,6 +246,7 @@ class Game {
       if (r.cowLog) this.cowLog = r.cowLog;
       this.harvestYen = r.harvestYen || 0;
       this.cabbages.restore(r.cab);
+      this.cabbages.setGrowth(this.wave);
       for (const t of r.towers || []) { const tw = this.towers.build(t.id, new THREE.Vector3(t.x, t.y, t.z)); tw.age = 5; }
       this.makePlan();
       // 前回までのあらすじ（3 行）
@@ -259,6 +260,7 @@ class Game {
       // 台風を選んで始める：途中の台風から（そのぶん Qビットを多めに）
       this.wave = Math.min(WAVES.length - 1, opts.wave);
       this.q = 150 + this.wave * 150;
+      this.cabbages.setGrowth(this.wave);
       this.makePlan();
       this.hud.banner(`${this.waveName()}から開始`, `Qビット ${this.q} でスタート。タワーを建てて備えよう`);
     } else {
@@ -667,7 +669,7 @@ class Game {
     for (let i = 0; i < (c.pair || 0); i++) pool.push('pair');
     for (let i = 0; i < (c.inoshishi || 0); i++) pool.push('inoshishi');
     for (let i = 0; i < (c.chou || 0); i++) pool.push('chou');
-    this.threats.eggCount = 0;
+    this.threats.eggCount = 0; this.threats.oyabunDone = false; this.threats.mushiCount = 0;
     pool.sort(() => Math.random() - 0.5);
     this.spawn = { pool, total: pool.length, next: 1.5, boss: false, debris: 6, strike: 14 };
     // 停電のサブミッション：台風2号から、10 回に 7 回くらい
@@ -690,7 +692,7 @@ class Game {
     this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1) * (this.cards.has('tough') ? 0.8 : 1) * this.diffMul().dmg;
     this.threats.hpMul = this.diffMul().hp;
     this.say('来たな…キャベツには指一本触れさせねえ！', true);
-    this.hud.banner(`${w.name} 接近！`, `雑魚 ${this.minionsLeft()} 匹が${this.plan.gate.name}からザーッと押し寄せる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
+    this.hud.banner(`台風${this.typhoonName()} 接近！`, `雑魚 ${this.minionsLeft()} 匹が${this.plan.gate.name}からザーッと押し寄せる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
     this.audio.thunder(0.5);
   }
 
@@ -724,7 +726,9 @@ class Game {
     this.addQ(bonus);
     this.say('ふぅ…守り切ったぜ', true);
     if (this.eyeSeen) { this.eyeSeen = false; this.memo('eye'); }
-    this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q`);
+    this.hud.banner('台風一過！', `台風${this.typhoonName()}から キャベツ ${this.cabbages.alive.toLocaleString()} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q`);
+    // 見渡しカメラ：2 秒だけ空へ上がって、育った畑全体を見渡す（タップで飛ばせる）
+    this.overview = { t: 0, dur: 2.4 };
     this.audio.fanfare();
   }
 
@@ -1018,6 +1022,7 @@ class Game {
       <li class="cow"><span>牛の様子</span><b>${cow.text}<small>1日の増体 +${cow.gain.toFixed(2)}kg</small></b></li>
       <li><span>守り抜いたキャベツ</span><b>${cab.alive} / ${cab.total} 玉</b></li>
       <li><span>到達した台風</span><b>${Math.min(this.wave + 1, WAVES.length)} / ${WAVES.length}</b></li>
+      <li><span>戦った台風</span><b>${Array.from({ length: Math.min(this.wave + 1, WAVES.length) }, (_, i) => this.typhoonName(i)).join('・')}</b></li>
       <li><span>消滅させた竜巻</span><b>${st.tornados}</b></li>
       <li><span>波動関数の収束</span><b>${st.collapsed} 回</b></li>
       <li><span>弾いた回数</span><b>${this.score.chords}</b></li>
@@ -1066,7 +1071,7 @@ class Game {
       if (this.phaseT > 260) this.endStorm();
     } else if (this.phase === 'clear') {
       // 台風一過 → 収穫タイム（10 秒）→ 量子カード の順に一本の流れで
-      if (this.phaseT > 1.5 && !this.harvest && !this.harvestDone) this.startHarvest();
+      if (this.phaseT > 2.6 && !this.harvest && !this.harvestDone) this.startHarvest();
       if (this.harvest) this.updateHarvest(dt);
       if (this.harvestDone && !this.choosing && this.phaseT > this.harvestDone + 1.5) {
         if (this.wave + 1 >= WAVES.length) { this.finish(true); return; }
@@ -1104,7 +1109,7 @@ class Game {
     if (!this.plan || this.wave === 0) return;
     const w = WAVES[this.wave], p = this.plan;
     const land = p.z0 < -40 ? '灯台の近くの浜' : p.z0 > 40 ? '南の浜' : '畑の東の浜';
-    this.hud.news(`${w.name}（${w.cls}）が接近中`, [`今回の特徴：${w.trait}`, `雑魚は${p.gate.name}から押し寄せる見込み／大ボスの上陸予想：${land}`]);
+    this.hud.news(`${this.waveName()}「${this.typhoonName()}」（${w.cls}）が接近中`, [`今回の特徴：${w.trait}`, `雑魚は${p.gate.name}から押し寄せる見込み／大ボスの上陸予想：${land}`]);
   }
 
   // 音の設定（BGM のオン・オフ、全体の音量）
@@ -1144,6 +1149,7 @@ class Game {
     {
       {
         this.wave++;
+        this.cabbages.setGrowth(this.wave);
         this.phase = 'prep';
         this.hud.prepFolded = false; this.hud.prepTouched = false;
         this.prepDone = new Set();
@@ -1161,6 +1167,25 @@ class Game {
       }
     }
   }
+
+  // 見渡しカメラ：いつものカメラから畑の上空へ上がって戻る（影や描く範囲は増やさない）
+  updateOverview(dt) {
+    const o = this.overview;
+    o.t += dt;
+    const k = Math.sin(Math.min(1, o.t / o.dur) * Math.PI); // 0 → 1 → 0
+    const e = k * k * (3 - 2 * k);
+    const from = this.camera.position.clone();
+    // 畑のまん中の南の上空から、畑全体を見下ろす（高さは先に上げて木にぶつからないように）
+    const top = new THREE.Vector3(10, 140, 150);
+    this.camera.position.lerpVectors(from, top, e);
+    this.camera.position.y = from.y + (top.y - from.y) * Math.min(1, e * 1.6);
+    const look = new THREE.Vector3(this.player.pos.x, this.player.pos.y + 1.5, this.player.pos.z).lerp(new THREE.Vector3(5, 0, -15), Math.min(1, e * 1.4));
+    this.camera.lookAt(look);
+    if (o.t >= o.dur) this.overview = null;
+  }
+
+  // 台風の名前（本物の台風と同じく、日本が出したアジア名から。台風の個性に合わせて）
+  typhoonName(w = this.wave) { return ['コイヌ', 'ハト', 'トカゲ', 'ヤマネコ', 'クジラ'][Math.min(w, 4)]; }
 
   // 敵ごとの弱点：台風ごとに 1 つずつ紹介する
   weaknessTip() {
@@ -1391,6 +1416,7 @@ class Game {
     if (this.phase !== 'title') this.player.update(dt, t, this.paused ? {} : this.input, windVec);
     else this.titleCamera(t);
     if (this.camOverride) this.camOverride(this.camera); // 撮影・デバッグ用
+    if (this.overview) this.updateOverview(rawDt);
 
     w.update(rawDt, t, this.camera, this.player.pos);
     this.windU.uTime.value = t;
@@ -1519,6 +1545,7 @@ if (saved) {
 }
 document.getElementById('open-settings').addEventListener('click', () => game && game.toggleSettings(true));
 document.getElementById('pause-settings').addEventListener('click', (e) => { e.stopPropagation(); game && game.toggleSettings(true); });
+addEventListener('pointerdown', () => { if (game && game.overview) game.overview = null; }, true);
 document.getElementById('minimap').addEventListener('pointerdown', (e) => { e.stopPropagation(); game && game.toggleMap(true); });
 document.getElementById('bigmap').addEventListener('pointerdown', (e) => { e.stopPropagation(); game && game.toggleMap(false); });
 document.getElementById('retry').addEventListener('click', () => location.reload());

@@ -123,6 +123,19 @@ function buildEgg() {
   return g;
 }
 
+// 親分の王冠（大きく光らせて、子どもでもすぐ見つかるように）
+const CROWN_MAT = new THREE.MeshStandardMaterial({ color: '#ffd84a', emissive: '#ffb020', emissiveIntensity: 1.6, metalness: 0.5, roughness: 0.3 });
+function buildCrown() {
+  const g = new THREE.Group();
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.1, 12, 1, true), CROWN_MAT); g.add(band);
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * Math.PI * 2;
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.14, 6), CROWN_MAT);
+    sp.position.set(Math.cos(a) * 0.17, 0.11, Math.sin(a) * 0.17); g.add(sp);
+  }
+  return g;
+}
+
 export class Minion {
   constructor(sys, type, wave, at = null) {
     this.sys = sys; this.type = type;
@@ -177,7 +190,7 @@ export class Minion {
     if (this.target < 0) return;
     const c = cab.list[this.target];
     const dx = c.x - this.pos.x, dz = c.z - this.pos.z, d = Math.hypot(dx, dz);
-    const spd = this.speed * (sys.slow ? 0.35 : 1) * zeno;
+    const spd = this.speed * (sys.slow ? 0.35 : 1) * zeno * (this.scaredUntil > sys.game.time ? 0.45 : 1);
     if (this.type === 'inoshishi') { this.updateBoar(dt, c, dx, dz, d, spd); return; }
     if (this.type === 'chou') { this.updateChou(dt, c, dx, dz, d, spd); return; }
     if (this.type === 'mushi') {
@@ -204,7 +217,7 @@ export class Minion {
       this.obj.userData.wings[0].rotation.z = flap; this.obj.userData.wings[1].rotation.z = -flap;
     }
     this.obj.position.copy(this.pos);
-    const s = (this.type === 'mushi' ? 1.6 : 1.5) * (1 + this.hit * 0.25);
+    const s = (this.type === 'mushi' ? 1.6 : 1.5) * (this.oyabun ? 1.8 : 1) * (1 + this.hit * 0.25);
     this.obj.scale.setScalar(s);
   }
 
@@ -251,6 +264,15 @@ export class Minion {
     ud.legs.forEach((l, i) => { l.rotation.x = (i === 0 || i === 3 ? sw : -sw); });
     this.obj.scale.setScalar(1.15 * (1 + this.hit * 0.2));
   }
+  // 群れの親分にする（体力 3.5 倍・大きく・王冠）
+  makeOyabun() {
+    this.oyabun = true;
+    this.hp = this.maxHp = this.maxHp * 3.5;
+    const crown = buildCrown();
+    crown.position.set(0, 0.32, 0.02);
+    this.obj.userData.segs[0].add(crown);
+  }
+
   // モンシロチョウ：ひらひら飛んでキャベツに止まり、卵を産んで次のキャベツへ（2 個まで）
   updateChou(dt, c, dx, dz, d, spd) {
     const sys = this.sys;

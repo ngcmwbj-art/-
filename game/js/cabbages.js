@@ -208,7 +208,7 @@ export class Cabbages {
         const sway = wind * 0.12 * Math.sin(t * 3.1 + c.x * 0.3 + c.z * 0.2);
         e.set(sway, c.rot, sway * 0.6);
         q.setFromEuler(e);
-        const sc = c.scale * (0.92 + 0.08 * (this.hp[i] / 100));
+        const sc = c.scale * (this.growth || 1) * (0.92 + 0.08 * (this.hp[i] / 100));
         m.compose(v.set(c.x, c.y, c.z), q, s.set(sc, sc, sc));
       } else {
         flying++; changed = true;
@@ -237,7 +237,8 @@ export class Cabbages {
       const col = this._c, brown = new THREE.Color(0.75, 0.55, 0.3);
       for (let i = 0; i < this.total; i++) {
         const h = clamp(this.hp[i] / 100, 0, 1);
-        col.setRGB(1, 1, 1).lerp(brown, 1 - h);
+        const k = (this.growth || 1) - 1; // 育つほど葉の色が濃くなる
+        col.setRGB(1 - k * 0.5, 1, 1 - k * 0.9).lerp(brown, 1 - h);
         this.cols[i * 3] = col.r; this.cols[i * 3 + 1] = col.g; this.cols[i * 3 + 2] = col.b;
       }
       this.colorDirty = false;
@@ -278,6 +279,12 @@ export class Cabbages {
   }
 
   lostCount() { return this.total - this.alive; }
+
+  // 台風を乗り切るたびに少しずつ大きく、色も濃く（新しい形は作らない）
+  setGrowth(level) {
+    this.growth = 1 + Math.min(4, level) * 0.06;
+    this.colorDirty = true; this.settled = false;
+  }
 
   // 保存用：1玉 1 バイト（0〜100 = 体力、255 = 失われた）
   snapshot() {
