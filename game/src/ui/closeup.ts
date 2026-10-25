@@ -205,7 +205,7 @@ function drawTag(g: Gfx): void {
   // (a conversation's window up — even one drawn over the close-up: no tag, at once; it would sit on the window)
   const talk = dialogVisible();
   // (a close-up whose window is closed for a moment — the stone flying over the field — no tag either)
-  const shut = !!w && typeof (w as { open?: number }).open === 'number' && (w as { open: number }).open < 1;
+  const shut = !!w && typeof (w as { open?: number }).open === 'number' && ((w as { open?: number }).open ?? 1) < 1;
   const on = !!w && !talk && !shut && canQuit(w) && !cardPending(w);
   tagK = talk ? 0 : on ? Math.min(1, tagK + 0.12) : Math.max(0, tagK - 0.2);
   if (tagK <= 0) return;
