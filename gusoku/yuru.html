@@ -50,8 +50,8 @@ body{touch-action:none;-webkit-user-select:none;user-select:none}
 .bubble{pointer-events:auto;width:min(720px,100%);background:linear-gradient(180deg,rgba(3,14,22,.78),rgba(3,12,18,.86));border:1px solid var(--line);border-radius:4px;padding:14px 18px 16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);min-height:74px;box-sizing:border-box;position:relative}
 .speaker{font-family:var(--f-data);font-size:10.5px;letter-spacing:.2em;color:var(--glow);margin-bottom:6px;display:flex;gap:10px;align-items:center}
 .speaker .emo{color:var(--dim);letter-spacing:.06em}
-.line{font-family:var(--f-display);font-weight:500;font-size:clamp(16px,2.3vw,20px);line-height:1.7;letter-spacing:.04em;min-height:1.7em;white-space:pre-wrap;word-break:break-word}
-.line.narr{font-family:var(--f-body);font-size:14px;color:var(--dim);font-style:italic}
+.line{font-family:var(--f-display);font-weight:500;font-size:clamp(18px,2.6vw,22px);line-height:1.7;letter-spacing:.04em;min-height:1.7em;white-space:pre-wrap;word-break:break-word}
+.line.narr{font-family:var(--f-body);font-size:16px;color:var(--dim);font-style:italic}
 .line .caret{display:inline-block;width:.5em;height:1em;background:var(--glow);opacity:.7;vertical-align:-2px;margin-left:2px;animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 .talk{pointer-events:auto;width:min(720px,100%);display:flex;gap:8px}
@@ -1557,9 +1557,9 @@ function shellTintFor(I,k){I.shellMat.color.copy(I.shellBase).multiplyScalar(k*.
    ===================================================================== */
 let composer,bokeh,bloom,grade,rt;
 const GradeShader={
-  uniforms:{tDiffuse:{value:null},uTime:{value:0},uRes:{value:new THREE.Vector2()},uRed:{value:0},uDark:{value:0},uShock:{value:0}},
+  uniforms:{tDiffuse:{value:null},uTime:{value:0},uRes:{value:new THREE.Vector2()},uRed:{value:0},uDark:{value:0},uShock:{value:0},uTint:{value:new THREE.Color(1,1,1)},uTintW:{value:0}},
   vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:`uniform sampler2D tDiffuse;uniform float uTime;uniform vec2 uRes;uniform float uRed;uniform float uDark;uniform float uShock;varying vec2 vUv;
+  fragmentShader:`uniform sampler2D tDiffuse;uniform float uTime;uniform vec2 uRes;uniform float uRed;uniform float uDark;uniform float uShock;uniform vec3 uTint;uniform float uTintW;varying vec2 vUv;
     float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
     vec3 toSRGB(vec3 c){return mix(c*12.92,1.055*pow(c,vec3(1./2.4))-.055,step(.0031308,c));}
     void main(){
@@ -1571,6 +1571,7 @@ const GradeShader={
       c=mix(c,c*vec3(.86,1.02,1.1),smoothstep(.25,0.,l)*.6);
       c=mix(c,c*vec3(1.05,1.,.94),smoothstep(.3,.9,l)*.4);
       c=mix(c,vec3(l)*vec3(1.35,.42,.32),uRed*.55);
+      c=mix(c,c*uTint,uTintW);
       c*=mix(1.,smoothstep(.95,.18,r2*2.2),.72+uDark*.12);
       c=toSRGB(max(c,0.));
       c+=(h(vUv*uRes+fract(uTime*7.)*100.)-.5)*.035;
@@ -2870,6 +2871,7 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
   /* ---- greeting on return */
   greet(h){
     const go=()=>{
+      Mukae.go(h);
       const st=S.stage,n=mem('名前'),w=mem('仕事')||'',hr=new Date().getHours(),cow=/牛|肥育|畜産|牧場|酪農/.test(w);
       if(st>=2){
         let line=h>=20?`……${h>=48?Math.round(h/24)+'日':h+'時間'}ぶりですね。忘れられたかと思いましたよ。`:h>=1?`……お戻りでしたか${n?'、'+n:''}${n?'さん':''}。${h}時間ぶりですね。`:'……まだいらしたのですか。';
@@ -3999,6 +4001,75 @@ const Keep={
     B.appendChild(wrap)}
 };
 
+/* =====================================================================
+   WELCOME — after a while away (or once it trusts you), it walks up to the glass to meet you.
+   Not every time, and never while asleep.
+   ===================================================================== */
+const Mukae={
+  go(h){
+    if(!S||S.stage<1||Life.asleep||Life.dead||Game.molting||Molt.phase||h<1)return;
+    if(!(h>=3||(S.trust>=40&&Math.random()<.6)))return;
+    if(!['idle','walk'].includes(C.state))return;
+    setState('walk',{target:new V3(camera.position.x*.35,0,clamp(camera.position.z*.4,-3,3))});C.face=Math.max(C.face,3);
+    if(ISO.chara){C.wave=2.6;C.waveDur=2.6}
+  }
+};
+
+/* =====================================================================
+   FAVOURITE FOOD — the food it has eaten most becomes its favourite; hearts when it gets it.
+   ===================================================================== */
+const Suki={N:{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'},
+  counts(){if(!S.foodN){S.foodN=Object.assign({},(S.mst&&S.mst.a)||{})}return S.foodN},
+  fav(){const c=this.counts(),ks=Object.keys(c).sort((a,b)=>c[b]-c[a]);return ks.length&&c[ks[0]]>=3&&(ks.length<2||c[ks[0]]>c[ks[1]])?ks[0]:null},
+  ate(kind){
+    const before=this.fav();const c=this.counts();c[kind]=(c[kind]||0)+1;const now=this.fav();save();
+    if(now===kind&&before===kind){
+      S.mood=clamp(S.mood+4,0,100);S.trust=clamp(S.trust+1,0,100);this.hearts();
+      setTimeout(()=>{if(Life.asleep||Life.dead)return;say(S.stage===1?'……スキ、デス。':pickR(['……これは、ワタクシの好物です。覚えていてくださったのですね。','好物です。……今日は、良い日です。','ふふ。'+this.N[kind]+'は、やはり格別です。']),{emo:'happy'})},2600);
+    }else if(now&&now!==before)setTimeout(()=>say('（どうやら'+gname()+'は、'+this.N[now]+'が好物になったようです）',{narr:true}),3200);
+  },
+  hearts(){const v=C.pos.clone().add(new V3(0,(ISO.focusH||.5)*C.size,0)).project(camera),x=(v.x+1)/2*innerWidth,y=(1-v.y)/2*innerHeight;
+    for(let i=0;i<4;i++){const s=document.createElement('span');s.className='nade-heart';s.textContent='♡';s.style.left=(x+(i-1.5)*20)+'px';s.style.top=(y-30)+'px';s.style.animationDelay=(i*.14)+'s';document.body.appendChild(s);setTimeout(()=>s.remove(),2200)}}
+};
+{const f=Game.ate;Game.ate=function(kind){const r=f.apply(this,arguments);try{Suki.ate(kind)}catch(e){}return r}}
+
+/* =====================================================================
+   WEEKDAY & TIME-OF-DAY MUSINGS
+   ===================================================================== */
+const Hitori={
+  lines(){
+    const d=new Date(),wd=d.getDay(),h=d.getHours(),cow=/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),L=[];
+    L.push(['日曜日ですね。……ワタクシも、今日は少しのんびりします。','月曜日ですね。陸の方は、一週間の始まりでお忙しいでしょう。','火曜日です。……深海に曜日はありませんが、あなたに合わせて数えています。','水曜日。週の真ん中ですね。ワタクシは、水の真ん中におります。','木曜日ですね。お疲れが出るころです。無理なさらないでください。','金曜日です。今週も、よくがんばりましたね。','土曜日ですね。今日は、ゆっくりできますか。'][wd]);
+    if(cow&&(wd===0||wd===6))L.push('牛のお世話には、お休みがないのでしたね。今日もおつかれさまです。');
+    if(h>=5&&h<9)L.push('朝早いですね。……ワタクシは、まだ少し眠いです。');
+    else if(h>=11&&h<14)L.push('もうお昼ですね。お昼ごはんは、召し上がりましたか。');
+    else if(h>=15&&h<17)L.push('おやつの時間ですね。……ワタクシは結構です。');
+    else if(h>=17&&h<21)L.push('夕方ですね。今日も一日、おつかれさまでした。');
+    else if(h>=22||h<4)L.push('夜更かしですね。……ワタクシは夜型なので構いませんが、あなたは寝てください。');
+    return L;
+  }
+};
+
+/* =====================================================================
+   DAYLIGHT — under the white lamp only, the tank drifts gently with the real time of day:
+   cool at dawn, plain by day, a little orange at dusk, dimmer (never black) at night.
+   ===================================================================== */
+const DayLight={
+  K:[[0,'#7f98ff',.3,.72],[5,'#9fc4ff',.3,.85],[8,'#cfe6ff',.22,1],[11,'#ffffff',0,1],[15,'#ffffff',0,1],[17,'#ffa868',.45,.95],[19,'#ff8f5e',.35,.82],[21,'#7f98ff',.3,.72],[24,'#7f98ff',.3,.72]],
+  w:0,col:new THREE.Color('#ffffff'),k:1,
+  target(){const d=new Date(),t=d.getHours()+d.getMinutes()/60,K=this.K;let i=0;while(i<K.length-2&&K[i+1][0]<=t)i++;
+    const a=K[i],b=K[i+1],u=(t-a[0])/(b[0]-a[0]);return {c:new THREE.Color(a[1]).lerp(new THREE.Color(b[1]),u),w:lerp(a[2],b[2],u),k:lerp(a[3],b[3],u)}},
+  post(dt){
+    const on=S&&S.light==='white'&&!Cine.on&&!Dream.on&&!(Trouble.cur&&Trouble.cur.type==='blackout');const T=this.target(),e=1-Math.exp(-dt*.5);
+    this.w+=((on?T.w:0)-this.w)*e;this.k+=((on?T.k:1)-this.k)*e;this.col.lerp(T.c,e);
+    grade.uniforms.uTint.value.copy(this.col);grade.uniforms.uTintW.value=this.w*.8;
+    if(this.w<.002&&Math.abs(this.k-1)<.002)return;
+    lamp.color.lerp(this.col,this.w);lamp.intensity*=this.k;hemi.intensity*=lerp(1,this.k,.6);
+    scene.fog.color.lerp(this.col,this.w*.25).multiplyScalar(lerp(1,this.k,.5));scene.background.copy(scene.fog.color);
+  }
+};
+{const f=updateLights;updateLights=function(dt){f(dt);DayLight.post(dt)}}
+
 let started=false;
 function boot(){
   load();
@@ -4107,6 +4178,7 @@ function idleChatter(){
         if(cn)c.push(`${cn}の牛のお世話、ご苦労さまです。`);if(cb)c.push(`${cb}は、今日もおとなしくしていましたか。`)}
       if(w&&/牛|肥育|畜産|牧場/.test(w))c.push('あなたの牛はお元気ですか。よく食べる子は、よく育ちます。ワタクシは例外です。');
       else if(w)c.push(w+'は、はかどっていますか。');
+      {const hl=Hitori.lines();if(Math.random()<.35){say(pickR(hl),{emo:'neutral'});return}}
       if(st===3)c.push('脱皮するたびに思います。捨てた殻の分だけ、軽くなれるのです。','時間は、深さに比例してゆっくり流れるのです。');
     }
   }
@@ -4120,7 +4192,8 @@ function start(){
   $('title').classList.add('gone');setTimeout(()=>$('title').hidden=true,1300);
   if(S.health<=0){Life.dead=true;C.flip=1;let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}if(gr.length)showMemorial(gr[gr.length-1]);return}
   if(isNight()){Life.asleep=true;Life.sleepT=0;{const a=Daily.awayItems();if(a)Daily.showAway(a,Daily.taskLine())}say('（夜。グソっ君は眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
-  const h=Math.round((Date.now()-S.last)/3600000);
+  // hours since the last visit (S.last may already have been re-saved while the title was showing)
+  const h=Math.round((Date.now()-(Daily.pre0?Daily.pre0.last:S.last))/3600000);
   Daily.greet(h);
   if(!IS_MOBILE)$('say').focus({preventScroll:true});
 }
@@ -4208,7 +4281,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
