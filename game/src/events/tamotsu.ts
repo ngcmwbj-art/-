@@ -92,6 +92,7 @@ import {
   type Spot,
   type TsuriPanel,
 } from './tsuri';
+import { isCloseupQuit } from '../ui/closeup';
 
 SPEAKERS.npc_tamotsu ??= TAMOTSU_SPEAKER;
 
@@ -274,6 +275,14 @@ function* tsuriSession(): Co {
       const i = yield* msg(TAMOTSU.again);
       if (i !== 0) break;
     }
+  } catch (e) {
+    // もどるで やめた（改善会議 10-25 の4）：おぴぃを もとに。話しかけ直せば 最初から
+    if (isCloseupQuit(e) && a) {
+      a.tempPose = null;
+      a.dir = 'down';
+      delete a.data.scripted;
+    }
+    throw e;
   } finally {
     // (a jump in QA may cut the scene: the window must not stay)
     if (!panel.done) {

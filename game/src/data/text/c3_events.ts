@@ -42,7 +42,7 @@ export const S01_A = `@npc_mother
 わい、足 14本 あるのに 疲れたわ。
 @npc_mother
 ほら、きのうの おまけ。{w=300}
-ひのやの おばあちゃんに
+{c=#E23B2E}ひのや{/c}の おばあちゃんに
 持っていきなさい。
 /
 ほかの 3つは、ゆうべ
@@ -67,7 +67,7 @@ export const S01_B = `@npc_mother
 export const MOTHER_C0 = {
   tomato: `@npc_mother
 ほら、きのうの おまけ。{w=300}
-ひのやの おばあちゃんに
+{c=#E23B2E}ひのや{/c}の おばあちゃんに
 持っていきなさい。`,
   after: S01_B,
 };

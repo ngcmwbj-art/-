@@ -58,6 +58,10 @@ import './kutsu_art';
 import './shishito_art';
 // 絵の きゅうりは、とり遅れない：ソワカの 家の 横の きゅうりの 棚（02_ch2_index）
 import './kyuri_art';
+// 急かすと、甘うならん：水槽の うらの 焼き芋の 機械・台車の 上の 新聞紙の 包み（03_ch3_index）
+import './imo_art';
+// 切ったら、また なる：区長の 家の 西の 路地の ナスの 株（02_ch2_index）
+import './akinasu_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

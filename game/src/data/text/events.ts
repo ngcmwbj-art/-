@@ -34,7 +34,7 @@ export const GUIDE_MENU: GuideRow[] = [
 
 export const ERRAND_A = `@npc_mother
 あ、起きた。{w=300}おつかい 行ってきて。
-たかしさんの お店で 焼きそば 4つ。
+{c=#E23B2E}たかしさんの お店{/c}で 焼きそば 4つ。
 青のりは 別。{w=300}別よ？
 /
 1つは おまけ。だれかに あげなさい。
@@ -82,7 +82,7 @@ export const MARUYAMA_URENOKORI_LATE = `@npc_maruyama
 
 export const MARUYAMA_FIRST_B = `@npc_maruyama
 金が 足りなきゃ ツケで いい。
-それまで ひのやで 時間でも
+それまで {c=#E23B2E}ひのや{/c}で 時間でも
 つぶしてきな。`;
 
 // ---------------------------------------------------------------- 5.5 evt_obaa_first
@@ -167,7 +167,7 @@ export const GUIDE_FUSHIGI = '調べると 『みました』を 押せる。\n�
 
 export const PARK_HINT_A = `@npc_obaa
 はい、よくできました。{w=600}
-公園でね、なんか でっかい 虫みたいなのが
+{c=#E23B2E}公園{/c}でね、なんか でっかい 虫みたいなのが
 倒れてるってさ。
 /
 路地の 工事は 『17時まで』
@@ -177,7 +177,7 @@ export const PARK_HINT_B = `@npc_obaa
 こら、しゅん。{w=600}……まあ いい。
 押すのは 道々で いいさ。
 /
-公園の ほうでね、なんか でっかい
+{c=#E23B2E}公園{/c}の ほうでね、なんか でっかい
 虫みたいなのが、倒れてるってさ。{w=300}
 路地から 行けるよ。`;
 
@@ -204,7 +204,7 @@ export const KANENARI_MEET_AGAIN = `@？？？:gusokkun
 /** No leftover in the bag (the insurance 17:00 came before 焼きそばのたかし). */
 export const KANENARI_NOFOOD = `@narr
 なにか、食べる ものが いりそうだ。{w=300}
-……焼きそばの たかしの 店なら。`;
+……{c=#E23B2E}焼きそばの たかし{/c}の 店なら。`;
 
 export const KANENARI_GIVE_Q = `@narr
 売れ残りの焼きそばが ある。
@@ -264,7 +264,7 @@ export const BROADCAST = `@npc_broadcast
 /
 おうちの かたは、
 ショッピングプラザ・ユウナリ
-迷子センターへ おむかえに 来てください。`;
+{c=#E23B2E}迷子センター{/c}へ おむかえに 来てください。`;
 
 /** The last words, in a child's voice: no window, typed slowly in the middle of the screen. */
 export const BROADCAST_LAST = '……だれか。';
@@ -276,7 +276,7 @@ export const BROADCAST_SHADOWS = `@narr
 どこかで、鎖の はずれる 音が した。`;
 
 export const BROADCAST_FLIP = `@npc_kanenari
-モールは 北東や。{w=300}
+{c=#E23B2E}モール{/c}は 北東や。{w=300}
 影が、みんな そっち 向いとる。`;
 
 // ---------------------------------------------------------------- 5.14 evt_ojigi
@@ -315,7 +315,7 @@ export const MALL_ENTER_FLIP = `@npc_kanenari
 export const MAIGO_DOOR_LOCKED = `@narr
 カギが かかっている。
 /
-貼り紙：『カギは フードコートの
+貼り紙：『カギは {c=#E23B2E}フードコート{/c}の
 忘れ物カウンターで
 お預かり しています』`;
 export const MAIGO_DOOR_LOCKED_FLIP = `@npc_kanenari

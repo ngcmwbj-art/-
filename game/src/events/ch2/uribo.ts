@@ -39,6 +39,7 @@ import {
   uriboBg,
   uriboImg,
 } from '../../art/props/ashiato_art';
+import { HOWTO } from '../../data/text/howto';
 
 const PX = 24;
 const PY = 4;
@@ -76,6 +77,8 @@ export class UriboPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.uribo;
   done = false;
   t = 0;
   open = 0;

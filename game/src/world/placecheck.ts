@@ -249,6 +249,7 @@ if (import.meta.env.DEV) {
 // 部屋の カメラが 区長たちを 端に 映していた）。HD-2D の f.projected で その人の 足と 頭の 画面の
 // 位置を 数え、ページを 打ち終えて キーを 待つ ときに 1回ずつ 見る（カメラの 寄せが 終わった あと）。
 // 横の 端から EDGE_X px より 内に 足が ない、頭が 上の 端の 外、足が 下の 外 のとき 記録する。
+// 画面の 中でも しゅんから 6マス（FAR_TILES）以上 はなれて 話して いれば「遠」（改善会議 2026-10-25）。
 //
 //   __game.cmd.talkEdgeLog()        記録（地図・話す人・画面の 位置・どちらの 端・数）
 //   __game.cmd.talkEdgeLog(true)    記録を 空に（通しテストの 初めに）
@@ -259,6 +260,8 @@ if (import.meta.env.DEV) {
 
 /** 横の 端から これより 内に 足が あると「寄りすぎ」（画面 384 の 1/8）。 */
 let EDGE_X = 48;
+/** しゅんから これより 遠い 所で 話して いると「遠」（改善会議 2026-10-25。マス）。 */
+const FAR_TILES = 6;
 const SHOT_MAX = 12;
 export interface TalkEdge {
   map: string;
@@ -269,7 +272,7 @@ export interface TalkEdge {
   /** 足の 画面の 位置（384×216）。 */
   x: number;
   y: number;
-  /** '左' '右' '上' '下'（上：頭が 画面の 上の 外、下：足が 下の 外）。 */
+  /** '左' '右' '上' '下'（上：頭が 画面の 上の 外、下：足が 下の 外）、'遠'（画面の 中だが しゅんから 6マス 以上）。 */
   side: string;
   /** 同じ 地図・人・端で 見つかった ページの 数。 */
   n: number;
@@ -323,7 +326,9 @@ function talkEdgeSample(): void {
   if (!fp) return;
   const hp = f.projected(a.x + a.ox, foot - 26, foot);
   const [x, y] = fp;
-  const side = x < EDGE_X ? '左' : x > W - EDGE_X ? '右' : hp && hp[1] < 0 ? '上' : y > H ? '下' : '';
+  // (2026-10-25 改善会議「遠くから話す人はそばへ」: on the frame but FAR_TILES or more from しゅん — '遠')
+  const far = Math.hypot(a.x - f.player.x, a.y - f.player.y) / 16 >= FAR_TILES;
+  const side = x < EDGE_X ? '左' : x > W - EDGE_X ? '右' : hp && hp[1] < 0 ? '上' : y > H ? '下' : far ? '遠' : '';
   if (!side) return;
   const old = edgeLog.find((e) => e.map === f.map.id && e.who === a.id && e.side === side);
   if (old) {

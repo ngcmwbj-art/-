@@ -41,6 +41,7 @@ import { addMp } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, npc, routeTiles } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 export const BF = {
   look: 'flag_bm_look',
@@ -150,6 +151,8 @@ export class MakuPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.busmaku;
   done = false;
   t = 0;
   open = 0;

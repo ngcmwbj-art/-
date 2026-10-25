@@ -35,6 +35,7 @@ import { addMp, getKeyItem, giveKey } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { inCh3, kita, noon, say3 } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 export const MF = {
   start: 'flag_mh_start',
@@ -126,6 +127,8 @@ export class PeepPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.mahiru;
   done = false;
   t = 0;
   open = 0;

@@ -33,6 +33,7 @@ import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { c3Stage, c3Town, inCh3, say3 } from './common';
 import { anyFlag } from './talked';
+import { HOWTO } from '../../data/text/howto';
 
 export const AF = {
   desk: 'flag_ab_desk',
@@ -85,6 +86,8 @@ export class HeraPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.abura;
   done = false;
   t = 0;
   open = 0;
@@ -377,11 +380,8 @@ wrap('obj_c3_rouka_desk', function* (_ctx, orig): Co {
     yield* orig();
     return;
   }
-  if (!flag(AF.start)) {
-    yield* abura();
-    return;
-  }
-  yield* orig();
+  // (もどるで やめた あと〈改善会議 10-25 の4〉も：調べ直すと 最初から)
+  yield* abura();
 });
 
 // 段階0（夕鳴町の 昼前）に 店の 前の 置物を 2回 調べた（かくしの 1行のため）

@@ -31,14 +31,38 @@ export interface Widget {
   done: boolean;
   /** A close-up game (大写し): on touch, a tap anywhere on the window is けってい (engine/touch.ts). */
   closeup?: boolean;
+  /**
+   * A close-up game's card (改善会議 2026-10-25 の1, ui/closeup.ts): shown once, the first
+   * time it is played (`id` → the saved flag howto_<id>). `line` is one short line, keys as
+   * {Z} {X} {←→} {↑↓} {十字} (drawn as the device names them); `pic` one of the shared pictures.
+   */
+  howto?: { id: string; line: string; pic?: string };
+  /**
+   * もどる on a close-up game quits it (改善会議 2026-10-25 の4, ui/closeup.ts). `quit()`
+   * returning true: the widget took it itself (its own quit path). `quittable()` false:
+   * もどる is the widget's own for now (its result card).
+   */
+  quit?(): boolean;
+  quittable?(): boolean;
   update(dt: number, input: Input): void;
   draw(g: Gfx): void;
 }
 
+/** The close-up games' common part (ui/closeup.ts): the first card, もどる to quit. */
+export interface CloseupHooks {
+  pushed(w: Widget): void;
+  /** The close-up game is the top modal widget this frame: true = it hears nothing this frame. */
+  input(w: Widget, input: Input): boolean;
+}
+
 export class UILayer {
   widgets: Widget[] = [];
+  closeupHooks: CloseupHooks | null = null;
+  /** A card over everything (ui/closeup.ts): while it is up, the game stands still (Game.tick). */
+  hold: Widget | null = null;
   push<T extends Widget>(w: T): T {
     this.widgets.push(w);
+    if (w.closeup) this.closeupHooks?.pushed(w);
     return w;
   }
   remove(w: Widget): void {
@@ -56,8 +80,10 @@ export class UILayer {
         topModal = this.widgets[i];
         break;
       }
+    const deaf = !!topModal?.closeup && !!this.closeupHooks?.input(topModal, input);
     for (const w of this.widgets.slice()) {
-      if (w === topModal || !w.modal) w.update(dt, input);
+      if (w === topModal && !deaf) w.update(dt, input);
+      else if (!w.modal) w.update(dt, input);
       else w.update(dt, DEAF);
     }
     this.widgets = this.widgets.filter((w) => !w.done);
@@ -65,6 +91,7 @@ export class UILayer {
   }
   draw(g: Gfx): void {
     for (const w of this.widgets) w.draw(g);
+    this.hold?.draw(g);
   }
 }
 
@@ -207,11 +234,19 @@ export class Game {
 
   // ---- loop ---------------------------------------------------------
   tick(dt: number): void {
-    this.time += dt;
+    if (!this.ui.hold) this.time += dt;
     this.frame++;
     this.input.update(dt);
     // (a pad's buttons have no DOM event: a press seen here wakes the screen too)
     if (this.input.anyKeyThisFrame) this.wake();
+    // a card over everything (a close-up game's first card): the rest stands still, the time too
+    const hold = this.ui.hold;
+    if (hold) {
+      hold.update(dt, this.input);
+      this.input.consume();
+      if (hold.done) this.ui.hold = null;
+      return;
+    }
     this.ui.update(dt, this.input);
     this.scripts.update(dt);
     if (this.freezeMs > 0) this.freezeMs -= dt;

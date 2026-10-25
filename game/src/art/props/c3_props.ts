@@ -167,15 +167,17 @@ function toudai(): HTMLCanvasElement {
   p.strokeRect(18, foot - 26, 12, 18, '#5A1E18');
   p.ellipse(24, foot - 20, 2, 2, '#7FD1E8');
   // the gallery and its rail, the lamp room's glass, the white cap
+  // (no pure white on its top faces — the gallery's edge, the cap: they went white in HD-2D's sun under
+  // the bloom; the cap's shaded rim a step darker. 2026-10-25 改善会議「白く飛ぶ物を立体に」)
   p.rect(10, top - 3, 28, 4, '#E8E4D8');
-  p.hline(10, 37, top - 3, '#FFFFFF');
+  p.hline(10, 37, top - 3, '#ECE8DE');
   for (let x = 10; x < 38; x += 3) p.vline(x, top - 9, top - 4, '#3A3F48');
   p.hline(10, 37, top - 9, '#3A3F48');
   p.rect(16, top - 20, 16, 12, '#3A3F48');
   for (let x = 17; x < 31; x++) for (let y = top - 19; y < top - 9; y++) p.set(x, y, (x - 17) % 5 === 4 ? '#3A3F48' : y < top - 15 ? '#B8E8F4' : '#7FD1E8');
   p.set(19, top - 17, '#FFFFFF');
-  p.poly([[14, top - 20], [34, top - 20], [26, top - 27], [22, top - 27]], '#F4F1E8');
-  p.hline(14, 33, top - 20, '#C8C2B4');
+  p.poly([[14, top - 20], [34, top - 20], [26, top - 27], [22, top - 27]], '#E4E0D4');
+  p.hline(14, 33, top - 20, '#B4AEA0');
   p.vline(24, top - 31, top - 27, '#3A3F48');
   p.set(24, top - 32, '#E23B2E');
   outline(p, { bottom: true, soft: true });
@@ -582,10 +584,12 @@ registerProp('prop_c3_kanshidai', () => {
       for (const x of [3, 14]) p.rect(x, 18, 2, 31, '#E8E4D8');
       for (let y = 22; y < 48; y += 5) p.hline(3, 15, y, '#C8C2B4');
       p.line(3, 48, 15, 24, '#C8C2B4');
+      // (the seat's top edge and the sunshade not pure white: they went white in HD-2D's sun under the
+      // bloom — 2026-10-25 改善会議「白く飛ぶ物を立体に」; the shade under the sunshade a step darker)
       p.rect(1, 16, 18, 4, '#F4F1E8');
-      p.hline(1, 18, 16, '#FFFFFF');
-      p.rect(2, 9, 16, 3, '#F4F1E8');
-      p.hline(2, 17, 12, '#C8C2B4');
+      p.hline(1, 18, 16, '#E6E2D8');
+      p.rect(2, 9, 16, 3, '#E8E4DA');
+      p.hline(2, 17, 12, '#B4AEA0');
       p.vline(3, 12, 15, '#C8C2B4');
       p.vline(16, 12, 15, '#C8C2B4');
       p.vline(19, 0, 18, '#9AA0A8');
@@ -598,7 +602,7 @@ registerProp('prop_c3_kanshidai', () => {
   const a = mk(false);
   const flagImg = (() => {
     const p = new PixelCanvas(14, 9);
-    p.rect(0, 0, 14, 9, '#F4F1E8');
+    p.rect(0, 0, 14, 9, '#E8E4DA');
     for (let x = 0; x < 14; x++) {
       const y = 4 + Math.round(Math.sin(x / 2) * 1.2);
       p.set(x, y, '#3A7EA8');

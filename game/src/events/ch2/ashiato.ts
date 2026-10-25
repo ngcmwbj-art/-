@@ -48,6 +48,7 @@ import { forceBoxPos, keyGuide } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn, poseAny, unpose } from './common';
 import { card, closeUribo, emerge, goBack, openUribo, run, snortHome, uriboGuideRows, waitHome } from './uribo';
+import { isCloseupQuit } from '../../ui/closeup';
 
 export const AF = {
   /** マサル〔ashiato〕を 聞いた（ページが できた。足あとが 出る）。 */
@@ -524,6 +525,10 @@ function* uriboScene(): Co {
     yield* say(T.URIBO_CHO);
     yield* card(panel, flag(AF.guTold) > 0, 'yoshi');
     yield* say(T.URIBO_YOSHI);
+  } catch (e) {
+    // もどるで やめた（改善会議 10-25 の4）：ごほうびは なし。段階1は マサルが 牛舎へ もどる（数え直しは 話しかけ直して 最初から）
+    if (isCloseupQuit(e) && temp && gen) sendAway(gen, [[50, 19], [48, 19], [48, 32], [51, 32]], 2.5, 300, true);
+    throw e;
   } finally {
     yield* closeUribo(panel);
     unpose(p);

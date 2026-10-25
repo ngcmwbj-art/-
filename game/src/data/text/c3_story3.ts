@@ -445,7 +445,7 @@ export const ESA_A = `@npc_pokosha
 
 /** 〔鍵〕 */
 export const ESA_KEY = `@npc_pokosha
-これ、大水槽ホールの 鍵 です。
+これ、{c=#E23B2E}大水槽ホール{/c}の 鍵 です。
 {w=300}飼育係の 名札つき。
 /
 親分を、休ませて
@@ -463,7 +463,7 @@ export const ESA_GOT = `@sys
 
 /** 鍵のあと、ポコシャにもう一度（E 作）。 */
 export const ESA_AFTER = `@npc_pokosha
-……ホールは、南の 通路の
+……{c=#E23B2E}ホール{/c}は、南の 通路の
 先 です。{w=300}
 自分は、ここに います。`;
 

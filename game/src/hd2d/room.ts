@@ -152,6 +152,8 @@ export const ROOM_MAPS = new Set([
   'map_c3_aq_okujou',
   // 氷の 蔵（明日の 朝の 氷、03_ch3_index）：港の 倉庫の 奥
   'map_c3_kori',
+  // 網小屋（破れたら、つくろう、03_ch3_index）：漁協の 建物の 中
+  'map_c3_amigoya',
   // the third part (62 4.8〜4.17): the old aquarium's rooms
   ...AQ_ROOMS,
 ]);

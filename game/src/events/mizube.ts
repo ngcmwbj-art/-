@@ -70,6 +70,7 @@ import {
 } from './seki_tsuri';
 // 第2章の 夜振り（トマじい・小屋の たも網・用水路・沢ガニ・駅ノート・カット4b。npcs と school の トマじいを 包む）
 import './ch2/yoburi';
+import { isCloseupQuit } from '../ui/closeup';
 
 const MAP = 'map_seki';
 
@@ -357,6 +358,13 @@ function* sekiSession(): Co {
       const i = yield* msg(SEKI_OPI.again);
       if (i !== 0) break;
     }
+  } catch (e) {
+    // もどるで やめた（改善会議 10-25 の4）：おぴぃを もとに。話しかけ直せば 最初から
+    if (isCloseupQuit(e) && a) {
+      a.dir = 'left';
+      delete a.data.scripted;
+    }
+    throw e;
   } finally {
     if (!panel.done) {
       panel.cues.clear();

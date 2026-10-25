@@ -38,6 +38,7 @@ import { se } from './compat';
 import { ch2Open, hStage, lanternOn } from './common';
 import { DF } from './dome';
 import { deliveryOn, deliveryOpen } from './tsugao';
+import { HOWTO } from '../../data/text/howto';
 
 export const MF = {
   start: 'flag_mg_start',
@@ -292,6 +293,10 @@ const WATER_Y = SY + 74;
 type TMode = 'idle' | 'search' | 'kae' | 'check';
 
 export class TaraiPanel extends Panel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  get howto() {
+    return this.mode === 'kae' ? HOWTO.mgKae : HOWTO.mgTarai;
+  }
   place = MG_UI.placeTarai;
   mode: TMode = 'idle';
   /** 今の 向き（小数。下に 来ている 向き）と、向かう 先。 */
@@ -475,6 +480,8 @@ const GOOD_HI = 0.86;
 const PUMP_STEP = 0.1;
 
 export class PumpPanel extends Panel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.mgPump;
   place = MG_UI.placePump;
   v = 0.08;
   pushT = 0;

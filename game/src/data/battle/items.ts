@@ -15,6 +15,8 @@ import { YD_ITEM_BIN_DESC, YD_ITEM_DOFU_DESC } from '../text/c3_yose';
 import { OJ_ITEM_BALL_DESC } from '../text/c3_okujou';
 import { MK_ITEM_DESC } from '../text/c3_mikan';
 import { KR_ITEM_DESC } from '../text/c3_kori';
+import { AG_ITEM_DESC } from '../text/c3_amigoya';
+import { TK_ITEM_DESC, TK_ITEM_TENGUSA_DESC } from '../text/c3_tokoro';
 import { HM_ITEM_HANA_DESC } from '../text/hoshi_himo';
 import { SS_ITEM_DESC, SS_SARA_DESC } from '../text/hoshi_shishito';
 import { KY_ITEM_DESC, KY_SANBON_DESC } from '../text/hoshi_kyuri';
@@ -188,6 +190,12 @@ const items: ItemDef[] = [
   { id: 'item_c3_ao_mikan', name: '青いみかん', target: 'ally', heal: 20, desc: MK_ITEM_DESC },
   // 明日の 朝の 氷（03_ch3_index）：砕いた 角氷を 袋に 入れた 物。値は 青い みかんと 同じ（61 7.1 の 小さい 回復）
   { id: 'item_c3_kachiwari', name: 'かち割り', target: 'ally', heal: 20, desc: KR_ITEM_DESC },
+  // 破れたら、つくろう（03_ch3_index）：ゴロウの 古い 竹の 網針（使い道は ない）
+  { id: 'item_c3_amibari', name: '古い網針', key: true, target: 'none', desc: AG_ITEM_DESC, battleText: ['網針を 見せた。\n$enemyは 糸の あとを 見ている。'] },
+  // つるっと、終われる（03_ch3_index）：港の 乾物屋の 天草（食堂かもめで 煮ると なくなる）と、ところてん（非売品、2つ。
+  // 値は 青い みかんと 同じ 61 7.1 の 小さい 回復）
+  { id: 'item_c3_tengusa', name: '天草', key: true, target: 'none', desc: TK_ITEM_TENGUSA_DESC, battleText: ['天草を 見せた。\n$enemyは 海の においを かいだ。'] },
+  { id: 'item_c3_tokoroten', name: 'ところてん', target: 'ally', heal: 20, desc: TK_ITEM_DESC },
   // 下の 紙の 字（03_ch3_index）：入口の 売店の 売れ残りの えんぴつ（S28 の あと 消える）
   { id: 'item_c3_enpitsu', name: 'ペンギンのえんぴつ', key: true, target: 'none', desc: SH_ITEM_DESC, battleText: ['えんぴつを 見せた。\n$enemyは おしりの ペンギンを 見た。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）

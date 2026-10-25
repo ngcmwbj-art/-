@@ -49,6 +49,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn, npc } from './common';
 import { choresOn } from './barn';
+import { HOWTO } from '../../data/text/howto';
 
 export const NF = {
   kiritsu: 'flag_nr_kiritsu',
@@ -289,6 +290,8 @@ export class YukaPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.neru;
   done = false;
   t = 0;
   open = 0;

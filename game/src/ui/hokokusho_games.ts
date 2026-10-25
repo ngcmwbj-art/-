@@ -36,6 +36,7 @@ import {
   SIZE_TRUE,
   type Feature,
 } from '../data/text/hokokusho';
+import { HOWTO } from '../data/text/howto';
 
 const PANEL_Y = 6;
 const PANEL_H = 140;
@@ -115,6 +116,8 @@ function opaqueTop(c: HTMLCanvasElement): number {
 // ================================================================ 『大きさ』
 
 export class SizeGame extends Panel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.hkSize;
   /** はかった 値（cm）。バーが ついたら 決まる */
   result = 0;
   private bar = 0;
@@ -244,6 +247,8 @@ export class SizeGame extends Panel {
 // ================================================================ 『足の 数』
 
 export class LegsGame extends Panel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.hkLegs;
   /** えらんだ 数（-1 は まだ） */
   result = -1;
   private phase: 'look' | 'ask' = 'look';
@@ -445,6 +450,8 @@ function foodImg(f: string): HTMLCanvasElement {
 }
 
 export class FoodGame extends Panel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.hkFood;
   result = -1;
   private sel = 0;
   private moveT = 999;
@@ -532,6 +539,8 @@ export class FoodGame extends Panel {
 // ================================================================ 『正体』：本当の 特徴を 3つ
 
 export class SuiriGame extends Panel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.hkSuiri;
   result: string[] = [];
   private sel = 0;
   private picked = new Set<string>();

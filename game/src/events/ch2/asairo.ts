@@ -38,6 +38,7 @@ import { addMp, F, getKeyItem, giveKey } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 export const AF = {
   look: 'flag_as_look',
@@ -142,6 +143,10 @@ export class AsPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  get howto() {
+    return this.kind === 'kumo' ? HOWTO.asairoKumo : HOWTO.asairo;
+  }
   done = false;
   t = 0;
   open = 0;

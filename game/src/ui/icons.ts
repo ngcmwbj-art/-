@@ -661,6 +661,50 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 天草・ところてん（つるっと、終われる、03_ch3_index）：白っぽい 海草の 袋 ／ 青い ふちの 小鉢に 細く 長い ところてん
+Object.assign(ITEM_ROWS, {
+  item_c3_tengusa: [
+    '...kkkk...',
+    '..kdwwdk..',
+    '.kwdwdwdk.',
+    '.kdwwdwwk.',
+    '.kwdeedwk.',
+    '.kdeewedk.',
+    '.kwdwdwdk.',
+    '.kdwdwwdk.',
+    '..kkkkkk..',
+    '..........',
+  ],
+  item_c3_tokoroten: [
+    '..........',
+    '...a.a.a..',
+    '..kaiaiak.',
+    '..kiaiaik.',
+    '.kNNNNNNk.',
+    '.kNnnnnNk.',
+    '..kNNNNk..',
+    '...kkkk...',
+    '..........',
+    '..........',
+  ],
+});
+
+// 古い網針（破れたら、つくろう、03_ch3_index）：平たい 竹の 網針（ななめ）、緑の 網糸が 巻いてある
+Object.assign(ITEM_ROWS, {
+  item_c3_amibari: [
+    '........kk',
+    '.......kYk',
+    '......kYyk',
+    '.....kmmk.',
+    '....kmMmk.',
+    '...kmmMk..',
+    '..kYyyk...',
+    '.kYyyk....',
+    '.kyyk.....',
+    '..kk......',
+  ],
+});
+
 // ゴムボール（掃除は 上から、03_ch3_index）：赤い 小さな ボール、空気が 少し ぬけて へこんでいる
 Object.assign(ITEM_ROWS, {
   item_c3_ball: [

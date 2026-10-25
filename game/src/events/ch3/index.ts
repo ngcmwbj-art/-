@@ -46,6 +46,15 @@ import './nukegara';
 // 明日の 朝の 氷（げむきか 10/24 の 案2）：段階2、市場の 口の ゲン・ツグミ → 港の 倉庫の 西の 戸 → 氷の 蔵（新しい
 // 地図）。ゲン・ツグミ・ナミエの 台本を 包むので、ichiba・shokudo・mikan の あとに import する
 import './kori';
+// 破れたら、つくろう（げむきか 10/25 の 案2）：段階2、S13 の あと 食堂かもめの 前の ゴロウ → 漁協の 戸 → 網小屋
+// （S14 の 前まで）。shokudo の ゴロウを 包むので、shokudo の あとに import する
+import './amigoya';
+// つるっと、終われる（げむきか 10/25 の 案1）：段階1、②の あと あぜ道市の おばあ → 港の 乾物屋の 天草 → 食堂かもめの 台所で
+// 煮る → 大写し「天突き」。おばあ・くま吉・乾物屋・ナミエの 台本を 包むので、azemichi・umizoi・yose・shokudo・mikan・kori の あとに import する
+import './tokoro';
+// 急かすと、甘うならん（げむきか 10/25 の 案3）：段階3、S17 の あと 水槽の うらの ヒロスケ → 大写し「焼き芋の 窓」
+// （S19 の 前まで。S21 の 1ページは souko.ts）。aq_ura の ヒロスケ・台車を 包むので、aq_ura の あとに import する
+import './imo';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

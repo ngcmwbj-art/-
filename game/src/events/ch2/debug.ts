@@ -66,13 +66,16 @@ import { AU_TEXTS } from '../../data/text/c3_aq_ura';
 import { SH_TEXTS, SH_TEXTS_S19 } from '../../data/text/c3_shita';
 import { MH_TEXTS } from '../../data/text/c3_mahiru';
 import { AB_TEXTS } from '../../data/text/c3_abura';
+import { IM_TEXTS } from '../../data/text/c3_imo';
 import { YD_TEXTS } from '../../data/text/c3_yose';
 import { OJ_TEXTS } from '../../data/text/c3_okujou';
 import { MZ_TEXTS } from '../../data/text/c3_mizukiri';
 import { SK_TEXTS } from '../../data/text/c3_sakana';
 import { MK_TEXTS } from '../../data/text/c3_mikan';
 import { KR_TEXTS } from '../../data/text/c3_kori';
+import { AG_TEXTS } from '../../data/text/c3_amigoya';
 import { NG_TEXTS } from '../../data/text/c3_nukegara';
+import { TK_TEXTS } from '../../data/text/c3_tokoro';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
 import { KU_TEXTS } from '../../data/text/hoshi_kutsu';
@@ -80,6 +83,7 @@ import { SS_TEXTS } from '../../data/text/hoshi_shishito';
 import { BM_TEXTS } from '../../data/text/hoshi_busmaku';
 import { UB_TEXTS } from '../../data/text/hoshi_ushibana';
 import { KY_TEXTS } from '../../data/text/hoshi_kyuri';
+import { AN_TEXTS } from '../../data/text/hoshi_akinasu';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -546,6 +550,8 @@ function collectTexts(): [string, string][] {
   walk('ushibana', UB_TEXTS);
   // げむきか10/24の案5（絵の きゅうりは、とり遅れない。02_ch2_index）
   walk('kyuri', KY_TEXTS);
+  // げむきか10/25の案5（切ったら、また なる。02_ch2_index）
+  walk('akinasu', AN_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -574,6 +580,8 @@ function collectTexts(): [string, string][] {
   walk('c3Mahiru', MH_TEXTS);
   // げむきか10/19の案3（毎晩の 油。第3章の クリア前、03_ch3_index 28）
   walk('c3Abura', AB_TEXTS);
+  // げむきか10/25の案3（急かすと、甘うならん。第3章の クリア前、03_ch3_index）
+  walk('c3Imo', IM_TEXTS);
   // げむきか10/19の案1（海の 水で 寄せる。第3章の クリア前、03_ch3_index 28）
   walk('c3Yose', YD_TEXTS);
   // げむきか10/20の案3（掃除は 上から。第3章の クリア前、03_ch3_index）
@@ -586,8 +594,12 @@ function collectTexts(): [string, string][] {
   walk('c3Mikan', MK_TEXTS);
   // げむきか10/24の案2（明日の 朝の 氷。第3章の クリア前、03_ch3_index）
   walk('c3Kori', KR_TEXTS);
+  // げむきか10/25の案2（破れたら、つくろう。第3章の クリア前、03_ch3_index）
+  walk('c3Amigoya', AG_TEXTS);
   // げむきか10/24の案1（背中から、1回で。第3章の クリア前、03_ch3_index）
   walk('c3Nukegara', NG_TEXTS);
+  // げむきか10/25の案1（つるっと、終われる。第3章の クリア前、03_ch3_index）
+  walk('c3Tokoro', TK_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());
@@ -622,6 +634,50 @@ export function textCheck2(): { total: number; bad: string[] } {
   return { total, bad };
 }
 registerDebug('textcheck2', () => textCheck2());
+
+/**
+ * 朱の 数（2026-10-25 改善会議「大事な 言葉を 色で」）：会話の 1ページに 朱（UI.accent、{c=…}…{/c}）が
+ * 2語 以上 ないか、朱で ない 色を 足して いないか。物を 受けとった ときの 地の文（@sys：物の 名前と
+ * ハンコの 名前を 朱で 書く 決まり、10.4）は 数えない。data/ の 文 ぜんぶ と textcheck2 の 文。
+ * __game.cmd.accentCheck() → { pages, colored, bad }
+ */
+export async function accentCheck(): Promise<{ pages: number; colored: number; bad: string[] }> {
+  const { UI } = await import('../../ui/window');
+  const accent = UI.accent.toUpperCase();
+  const list: [string, string][] = [...collectTexts()];
+  const mods = import.meta.glob('/src/data/**/*.ts');
+  const walk = (name: string, v: unknown, depth = 0) => {
+    if (depth > 6) return;
+    if (typeof v === 'string') {
+      if (v.includes('{c=')) list.push([name, v]);
+    } else if (Array.isArray(v)) v.forEach((x, i) => walk(`${name}[${i}]`, x, depth + 1));
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(`${name}.${k}`, x, depth + 1);
+  };
+  for (const [path, load] of Object.entries(mods)) {
+    const m = (await load()) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(m)) walk(`${path.replace('/src/data/', '')}:${k}`, v);
+  }
+  const bad: string[] = [];
+  const seen = new Set<string>();
+  let pages = 0;
+  let colored = 0;
+  for (const [name, src] of list) {
+    for (const pg of pagesOf(src)) {
+      const text = pg.lines.join('／');
+      const key = `${pg.speaker}|${text}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pages++;
+      const cs = [...text.matchAll(/\{c=([^}]*)\}/g)].map((m) => m[1].toUpperCase());
+      if (!cs.length) continue;
+      colored++;
+      for (const c of cs) if (c !== accent) bad.push(`${name}: 朱で ない 色 ${c}: ${text}`);
+      if (cs.length >= 2 && pg.speaker !== 'sys') bad.push(`${name}: 朱が ${cs.length}語: ${text}`);
+    }
+  }
+  return { pages, colored, bad };
+}
+registerDebug('accentCheck', () => accentCheck());
 
 /**
  * クリア後の文の検査（05_postgame 6.1・12 #8。E の第2期）：クリア後に書いた文だけ。

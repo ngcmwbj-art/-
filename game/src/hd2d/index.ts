@@ -292,6 +292,8 @@ registerDebug('hd2dStats', () => view?.stats ?? null);
 // publish refused the page while it carried it).
 // QA: the rooms' camera pitch (view.ts ROOM_CAM; the street's is hd2dCam's)
 if (import.meta.env.DEV) {
+  // QA (2026-10-25 改善会議「白く飛ぶ物を立体に」): the share of the frame that glows white under the bloom
+  registerDebug('hd2dHot', () => view?.hot() ?? null);
   registerDebug('hd2dRoomPitch', (p?: number) => {
     if (p !== undefined) ROOM_CAM.pitch = p;
     return ROOM_CAM.pitch;

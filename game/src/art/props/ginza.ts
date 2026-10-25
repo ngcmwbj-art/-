@@ -828,8 +828,11 @@ function vendingBody(body: string, samples: string[], led17: boolean): PixelCanv
   const p = pc(18, 34);
   p.rect(1, 1, 16, 31, body);
   p.vline(1, 1, 31, lt(body));
-  p.vline(16, 2, 31, dk(body));
-  p.hline(1, 16, 1, lt(body));
+  // (a white body: its lid not lighter than the body, the shaded side a step darker — HD-2D's top face is
+  // this row, and in the sun it went white under the bloom: 2026-10-25 改善会議「白く飛ぶ物を立体に」)
+  const white = body === P.white;
+  p.vline(16, 2, 31, white ? dk(body, 2) : dk(body));
+  p.hline(1, 16, 1, white ? '#E2DED4' : lt(body));
   // display window with sample cans
   p.rect(3, 3, 12, 12, P.white);
   for (let r = 0; r < 2; r++)

@@ -41,6 +41,7 @@ import { getKeyItem } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 export const KF = {
   heard: 'flag_ky_heard',
@@ -182,6 +183,8 @@ export class KyPanel implements Widget {
   done = false;
   /** 大写し（engine/touch.ts：絵の 外の タッチも けってい）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.kyuri;
   t = 0;
   open = 0;
   auto = false;

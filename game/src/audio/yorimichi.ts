@@ -12,6 +12,7 @@ import { sfx } from './index';
 /** 寄り道の 始まりの flag（ファイル：寄り道の 名前）。 */
 export const YORIMICHI_START: Record<string, string> = {
   // ---- 第2章（src/events/ch2）
+  flag_an_start: 'akinasu 切ったら、また なる',
   flag_as_start: 'asairo 朝の 前の 色',
   flag_ashiato_start: 'ashiato 夜の 足あと帳',
   flag_bm_start: 'busmaku 幕の 中の 停留所',
@@ -31,13 +32,16 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_yw_start: 'yuwaka 湯を わかしてから',
   // ---- 第3章（src/events/ch3）
   flag_ab_start: 'abura 毎晩の 油',
+  flag_im_start: 'imo 急かすと、甘うならん',
   flag_iso_start: 'iso 本日は、開館です',
   flag_kr_start: 'kori 明日の 朝の 氷',
+  flag_ag_start: 'amigoya 破れたら、つくろう',
   flag_mh_start: 'mahiru 真昼の 顔',
   flag_mk_start: 'mikan 落とすけえ、甘うなる',
   flag_mz_start: 'mizukiri 低う、平たく',
   flag_ng_start: 'nukegara 背中から、1回で',
   flag_sk_start: 'sakana やっと、魚の 昼',
+  flag_tk_start: 'tokoro つるっと、終われる',
   flag_yd_start: 'yose 海の 水で 寄せる',
 };
 

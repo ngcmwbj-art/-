@@ -17,10 +17,10 @@
 
 import type { Co } from '../engine/co';
 import { H, W } from '../engine/screen';
-import { animate, ease } from '../engine/tween';
 import { flag, setFlag, state, type Dir } from '../game/state';
 import { registerDebug } from '../debug';
-import { despawn, registerScript } from '../world/api';
+import { despawn, registerScript, walk } from '../world/api';
+import type { Actor } from '../world/actor';
 import { getScript, type ScriptCtx } from '../world/scripts';
 import { hasChar } from '../art/chars/registry';
 import type { MapObj } from '../world/types';
@@ -29,7 +29,7 @@ import { fieldCurtain, notifyYarinokoshi } from '../ui/hud';
 import { pgClockRun } from '../ui/pg_clock';
 import { pgKizami, pgRideArrive, pgRideBoard } from '../world/pgaudio';
 import { se } from './ch2/compat';
-import { F, panBack, panTo } from './lib';
+import { besideToward, dirTo, F, panBack, panTo, playerTile, sendAway, tileRoute } from './lib';
 import { addToMap, say3 } from './ch3/common';
 import { jumpMap } from './ch3/prologue';
 import { deliveryOn, pgDeliveryOffer } from './ch2/tsugao';
@@ -218,31 +218,59 @@ export function* pgTruck(): Co {
 function* arrived(to: PgTown): Co {
   if (to === 'hoshi' && pgBand() === 'yoru' && !flag('flag_pg_pero_lamp')) {
     setFlag('flag_pg_pero_lamp', 1);
-    // ペロ is at 3号ハウスの 前 (3,32), far west of the turning circle: the camera goes to her for her
-    // words and comes back (she spoke from off the screen's left edge — 改善会議 10-24 の3, talkEdgeLog)
-    // (HD-2D: its frame is narrower than the 2D's, and the map's west edge stops a pan with her at the
-    // screen's edge — there the look goes on past the edge, she a little left of the middle)
+    // ペロ is at 3号ハウスの 前 (3,32), far west of the turning circle. She walks over to しゅん and hands
+    // him the lamp beside him, then goes back (2026-10-25 改善会議「遠くから話す人はそばへ」、依頼主「ペロは
+    // それでいい」; before, the camera went over to her — 10-24 の3). She starts walking from the last tile
+    // of her way that is still off the frame, so the hop there is never seen.
     const f = F();
     const pero = f.actorById('npc_hoshi_mitsu');
-    if (pero?.visible && f.projected(pero.x, pero.y)) {
-      const x0 = f.camX;
-      const y0 = f.camY;
-      const x1 = pero.x + 40 - W / 2;
-      const y1 = pero.y - 12 - H / 2;
-      f.camOverride = { x: x1 + W / 2, y: y1 + H / 2 };
-      yield* animate(
-        1100,
-        (k) => {
-          f.camX = x0 + (x1 - x0) * k;
-          f.camY = y0 + (y1 - y0) * k;
-        },
-        ease.sineInOut,
-      );
-    } else if (pero?.visible) yield* panTo(pero.tileX, pero.tileY, 1100);
-    yield* say3(T.PG_PERO_LAMP);
-    if (pero?.visible) yield* panBack(900);
+    const way = pero?.visible ? peroWay(pero) : null;
+    if (pero && way) {
+      const p = f.player;
+      pero.x = way.from[0] * 16 + 8;
+      pero.y = way.from[1] * 16 + 16;
+      yield* walk(pero.id, way.walk, { speed: 3.5 });
+      pero.dir = dirTo(pero.tileX, pero.tileY, p.tileX, p.tileY);
+      p.dir = dirTo(p.tileX, p.tileY, pero.tileX, pero.tileY);
+      yield* say3(T.PG_PERO_LAMP);
+      // back to her house by the same way (the player free meanwhile)
+      sendAway(pero, way.back, 3, 300, false);
+    } else {
+      if (pero?.visible) yield* panTo(pero.tileX, pero.tileY, 1100);
+      yield* say3(T.PG_PERO_LAMP);
+      if (pero?.visible) yield* panBack(900);
+    }
     if (pgKnWith()) yield* say3(T.PG_PERO_LAMP_KN);
   }
+}
+
+/**
+ * On the frame now (HD-2D's camera; the 2D's own rect else), with a wide margin (the camera may still
+ * be settling after the arrival's curtain: 2026-10-25, a tile 1 px off the frame showed once it had).
+ */
+function inFrame(tx: number, ty: number): boolean {
+  const f = F();
+  const x = tx * 16 + 8;
+  const y = ty * 16 + 16;
+  const s = f.projected(x, y) ?? [x - f.camX, y - f.camY];
+  return s[0] > -64 && s[0] < W + 64 && s[1] > -48 && s[1] < H + 72;
+}
+
+/**
+ * ペロ's way to しゅん's side: from where she walks in (the last tile of the way still off the frame —
+ * her own spot when that is already near), the tiles she walks, and the way back to her spot.
+ */
+function peroWay(pero: Actor): { from: [number, number]; walk: [number, number][]; back: [number, number][] } | null {
+  const [px, py] = playerTile();
+  const home: [number, number] = [pero.tileX, pero.tileY];
+  const to = besideToward(px, py, home[0], home[1]);
+  const route = tileRoute(home, to, [[px, py]], 80);
+  if (!route || !route.length) return null;
+  const all: [number, number][] = [home, ...route];
+  let i = all.length - 1;
+  while (i > 0 && inFrame(...all[i - 1])) i--;
+  const k = Math.max(0, i - 1);
+  return { from: all[k], walk: all.slice(k + 1), back: all.slice(0, -1).reverse() };
 }
 
 // 夕鳴町・海ぞいの町の軽トラ（after.ts の c3_truck_c4。クリア後だけ出る）

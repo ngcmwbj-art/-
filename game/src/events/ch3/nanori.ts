@@ -39,6 +39,7 @@ import { addMp, getKeyItem, giveKey } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { addToMap, say3 } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 export const NF = {
   zure: 'flag_nn_zure',
@@ -132,6 +133,8 @@ export class NightSeaPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.nanori;
   done = false;
   t = 0;
   open = 0;

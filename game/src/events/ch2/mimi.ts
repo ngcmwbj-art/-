@@ -47,6 +47,8 @@ import { YK } from './sawako_yk';
 import { DF } from './dome';
 import { deliveryOn } from './tsugao';
 import { MUSHI_DONE } from './mushi';
+import { HOWTO } from '../../data/text/howto';
+import { isCloseupQuit } from '../../ui/closeup';
 
 export const MF = {
   /** 片目だけ（ページが できた）。 */
@@ -267,6 +269,8 @@ export class MimiPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.mimi;
   done = false;
   t = 0;
   open = 0;
@@ -485,6 +489,20 @@ function* awaseScene(): Co {
     }
     p.phase = 'done';
     yield 300;
+  } catch (e) {
+    // もどるで やめた（改善会議 10-25 の4）：犬と グソっ君を もとに（話しかけ直せば 最初から）
+    if (isCloseupQuit(e)) {
+      if (dog) {
+        unpose(dog);
+        delete dog.data.scripted;
+      }
+      if (k) {
+        unpose(k);
+        delete k.data.scripted;
+        f.syncFollower(true);
+      }
+    }
+    throw e;
   } finally {
     yield* animate(180, (x) => (p.open = 1 - x), ease.linear);
     p.done = true;

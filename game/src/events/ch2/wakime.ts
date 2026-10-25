@@ -80,6 +80,7 @@ import {
 } from '../../data/text/hoshi_wakime';
 import { HOSHI_OBJ } from '../../data/text/hoshi_objects';
 import { hStage, lanternOn, pickHText, say } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 // ---------------------------------------------------------------- flags (50 11.8)
 
@@ -185,6 +186,8 @@ export class WakimePanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.wakime;
   done = false;
   t = 0;
   /** The plant shown (0..2), and the one sliding out (−1: none). */

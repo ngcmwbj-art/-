@@ -45,6 +45,7 @@ import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { addToMap, c3Stage, inCh3, kita, say3 } from './common';
 import { anyFlag } from './talked';
+import { HOWTO } from '../../data/text/howto';
 
 export const YF = {
   heard: 'flag_yd_heard',
@@ -138,6 +139,8 @@ export class NabePanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.yose;
   done = false;
   t = 0;
   open = 0;

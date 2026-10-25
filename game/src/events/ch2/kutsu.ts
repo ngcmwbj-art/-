@@ -48,6 +48,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { ch2Open, hStage, lanternOn, npc } from './common';
 import { hnTome } from './hana';
+import { HOWTO } from '../../data/text/howto';
 
 export const KF = {
   start: 'flag_ku_start',
@@ -271,6 +272,8 @@ export class KuPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.kutsu;
   done = false;
   t = 0;
   open = 0;

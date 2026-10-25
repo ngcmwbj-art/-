@@ -48,6 +48,7 @@ import { addMp } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { addToMap, c3Stage, inCh3, kita, say3 } from './common';
+import { HOWTO } from '../../data/text/howto';
 
 export const MKF = {
   pre: 'flag_mk_pre',
@@ -253,6 +254,8 @@ export class EdaPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.mikan;
   done = false;
   t = 0;
   open = 0;

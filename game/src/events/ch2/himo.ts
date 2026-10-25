@@ -41,6 +41,8 @@ import { addMp, getKeyItem, giveKey } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, npc } from './common';
+import { HOWTO } from '../../data/text/howto';
+import { isCloseupQuit } from '../../ui/closeup';
 
 export const HF = {
   look: 'flag_hm_look',
@@ -161,6 +163,8 @@ export class TsumePanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.himo;
   done = false;
   t = 0;
   open = 0;
@@ -469,7 +473,13 @@ function* kagi(): Co {
     yield* say(T.HM_BAN);
     setFlag(HF.start, 1);
   } else yield* fumiNear();
-  const ok = yield* tsume();
+  // もどるで やめた（改善会議 10-25 の4）も 今の「やめる」と 同じ
+  let ok = false;
+  try {
+    ok = yield* tsume();
+  } catch (e) {
+    if (!isCloseupQuit(e)) throw e;
+  }
   if (!ok) {
     yield* runMsg(T.HM_STOP);
     return;

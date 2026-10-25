@@ -54,6 +54,7 @@ import {
 } from '../art/props/seki_tsuri_art';
 import { SEKI_SPOT_NAME, SEKI_UI } from '../data/text/mizube';
 import { registerDebug } from '../debug';
+import { HOWTO } from '../data/text/howto';
 
 export type { SekiKind, SekiSpot };
 
@@ -150,6 +151,8 @@ export class SekiPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.seki;
   done = false;
   t = 0;
   open = 0;
@@ -229,6 +232,13 @@ export class SekiPanel implements Widget {
 
   get still1(): boolean {
     return this.stage === 1;
+  }
+
+  /** もどる（改善会議 10-25 の4）：場所えらびの 間は 今の やめ方（あいさつ つき）、ほかは 台本ごと やめる。 */
+  quit(): boolean {
+    if (this.phase !== 'pick') return false;
+    this.eCancel = true;
+    return true;
   }
 
   take(k: 'confirm' | 'cancel' | 'left' | 'right'): boolean {

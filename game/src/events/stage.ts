@@ -636,7 +636,7 @@ const CAPS = new Map<string, HTMLCanvasElement>();
  * A keycap (built once): a cream top lit from above, a 2 px skirt below it,
  * the ink outline with rounded corners, the legend (or an arrow) in pencil.
  */
-function keycap(k: GuideKey): HTMLCanvasElement {
+export function keycap(k: GuideKey): HTMLCanvasElement {
   const hit = CAPS.get(k);
   if (hit) return hit;
   const arrow = ARROW[k];
@@ -764,6 +764,11 @@ class KeyGuide implements Widget {
  */
 export function keyGuide(rows: KeyRow[], ms = 4500, x = 8, opt: KeyGuideUntil = {}): void {
   game.ui.push(new KeyGuide(rows, ms, x, opt));
+}
+
+/** Take every key guide away at once (a close-up game quit with もどる: ui/closeup.ts). */
+export function clearKeyGuides(): void {
+  for (const w of game.ui.widgets) if (w instanceof KeyGuide) w.done = true;
 }
 
 // ---------------------------------------------------------------- items announced by a message

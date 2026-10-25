@@ -128,8 +128,10 @@ registerBuilding({
     wall(p, 0, fY, 160, 32, wallMortar('#D8D2C4', 7));
     noonEave(p, 0, fY, 160, 3);
     // the faded 大漁旗 painting on the wall (no letters, no crest: waves, a fish, the rising sun)
-    const fx = 70;
-    const fy = fY + 6;
+    // (2026-10-25: up on the upper storey's wall, between its windows — the ground floor's (5,15) is
+    // the 網小屋's wooden door now, 破れたら、つくろう events/ch3/amigoya.ts)
+    const fx = 77;
+    const fy = rY + 31;
     p.rect(fx, fy, 24, 16, mix('#3A7EA8', '#E8E4D8', 0.35));
     p.ellipse(fx + 6, fy + 5, 4, 4, mix('#E84E3C', '#E8E4D8', 0.4));
     for (let i = 0; i < 24; i++) {
@@ -160,6 +162,15 @@ registerBuilding({
     }
     p.ellipse(150, fY + 25, 4, 4, '#3FA66B');
     p.ellipse(150, fY + 25, 2, 2, P.charcoal);
+    // the 網小屋's wooden door (5,15)：網の 小屋（破れたら、つくろう、events/ch3/amigoya.ts）。板戸、札、取っ手
+    p.rect(82, fY + 9, 13, 23, '#8A6A48');
+    p.hline(82, 94, fY + 9, '#B08A5E');
+    for (const x of [85, 88, 91]) p.vline(x, fY + 10, fY + 31, '#6E5236');
+    p.vline(82, fY + 10, fY + 31, '#A8845A');
+    p.vline(94, fY + 10, fY + 31, '#4A3626');
+    p.rect(84, fY + 12, 9, 5, '#F4F1E8');
+    p.hline(85, 91, fY + 14, '#3A3F48');
+    p.rect(91, fY + 21, 2, 3, P.steel);
     footing(p, 0, b.botY, 160, P.concrete, 1);
   },
 });
@@ -248,15 +259,17 @@ registerProp('prop_c3_himono_counter', () => {
 
 /** The sign along the eave: 「かもめ」 that lost its 「か」 (S08 / 60 9.3) — 「もめ」 and the mark where 「か」 was. */
 function kamomeSign(p: PixelCanvas, x: number, y: number, whole: boolean): void {
-  p.rect(x, y, 64, 12, '#F4F1E8');
+  // (the board not pure white, its lower edge a step darker: it went white in HD-2D's sun under the
+  // bloom — 2026-10-25 改善会議「白く飛ぶ物を立体に」)
+  p.rect(x, y, 64, 12, '#E6E2D8');
   p.strokeRect(x, y, 64, 12, '#9AA0A8');
-  p.hline(x + 1, x + 62, y + 1, '#FFFFFF');
-  p.hline(x + 1, x + 62, y + 10, '#C8C2B4');
+  p.hline(x + 1, x + 62, y + 1, '#EEEAE0');
+  p.hline(x + 1, x + 62, y + 10, '#B4AEA0');
   const blue = '#2F4A8A';
   if (whole) fontTextSmall(p, 'かもめ', x + 20, y + 2, blue);
   else {
     // the 「か」 is gone: a paler square where it hung, two screw holes
-    p.rect(x + 20, y + 2, 9, 8, '#FBF8F0');
+    p.rect(x + 20, y + 2, 9, 8, '#E0DCD0');
     p.set(x + 21, y + 3, '#9AA0A8');
     p.set(x + 27, y + 8, '#9AA0A8');
     fontTextSmall(p, 'もめ', x + 29, y + 2, blue);

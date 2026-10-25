@@ -45,6 +45,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn, npc } from './common';
 import { choresOn } from './barn';
+import { HOWTO } from '../../data/text/howto';
 
 export const UF = {
   h0: 'flag_ub_h0',
@@ -198,6 +199,8 @@ export class UbPanel implements Widget {
   done = false;
   /** 大写し（engine/touch.ts：絵の 外の タッチも けってい）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.ushibana;
   t = 0;
   open = 0;
   auto = false;

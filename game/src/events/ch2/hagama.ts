@@ -42,6 +42,8 @@ import { addMp, F, getKeyItem } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
+import { HOWTO } from '../../data/text/howto';
+import { isCloseupQuit } from '../../ui/closeup';
 
 export const HF = {
   look: 'flag_hg_look',
@@ -208,6 +210,8 @@ const RICE_TOP = 78;
 const WRIST = 10;
 
 export class MizuPanel extends HgPanel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.hgMizu;
   place = HG_UI.placeMizu;
   /** 米の 上の 水の 高さ（px）。 */
   lv = 0;
@@ -328,6 +332,8 @@ type Dan = 0 | 1 | 2 | 3 | 4;
 type Pend = 'shin' | 'pappa' | 'juju' | 'kobore' | 'pachi' | 'wara' | 'waraLate' | 'waraNone' | 'murashi' | 'murashiNg';
 
 export class HiPanel extends HgPanel {
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.hgHi;
   place = HG_UI.placeHi;
   dan: Dan = 0;
   /** 火の 大きさ 0〜3（吹くと しばらく +1）。 */
@@ -703,6 +709,7 @@ function* okogeScene(r: { kama: Kama; okoge: Okoge }, first: boolean): Co {
   }
 }
 
+type CookResult = { kama: Kama; okoge: Okoge } | null;
 /** 2 ペロの 頼み → 土間へ → 炊く。 */
 function* hagama(first: boolean): Co {
   if (first) {
@@ -721,7 +728,13 @@ function* hagama(first: boolean): Co {
   yield* game.fadeIn(400);
   yield 300;
   setFlag(HF.start, 1);
-  const r = yield* cook(first);
+  // もどるで やめた（改善会議 10-25 の4）も 今の「やめる」と 同じ（ペロは 畑へ もどる）
+  let r: CookResult = null;
+  try {
+    r = yield* cook(first);
+  } catch (e) {
+    if (!isCloseupQuit(e)) throw e;
+  }
   if (!r) {
     yield* say(T.HG_STOP);
     // (stopped: one more look at the kamado, then ask him again; till then his other talk goes on)

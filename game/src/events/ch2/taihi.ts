@@ -46,6 +46,7 @@ import { HF } from '../hunting';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { WF } from './wakime';
+import { HOWTO } from '../../data/text/howto';
 
 export const TH = {
   /** 張り紙の あとの グソっ君（1回）。 */
@@ -175,6 +176,10 @@ export class TaihiPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  get howto() {
+    return this.mode === 'kaeshi' ? HOWTO.taihiKaeshi : HOWTO.taihiDig;
+  }
   done = false;
   t = 0;
   open = 0;

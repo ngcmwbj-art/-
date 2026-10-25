@@ -239,7 +239,7 @@ export const YORIAI_CASE = `@npc_hoshi_fumi
 /** Cue: map (ハモ区長 draws the map on the back of the circular). */
 export const YORIAI_B = `@npc_hoshi_fumi
 防災無線は、山の 上の
-星見の丘の てっぺん。
+{c=#E23B2E}星見の丘{/c}の てっぺん。
 /
 でも、山道は 暗い 杉の 森。{w=300}
 明かりが ないと 登れません。
@@ -250,7 +250,7 @@ export const YORIAI_B = `@npc_hoshi_fumi
 トマトが 1つ、光っとるの。
 さっき 見た。{w=300}夕焼けの、ええ 色で。
 @npc_hoshi_kucho
-えー、では ペロさんの ハウスへ。
+えー、では {c=#E23B2E}ペロさんの ハウス{/c}へ。
 西の 斜面の、3号で ございます。
 !cue map`;
 
@@ -281,7 +281,7 @@ export const MITSU_A = `@npc_hoshi_mitsu
 トマトかい。{w=300}
 区長さんに 聞いたんだね。
 /
-いちばん 奥で、1つだけ
+{c=#E23B2E}いちばん 奥{/c}で、1つだけ
 赤く なったのが いる。{w=300}
 夕焼けの 色で 光ってる。
 /
@@ -367,7 +367,7 @@ export const GEN_STOP = `@npc_hoshi_gen
 ……しゅん、か。{w=300}
 ちょうど いい。
 /
-牛舎の 見回りが、あと 1房。
+{c=#E23B2E}牛舎{/c}の 見回りが、あと 1房。
 {w=300}そこだけ、蛍光灯が 切れてる。
 /
 懐中電灯も、電池切れでな。{w=300}
@@ -456,7 +456,7 @@ export const GATE_A = `@npc_hoshi_gen
 持って、外す。
 !cue hook
 @npc_hoshi_gen
-柵の 向こうは、耕作放棄地だ。
+柵の 向こうは、{c=#E23B2E}耕作放棄地{/c}だ。
 むかしは 畑だった。{w=300}
 /
 いまは、タケじいの 耕うん機が
@@ -619,7 +619,7 @@ export const YOBIGOE_FUMI = `@npc_hoshi_fumi
 // ================================================================ 10.13 evt_ch2_hill
 
 export const HILL_ENTER = `@narr
-山道の 上で、赤い ランプが
+山道の 上で、{c=#E23B2E}赤い ランプ{/c}が
 1つ、こっちを 見ている。`;
 
 /** On the upper plaza (y ≤ 7, once: trig_ch2_hill_top). */

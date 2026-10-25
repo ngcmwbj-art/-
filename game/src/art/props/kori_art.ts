@@ -19,11 +19,16 @@ import { registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
 import { KR_BUNKI, KR_RAIL } from '../../data/maps/c3_kori';
 
-/** 角氷の 色：まわりは すきとおった 青み、まん中は 白い 芯。 */
+/**
+ * 角氷の 色：まわりは すきとおった 青み、まん中は 白い 芯。芯は まっ白に しない（少し 青みの #E6F2F8）、
+ * かげの 面（ふち）は 1段 暗く：HD-2D の 光（hd2d/post.ts の bloom）で 白く 飛んで 平らに 見えた
+ * （2026-10-25 改善会議「白く飛ぶ物を立体に」）。
+ */
 const ICE_EDGE = '#9ECFE4';
 const ICE_CLEAR = '#C2E4F2';
-const ICE_CORE = '#FFFFFF';
-const ICE_DK = '#6AA4C4';
+const ICE_CORE = '#E6F2F8';
+const ICE_SOFT = '#D2E8F2';
+const ICE_DK = '#5A92B4';
 const STEEL = '#8E95A6';
 const STEEL_LT = '#B8BEC8';
 const STEEL_DK = '#5E6478';
@@ -146,14 +151,14 @@ export function kakuImg(): HTMLCanvasElement {
   p.rect(2, 5, 12, 14, ICE_EDGE);
   // the white core down the middle of the front, soft at its ends
   p.rect(5, 8, 6, 8, ICE_CORE);
-  p.vline(4, 9, 14, '#F4FAFF');
-  p.vline(11, 9, 14, '#F4FAFF');
+  p.vline(4, 9, 14, ICE_SOFT);
+  p.vline(11, 9, 14, ICE_SOFT);
   // edges and a glint
   p.vline(2, 2, 18, ICE_DK);
   p.vline(13, 2, 18, ICE_DK);
   p.hline(2, 13, 18, ICE_DK);
-  p.set(3, 6, '#FFFFFF');
-  p.set(3, 7, '#FFFFFF');
+  p.set(3, 6, ICE_CORE);
+  p.set(3, 7, ICE_CORE);
   p.outline('#4A6A80');
   kakuCache = p.toCanvas();
   return kakuCache;
@@ -197,10 +202,10 @@ registerProp('prop_kr_tsumiba', () =>
         p.rect(x + 3, y + 5, 8, 3, ICE_CORE);
         p.vline(x, y, y + 10, ICE_DK);
         p.hline(x, x + 13, y + 10, ICE_DK);
-        if (ihash(i, row, 4113) % 3 === 0) p.set(x + 2, y + 1, '#FFFFFF');
+        if (ihash(i, row, 4113) % 3 === 0) p.set(x + 2, y + 1, ICE_CORE);
       }
     // frost on the top
-    for (let x = 4; x < 60; x += 3) p.set(x, 4 + (x % 2), '#FFFFFF');
+    for (let x = 4; x < 60; x += 3) p.set(x, 4 + (x % 2), ICE_CORE);
   }, { cx: 32, base: 16, shadow: 0 }),
 );
 
@@ -251,6 +256,6 @@ registerProp('prop_kr_yama', () =>
     p.rect(1, 6, 14, 7, '#3A7EA8');
     p.hline(1, 14, 6, '#5AA0C8');
     p.ellipse(8, 5, 7, 4, '#E8F4FA');
-    for (let i = 0; i < 18; i++) p.set(2 + ((i * 5) % 12), 2 + ((i * 3) % 6), i % 3 ? '#FFFFFF' : '#BFE6F4');
+    for (let i = 0; i < 18; i++) p.set(2 + ((i * 5) % 12), 2 + ((i * 3) % 6), i % 3 ? ICE_CORE : '#BFE6F4');
   }, { cx: 8, base: 15, shadow: 0 }),
 );

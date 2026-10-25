@@ -56,6 +56,7 @@ import { forceBoxPos, keyGuide } from '../stage';
 import { hStage, lanternOn, say } from './common';
 import { ekinoteHooks } from './ekinote';
 import { mizubeTextCheck } from '../mizube_check';
+import { HOWTO } from '../../data/text/howto';
 
 export const YB = {
   /** トマじいの〔yoburi〕を 聞いた。 */
@@ -183,6 +184,8 @@ export class YoburiPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.yoburi;
   done = false;
   t = 0;
   open = 0;

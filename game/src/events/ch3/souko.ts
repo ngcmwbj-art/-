@@ -29,6 +29,7 @@ import * as battleData from '../../data/battle';
 import { getEnemy } from '../../data/battle';
 import { autosaveSoon } from '../../ui/autosave';
 import * as T from '../../data/text/c3_story3';
+import { IM_S21 } from '../../data/text/c3_imo';
 import { F, grace, panBack, panTo } from '../lib';
 import { ambEvent, fnOf, se, seLoop } from '../ch2/compat';
 import { addToMap, c3Battle, inCh3, say3 } from './common';
@@ -99,6 +100,8 @@ function* evtSouko(): Co {
   se('se_c3_aq_imo_waru');
   yield* say3(T.SOUKO_IMO);
   yield* say3(T.SOUKO_C);
+  // 急かすと、甘うならん（03_ch3_index、imo.ts）：水槽の うらで ヒロスケと 焼いた なら、あの 1本
+  if (flag('flag_im_done')) yield* say3(IM_S21);
   for (const m of state.party) {
     m.hp = m.maxHp;
     m.mp = m.maxMp;

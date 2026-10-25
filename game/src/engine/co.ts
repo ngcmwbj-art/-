@@ -19,14 +19,20 @@ interface Frame {
 }
 
 export class Task {
+  /** The task being stepped right now (a widget pushed from a script knows whose it is: ui/closeup.ts). */
+  static current: Task | null = null;
   private stack: Frame[];
   private waitMs = 0;
   private waitFn: (() => boolean) | null = null;
   private waitPromise: { done: boolean; value: unknown } | null = null;
   private sendValue: unknown = undefined;
+  /** An error to throw into the running generator on the next step (raise). */
+  private pending: { err: unknown } | null = null;
   done = false;
   result: unknown = undefined;
   cancelled = false;
+  /** A quiet error (`quiet: true`, e.g. ui/closeup.ts CloseupQuit) that unwound the whole task. */
+  error: unknown = undefined;
 
   constructor(gen: Co) {
     this.stack = [{ gen }];
@@ -37,9 +43,35 @@ export class Task {
     this.done = true;
   }
 
+  /**
+   * Throw `err` into the task where it waits now (on its next step): the
+   * generators' catch / finally blocks run as with any throw, from the
+   * innermost out. One that is not caught and is `quiet` ends the task
+   * (Task.error); any other propagates out of step as before.
+   */
+  raise(err: unknown): void {
+    if (this.done) return;
+    this.pending = { err };
+  }
+
   /** Advance this task by dt milliseconds. */
   step(dt: number): void {
     if (this.done) return;
+    const prev = Task.current;
+    Task.current = this;
+    try {
+      this.advance(dt);
+    } finally {
+      Task.current = prev;
+    }
+  }
+
+  private advance(dt: number): void {
+    if (this.pending) {
+      this.waitMs = 0;
+      this.waitFn = null;
+      this.waitPromise = null;
+    }
     if (this.waitMs > 0) {
       this.waitMs -= dt;
       if (this.waitMs > 0) return;
@@ -57,7 +89,28 @@ export class Task {
     // Resume generators until something actually waits.
     for (let guard = 0; guard < 10000; guard++) {
       const top = this.stack[this.stack.length - 1];
-      const r = top.gen.next(this.sendValue);
+      let r: IteratorResult<Yieldable, unknown>;
+      try {
+        if (this.pending) {
+          const e = this.pending.err;
+          this.pending = null;
+          this.sendValue = undefined;
+          r = top.gen.throw(e);
+        } else r = top.gen.next(this.sendValue);
+      } catch (e) {
+        // the generator did not catch it: on to the one that called it
+        this.stack.pop();
+        if (this.stack.length === 0) {
+          this.done = true;
+          if (e && (e as { quiet?: boolean }).quiet) {
+            this.error = e;
+            return;
+          }
+          throw e;
+        }
+        this.pending = { err: e };
+        continue;
+      }
       this.sendValue = undefined;
       if (r.done) {
         this.stack.pop();
@@ -135,9 +188,14 @@ export function* all(...cos: Co[]): Co {
   const tasks = cos.map((c) => new Task(c));
   for (const t of tasks) t.step(0);
   while (tasks.some((t) => !t.done)) {
+    // (a quiet error that ended one of them goes on up: ui/closeup.ts's もどる)
+    const quiet = tasks.find((t) => t.error !== undefined);
+    if (quiet) throw quiet.error;
     yield null;
     for (const t of tasks) t.step(FRAME_MS);
   }
+  const quiet = tasks.find((t) => t.error !== undefined);
+  if (quiet) throw quiet.error;
   return tasks.map((t) => t.result);
 }
 

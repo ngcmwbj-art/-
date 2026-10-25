@@ -26,6 +26,7 @@ import { sfx } from '../audio';
 import { drawDigits, digitsWidth } from './digits';
 import { drawWindow, UI } from './window';
 import { BANZUKE_CARD, BANZUKE_ROWS, IKARI_COUNT, KATA_NAME, KATA_UI, type KataKey, type TipKey } from '../data/text/katanuki';
+import { HOWTO } from '../data/text/howto';
 
 // ================================================================ 型の 線（板の 上の px、閉じた 線）
 
@@ -390,6 +391,8 @@ export class KatanukiGame implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.katanuki;
   done = false;
   result: KataResult = 'yame';
   grade: KataGrade = 'chon';
@@ -433,6 +436,15 @@ export class KatanukiGame implements Widget {
 
   get x(): number {
     return Math.round((W - PANEL_W) / 2);
+  }
+
+  /** もどる（改善会議 10-25 の4、ui/closeup.ts）：ぬいている 間は やめる（グソっ君「きょうは ここまでや」）。 */
+  quittable(): boolean {
+    return this.endT < 0 && this.brokeT < 0 && this.out < 0;
+  }
+  quit(): boolean {
+    this.finish('yame');
+    return true;
   }
 
   private finish(r: KataResult): void {

@@ -76,6 +76,7 @@ import {
   targetAltAz,
 } from '../../art/props/dome_sky_art';
 import * as T from '../../data/text/hoshi_dome';
+import { HOWTO } from '../../data/text/howto';
 
 // ---------------------------------------------------------------- flags (50 11.8)
 
@@ -150,6 +151,10 @@ export class DomeSkyPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  get howto() {
+    return this.mode === 'slit' ? HOWTO.domeSlit : HOWTO.domeRot;
+  }
   done = false;
   t = 0;
   mode: SkyMode;
@@ -450,6 +455,8 @@ export class DomeEyePanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.domeEye;
   done = false;
   t = 0;
   n: 1 | 2 | 3;

@@ -40,6 +40,7 @@ import { se } from './compat';
 import { ch2Open, hStage } from './common';
 import { deliveryOn, deliveryOpen } from './tsugao';
 import { mgPokosha } from './mushigomu';
+import { HOWTO } from '../../data/text/howto';
 
 export const UF = {
   heard: 'flag_uz_heard',
@@ -119,6 +120,8 @@ export class UzPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.uzu;
   done = false;
   t = 0;
   open = 0;

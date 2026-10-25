@@ -56,3 +56,5 @@ import './c3_koishi';
 import './c3_mikan_ue';
 // 氷の 蔵（明日の 朝の 氷 03_ch3_index、events/ch3/kori.ts）
 import './c3_kori';
+// 網小屋（破れたら、つくろう 03_ch3_index、events/ch3/amigoya.ts）
+import './c3_amigoya';

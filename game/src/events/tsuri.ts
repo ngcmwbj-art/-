@@ -57,6 +57,7 @@ import {
   type Spot,
 } from '../art/props/tsuri_art';
 import { SPOT_NAME, TSURI_UI } from '../data/text/tamotsu';
+import { HOWTO } from '../data/text/howto';
 
 export type { Spot, CatchKind };
 type Cray = 'kozari' | 'zari' | 'makka' | 'nushi';
@@ -182,6 +183,8 @@ export class TsuriPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
   closeup = true;
+  /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
+  howto = HOWTO.tsuri;
   done = false;
   t = 0;
   /** 開く（0..1）。 */
@@ -265,6 +268,13 @@ export class TsuriPanel implements Widget {
   /** Motion is frozen in stage 1 (the world stopped at 17:00). */
   get still1(): boolean {
     return this.stage === 1;
+  }
+
+  /** もどる（改善会議 10-25 の4）：場所えらびの 間は 今の やめ方（あいさつ つき）、ほかは 台本ごと やめる。 */
+  quit(): boolean {
+    if (this.phase !== 'pick') return false;
+    this.eCancel = true;
+    return true;
   }
 
   take(k: 'confirm' | 'cancel' | 'left' | 'right'): boolean {

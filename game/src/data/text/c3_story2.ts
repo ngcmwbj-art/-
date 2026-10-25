@@ -608,7 +608,7 @@ export const S11_GOT = `@sys
 ハンコ『いただきます』を
 手に 入れた！`;
 export const S11_C = `@npc_c3_shokudo
-サイレン塔の {name:npc_c3_sirenban}さん、
+{c=#E23B2E}サイレン塔{/c}の {name:npc_c3_sirenban}さん、
 最後の 1回を、押したまま
 はなせずに いるの。
 /

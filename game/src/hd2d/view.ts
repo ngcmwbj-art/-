@@ -246,6 +246,11 @@ export class Hd2dView {
     this.applyQuality();
   }
 
+  /** QA: where the last frame is bright enough to glow white under the bloom (post.ts hot). */
+  hot(): ReturnType<Post['hot']> | null {
+    return this.post?.hot() ?? null;
+  }
+
   getQuality(): Quality {
     return this.quality;
   }

@@ -77,6 +77,8 @@ import { drawSsPage, hasSsPage, SS_ROW_LABEL } from './book_shishito';
 import { drawBmPage, hasBmPage, BM_ROW_LABEL } from './book_busmaku';
 import { drawUbPage, hasUbPage, UB_ROW_LABEL } from './book_ushibana';
 import { drawKyPage, hasKyPage, KY_ROW_LABEL } from './book_kyuri';
+// ② の すみ『切ったら、また なる』（02_ch2_index）
+import { drawAnPage, hasAnPage, AN_ROW_LABEL } from './book_akinasu';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
@@ -87,6 +89,8 @@ import { drawShPage, hasShPage, SH_ROW_LABEL } from './book_shita';
 import { drawMhPage, hasMhPage, MH_ROW_LABEL } from './book_mahiru';
 // ③の すみ『毎晩の 油』（第3章の クリア前、03_ch3_index 28）
 import { drawAbPage, hasAbPage, AB_ROW_LABEL } from './book_abura';
+// ③の すみ『急かすと、甘うならん』（第3章の クリア前、03_ch3_index）
+import { drawImPage, hasImPage, IM_ROW_LABEL } from './book_imo';
 // ③の すみ『海の 寄せ豆腐』（第3章の クリア前、03_ch3_index 28）
 import { drawYdPage, hasYdPage, YD_ROW_LABEL } from './book_yose';
 // ③の すみ『掃除は 上から』（第3章の クリア前、03_ch3_index）
@@ -99,8 +103,12 @@ import { drawSkPage, hasSkPage, SK_ROW_LABEL } from './book_sakana';
 import { drawMkPage, hasMkPage, MK_ROW_LABEL } from './book_mikan';
 // ③の すみ『明日の 朝の 氷』（第3章の クリア前、03_ch3_index）
 import { drawKrPage, hasKrPage, KR_ROW_LABEL } from './book_kori';
+// ③の すみ『破れたら、つくろう』（第3章の クリア前、03_ch3_index）
+import { AG_ROW_LABEL, drawAgPage, hasAgPage } from './book_amigoya';
 // ③の すみ『背中から、1回で』（第3章の クリア前、03_ch3_index）
 import { drawNgPage, hasNgPage, NG_ROW_LABEL } from './book_nukegara';
+// ③の すみ『つるっと、終われる』（第3章の クリア前、03_ch3_index）
+import { drawTkPage, hasTkPage, TK_ROW_LABEL } from './book_tokoro';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
 import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
 import { secretSeen } from '../pg_secret';
@@ -121,8 +129,11 @@ function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasSkPage()) r.push({ label: SK_ROW_LABEL, draw: drawSkPage });
   if (hasMkPage()) r.push({ label: MK_ROW_LABEL, draw: drawMkPage });
   if (hasKrPage()) r.push({ label: KR_ROW_LABEL, draw: drawKrPage });
+  if (hasAgPage()) r.push({ label: AG_ROW_LABEL, draw: drawAgPage });
   if (hasNgPage()) r.push({ label: NG_ROW_LABEL, draw: drawNgPage });
+  if (hasTkPage()) r.push({ label: TK_ROW_LABEL, draw: drawTkPage });
   if (hasAbPage()) r.push({ label: AB_ROW_LABEL, draw: drawAbPage });
+  if (hasImPage()) r.push({ label: IM_ROW_LABEL, draw: drawImPage });
   if (hasIsoPage()) r.push({ label: ISO_ROW_LABEL, draw: drawIsoPage });
   if (hasNnPage()) r.push({ label: NN_ROW_LABEL, draw: drawNnPage });
   return r;
@@ -153,6 +164,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasBmPage()) r.push({ label: BM_ROW_LABEL, draw: drawBmPage });
   if (hasUbPage()) r.push({ label: UB_ROW_LABEL, draw: drawUbPage });
   if (hasKyPage()) r.push({ label: KY_ROW_LABEL, draw: drawKyPage });
+  if (hasAnPage()) r.push({ label: AN_ROW_LABEL, draw: drawAnPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

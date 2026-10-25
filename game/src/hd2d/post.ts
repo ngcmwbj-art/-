@@ -265,6 +265,46 @@ export class Post {
     this.composer.render();
   }
 
+  /**
+   * QA (2026-10-25 改善会議「白く飛ぶ物を立体に」): the picture before the bloom, and where it is bright
+   * enough to feed the bloom (linear luminance over its threshold, 0.92) — those places glow white.
+   * frac = their share of the frame; png = the frame darkened, the hot places red.
+   */
+  hot(): { frac: number; w: number; h: number; png: string } {
+    const r = this.composer.renderer;
+    const w = Math.max(1, Math.round(this.w));
+    const h = Math.max(1, Math.round(this.h));
+    const rt = new THREE.WebGLRenderTarget(w, h);
+    r.setRenderTarget(rt);
+    r.clear();
+    r.render(this.renderPass.scene, this.renderPass.camera);
+    r.setRenderTarget(null);
+    const px = new Uint8Array(w * h * 4);
+    r.readRenderTargetPixels(rt, 0, 0, w, h, px);
+    rt.dispose();
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    const g = cv.getContext('2d')!;
+    const im = g.createImageData(w, h);
+    let n = 0;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = ((h - 1 - y) * w + x) * 4;
+        const o = (y * w + x) * 4;
+        const l = (0.2125 * px[i] + 0.7154 * px[i + 1] + 0.0721 * px[i + 2]) / 255;
+        const hotPx = l > 0.92;
+        if (hotPx) n++;
+        // show the frame in sRGB-ish (sqrt), dimmed, the hot places red
+        im.data[o] = hotPx ? 255 : Math.sqrt(px[i] / 255) * 150;
+        im.data[o + 1] = hotPx ? 40 : Math.sqrt(px[i + 1] / 255) * 150;
+        im.data[o + 2] = hotPx ? 40 : Math.sqrt(px[i + 2] / 255) * 150;
+        im.data[o + 3] = 255;
+      }
+    g.putImageData(im, 0, 0);
+    return { frac: n / (w * h), w, h, png: cv.toDataURL('image/png') };
+  }
+
   dispose(): void {
     this.composer.dispose();
     this.bloom?.dispose();

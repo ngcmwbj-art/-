@@ -41,6 +41,8 @@ import './sfx_matsuri';
 import './sfx_kotei';
 // 寄り道が 始まった（改善会議 10-24 の4）
 import './sfx_yorimichi';
+// 大写しの やりかたカード・もどるで やめた（改善会議 10-25 の 1・4）
+import './sfx_closeup';
 import './ambience_ch2';
 // chapter 3 (63_ch3_audio)
 import './sfx_ch3';
