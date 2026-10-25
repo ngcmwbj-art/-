@@ -10,6 +10,7 @@ FR.Screens = {
     select: ['title', 'battle'],
     battle: ['battle'],
     reward: ['battle'],
+    market: ['title', 'battle'],
     result: ['title', 'battle']
   },
   BG_DIR: 'assets/img/bg/',
