@@ -29,7 +29,7 @@ import type { Gfx } from '../engine/gfx';
 import type { Input } from '../engine/input';
 import { PixelCanvas } from '../engine/pixel';
 import { H, W } from '../engine/screen';
-import { markText } from '../engine/textzones';
+import { markText, uiBands } from '../engine/textzones';
 import { buttonsTop } from '../engine/safezones';
 import { ease } from '../engine/tween';
 import { sfx } from '../audio';
@@ -178,14 +178,30 @@ addQuitTidy(() => {
 
 // ---------------------------------------------------------------- 「やめる」の 札（右下、どの 遊びでも 同じ）
 
-/** The tag's box (screen px): the bottom right corner (above the touch buttons fixed there on a sideways iPad). */
-export function quitTagRect(): [number, number, number, number] {
+/**
+ * The tag's box (screen px): the bottom right corner (above the touch buttons fixed there on a
+ * sideways iPad), moved up past any window or text box of the last frame that it would sit on
+ * (a close-up's frame, its words: 10-25 の 報告「窓の ふちに かかる」). Kept per close-up once found.
+ */
+const tagAt = new WeakMap<Widget, [number, number, number, number]>();
+let lastTag: [number, number, number, number] | null = null;
+export function quitTagRect(w?: Widget | null): [number, number, number, number] {
+  const hit = w ? tagAt.get(w) : undefined;
+  if (hit) return hit;
   const cap = keycap(backKey());
-  const w = cap.width + 4 + textW(TAG_WORD) + 10;
-  const h = cap.height + 2;
-  const x = W - w - 3;
-  const y = Math.min(H - h - 3, buttonsTop(x, x + w) - h - 3);
-  return [x, y, w, h];
+  const tw = cap.width + 4 + textW(TAG_WORD) + 10;
+  const th = cap.height + 2;
+  const x = W - tw - 3;
+  const y0 = Math.min(H - th - 3, buttonsTop(x, x + tw) - th - 3);
+  const own = lastTag;
+  const rects = uiBands().rects.filter((r) => !own || r.x !== own[0] || r.y !== own[1] || r.w !== own[2] || r.h !== own[3]);
+  const free = (y: number) => !rects.some((r) => r.x < x + tw + 2 && r.x + r.w > x - 2 && r.y < y + th + 2 && r.y + r.h > y - 2);
+  let y = y0;
+  while (y > 0 && !free(y)) y -= 2;
+  if (y <= 0) y = y0;
+  const out: [number, number, number, number] = [x, y, tw, th];
+  if (w) tagAt.set(w, out);
+  return out;
 }
 const TAG_WORD = 'やめる';
 function backKey(): GuideKey {
@@ -209,7 +225,8 @@ function drawTag(g: Gfx): void {
   const on = !!w && !talk && !shut && canQuit(w) && !cardPending(w);
   tagK = talk ? 0 : on ? Math.min(1, tagK + 0.12) : Math.max(0, tagK - 0.2);
   if (tagK <= 0) return;
-  const [x, y, tw, th] = quitTagRect();
+  const [x, y, tw, th] = quitTagRect(tagK > 0.05 ? w : null);
+  lastTag = [x, y, tw, th];
   const a = ease.sineOut(tagK);
   markText(x, y, tw, th);
   g.alpha(a * 0.92, () => {

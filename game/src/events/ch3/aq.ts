@@ -37,7 +37,7 @@ import { saveConfirm, saveWithStamp } from '../../ui/save';
 import { autosaveSoon } from '../../ui/autosave';
 import { C3_NAMES } from '../../data/text/c3_names';
 import * as T from '../../data/text/c3_story3';
-import { besideToward, dirTo, F, grace, tileFree, tileRoute } from '../lib';
+import { besideToward, dirTo, F, grace, panBack, panTo, tileFree, tileRoute } from '../lib';
 import { ambVol, se } from '../ch2/compat';
 import { addToMap, inCh3, say3 } from './common';
 import { jumpMap } from './prologue';
@@ -315,11 +315,24 @@ function* diorama(town: Town): Co {
   if (flag('flag_ch3_diorama_done')) return;
   if (n + 1 >= 3 && !flag('flag_c3_diorama_yure1')) {
     setFlag('flag_c3_diorama_yure1', 1);
-    yield* say3(T.DIORAMA_YURE1);
+    yield* hiroMutters(T.DIORAMA_YURE1);
   } else if (n + 1 >= 6 && !flag('flag_c3_diorama_yure2')) {
     setFlag('flag_c3_diorama_yure2', 1);
-    yield* say3(T.DIORAMA_YURE2);
+    yield* hiroMutters(T.DIORAMA_YURE2);
   }
+}
+
+/**
+ * ヒロスケ's words across the room while しゅん looks at the models: the camera goes over to him and comes
+ * back (2026-10-25 改善会議「遠くから話す人はそばへ」: he spoke 6+ tiles off, talkEdgeLog '遠').
+ */
+function* hiroMutters(text: string): Co {
+  const f = F();
+  const hiro = f.actorById('npc_hirosuke');
+  const far = !!hiro?.visible && Math.hypot(hiro.tileX - f.player.tileX, hiro.tileY - f.player.tileY) >= 6;
+  if (hiro && far) yield* panTo(hiro.tileX, hiro.tileY, 600);
+  yield* say3(text);
+  if (hiro && far) yield* panBack(500);
 }
 for (const town of ['yunari', 'hoshi', 'umi'] as const)
   registerScript(`obj_c3_diorama_${town}`, function* (): Co {
