@@ -39,6 +39,7 @@ import { cinemaOff, clearKeyGuides, deviceKeys, forceBoxPos, keycap, type GuideK
 import { setButtonHint } from '../engine/touch';
 import { field } from '../world/field';
 import { drawTape, drawWindow, textW, UI } from './window';
+import { dialogVisible } from './dialog';
 import { HOWTO } from '../data/text/howto';
 
 export type HowtoPic = 'tap' | 'hold' | 'mash' | 'timing' | 'lr' | 'ud' | 'aim';
@@ -201,8 +202,12 @@ function topCloseup(): Widget | null {
 /** Drawn over the widgets each frame (game.overlays): the tag while もどる would quit. */
 function drawTag(g: Gfx): void {
   const w = game.ui.hold ? null : topCloseup();
-  const on = !!w && canQuit(w) && !cardPending(w);
-  tagK = on ? Math.min(1, tagK + 0.12) : Math.max(0, tagK - 0.2);
+  // (a conversation's window up — even one drawn over the close-up: no tag, at once; it would sit on the window)
+  const talk = dialogVisible();
+  // (a close-up whose window is closed for a moment — the stone flying over the field — no tag either)
+  const shut = !!w && typeof (w as { open?: number }).open === 'number' && (w as { open: number }).open < 1;
+  const on = !!w && !talk && !shut && canQuit(w) && !cardPending(w);
+  tagK = talk ? 0 : on ? Math.min(1, tagK + 0.12) : Math.max(0, tagK - 0.2);
   if (tagK <= 0) return;
   const [x, y, tw, th] = quitTagRect();
   const a = ease.sineOut(tagK);
@@ -281,8 +286,9 @@ function drawPic(g: Gfx, pic: HowtoPic, x: number, y: number, w: number, h: numb
   const keyTop = y + h - 40;
   // where the finger is over the key (its tip at (tipX, tipY))
   const fingerAt = (tipX: number, down: number) => g.img(fing, tipX - 6, keyTop - 26 + down, { scale: 2 });
+  let keyW = 0;
   const press = (kx: number, down: boolean, lit = false) => {
-    bigKey(g, ok, kx, keyTop, down, lit);
+    keyW = bigKey(g, ok, kx, keyTop, down, lit)[1];
     fingerAt(kx, down ? 4 : -2);
   };
   if (pic === 'tap') {
@@ -300,7 +306,7 @@ function drawPic(g: Gfx, pic: HowtoPic, x: number, y: number, w: number, h: numb
     const c = t % 2600;
     const down = c >= 200 && c < 1700;
     press(cx, down, down);
-    const gx = cx + 30;
+    const gx = cx + Math.round(keyW / 2) + 8;
     const gh = 34;
     g.frame(gx, keyTop - 2, 6, gh, UI.border);
     const fill = down ? Math.round(((c - 200) / 1500) * (gh - 2)) : c >= 1700 ? gh - 2 : 0;
