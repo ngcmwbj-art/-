@@ -193,7 +193,7 @@
     },
   });
 
-  function celebrateSeason({ done, next, vegs }) {
+  function celebrateSeason({ done, next }) {
     // 賞状の中身を記録しておく（図鑑の季節バッジからいつでも見返せるように。回数は季節が進んだときだけ数える）
     const today = new Date();
     const prev = save.seasonClears[done.id];
@@ -221,6 +221,7 @@
   // 新しい季節が来たことと、その季節の旬の野菜を知らせる
   function welcomeSeason(s) {
     save.seasonWorkShown = true;
+    persist();
     const vegs = Farm.seasonalVegs();
     const pill = document.getElementById('hud-season');
     pill.classList.remove('pop');
@@ -298,6 +299,8 @@
 
   // 起動したときにも、ミッションを満たしていれば種を渡して保存
   persist();
+  // 保存データが読めなかったときは、黙って直さずに一言知らせる
+  if (SaveData.recoveredFrom()) toast(Msg.t('save.' + SaveData.recoveredFrom()), 6000);
 
   // 初めて遊ぶ人には遊び方を案内
   if (!save.tutorialDone) {

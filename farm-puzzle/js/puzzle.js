@@ -93,6 +93,9 @@ const Puzzle = (() => {
     window.addEventListener('pointermove', moveDrag, { passive: false });
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('pointercancel', cancelDrag);
+    // 電話やタブの切りかえで指を離した合図が来ないと、ブロックがつかめなくなるので、元にもどす
+    window.addEventListener('blur', cancelDrag);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) cancelDrag(); });
     window.addEventListener('resize', measure);
 
     // 遊びかけのデータがあれば続きから

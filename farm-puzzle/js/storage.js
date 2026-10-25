@@ -6,6 +6,9 @@
    ========================================================= */
 const SaveData = (() => {
   const KEY = 'hatake-puzzle-save';
+  const BACKUP = 'hatake-puzzle-save-bak';      // ひとつ前の保存（読めなくなったときの予備）
+  const BROKEN = 'hatake-puzzle-save-broken';   // 読めなかったデータの控え（消さずに残す）
+  let recovered = null;   // 起動時に予備から戻したか（'backup'＝予備から再開、'reset'＝はじめから）
   const VERSION = 2;
 
   // はじめて遊ぶときのデータ
@@ -45,11 +48,37 @@ const SaveData = (() => {
     },
   };
 
+  // 保存データを読む。読めないときは予備（ひとつ前の保存）から再開し、読めなかったデータも別に残しておく
   function load() {
+    let raw = null;
     try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return defaults();
+      raw = localStorage.getItem(KEY);
+    } catch (e) {
+      // プライベートモードなどで読めないときは、保存なしで遊べるようにする
+      return defaults();
+    }
+    if (!raw) return defaults();
+    try {
+      return parse(raw);
+    } catch (e) {
+      try { localStorage.setItem(BROKEN, raw); } catch (e2) { /* 控えが残せなくても続ける */ }
+      try {
+        const bak = localStorage.getItem(BACKUP);
+        if (bak) {
+          const data = parse(bak);
+          recovered = 'backup';
+          return data;
+        }
+      } catch (e3) { /* 予備も読めない */ }
+      recovered = 'reset';
+      return defaults();
+    }
+  }
+
+  function parse(raw) {
+    {
       const data = JSON.parse(raw);
+      if (!data || typeof data !== 'object') throw new Error('bad save');
       let v = data.version || 1;
       while (v < VERSION && MIGRATIONS[v]) {
         MIGRATIONS[v](data);
@@ -65,14 +94,16 @@ const SaveData = (() => {
         settings: { ...base.settings, ...data.settings },
         stats: { ...base.stats, ...data.stats },
       };
-    } catch (e) {
-      // プライベートモードなどで読めないときは、保存なしで遊べるようにする
-      return defaults();
     }
   }
 
   function save(data) {
     try {
+      // 今の保存を「ひとつ前」として予備に移してから書く（読める保存だけを予備にする）
+      const prev = localStorage.getItem(KEY);
+      if (prev) {
+        try { JSON.parse(prev); localStorage.setItem(BACKUP, prev); } catch (e) { /* 壊れた保存は予備にしない */ }
+      }
       localStorage.setItem(KEY, JSON.stringify(data));
     } catch (e) {
       /* 保存できない環境では何もしない */
@@ -87,5 +118,10 @@ const SaveData = (() => {
     }
   }
 
-  return { load, save, reset, defaults };
+  // 起動時に予備から戻したか（お知らせ用）
+  function recoveredFrom() {
+    return recovered;
+  }
+
+  return { load, save, reset, defaults, recoveredFrom };
 })();

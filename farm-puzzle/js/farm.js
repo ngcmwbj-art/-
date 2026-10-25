@@ -611,6 +611,8 @@ const Farm = (() => {
     if (price != null && data.plots.length < maxPlots() && data.resources.coins >= price) return { text: Msg.t('goal.plot'), go: true, plot: 'expand' };
     // まだ何も植えていないときは種まきから（種まきに水や肥料はいらない）
     if (!plots.length) return { text: Msg.t('goal.firstSow'), go: true, plot: data.plots.indexOf(null) };
+    // 空いている区画があれば種まき（水も肥料もいらない）。はじめの案内中は、まいた野菜の水やりを先に
+    if (data.onboardStep >= 2 && data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true, plot: data.plots.indexOf(null) };
     // 資源が足りない作業のうち、いちばん近いもの
     let best = null;
     plots.filter((p) => p.stage < 2).forEach((p) => {

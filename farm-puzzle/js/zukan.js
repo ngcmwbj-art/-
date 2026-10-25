@@ -139,7 +139,7 @@ const Zukan = (() => {
     const dishes = (s.dishes || []).slice().sort((a, b) => (data.harvested[b.veg] ? 1 : 0) - (data.harvested[a.veg] ? 1 : 0));
     return h('div', { class: 'season-work' },
       h('div', { class: 'season-work-title' }, Msg.t('season.work', { season: s.name })),
-      h('ul', {}, s.work.map((w) => h('li', {}, w))),
+      h('ul', {}, s.work.map((w) => h('li', {}, Msg.richText(w)))),
       dishes.length ? h('div', { class: 'season-dishes' },
         h('div', { class: 'season-work-title' }, Msg.t('season.dishes', { season: s.name })),
         h('div', { class: 'dish-list' }, dishes.map((x) => {
@@ -150,9 +150,12 @@ const Zukan = (() => {
 
   // 季節のバッジ：その季節の基本の野菜をぜんぶ収穫したら色がつく。4つそろうと🏆
   function badges() {
-    const done = cfg.seasons.map((s) => cfg.vegetables
+    // 賞状の記録があればその季節はそろえた。記録のしくみより前から遊んでいる人（記録が1つもない）は、収穫した野菜で判断する
+    const clears = data.seasonClears || {};
+    const legacy = !Object.keys(clears).length;
+    const done = cfg.seasons.map((s) => !!clears[s.id] || (legacy && cfg.vegetables
       .filter((v) => v.seasons.includes(s.id) && !Missions.isChallenge(v))
-      .every((v) => data.harvested[v.id]));
+      .every((v) => data.harvested[v.id])));
     const all = done.every(Boolean);
     return h('div', { class: 'badges' },
       h('span', { class: 'badges-label' }, Msg.t('zukan.badges')),
