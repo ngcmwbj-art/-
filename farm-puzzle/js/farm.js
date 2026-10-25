@@ -366,7 +366,7 @@ const Farm = (() => {
           }, (locked ? '🔒 ' : got ? '✓ ' : '') + v.name);
         }),
         h('button', { class: 'link-btn', type: 'button', onclick: openMissionList }, Msg.t('mission.listOpen'))),
-      h('div', { class: 'season-note' }, Msg.t('farm.seasonNote')),
+      h('div', { class: 'season-note' }, Msg.rich('farm.seasonNote')),
     ] : [];
     root.append(
       h('div', { class: 'season-banner' + (seasonOpen ? ' open' : '') },
@@ -504,7 +504,7 @@ const Farm = (() => {
     const list = h('div', { class: 'seed-list' });
     const now = cfg.vegetables.filter(inSeason);
     const others = cfg.vegetables.filter((v) => !inSeason(v));
-    list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedNow', { season: season().name })));
+    list.append(h('div', { class: 'seed-heading' }, Msg.rich('farm.seedNow', { season: season().name })));
     now.filter((v) => !Missions.isChallenge(v)).forEach((v) => list.append(seedButton(v, index)));
     list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedChallenge', { season: season().name })));
     now.filter((v) => Missions.isChallenge(v)).forEach((v) => list.append(seedButton(v, index)));

@@ -449,6 +449,17 @@ const Puzzle = (() => {
     const piece = st.pieces[slot];
     if (!piece) return;
     e.preventDefault();
+    // どこにも置けないブロックは持ち上げず、小さく揺れて「置けない」を伝える（文字は出さない）
+    if (!fitsSomewhere(piece)) {
+      const el = els.slots[slot].firstElementChild;
+      if (el) {
+        el.classList.remove('shake');
+        void el.offsetWidth;   // もう一度揺らすため
+        el.classList.add('shake');
+        setTimeout(() => el.classList.remove('shake'), 350);
+      }
+      return;
+    }
     measure();
 
     const ghost = buildPieceEl(piece, 'ghost');
