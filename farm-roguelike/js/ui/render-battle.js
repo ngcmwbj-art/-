@@ -135,7 +135,9 @@ FR.BattleView = {
 
     // 手札（扇形に並べる）
     const n = b.hand.length;
-    const spread = Math.min(8, 36 / Math.max(1, n));   // 1枚あたりの角度
+    // 1枚あたりの角度。縦長のスマホは幅が狭いので、扇を控えめに開く
+    const narrow = $('hand').clientWidth < 520;
+    const spread = Math.min(narrow ? 5 : 8, (narrow ? 20 : 36) / Math.max(1, n));
     $('hand').innerHTML = b.hand.map((inst, i) => {
       const v = FR.cardView(inst);
       const off = i - (n - 1) / 2;
@@ -177,15 +179,19 @@ FR.BattleView = {
   },
 
   // 手札が画面幅に収まるように、カードの重なりを枚数に合わせて決める
+  // 端のカードは扇形に傾いている分だけ外へ広がるので、その広がりも含めて収める
   fitHand() {
     const hand = document.getElementById('hand');
     const cards = hand.querySelectorAll('.card');
     if (!cards.length) return;
     const n = cards.length;
-    const cw = cards[0].offsetWidth;
+    const cw = cards[0].offsetWidth, ch = cards[0].offsetHeight;
     const avail = hand.clientWidth - 8;
+    const rot = Math.abs(parseFloat(cards[n - 1].style.getPropertyValue('--rot')) || 0) * Math.PI / 180;
+    // 傾けたカードの、中心から外側のふちまでの横幅（回転の中心はカードの下 140% の所）
+    const half = cw / 2 * Math.cos(rot) + ch * 1.4 * Math.sin(rot);
     const natural = cw * 0.72;   // 重ねたときの、1枚あたりの見える幅（ふつう）
-    const step = n > 1 ? Math.min(natural, (avail - cw) / (n - 1)) : cw;
+    const step = n > 1 ? Math.min(natural, (avail - 2 * half) / (n - 1)) : cw;
     const margin = (step - cw) / 2;
     cards.forEach(c => { c.style.margin = `0 ${margin}px`; });
   },
