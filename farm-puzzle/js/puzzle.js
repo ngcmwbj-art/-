@@ -63,7 +63,7 @@ const Puzzle = (() => {
     pieceSetTries: 3,    // 3つのうちどれかが置けるまで引き直す回数（多いほどやさしい。1 = 引き直さない）
   };
 
-  let st = null;       // 盤面の状態 { board, marks, pieces, score, combo, movesSinceClear, over, bestBefore, undoUsed, shuffleUsed }
+  let st = null;       // 盤面の状態 { board, marks, pieces, score, combo, movesSinceClear, over, bestBefore, undoUsed, shuffleUsed, gameLines, gameMarks }
   let data = null;     // 保存データ全体（highScore と puzzle を読み書きする）
   let hooks = {};      // 外からの呼び出し先 { onSave, onLinesCleared, onGameOver, onStaleOver, onUndo }
   let undoSnap = null; // 「一手もどす」用に、置く直前の様子を覚えておく（資源・畑も一緒に）

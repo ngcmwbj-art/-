@@ -110,18 +110,10 @@ const SaveData = (() => {
     }
   }
 
-  function reset() {
-    try {
-      localStorage.removeItem(KEY);
-    } catch (e) {
-      /* 同上 */
-    }
-  }
-
   // 起動時に予備から戻したか（お知らせ用）
   function recoveredFrom() {
     return recovered;
   }
 
-  return { load, save, reset, defaults, recoveredFrom };
+  return { load, save, defaults, recoveredFrom };
 })();

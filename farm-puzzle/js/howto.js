@@ -3,7 +3,7 @@
    育て方カード
    - 野菜ごとの「育てやすさ・栽培カレンダー・日当たり・植える時期・
      気をつけたい病気や虫・いちばんのコツ・作業の流れ・ミニ知識」を1枚で見せる
-   - 中身は data/vegetables.json の guide・steps・tips
+   - 中身は data/vegetables.json の guide・steps・tips・mistake（失敗しないコツ）・eat（食べ方）・family（なかま）・planter
    - 種えらび・畑の区画・図鑑から開ける
    - カードの文に出てくるむずかしい言葉は、下の「ことばの説明」に読みがなと説明をのせる（data/vegetables.json の glossary）
    ========================================================= */
@@ -39,7 +39,7 @@ const HowTo = (() => {
       h('dl', { class: 'howto-list' },
         row(Msg.t('howto.sun'), g.sun),
         row(Msg.t('howto.plant'), g.plant),
-        row(Msg.t('howto.pests'), g.pests),
+        row(Msg.t('howto.pests'), Msg.richText(g.pests)),
         // コツの2行は、むずかしい言葉に読みがな（設定で消せる）
         row(Msg.t('howto.point'), Msg.richText(g.point)),
         v.mistake ? row(Msg.t('howto.mistake'), Msg.richText(v.mistake)) : null,
@@ -54,7 +54,7 @@ const HowTo = (() => {
           step === options.now ? h('span', { class: 'now-tag' }, Msg.t('howto.now')) : null,
           h('span', {}, Msg.richText(v.steps[step]))))),
       h('div', { class: 'howto-sub' }, Msg.t('howto.tips')),
-      h('ul', { class: 'howto-tips' }, v.tips.map((tip) => h('li', {}, tip))),
+      h('ul', { class: 'howto-tips' }, v.tips.map((tip) => h('li', {}, Msg.richText(tip)))),
       words(v),
       h('p', { class: 'howto-note' }, Msg.t('howto.region'))
     );

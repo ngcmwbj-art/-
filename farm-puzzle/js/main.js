@@ -102,7 +102,14 @@
   function openHelp() {
     Modal.open({
       title: Msg.t('help.title'),
-      body: Msg.t('help.body'),
+      body: h('div', { class: 'help-body' },
+        h('p', {}, Msg.t('help.body')),
+        // よくある質問（押すと答えが開く）
+        h('div', { class: 'faq' },
+          h('div', { class: 'faq-title' }, Msg.t('help.faqTitle')),
+          Msg.get('help.faq').map((f) => h('details', {},
+            h('summary', {}, f.q),
+            h('p', {}, f.a))))),
       buttons: [
         { label: Msg.t('help.guide'), primary: true, onClick: () => Guide.show() },
         {

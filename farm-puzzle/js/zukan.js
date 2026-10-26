@@ -2,13 +2,13 @@
 /* =========================================================
    図鑑
    - 収穫した野菜が登録され、旬と育て方のコツが読める
-   - 中身は data/vegetables.json（seasonText・tips）。くわしい育て方は育て方カード（js/howto.js）
+   - 中身は data/vegetables.json（seasonText・tips・eat・family など）。くわしい育て方は育て方カード（js/howto.js）
    ========================================================= */
 const Zukan = (() => {
   let data = null;   // 保存データ全体
   let cfg = null;    // data/vegetables.json の中身
   let root = null;
-  let filter = 'all';  // 図鑑のしぼりこみ（all・季節のID・month＝現実の今月まける野菜）
+  let filter = 'all';  // 図鑑のしぼりこみ（all・季節のID・month＝現実の今月まける野菜・planter＝プランターで育つ野菜）
   let easyFirst = false;  // 育てやすい順に並べるか
 
   function init(options) {
@@ -52,7 +52,7 @@ const Zukan = (() => {
         onclick: () => Quiz.review(known),
       }, Msg.t('quiz.reviewStart'))));
 
-    // 季節でしぼりこむボタン
+    // しぼりこむボタン（今月・ぜんぶ・季節・プランター）と並べかえ
     const chips = h('div', { class: 'zukan-filter' });
     const month = new Date().getMonth() + 1;
     [{ id: 'month', name: Msg.t('zukan.monthChip', { m: month }) }, { id: 'all', name: Msg.t('zukan.all') }, ...cfg.seasons].forEach((s) => {
@@ -111,7 +111,7 @@ const Zukan = (() => {
           h('span', { class: 'zukan-season' }, Msg.t('zukan.season', { text: v.seasonText })),
           h('span', { class: 'zukan-times' }, Msg.t('zukan.times', { n: data.harvested[v.id] }))
         ),
-        h('ul', { class: 'zukan-tips' }, v.tips.map((tip) => h('li', {}, tip))),
+        h('ul', { class: 'zukan-tips' }, v.tips.map((tip) => h('li', {}, Msg.richText(tip)))),
         v.eat ? h('div', { class: 'zukan-eat' }, Msg.t('farm.eat', { text: v.eat })) : null,
         v.family ? h('div', { class: 'zukan-family' }, '🌿 ' + HowTo.familyText(v)) : null,
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
@@ -232,7 +232,7 @@ const Zukan = (() => {
       body: h('div', { class: 'new-entry' },
         h('div', { class: 'new-entry-icon' }, vegIcon(v)),
         h('div', { class: 'new-entry-name' }, v.name),
-        h('p', {}, v.tips[0]),
+        h('p', {}, Msg.richText(v.tips[0])),
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v, { onClose: onAfter }) }, Msg.t('howto.open'))
       ),
       buttons: [

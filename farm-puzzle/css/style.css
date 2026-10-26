@@ -293,7 +293,7 @@ body {
 .modal-title { margin: 0 0 10px; font-size: 1.2rem; color: var(--green-dark); }
 .modal-body { white-space: pre-line; line-height: 1.7; margin-bottom: 16px; }
 .modal-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-.modal-buttons .btn { flex: 1 1 140px; }
+.modal-buttons .btn { flex: 1 1 140px; word-break: keep-all; }
 /* 小さめのボタン（ときどき使うもの）。指で押せる大きさは残す */
 .modal-buttons .btn.small { flex: 1 1 110px; min-height: 40px; padding: 6px 10px; font-size: 0.88rem; background: #faf6ee; box-shadow: none; }
 /* 小さめのボタンがあるとき（ゲームオーバー）は、大きい2つ・小さい2つを2列ずつに */
@@ -1314,3 +1314,15 @@ html, body { transition: background-color 0.6s; }
   .mini-btns { gap: 4px; }
   .mini-btn { padding: 4px 8px; font-size: 0.78rem; }
 }
+
+/* 遊び方・設定の「よくある質問」 */
+.help-body p { margin: 0 0 8px; white-space: pre-line; }
+.faq { margin-top: 10px; text-align: left; }
+.faq-title { font-weight: bold; font-size: 0.9em; color: var(--sub); margin-bottom: 4px; }
+.faq details { border-top: 1px solid var(--line); padding: 6px 0; }
+.faq summary { cursor: pointer; font-weight: bold; min-height: 32px; display: flex; align-items: center; }
+.faq summary::before { content: '＋'; color: var(--accent-strong); margin-right: 6px; }
+.faq details[open] summary::before { content: '－'; }
+.faq details p { margin: 4px 0 0 1.4em; font-size: 0.95em; }
+.faq summary { list-style: none; }
+.faq summary::-webkit-details-marker { display: none; }

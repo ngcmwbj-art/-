@@ -156,13 +156,15 @@ const Quiz = (() => {
     // 「アワノメイガ（実に入る虫）」のような説明つきでも、名前だけで同じかどうかを見る
     const BIRDS = ['カラス', 'ハト', '鳥', 'ヒヨドリ', 'スズメ'];
     const split = (s) => s.split(/[、・]/).map((x) => x.replace(/（[^）]*）/g, '').trim()).map((x) => (BIRDS.includes(x) ? '鳥' : x));
-    const right = split(v.guide.pests);
-    const answer = v.guide.pests;
+    // 病気・虫の文には読みがなの印 {語|よみ} があるので、クイズでは外して使う（選択肢の比べ合いがずれないように）
+    const pests = (x) => Msg.plain(x.guide.pests);
+    const right = split(pests(v));
+    const answer = pests(v);
     const wrong = [];
     shuffle(cfg.vegetables).forEach((x) => {
       if (wrong.length >= 2 || x.id === v.id) return;
-      if (split(x.guide.pests).some((p) => right.includes(p))) return;
-      if (!wrong.includes(x.guide.pests)) wrong.push(x.guide.pests);
+      if (split(pests(x)).some((p) => right.includes(p))) return;
+      if (!wrong.includes(pests(x))) wrong.push(pests(x));
     });
     if (wrong.length < 2) return null;
     return {
