@@ -269,10 +269,10 @@ FR.Cards = {
   },
   buyCalf: {
     name: '子牛導入', type: 'livestock', cost: 1, rarity: 'basic', pool: ['livestock'], art: 'calf',
-    text: 'F1子牛を入れる。給餌などで3段育つと出荷でき、銭24×格付け・健康度+6',
+    text: '牛を入れる。給餌などで3段育つと出荷でき、銭24×格付け・健康度+6',
     needs: 'emptyBarn',
     effects: [{ op: 'addAnimal', animal: 'calf' }],
-    upgrade: { name: '子牛導入+', text: 'F1子牛を入れ、手入れ+1。3段で出荷でき、銭24×格付け・健康度+6', effects: [{ op: 'addAnimal', animal: 'calf', care: 1 }] }
+    upgrade: { name: '子牛導入+', text: '牛を入れ、手入れ+1。3段で出荷でき、銭24×格付け・健康度+6', effects: [{ op: 'addAnimal', animal: 'calf', care: 1 }] }
   },
   feed: {
     name: '給餌', type: 'livestock', cost: 1, rarity: 'basic', pool: ['livestock'], art: 'feed',
