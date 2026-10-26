@@ -11,7 +11,12 @@ const App = {
 
   init() {
     App.data = FR.Save.load();
-    document.querySelectorAll('[data-game-title]').forEach(el => { el.textContent = FR.Config.title; });
+    // 長い名前は、最初の「！」のあとで2行に分けて出す
+    const [t1, t2] = FR.Config.title.split(/(?<=！)/);
+    document.querySelectorAll('[data-game-title]').forEach(el => {
+      el.innerHTML = t2 ? `<span class="t1">${FR.Util.escape(t1)}</span><span class="t2">${FR.Util.escape(FR.Config.title.slice(t1.length))}</span>` : FR.Util.escape(t1);
+    });
+    document.title = FR.Config.title;
     document.querySelectorAll('[data-game-subtitle]').forEach(el => { el.textContent = FR.Config.subtitle; });
     document.title = FR.Config.title;
 
