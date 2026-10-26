@@ -1326,3 +1326,54 @@ html, body { transition: background-color 0.6s; }
 .faq details p { margin: 4px 0 0 1.4em; font-size: 0.95em; }
 .faq summary { list-style: none; }
 .faq summary::-webkit-details-marker { display: none; }
+
+/* ---------- 27回目：大きめ文字・小さい画面・押しやすさ ---------- */
+/* 区画の列が中身に押されて画面からはみ出さないように */
+.plots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 560px) {
+  .plots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* 幅320px前後で文字が大きめのときは、区画を1列に（作業の段が切れないように） */
+@media (max-width: 360px) {
+  html.big-text .plots { grid-template-columns: minmax(0, 1fr); }
+}
+/* まとめて作業の理由は「…」で切らず、2行まで折り返す（次の目標は盤面の高さに関わるので1行のまま） */
+.bulk-reason {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* 読みがなを少し大きく（老眼でも読めるように）。行の高さも少し広げる */
+ruby rt, .howto-row dd ruby rt { font-size: 0.6em; }
+/* 指で押す所は、見た目が小さくても押せる範囲を44px前後に広げる */
+.daily-close, .book-btn, .icon-btn { position: relative; }
+.daily-close::after, .book-btn::after, .icon-btn::after {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%;
+}
+@media (max-width: 480px) {
+  .icon-btn { width: 40px; height: 40px; }
+}
+.mini-btn, .link-btn { min-height: 44px; }
+.faq summary { min-height: 44px; }
+.modal-buttons .btn.small { min-height: 44px; }
+/* 幅360px以下（iPhone SE 初代など）は上の表示が2段になるので、盤面を小さめにして手元のブロックを下のタブに隠さない */
+@media (max-width: 360px) {
+  :root { --chrome: 300px; --board-size: clamp(200px, min(92vw, calc((100vh - var(--chrome)) / 1.36)), 480px); }
+  html.big-text { --chrome: 325px; }
+}
+@supports (height: 100dvh) {
+  @media (max-width: 360px) {
+    :root { --board-size: clamp(200px, min(92vw, calc((100dvh - var(--chrome)) / 1.36)), 480px); }
+  }
+}
+/* 横向きで文字が大きめのときは、上の表示が高くなるぶん盤面を小さく（下のタブにかからない） */
+@media (orientation: landscape) and (max-height: 500px) {
+  html.big-text { --board-size: clamp(170px, calc(100dvh - 180px), 400px); }
+}
+/* 次の目標：文と「→ はたけへ」を分けて、矢印のほうは切らない */
+.goal { display: flex; justify-content: center; gap: 0.6em; width: max-content; max-width: min(94vw, 480px); }
+.goal-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.goal-arrow { flex: none; }

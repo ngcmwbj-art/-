@@ -45,7 +45,9 @@
     // パズル画面の「次の目標」
     const goal = Farm.nextGoal();
     const goalEl = document.getElementById('goal');
-    goalEl.textContent = goal.text + (goal.go ? Msg.t('goal.toFarm') : '');
+    // 文が長いときは文のほうを「…」で縮め、「→ はたけへ」はいつも見えるように
+    goalEl.replaceChildren(h('span', { class: 'goal-text' }, goal.text),
+      goal.go ? h('span', { class: 'goal-arrow' }, Msg.t('goal.toFarm')) : '');
     goalEl.classList.toggle('go', goal.go);
     // はじめの案内中は「はたけ」のタブを光らせる（2歩で終わり）
     document.querySelector('.tab[data-screen="farm"]').classList.toggle('glow', Farm.onboardStep() < 2);
