@@ -61,8 +61,9 @@ FR.Battle = {
     FR.Battle.chooseIntents(b);
     // 休憩所でかけた状態（堆肥・消毒）
     if (run.nextBattle) for (const [k, v] of Object.entries(run.nextBattle)) b.statuses[k] = (b.statuses[k] || 0) + v;
-    FR.Effects.relicHook(b, 'battleStart');
     FR.Battle.startTurn(b);
+    // 固有スキルの「戦闘開始時」は、1ターン目の始め（守りが0に戻ったあと）にかける。先にかけると守りが消える
+    FR.Effects.relicHook(b, 'battleStart');
     return b;
   },
 

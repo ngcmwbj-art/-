@@ -30,6 +30,25 @@ FR.Map = {
     return FR.Util.weighted(rnd, pool.map(en => ({ value: en.id, weight: en.weight * ((en.bias && en.bias[run.farmerId]) || 1) })));
   },
 
+  // 分かれ道の2つ目・3つ目に何が出るかの重み
+  CHOICE_WEIGHT: { battle: 6, market: 2, rest: 2 },
+
+  // 顔ぶれの強さ（1 弱い・2 ふつう・3 強い）。敵の体力の合計と、いちばん痛い一撃から決める
+  // 強い顔ぶれほど、勝ったときに良いカードが出やすく、銭も多い（js/reward.js の TIER）
+  TIER_NAMES: ['', '弱い', 'ふつう', '強い'],
+  tier(encId) {
+    const en = FR.Encounters.find(x => x.id === encId);
+    if (!en) return 2;
+    if (en.tier) return en.tier;
+    let score = 0;
+    for (const id of en.enemies) {
+      const d = FR.Enemies[id];
+      const hit = Math.max(0, ...Object.values(d.moves).map(m => m.damage || 0));
+      score += (d.hp[0] + d.hp[1]) / 2 + hit * 3;
+    }
+    return score < 50 ? 1 : score < 75 ? 2 : 3;
+  },
+
   // 今の段の選択肢をつくる
   makeChoices(run) {
     const rnd = FR.Map.rng(run, 1);
@@ -38,11 +57,10 @@ FR.Map = {
     const last = run.step === FR.Map.season(run).steps - 2;
     const out = [{ type: 'battle', enc: FR.Map.pickEncounter(run, rnd, false) }];
     const rest = [];
-    // 2つ目・3つ目：戦い／市場／休憩所から（同じ店や休憩所は並べない）
+    // 2つ目・3つ目：戦い／市場／休憩所から（同じ店や休憩所は並べない）。市場と休憩所は出にくめ
     while (out.length < 3) {
-      const t = FR.Util.weighted(rnd, [{ value: 'battle', weight: 4 }, { value: 'market', weight: 3 }, { value: 'rest', weight: 3 }]);
+      const t = FR.Util.weighted(rnd, [{ value: 'battle', weight: FR.Map.CHOICE_WEIGHT.battle }, { value: 'market', weight: FR.Map.CHOICE_WEIGHT.market }, { value: 'rest', weight: FR.Map.CHOICE_WEIGHT.rest }]);
       if (t === 'battle') {
-        if (out.filter(o => o.type === 'battle').length >= 2) continue;
         out.push({ type: 'battle', enc: FR.Map.pickEncounter(run, rnd, false, out.map(o => o.enc)) });
       } else if (!out.some(o => o.type === t)) out.push({ type: t });
       if (++rest.length > 30) break;

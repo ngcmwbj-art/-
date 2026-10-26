@@ -175,6 +175,7 @@ FR.BattleView = {
     const v = FR.cardView(inst);
     el.innerHTML = FR.renderCard(v, { unplayable: !chk.ok })
       + `<div class="pv-side"><button class="pv-close" type="button" onclick="FR.HandInput.clear()">閉じる ✕</button>`
+      + `<div class="pv-text">${FR.Util.escape(v.text)}</div>`
       + `<div class="hint">${FR.Util.escape(hint)}</div><div class="terms">${FR.Glossary.html(v)}</div></div>`;
     el.className = 'show';
   },

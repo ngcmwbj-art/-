@@ -171,6 +171,7 @@ for (const [id, def] of Object.entries(FR.Enemies)) {
     for (const farmerId of Object.keys(FR.Farmers)) {
       const run = FR.Run.create(farmerId, 11);
       const b = FR.Battle.create(run);
+      b.block = 0;   // 石垣の守りで攻撃が全部防がれると、効いたか分からないので外す
       b.enemies = [{ uid: 1, id, def, name: def.name, hp: 30, maxHp: 50, strength: 0, dead: false, turnsLeft: def.turns || null, moveIndex: 0, intent: Object.assign({ key: mk }, m) }];
       if (b.plots.length) b.plots[0] = { crop: 'komatsuna', growth: 1, stages: 2 };
       if (b.plots.length > 1) b.plots[1] = { crop: 'unshu', tree: true, growth: 2, stages: 2, fruits: 2, maxFruits: 3 };
@@ -315,5 +316,22 @@ if (unused.length) fail('一度も使われなかったカード: ' + unused.joi
 console.log('ボットの成績（1年を通して）', results);
 console.log('使われたカード', Object.keys(played).length, '種（強化後を含む）');
 if (noPhoto.length) console.log('いただいた絵がまだないカード（道具の絵で表示）:', noPhoto.join('、'));
+// 農家ごとの固有スキル（レリック）が実際に効くか
+{
+  const node = { type: 'battle', enc: 'crow' };
+  const make = id => { const run = FR.Run.create(id, 3); run.node = node; return FR.Battle.create(run); };
+  const c = make('citrus');
+  if (c.block !== 6) fail(`石垣：1ターン目の守りが ${c.block}（6のはず）`);
+  // 小松菜そのものの守りの分を引いて、竹かごの分だけを見る
+  const harvestBlock = withRelic => { const b = make('vegetable'); if (!withRelic) b.run.relics = []; b.block = 0;
+    b.plots[0] = { crop: 'komatsuna', growth: 2, stages: 2 }; FR.Battle.harvestPlot(b, 0, false); return b.block; };
+  const vd = harvestBlock(true) - harvestBlock(false);
+  if (vd !== 3) fail(`竹かご：収穫で守り +${vd}（3のはず）`);
+  const l = make('livestock');
+  l.barns[0] = { animal: 'calf', growth: 9, stages: 1, care: 0 };
+  const lb = l.block; FR.Battle.shipBarn(l, 0, 0);
+  if (l.block - lb !== 6) fail(`カウベル：出荷で守り +${l.block - lb}（6のはず）`);
+}
+
 console.log(failures ? `失敗 ${failures} 件` : 'すべて OK');
 process.exit(failures ? 1 : 0);

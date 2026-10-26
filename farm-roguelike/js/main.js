@@ -155,6 +155,7 @@ const App = {
         <span class="farmer-body">
           <span class="farmer-name">${E(f.name)}${f.enabled ? '' : '<em>準備中</em>'}</span>
           <span class="farmer-text">${E(f.text)}</span>
+          ${f.relic ? `<span class="farmer-skill"><b>固有スキル：${E(FR.Relics[f.relic].name)}</b>${E(FR.Relics[f.relic].text)}</span>` : ''}
           <span class="farmer-hp">健康度 ${f.hp}</span>
         </span>
       </button>`;
@@ -225,6 +226,10 @@ const App = {
         defs.forEach(d => { const f = names.find(n => n.name === d.name); if (f) f.n++; else names.push({ name: d.name, n: 1 }); });
         title = names.map(n => n.name + (n.n > 1 ? '×' + n.n : '')).join('・');
         sub = defs.some(d => d.turns) ? '天候：決まったターン数を耐えても過ぎ去る' : '戦い。勝てばカード1枚と銭';
+        const tier = FR.Map.tier(c.enc);
+        sub = `<span class="mc-tier tier-${tier}">強さ ${'★'.repeat(tier)}${'☆'.repeat(3 - tier)} ${FR.Map.TIER_NAMES[tier]}</span>`
+          + (tier === 3 ? '<span class="mc-good">良いカードが出やすい・銭も多い</span>' : tier === 1 ? '<span class="mc-good weak">カードはふつうのものが多い</span>' : '')
+          + E(sub);
       } else if (c.type === 'boss') {
         const d = FR.Enemies[c.boss];
         art = `<img src="${FR.Art.url(d.art)}" alt="">`;
@@ -233,7 +238,7 @@ const App = {
       }
       return `<button class="map-choice type-${c.type}" data-k="${k}">
         <span class="mc-art">${art}</span>
-        <span class="mc-body"><span class="mc-kind">${E(t.name)}</span><b>${E(title)}</b><span class="mc-text">${E(sub)}</span></span>
+        <span class="mc-body"><span class="mc-kind">${E(t.name)}</span><b>${E(title)}</b><span class="mc-text">${c.type === 'battle' ? sub : E(sub)}</span></span>
       </button>`;
     }).join('');
     document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚`;
@@ -245,7 +250,18 @@ const App = {
     const c = run.choices && run.choices[k];
     if (!c) return;
     run.node = c;
-    if (c.type === 'battle' || c.type === 'boss') return App.startBattle();
+    if (c.type === 'battle' || c.type === 'boss') {
+      // 戦闘を始めるたびに少し回復（開き直したときに二重にならないよう、ここで1回だけ）
+      const before = run.hp;
+      run.hp = Math.min(run.maxHp, run.hp + (FR.Config.battleStartHeal || 0));
+      App.startBattle();
+      if (run.hp > before) {
+        App.battle.fx.push({ kind: 'heal', target: 'player', text: '+' + (run.hp - before) });
+        App.refresh();
+        FR.Screens.toast(`ひと息ついた：健康度 +${run.hp - before}`, 'heal');
+      }
+      return;
+    }
     if (c.type === 'market') {
       run.phase = 'market';
       run.market = FR.Market.make(run);
@@ -612,7 +628,8 @@ const App = {
     const rw = run.reward;
     App.rewardPick = null;
     document.getElementById('reward-gold').textContent =
-      `銭 +${rw.gold}` + (rw.autoHarvestGold ? `（実っていた作物を半値で収穫 +${rw.autoHarvestGold}）` : '');
+      `銭 +${rw.gold}` + (rw.autoHarvestGold ? `（実っていた作物を半値で収穫 +${rw.autoHarvestGold}）` : '')
+      + (rw.tier === 3 ? '・強い相手だったので良いカードが出やすい' : '');
     document.getElementById('reward-cards').innerHTML = rw.cards.map(id => FR.renderCard(FR.cardView({ id, uid: 0 }))).join('');
     document.getElementById('reward-take').disabled = true;
     document.getElementById('reward-terms').innerHTML = '<p class="terms-hint">カードをタップすると、言葉の説明が出ます</p>';

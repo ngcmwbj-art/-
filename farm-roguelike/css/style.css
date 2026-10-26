@@ -98,6 +98,8 @@ img { -webkit-user-drag: none; }
 .farmer-name { font-family: var(--mincho); font-weight: 800; font-size: 19px; letter-spacing: .1em; }
 .farmer-name em { font-style: normal; font-size: 12px; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--panel-line); color: var(--panel-text-soft); }
 .farmer-text { font-size: 13px; line-height: 1.5; color: var(--panel-text-soft); }
+.farmer-skill { display: grid; font-size: 13px; line-height: 1.45; color: var(--panel-text); }
+.farmer-skill b { color: var(--gold); font-family: var(--mincho); font-weight: 800; }
 .farmer-hp { font-size: 12px; color: #a9c38a; }
 
 /* ── 戦闘 ─────────────────────────────────────── */
@@ -365,6 +367,13 @@ img { -webkit-user-drag: none; }
 .card.text-m .text { font-size: max(10.5px, calc(var(--cw) * .09)); }
 .card.text-l .text { font-size: max(10px, calc(var(--cw) * .08)); }
 .card.text-xl .text { font-size: max(9.5px, calc(var(--cw) * .07)); line-height: 1.25; }
+/* 手札：絵を少し低くして、説明の字を大きめに */
+.hand .card .art { height: calc(var(--cw) * .4); }
+.hand .card .art img { height: calc(var(--cw) * .36); }
+.hand .card .text { font-size: max(12px, calc(var(--cw) * .11)); line-height: 1.25; }
+.hand .card.text-m .text { font-size: max(11.5px, calc(var(--cw) * .1)); }
+.hand .card.text-l .text { font-size: max(11px, calc(var(--cw) * .09)); }
+.hand .card.text-xl .text { font-size: max(10.5px, calc(var(--cw) * .08)); line-height: 1.2; }
 
 /* 手札（扇形） */
 .hand {
@@ -430,6 +439,7 @@ img { -webkit-user-drag: none; }
 #toast.warn { border-color: #c0563c; }
 #toast.stolen { border-color: #c0563c; color: #f0b0a0; }
 #toast.harvest { border-color: var(--gold); color: var(--gold); }
+#toast.heal { border-color: #6fae5a; color: #b6e0a0; }
 
 /* 浮き上がる数字 */
 .float-text {
@@ -485,17 +495,22 @@ img { -webkit-user-drag: none; }
   pointer-events: auto; align-self: flex-end; font-size: 13px; font-weight: 700; color: #f3e6c8;
   background: rgba(15, 13, 10, .9); border: 1px solid var(--panel-line); border-radius: 3px; padding: 6px 12px;
 }
+#card-preview .pv-text {
+  font-size: 15px; font-weight: 700; line-height: 1.5; color: #f3e6c8; background: rgba(15, 13, 10, .9);
+  border: 1px solid var(--gold); border-radius: 3px; padding: 6px 9px; flex: none;
+}
 #card-preview .hint { text-align: center; font-size: 12px; color: var(--panel-text); background: var(--panel); padding: 3px 8px; border-radius: 2px; }
 #card-preview .terms:not(:empty) {
   pointer-events: auto; overflow-y: auto; min-height: 0; background: rgba(15, 13, 10, .88);
   border: 1px solid var(--panel-line); border-radius: 3px; padding: 5px 8px;
 }
-#card-preview .terms-list { font-size: 12px; gap: 2px 8px; line-height: 1.45; }
+#card-preview .terms-list { font-size: 13px; gap: 3px 8px; line-height: 1.5; }
 @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
   #card-preview { top: 64px; --cw: 160px; width: auto; flex-direction: column; align-items: center; }
   #card-preview .pv-side { width: 340px; flex: none; max-height: none; }
   #card-preview .pv-close { position: absolute; top: 0; right: 0; }
-  #card-preview .terms-list { font-size: 13px; }
+  #card-preview .terms-list { font-size: 14px; }
+  #card-preview .pv-text { font-size: 16px; }
 }
 /* 拡大表示が出る画面では、手札の中の小さな案内は出さない */
 .hand .card.selected::after { display: none; }
@@ -526,6 +541,10 @@ img { -webkit-user-drag: none; }
 .mc-kind { font-size: 12px; color: var(--gold); letter-spacing: .2em; font-family: var(--mincho); }
 .mc-body b { font-family: var(--mincho); font-size: 18px; font-weight: 800; letter-spacing: .05em; }
 .mc-text { font-size: 13px; color: var(--panel-text-soft); line-height: 1.5; }
+.mc-tier { display: block; font-weight: 700; color: var(--panel-text); letter-spacing: .05em; }
+.mc-tier.tier-1 { color: #a9c79a; } .mc-tier.tier-2 { color: #e8c878; } .mc-tier.tier-3 { color: #f08a6a; }
+.mc-good { display: block; color: #f0c070; font-size: 12px; }
+.mc-good.weak { color: var(--panel-text-soft); }
 .map-status { font-size: 13px; color: var(--panel-text-soft); text-shadow: 0 1px 3px #000; }
 .btn.small { min-width: 0; font-size: 14px; padding: 7px 14px; }
 .up-from { color: var(--panel-text-soft) !important; text-align: center; max-width: calc(var(--cw) + 8px); }
