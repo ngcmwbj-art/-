@@ -120,6 +120,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_sk_start: { ids: ['sakana'], how: 'already', pages: '1' },
   flag_tk_start: { ids: ['tokoro'], how: 'goesOn', pages: 'やめると 残りは ナミエが 突く' },
   flag_yd_start: { ids: ['yose'], how: 'ask', pages: '3 → 0' },
+  flag_hs_start: { ids: ['housou'], how: 'ask', pages: 'チャイムの 前置き → 0（housou、10-26）' },
 };
 
 /** Was one of these close-ups quit with もどる (and not opened since)? */
