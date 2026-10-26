@@ -1,5 +1,5 @@
 // ホーム画面から開くアプリ用：まずネットから取り、つながらないときは前に取っておいた分で遊べるようにする
-const CACHE = 'vivavege-v11';
+const CACHE = 'vivavege-v12';
 const CORE = ['./index.html', './vendor/three.min.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 
 self.addEventListener('install', e => {

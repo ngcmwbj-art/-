@@ -878,7 +878,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function reset() {
     cam = 0; speed = 250; vel = 250; runTime = 0;
-    truck = { y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false,
+    truck = { deathBy: '', y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false,
       angle: 0, fallV: 0, fallT: 0, squash: 0, dent: 0, flat: false, spilled: false, pit: null, airJumps: 0 };
     obs = []; parts = []; popups = []; steps = []; camY = 0;
     nextX = 900;
@@ -1007,6 +1007,11 @@ canvas { display: block; width: 100%; height: 100%; }
     return h;
   }
   const groundAt = wx => GROUND - levelAt(wx);
+  // 軽トラの目の前の段の高さ（石垣か土手か）
+  function wallRise() {
+    const fx = cam + TRUCK_FRONT + 4;
+    return levelAt(fx + 30) - levelAt(cam + TRUCK_X + 18);
+  }
   // 軽トラを支える地面：前輪と後輪の下のうち高いほう
   // （壁にぶつかったあとは、段の上に吸い上げられないよう後輪の下だけを見る）
   const supportY = () => truck.deathKind === 'wall' ? groundAt(cam + TRUCK_X + 18)
@@ -1045,6 +1050,15 @@ canvas { display: block; width: 100%; height: 100%; }
       });
     }
   }
+  // ベスト更新の紙吹雪：画面の上からトマト色の紙がひらひら
+  function confetti(n) {
+    const cols = ['#e2543a', '#f2b33d', '#ff8f7a', '#fffbea', '#7fbf4d'];
+    for (let i = 0; i < n; i++) {
+      const life = rand(1.6, 2.4);
+      parts.push({ x: cam + rand(W * 0.15, W * 0.95), y: GROUND - camY - rand(200, 280), vx: rand(-60, 30), vy: rand(20, 80), life, max: life,
+        r: rand(5, 8), col: cols[i % cols.length], g: 90, conf: true, spin: rand(0, 6) });
+    }
+  }
   // 着地の土煙：左右に広がって、ふくらみながら薄くなる（粒が多すぎるときは出さない）
   function dustPuff(wx, y, k) {
     if (parts.length > 320) return;
@@ -1068,7 +1082,17 @@ canvas { display: block; width: 100%; height: 100%; }
     if (why) popup(tomatoes > 0 ? `${why} 残り ${tomatoes} 個` : `${cargo.unit}が空っぽ!`, '#ff8f7a');
   }
   function showBanner(text, color, sub) { banner = { text, sub, color, t: 1.6 }; }
-  function popup(text, color) { popups.push({ text, color, t: 1.1 }); }
+  // 走っている間の一言は同時に2つまで。新しいのが来たら古いものから消す（パンクなど危ない知らせは残す）
+  const POPUP_MAX = 2;
+  function popup(text, color) {
+    const keep = /パンク|空っぽ/.test(text);
+    popups.push({ text, color, t: 1.1, keep });
+    while (popups.length > POPUP_MAX) {
+      let i = popups.findIndex(p => !p.keep);
+      if (i < 0 || i === popups.length - 1) i = 0;
+      popups.splice(i, 1);
+    }
+  }
 
   // ---- 入力 ----
   function press() {
@@ -1209,6 +1233,19 @@ canvas { display: block; width: 100%; height: 100%; }
     flat: ['タイヤがパンクした!', 'ボコボコ道に 3 回乗り上げた'],
     wall: ['あぜに激突!', '段差を登りきれなかった…'],
   };
+  // 結果画面の見出し：やられ方に一言の名前。からかわない、やさしい言い方で
+  const DEATH_NAMES = {
+    fall: ['泥んこダイブ!', '田んぼで一回転半!', 'あぜ道から泥風呂へ!', 'ぬかるみに吸いこまれた!'],
+    boar: ['イノシシと正面衝突!', 'イノシシに通せんぼされた!', 'イノシシとごっつんこ!'],
+    family: ['イノシシ一家に通せんぼ!', 'うりぼう軍団にやられた!'],
+    flat: ['タイヤがぺしゃんこ!', 'パンクで立ち往生!', 'ガタガタ道に負けた!'],
+    wall: ['あぜにゴツン!', '土手に頭突き!'],
+    wallHi: ['石垣にゴツン!', '石垣が高すぎた!'],
+  };
+  function deathName() {
+    const list = DEATH_NAMES[truck.deathBy || truck.deathKind] || [REASONS[truck.deathKind][0]];
+    return list[Math.floor(Math.random() * list.length)];
+  }
   let slowT = 0;                    // やられた直後のスローの残り時間（ゲームの時間で）
   function die(kind) {
     if (state !== 'play') return;
@@ -1245,7 +1282,7 @@ canvas { display: block; width: 100%; height: 100%; }
     let rec = false;
     {
       reasonEl.classList.remove('win');
-      reasonEl.textContent = REASONS[truck.deathKind][0];
+      reasonEl.textContent = deathName();
       $('reasonSub').textContent = REASONS[truck.deathKind][1].replace('トマト', cargo.unit);
       {
         // エンドレスは「運んだトマト × 距離」の合計が配達スコア
@@ -1310,6 +1347,7 @@ canvas { display: block; width: 100%; height: 100%; }
       if (!passedBest && m > best) {
         passedBest = true;
         showBanner('ベスト更新!', '#f2b33d');
+        confetti(12);
         sfx('record');
         setReact('wave', 1.6);
       }
@@ -1342,8 +1380,8 @@ canvas { display: block; width: 100%; height: 100%; }
         seasonIdx = si;
         // 2,000 m で季節が一巡しても、コースは続いている。2周目からは「2年目の田植え」
         const year = Math.floor(m / SEASON_LEN) + 1;
-        const name = si === 0 && year > 1 ? `${year}年目の${SEASONS[si].name}` : SEASONS[si].name;
-        if (!banner || banner.t < 0.8) showBanner(name, '#fffbea', SEASONS[si].sub);
+        // 季節の名前は道ばたののぼり旗で見せる（画面の真ん中の文字の帯は出さない）
+        void year;
       }
     }
 
@@ -1431,7 +1469,7 @@ canvas { display: block; width: 100%; height: 100%; }
           sfx('clunk');
           popup('ギリギリ!', '#f2b33d');
           emit(8, cam + TRUCK_FRONT - 6, gF, { vx: [-160, 40], vy: [-160, -40], life: [0.3, 0.6], r: [2, 5], col: '#8a6440' });
-        } else die('wall');
+        } else { die('wall'); if (wallRise() > STEP_LO + 10) truck.deathBy = 'wallHi'; }
       } else if (truck.y >= supportY()) {
         if (!truck.grounded && truck.vy > 500) {
           // 目いっぱい跳んでドスンと着地すると、ときどきトマトが落ちる
@@ -1715,6 +1753,7 @@ canvas { display: block; width: 100%; height: 100%; }
             o.fvx = 260; o.fvy = -520; o.fy = 0; o.rot = 0;
             emit(20, o.px, bg - 20, { vx: [-200, 250], vy: [-450, -150], life: [0.4, 0.9], r: [2, 5], col: '#fff3c4' });
             die('boar');
+            if (o.sc) truck.deathBy = 'family';
           } else if (!o.counted && br < tl) {
             o.counted = true;
             stats.boars++;
@@ -1920,7 +1959,10 @@ canvas { display: block; width: 100%; height: 100%; }
     for (let k = k0; k <= k0 + Math.ceil(W / gap) + 2; k++) {
       const x = k * gap + hash(k * 4.1 + seed) * gap * 0.4 - far;
       if (x < -200 || x > W + 200) continue;
-      const kind = ((k % 4) + 4) % 4;   // 0:コンバイン 1:はさ掛け（人つき） 2:長いはさ掛け 3:稲束を運ぶ人
+      // 0:コンバイン 1:はさ掛け（人つき） 2:長いはさ掛け 3:稲束を運ぶ人
+      // コンバインは手前寄りの層だけ、ぽつんと1台ずつ（並ばないよう間を大きくあける）
+      let kind = ((k % 4) + 4) % 4;
+      if (kind === 0 && (seed !== 0 || ((k % 12) + 12) % 12 !== 0)) kind = 1 + (((k >> 2) % 2) + 2) % 2;
       ctx.globalAlpha = env.harvest;
       if (kind === 0) {
         // コンバインは少しずつ右へ刈り進む。端まで行ったら薄く消えて、また左から
@@ -2467,6 +2509,23 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.restore();
     }
     if (state === 'title') return;
+    // 季節ののぼり旗（変わり目の少し先に立てる）
+    {
+      const c0 = Math.floor((cam - 200) / PX_PER_M / SEASON_LEN);
+      for (let cyc = Math.max(0, c0); cyc <= c0 + 1; cyc++) {
+        SEASONS.forEach((se, si) => {
+          if (cyc === 0 && si === 0) return;
+          const wm = cyc * SEASON_LEN + se.m;
+          let sx = wm * PX_PER_M + TRUCK_FRONT + 70 - cam;
+          if (sx < -40 || sx > W + 40) return;
+          if (find('gap', sx + cam)) sx += 120;   // 穴の上には立てない
+          ctx.save();
+          ctx.translate(0, -levelAt(sx + cam));
+          drawSeasonFlag(sx, GROUND, si, cyc + 1);
+          ctx.restore();
+        });
+      }
+    }
     {
       const k0 = Math.max(1, Math.floor((cam - 200) / (REFILL_M * PX_PER_M)));
       for (let k = k0; k <= k0 + 1; k++) {
@@ -2578,6 +2637,28 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.textAlign = 'left';
     ctx.fillText(name, sx + 8, top + 16);
     ctx.restore();
+  }
+  // 季節の変わり目ののぼり旗：縦長の白い布に、季節の名前を縦書き。2周目からの田植えは「N年目」を上に小さく
+  function drawSeasonFlag(x, gy, si, year) {
+    const name = SEASONS[si].name;
+    const ch = [...name];
+    const fs = 19, cw = 30, top = gy - 46 - ch.length * (fs + 2) - (year > 1 && si === 0 ? 16 : 0) - 10;
+    const accent = ['#6aa83a', '#3f8a2a', '#d4a22a', '#e07a3a', '#3a5a9a'][si];
+    ctx.fillStyle = '#6a4b2a';
+    ctx.fillRect(x - 2, top - 6, 3, gy - top + 6);
+    ctx.fillRect(x - 2, top - 6, cw + 4, 3);
+    const wave = Math.sin(clock * 3 + si) * 1.5;
+    ctx.fillStyle = '#fbf6e6';
+    ctx.fillRect(x + 1, top, cw, gy - 46 - top + wave);
+    ctx.fillStyle = accent;
+    ctx.fillRect(x + 1, top, 4, gy - 46 - top + wave);
+    ctx.fillStyle = '#2a1d08';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    let y = top + 6;
+    if (year > 1 && si === 0) { ctx.font = 'bold 10px ' + FONT; y += 10; ctx.fillText(`${year}年目`, x + 1 + cw / 2 + 2, y); y += 4; }
+    ctx.font = `bold ${fs}px ` + FONT;
+    for (const c of ch) { y += fs + 2; ctx.fillText(c, x + 1 + cw / 2 + 2, y); }
   }
   // 距離の看板：柱の上に、緑のふちの白い板。「300 m」と大きく
   function drawDistSign(m, x, gy) {
@@ -3356,6 +3437,16 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function drawParts() {
     for (const p of parts) {
+      if (p.conf) {
+        // 紙吹雪：くるくる回って、表と裏で幅が変わる
+        const a = clock * 6 + p.spin;
+        ctx.globalAlpha = Math.min(1, p.life / p.max * 3);
+        ctx.fillStyle = p.col;
+        ctx.save(); ctx.translate(p.x - cam + Math.sin(a) * 6, p.y); ctx.rotate(a * 0.7);
+        ctx.fillRect(-p.r, -p.r * 0.6 * Math.abs(Math.cos(a)), p.r * 2, p.r * 1.2 * Math.abs(Math.cos(a)) + 0.6);
+        ctx.restore();
+        continue;
+      }
       if (p.puff) {
         const f = 1 - p.life / p.max;
         ctx.globalAlpha = Math.max(0, (1 - f) * 0.6);
@@ -3427,11 +3518,13 @@ canvas { display: block; width: 100%; height: 100%; }
     const top = VH - H;
     let py = truck.y + top + camY - 76;
     if (slip > 0 && state === 'play') { label('スリップ! 減速', TRUCK_X + TRUCK_W / 2, py, '20px ' + FONT, '#ffb49f', 'center'); py -= 24; }
-    for (const p of popups) {
+    // 新しい一言をいちばん下に、古いものをその上に。重ならないよう段をあける
+    for (let i = popups.length - 1; i >= 0; i--) {
+      const p = popups[i];
       ctx.globalAlpha = Math.min(1, p.t / 0.3);
-      label(p.text, TRUCK_X + TRUCK_W / 2, py - (1.1 - p.t) * 30, '18px ' + FONT, p.color, 'center');
+      label(p.text, TRUCK_X + TRUCK_W / 2, py - Math.min(10, (1.1 - p.t) * 30), '18px ' + FONT, p.color, 'center');
       ctx.globalAlpha = 1;
-      py -= 24;
+      py -= 28;
     }
   }
 
@@ -3663,7 +3756,7 @@ canvas { display: block; width: 100%; height: 100%; }
     r3.tinted = [];
     setupPost(T);
     r3.ok = true;
-    hdResize();
+    applyQuality();
     warmUp(T);
   }
   // 初めて出てくる物（はさ掛け・コンバイン・夜の蛍・泥の穴など）で一瞬止まらないよう、描く準備を先に済ませておく
@@ -4038,6 +4131,13 @@ canvas { display: block; width: 100%; height: 100%; }
     const rows = [];
     for (let z = ROAD_D + 0.7; z < 13; z += 0.62) rows.push([z, 0.5]);
     for (let z = -ROAD_D - 0.7; z > -34; z -= z < -14 ? 0.95 : 0.7) rows.push([z, z < -14 ? 0.85 : 0.6]);
+    for (const far of [false, true]) {
+      const part = rows.filter(([z]) => (z < -14) === far);
+      riceBlock(T, group, part, X0, X1, water, far);
+    }
+  }
+  function riceBlock(T, group, rows, X0, X1, water, far) {
+    const len = X1 - X0;
     let count = 0;
     for (const [, sp] of rows) count += Math.max(0, Math.floor(len / sp));
     if (!count) return;
@@ -4058,6 +4158,7 @@ canvas { display: block; width: 100%; height: 100%; }
     im.count = k;
     im.position.y = water;           // 高さ（季節）は scale.y で変えるので、水面を原点にしておく
     im.userData.rice = true;
+    im.userData.farRice = far;
     group.add(im);
   }
   // ドット絵の板の絵（2D の絵を粗い解像度に描いたもの）。季節に合わせて見せたり隠したりする
@@ -4104,9 +4205,15 @@ canvas { display: block; width: 100%; height: 100%; }
     const farm = decorTex('farm', 26, 40, () => drawFarmer(13, 38, 3, 1, 'carry'));
     const r = hash(ci * 2.3);
     const x = a + hash(ci * 4.1) * (b - a) * 0.6, z = -9 - hash(ci * 6.7) * 14;
-    if (r < 0.4) group.add(billboard(T, haza, x * M, lvAt(x), z, 'harvest'));
-    else if (r < 0.65) group.add(billboard(T, comb, x * M, lvAt(x), z, 'harvest'));
-    else if (r < 0.85) { group.add(billboard(T, farm, x * M, lvAt(x), z, 'harvest')); group.add(billboard(T, farm, (x + 28) * M, lvAt(x), z - 0.4, 'harvest')); }
+    if (r < 0.45) group.add(billboard(T, haza, x * M, lvAt(x), z, 'harvest'));
+    else if (r < 0.75) { group.add(billboard(T, farm, x * M, lvAt(x), z, 'harvest')); group.add(billboard(T, farm, (x + 28) * M, lvAt(x), z - 0.4, 'harvest')); }
+    // コンバインは 6 かたまり（約 100 m）に 1 台だけ。それぞれ自分のペースで田んぼを行ったり来たり
+    if (((ci % 6) + 6) % 6 === 3) {
+      const cx = a + (b - a) * 0.3, cz = -12 - hash(ci * 8.3) * 10;
+      const cb = billboard(T, comb, cx * M, lvAt(cx), cz, 'harvest');
+      cb.userData.combine = { x: cb.position.x, speed: 0.4 + hash(ci * 9.1) * 0.5, phase: hash(ci * 5.5) * 10 };
+      group.add(cb);
+    }
     // トマト畑の小屋（500 m ごと）
     const STAND = REFILL_M * PX_PER_M;
     for (let k = Math.max(1, Math.ceil((a - TRUCK_FRONT) / STAND)); k * STAND + TRUCK_FRONT < b; k++) {
@@ -4126,7 +4233,7 @@ canvas { display: block; width: 100%; height: 100%; }
       blur: mk('uniform sampler2D t; uniform vec2 dir; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.2270; c += (texture2D(t, vUv + dir * 1.3846).rgb + texture2D(t, vUv - dir * 1.3846).rgb) * 0.3162; c += (texture2D(t, vUv + dir * 3.2308).rgb + texture2D(t, vUv - dir * 3.2308).rgb) * 0.0703; gl_FragColor = vec4(c, 1.0); }',
         { t: { value: null }, dir: { value: new T.Vector2() } }),
       final: mk([
-        'uniform sampler2D s; uniform sampler2D b; uniform sampler2D dep; uniform float cn; uniform float cf; uniform float focus; uniform float sharpR; uniform float blurR; uniform float night;',
+        'uniform float dofAmt; uniform sampler2D s; uniform sampler2D b; uniform sampler2D dep; uniform float cn; uniform float cf; uniform float focus; uniform float sharpR; uniform float blurR; uniform float night;',
         'varying vec2 vUv;',
         'float viewZ(float d){ return (cn * cf) / ((cf - cn) * d - cf); }',
         'void main(){',
@@ -4134,7 +4241,7 @@ canvas { display: block; width: 100%; height: 100%; }
         '  float z = -viewZ(texture2D(dep, vUv).x);',
         '  float coc = smoothstep(sharpR, sharpR + blurR, abs(z - focus));',
         '  coc = max(coc, smoothstep(sharpR * 0.8, sharpR * 0.8 + blurR * 0.6, focus - z));',
-        '  vec3 c = mix(sharp, bl, coc * 0.75);',
+        '  vec3 c = mix(sharp, bl, coc * dofAmt);',
         '  float l = dot(bl, vec3(0.299, 0.587, 0.114));',
         '  c += bl * max(l - 0.84, 0.0) * (0.8 + night * 3.6);',
         '  c = mix(c, sqrt(max(c, 0.0)), night * 0.4);',
@@ -4143,7 +4250,7 @@ canvas { display: block; width: 100%; height: 100%; }
         '  vec2 q = (vUv - 0.5) * vec2(1.0, 0.85); c *= 1.0 - 0.34 * pow(clamp(length(q) * 1.35, 0.0, 1.0), 2.4);',
         '  gl_FragColor = vec4(c, 1.0);',
         '}'].join('\n'),
-        { s: { value: null }, b: { value: null }, dep: { value: null }, cn: { value: 1 }, cf: { value: 1200 }, focus: { value: 38 }, sharpR: { value: 10 }, blurR: { value: 70 }, night: { value: 0 } }),
+        { s: { value: null }, b: { value: null }, dep: { value: null }, cn: { value: 1 }, cf: { value: 1200 }, focus: { value: 38 }, dofAmt: { value: 0.75 }, sharpR: { value: 10 }, blurR: { value: 70 }, night: { value: 0 } }),
     };
     r3.quadScene = new T.Scene();
     r3.quadCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -4159,7 +4266,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const T = r3.T;
     r3.renderer.setSize(cv.width, cv.height, false);
     // 3D は少し低い解像度で描いて、最後に拡大する（スマホの負担を減らす。ドット絵の雰囲気にも合う）
-    const k = Math.min(1, 760 / cv.height);
+    const k = Math.min(1, (r3.renderScale || 760) / cv.height);
     const w = Math.max(2, Math.round(cv.width * k)), h = Math.max(2, Math.round(cv.height * k));
     for (const key of ['rt', 'half', 'qa', 'qb']) if (r3[key]) r3[key].dispose();
     r3.rt = new T.WebGLRenderTarget(w, h, { depthTexture: new T.DepthTexture(w, h) });
@@ -4187,15 +4294,31 @@ canvas { display: block; width: 100%; height: 100%; }
     btn.hidden = !r3.ok;
     btn.textContent = r3.slow ? 'HD-2D：重いので休止中' : `HD-2D：${r3.on ? 'オン' : 'オフ'}`;
   }
-  // 重い端末では自動で休止する：HD-2D 中の 1 コマの間隔が、直近 120 コマの平均で 28 ms（約 36 コマ/秒）を超えたら
+  // 重い端末では段階的に軽くする。1 コマの間隔が直近 60 コマ（約 1 秒）の平均で 28 ms を超えるたびに 1 段下げる：
+  //   1 ぼかしをやめる → 2 影を粗く → 3 遠くの田んぼの稲を消す → 4 3D を低い解像度で描く → それでも重ければ HD-2D を休む。
+  // 一度下げた段は戻さない（行ったり来たりしない）。段は端末に覚えておく
+  r3.quality = Number(store.get('keitora-hd-q', 0)) || 0;
+  function applyQuality() {
+    if (!r3.ok) return;
+    const q = r3.quality;
+    r3.sun.shadow.mapSize.set(q >= 2 ? 512 : 1024, q >= 2 ? 512 : 1024);
+    if (r3.sun.shadow.map) { r3.sun.shadow.map.dispose(); r3.sun.shadow.map = null; }
+    r3.renderer.shadowMap.type = q >= 2 ? r3.T.PCFShadowMap : r3.T.PCFSoftShadowMap;
+    r3.renderScale = q >= 4 ? 520 : 760;
+    hdResize();
+  }
   function hdWatch(frameMs) {
     if (!hdActive() || document.hidden || frameMs > 250) return;
     r3.ft.push(frameMs);
-    if (r3.ft.length > 120) r3.ft.shift();
-    if (r3.ft.length === 120 && r3.ft.reduce((p, q) => p + q, 0) / 120 > 28) { r3.slow = true; r3.ft = []; applyHdView(); }
+    if (r3.ft.length > 60) r3.ft.shift();
+    if (r3.ft.length === 60 && r3.ft.reduce((p, q) => p + q, 0) / 60 > 28) {
+      r3.ft = [];
+      if (r3.quality < 4) { r3.quality++; store.set('keitora-hd-q', r3.quality); applyQuality(); }
+      else { r3.slow = true; applyHdView(); }
+    }
   }
   $('hdBtn').addEventListener('click', () => {
-    if (r3.slow) { r3.slow = false; r3.ft = []; }
+    if (r3.slow) { r3.slow = false; r3.ft = []; r3.quality = 3; store.set('keitora-hd-q', 3); applyQuality(); }
     else { r3.on = !r3.on; store.set('keitora-hd', r3.on ? '1' : '0'); }
     applyHdView();
     sfx('ui');
@@ -4312,9 +4435,16 @@ canvas { display: block; width: 100%; height: 100%; }
     const riceH = 0.1 + env.riceH * 0.36;
     for (const ch of r3.chunks) {
       ch.group.traverse(o => {
-        if (o.userData.rice) o.scale.y = riceH;
+        if (o.userData.rice) { o.scale.y = riceH; if (o.userData.farRice) o.visible = r3.quality < 3; }
         if (o.userData.kind === 'duck') o.visible = env.duck > 0.3;
         if (o.userData.kind === 'harvest') o.visible = env.harvest > 0.3;
+        const cm = o.userData.combine;
+        if (cm) {
+          // 片道 10 m をゆっくり往復。向きも進む方へ
+          const t = (clock * cm.speed + cm.phase) % 20, d = t < 10 ? t : 20 - t;
+          o.position.x = cm.x + d - 5;
+          o.scale.x = t < 10 ? 1 : -1;
+        }
         if (o.userData.lamp) o.visible = lamp > 0.01;
       });
     }
@@ -4356,7 +4486,7 @@ canvas { display: block; width: 100%; height: 100%; }
     runPass(P.down, r3.half);
     P.down.uniforms.t.value = r3.half.texture; P.down.uniforms.px.value.set(1 / r3.half.width, 1 / r3.half.height);
     runPass(P.down, r3.qa);
-    for (const k of [1, 1.6]) {
+    for (const k of r3.quality >= 1 ? [] : [1, 1.6]) {
       P.blur.uniforms.t.value = r3.qa.texture; P.blur.uniforms.dir.value.set(k / r3.qa.width, 0);
       runPass(P.blur, r3.qb);
       P.blur.uniforms.t.value = r3.qb.texture; P.blur.uniforms.dir.value.set(0, k / r3.qa.height);
@@ -4366,6 +4496,7 @@ canvas { display: block; width: 100%; height: 100%; }
     u.s.value = r3.rt.texture; u.b.value = r3.qa.texture; u.dep.value = r3.rt.depthTexture;
     u.cn.value = r3.camera.near; u.cf.value = r3.camera.far;
     u.focus.value = Math.hypot(r3.dist, CAM_UP - 1.2); u.night.value = env.night;
+    u.dofAmt.value = r3.quality >= 1 ? 0 : 0.75;
     runPass(P.final, null);
   }
 
