@@ -173,8 +173,9 @@ FR.BattleView = {
     const chk = FR.Battle.canPlay(b, inst);
     const hint = !chk.ok ? chk.reason : FR.Battle.needsTarget(b, inst) ? '敵をタップして使う' : 'もう一度タップで使う';
     const v = FR.cardView(inst);
-    el.innerHTML = FR.renderCard(v, { unplayable: !chk.ok }) + `<div class="hint">${FR.Util.escape(hint)}</div>`
-      + `<div class="terms">${FR.Glossary.html(v)}</div>`;
+    el.innerHTML = FR.renderCard(v, { unplayable: !chk.ok })
+      + `<div class="pv-side"><button class="pv-close" type="button" onclick="FR.HandInput.clear()">閉じる ✕</button>`
+      + `<div class="hint">${FR.Util.escape(hint)}</div><div class="terms">${FR.Glossary.html(v)}</div></div>`;
     el.className = 'show';
   },
 
