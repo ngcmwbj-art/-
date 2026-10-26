@@ -365,10 +365,19 @@ export class TamaPanel implements Widget {
     }
     g.line(cx, hy - ry + 2, cx, hy + ry - 4, '#9AC860');
     // the two outer leaves kept on it (the client's way: two left on)
-    ell(g, cx - size + 4, hy + 6, 9, ry - 6, RT_LEAF);
-    ell(g, cx + size - 4, hy + 6, 9, ry - 6, RT_LEAF);
-    g.line(cx - size + 4, hy - ry + 10, cx - size + 6, hy + ry - 2, RT_LEAF_LT);
-    g.line(cx + size - 4, hy - ry + 10, cx + size - 6, hy + ry - 2, RT_LEAF_LT);
+    // (each a wide leaf from the foot, cupped up round the side of the head, its wavy top edge curling out)
+    const top = hy - ry + 8;
+    const bot = hy + ry;
+    for (let s = -1; s <= 1; s += 2) {
+      for (let y = top; y <= bot; y++) {
+        const t = (y - top) / (bot - top);
+        const lw = Math.round(3 + 7 * Math.sin(Math.min(1, t * 1.3) * Math.PI * 0.5) - (t > 0.8 ? (t - 0.8) * 20 : 0));
+        const mid = cx + s * Math.round(size - 6 + 3 * Math.sin(t * Math.PI) + (y % 3 === 0 && t < 0.25 ? 1 : 0));
+        if (lw > 0) g.rect(mid - lw, y, lw * 2, 1, t < 0.12 ? RT_LEAF_LT : RT_LEAF);
+      }
+      g.line(cx + s * (size - 6), top + 2, cx + s * (size - 8), bot - 1, RT_LEAF_DK);
+      g.px(cx + s * (size - 2), top + 1, '#FFFFFF');
+    }
     // dew on the leaves' edges, white in the lamp
     for (const [dx, ddy] of [[-size + 2, -2], [size - 3, 0], [-6, -ry + 1], [8, -ry + 2]] as const) g.rect(cx + dx, hy + ddy, 2, 1, '#FFFFFF');
     // しゅん's hand coming down on top
@@ -703,9 +712,10 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  */
 if (import.meta.env.DEV) {
   registerDebug('retasu', (step = 'pero', stg = 'h1', auto = false) => {
-    if (stg === 'h0' || step === 'h0') cmd().jump?.('ch2:house', true);
-    else if (stg === 'h2' || step === 'kakashi' || step === 'masaru') cmd().jump?.('ch2:hill', true);
-    else cmd().jump?.('ch2:houki', true);
+    // (already at that stage in chapter 2: no jump — the hill's arrival scene of 'ch2:hill' is talked through first)
+    const want = stg === 'h0' || step === 'h0' ? 0 : stg === 'h2' || step === 'kakashi' || step === 'masaru' ? 2 : 1;
+    const inCh2 = (field()?.map.id ?? '').startsWith('map_hoshi');
+    if (!inCh2 || hStage() !== want || flag('flag_ch2_boss_beaten')) cmd().jump?.(want === 0 ? 'ch2:house' : want === 2 ? 'ch2:hill' : 'ch2:houki', true);
     for (const id of Object.values(RF)) setFlag(id, 0);
     while (state.inventory.includes(RT_ITEM)) removeItem(RT_ITEM);
     qaAuto = !!auto;

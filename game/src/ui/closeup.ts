@@ -94,6 +94,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_bm_start: { ids: ['busmaku'], how: 'already', pages: '1（続きから）' },
   flag_hg_start: { ids: ['hg_mizu', 'hg_hi'], how: 'ask', pages: '12 → 0（かまどを もう1回 見てから ペロへ、は 今の まま）' },
   flag_ky_start: { ids: ['kyuri'], how: 'already', pages: '0' },
+  flag_rt_start: { ids: ['retasu'], how: 'already', pages: '0（光る 玉を 調べると すぐ。やめた 玉は flag が 立たず、もう 一度 はじめから）' },
   flag_hn_start: { ids: [], how: 'none', pages: '穂を 見て 選ぶ だけ' },
   flag_hm_start: { ids: ['himo'], how: 'already', pages: '1（待って！は 1回きり）' },
   flag_ku_start: { ids: ['kutsu'], how: 'already', pages: '0' },

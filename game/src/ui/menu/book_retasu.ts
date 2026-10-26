@@ -21,7 +21,7 @@ export function hasRtPage(): boolean {
 export const RT_ROW_LABEL = RT_BOOK.title;
 
 const TITLE_H = 17;
-const LINE_H = 15;
+const LINE_H = 16;
 const PIC_H = 32;
 
 const taken = () => [0, 1, 2].filter((k) => flag(`flag_rt_tama_${k}`) === 1).length;

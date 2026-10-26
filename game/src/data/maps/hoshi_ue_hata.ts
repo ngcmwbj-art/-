@@ -104,7 +104,7 @@ registerMap({
   outside: '#0B0B14',
   // all of it in the dark (52 8.5) — but a step lighter than the usual dark (2026-10-26 会議：昼の 屋外の iPad でも 見える)
   dark: [{ x: 0, y: 0, w: UE_W, h: UE_H }],
-  darkCol: '#5C5890',
+  darkCol: '#666C9A',
   darkLights: [RT_HEADLAMP, RT_HEADLAMP_SPOT],
   zones: [{ id: 'area_hoshi_ue_hata', name: '上の 畑', x: 0, y: 0, w: UE_W, h: UE_H, wind: 'none' }],
   structMats: [

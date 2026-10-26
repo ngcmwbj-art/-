@@ -16,5 +16,6 @@ export const YORI_LEN_WORD: Record<YoriLen, string> = {
 
 /** 寄り道の 始まりの flag → 長さ（コメントは 測った めやす）。 */
 export const YORIMICHI_LEN: Record<string, YoriLen> = {
+  flag_rt_start: 'normal', // retasu 寝とる うちに、とる（読む 約69ページ＋大写し 3回＋村から ネットの 戸・上の 畑：約4分）
   flag_hs_start: 'normal', // housou 終わりの 音は、下がる（読む 約66ページ＋大写し 2回＋入口から 1部屋：約4分）
 };
