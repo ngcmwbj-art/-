@@ -197,7 +197,7 @@ export const UB_WAI = `@npc_kanenari
 
 export const UB_SHABERU = `@npc_hoshi_gen
 牛は、{w=300}
-しゃべらん。
+口では 言わん。
 /
 ……鼻が {w=300}
 しゃべる。
@@ -254,7 +254,7 @@ export const UB_BOOK = {
   tokoro: (n: number) => `見た 所 ${n}/3`,
   /** マサルの 字（グソっ君の 顔の 横）。 */
   memo: '鼻？',
-  quote: ['牛は しゃべらん。', '鼻が しゃべる。'],
+  quote: ['牛は 口では 言わん。', '鼻が しゃべる。'],
 };
 
 export const UB_TEXTS: Record<string, unknown> = {
