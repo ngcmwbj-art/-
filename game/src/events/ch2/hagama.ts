@@ -43,7 +43,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
-import { isCloseupQuit } from '../../ui/closeup';
+import { isCloseupQuit, skipIntro } from '../../ui/closeup';
 
 export const HF = {
   look: 'flag_hg_look',
@@ -569,14 +569,14 @@ function* talk(p: HgPanel, text: string): Co {
 let qaAuto = false;
 
 /** 水加減：決めた 炊きあがりの 見こみ（やめたら null）。 */
-function* mizuPanel(first: boolean): Co<Kama | null> {
+function* mizuPanel(first: boolean, skip = false): Co<Kama | null> {
   const p = new MizuPanel();
   p.auto = qaAuto;
   p.lv = 0;
   try {
     yield* openPanel(p);
-    if (first) yield* talk(p, T.HG_MIZU_A);
-    yield* talk(p, T.HG_MIZU_RULE);
+    if (first && !skip) yield* talk(p, T.HG_MIZU_A);
+    if (!skip) yield* talk(p, T.HG_MIZU_RULE);
     for (;;) {
       p.clearInput();
       p.result = null;
@@ -652,9 +652,9 @@ function peroSprite(): string {
 }
 
 /** 研ぐ → 水加減 → つけて 待つ → 火種 → かまど（やめたら null）。 */
-function* cook(first: boolean): Co<{ kama: Kama; okoge: Okoge } | null> {
-  yield* say(first ? T.HG_TOGU : T.HG_TOGU2);
-  const water = yield* mizuPanel(first);
+function* cook(first: boolean, skip = false): Co<{ kama: Kama; okoge: Okoge } | null> {
+  if (!skip) yield* say(first ? T.HG_TOGU : T.HG_TOGU2);
+  const water = yield* mizuPanel(first, skip);
   if (!water) return null;
   // 半時間ほど 水に つけて 待つ（短い 場面）
   if (first) yield* say(T.HG_HITASU);
@@ -712,11 +712,15 @@ function* okogeScene(r: { kama: Kama; okoge: Okoge }, first: boolean): Co {
 type CookResult = { kama: Kama; okoge: Okoge } | null;
 /** 2 ペロの 頼み → 土間へ → 炊く。 */
 function* hagama(first: boolean): Co {
-  if (first) {
+  // もどるで やめた あと（改善会議 10-26 の 3。はじめての 1回が すむ まで）：「すぐ やる」なら 頼みと 研ぐ 話と
+  // 水加減の やり方を とばして、土間の 水加減から
+  const skip = first && (yield* skipIntro(HOWTO.hgMizu.id, HOWTO.hgHi.id));
+  if (!first) yield* say(T.HG_AGAIN_YES);
+  else if (!skip) {
     yield* say(T.HG_TANOMI_A);
     if (!pgOn()) yield* say(T.HG_TANOMI_KONAI);
     yield* say(T.HG_TANOMI_B);
-  } else yield* say(T.HG_AGAIN_YES);
+  }
   yield* game.fadeOut(400, '#0B0B14');
   se('se_door');
   const f = F();
@@ -731,7 +735,7 @@ function* hagama(first: boolean): Co {
   // もどるで やめた（改善会議 10-25 の4）も 今の「やめる」と 同じ（ペロは 畑へ もどる）
   let r: CookResult = null;
   try {
-    r = yield* cook(first);
+    r = yield* cook(first, skip);
   } catch (e) {
     if (!isCloseupQuit(e)) throw e;
   }

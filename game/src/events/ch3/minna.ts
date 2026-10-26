@@ -40,6 +40,7 @@ import { KITA } from './azemichi';
 import { hasC3Cut, playC3Cut } from './cuts';
 import { offerFushigiCh3 } from './fushigi';
 import { lastPickup } from './shuuka';
+import { hsPaAfter, hsPaBefore } from './housou';
 import { registerDebug } from '../../debug';
 
 // ---------------------------------------------------------------- who came
@@ -246,11 +247,12 @@ export function* evtMinna(): Co {
   const f = F();
   setFlag('flag_bgm_hold', 1);
   // the PA (ポコシャ, through the ceiling speakers)
-  se('se_c3_aq_pa_chime');
-  yield 900;
+  // (終わりの 音は、下がる を 済ませて いれば 前に 上り 4音・あとに 下り 4音：events/ch3/housou.ts)
+  yield* hsPaBefore();
   se('se_c3_aq_pa_open', { vol: 0.5 });
   yield* say3(T.S25_PA);
   se('se_h_pa_close', { vol: 0.5 });
+  yield* hsPaAfter();
   yield 400;
   yield* shuuka();
   // the entrance: エゴ stamps everyone in at the ticket window

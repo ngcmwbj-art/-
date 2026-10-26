@@ -74,6 +74,7 @@ import { SK_TEXTS } from '../../data/text/c3_sakana';
 import { MK_TEXTS } from '../../data/text/c3_mikan';
 import { KR_TEXTS } from '../../data/text/c3_kori';
 import { AG_TEXTS } from '../../data/text/c3_amigoya';
+import { HS_TEXTS } from '../../data/text/c3_housou';
 import { NG_TEXTS } from '../../data/text/c3_nukegara';
 import { TK_TEXTS } from '../../data/text/c3_tokoro';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
@@ -84,6 +85,7 @@ import { BM_TEXTS } from '../../data/text/hoshi_busmaku';
 import { UB_TEXTS } from '../../data/text/hoshi_ushibana';
 import { KY_TEXTS } from '../../data/text/hoshi_kyuri';
 import { AN_TEXTS } from '../../data/text/hoshi_akinasu';
+import { RT_TEXTS } from '../../data/text/hoshi_retasu';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -552,6 +554,8 @@ function collectTexts(): [string, string][] {
   walk('kyuri', KY_TEXTS);
   // げむきか10/25の案5（切ったら、また なる。02_ch2_index）
   walk('akinasu', AN_TEXTS);
+  // げむきか10/26の案5（寝とる うちに、とる。02_ch2_index）
+  walk('retasu', RT_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -596,6 +600,8 @@ function collectTexts(): [string, string][] {
   walk('c3Kori', KR_TEXTS);
   // げむきか10/25の案2（破れたら、つくろう。第3章の クリア前、03_ch3_index）
   walk('c3Amigoya', AG_TEXTS);
+  // げむきか10/26の案3（終わりの 音は、下がる。第3章の クリア前、03_ch3_index）
+  walk('c3Housou', HS_TEXTS);
   // げむきか10/24の案1（背中から、1回で。第3章の クリア前、03_ch3_index）
   walk('c3Nukegara', NG_TEXTS);
   // げむきか10/25の案1（つるっと、終われる。第3章の クリア前、03_ch3_index）

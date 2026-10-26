@@ -1056,6 +1056,22 @@ Object.assign(ITEM_ROWS, {
 });
 
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
+// しゃきしゃきレタス（寝とる うちに、とる、02_ch2_index）：丸い 玉に 外の 葉 2枚、白い 切り口
+Object.assign(ITEM_ROWS, {
+  item_rt_retasu: [
+    '...ffff...',
+    '..fCffff..',
+    '.mfffffFm.',
+    'mMffCfffFm',
+    'mMfffffFMm',
+    'mMfffffFMm',
+    '.mMfffFMm.',
+    '..mMMMMm..',
+    '...MwwM...',
+    '....ww....',
+  ],
+});
+
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 
 let omakeFn: () => boolean = () => false;

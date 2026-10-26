@@ -20,6 +20,7 @@ import { TK_ITEM_DESC, TK_ITEM_TENGUSA_DESC } from '../text/c3_tokoro';
 import { HM_ITEM_HANA_DESC } from '../text/hoshi_himo';
 import { SS_ITEM_DESC, SS_SARA_DESC } from '../text/hoshi_shishito';
 import { KY_ITEM_DESC, KY_SANBON_DESC } from '../text/hoshi_kyuri';
+import { RT_ITEM_DESC } from '../text/hoshi_retasu';
 
 const items: ItemDef[] = [
   // QA round 1 balance: with 500円 (and the yakisoba shop's tab) the bag could
@@ -173,6 +174,8 @@ const items: ItemDef[] = [
   // （非売品、2つ。値は きゅうりの一本漬けと 同じ 51 6.1 の 小さい 回復）
   { id: 'item_ky_sanbon', name: 'とったきゅうり', key: true, target: 'none', desc: KY_SANBON_DESC, battleText: ['きゅうりを 見せた。\n$enemyは いちばん 太い 1本を 見た。'] },
   { id: 'item_ky_tore', name: 'きゅうり（とれたて）', target: 'ally', heal: 45, desc: KY_ITEM_DESC },
+  // 寝とる うちに、とる（02_ch2_index）：ペロの 上の 畑の レタス（非売品、1つ。値は 51 6.1 の 小さい 回復）
+  { id: 'item_rt_retasu', name: 'しゃきしゃきレタス', target: 'ally', heal: 45, desc: RT_ITEM_DESC },
   { id: 'item_hg_bin', name: '便の分のおにぎり', key: true, target: 'none', desc: HG_ITEM_BIN_DESC, battleText: ['おにぎりを 見せた。\n$enemyは おこげの においを かいだ。'] },
   // 湯を わかしてから（02 #106）：裏の 畑で もいだ 2本（集会所の ぴょん夫人に とどけると なべへ）
   { id: 'item_yw_moigi', name: 'もいだとうもろこし', key: true, target: 'none', desc: YW_ITEM_DESC, battleText: ['とうもろこしを 見せた。\n$enemyは ひげの 色を 見た。'] },

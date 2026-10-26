@@ -38,11 +38,15 @@ import { registerDebug } from '../debug';
 import { cinemaOff, clearKeyGuides, deviceKeys, forceBoxPos, keycap, type GuideKey } from '../events/stage';
 import { setButtonHint } from '../engine/touch';
 import { field } from '../world/field';
+import { runMsg } from '../world/msg';
 import { drawTape, drawWindow, textW, UI } from './window';
 import { dialogVisible } from './dialog';
 import { HOWTO } from '../data/text/howto';
+import { YORIMICHI_START } from '../audio/yorimichi';
 
-export type HowtoPic = 'tap' | 'hold' | 'mash' | 'timing' | 'lr' | 'ud' | 'aim';
+// （改善会議 10-26 の5：keep＝押しつづける〈はなすと おしまい〉、pick＝えらんで 置く〈ますを えらんで しるし〉を
+//   足した。aim は 十字〈4つの 矢印〉で ねらって けってい）
+export type HowtoPic = 'tap' | 'hold' | 'mash' | 'timing' | 'lr' | 'ud' | 'aim' | 'keep' | 'pick';
 export interface Howto {
   /** flag howto_<id>（セーブに 残る：2回目からは 出さない）。 */
   id: string;
@@ -64,6 +68,81 @@ export function isCloseupQuit(e: unknown): e is CloseupQuit {
 }
 
 export const howtoFlag = (id: string): string => `howto_${id}`;
+
+// ---------------------------------------------------------------- 前置きを 短く（改善会議 2026-10-26 の 3）
+//
+// もどるで やめた 大写しは flag `yame_<howto.id>` を 1 に（下の quitCloseup）。その 大写しが もう一度 開くと 0 に
+// （pushed）。＝ 最後まで すんだ・初めての 大写しには 残らない。寄り道の 台本は 前置きの 会話の 前で
+//   if (yield* skipIntro('kyuri')) { …前置きを とばす… } else { …今の 前置き… }
+// やめた ことが ある ときだけ「すぐ やる／はじめから 聞く」を 聞く（true＝すぐ やる）。表は INTRO_SKIP。
+
+export const yameFlag = (id: string): string => `yame_${id}`;
+
+/**
+ * 大写しの ある 寄り道 1つずつ（10-26 に QA で やめて 話しかけ直し、前置きの ページを 数えた）。
+ *   ask     前置きが 3ページ 以上：やめた あとは「すぐ やる／はじめから 聞く」（skipIntro）
+ *   already 前置きが もとから 短い（2回目は 2ページ まで、または 大写しから）：聞かない
+ *   goesOn  やめても 残りを 人が して 先へ 進む（話しかけ直す ことが ない）
+ *   none    大写しに やめる 札が ない（見るだけ・選ぶだけ）
+ * ids：その 寄り道の 大写しの howto.id。pages：やめた あとの 前置き（今 → すぐ やる）。
+ */
+export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' | 'goesOn' | 'none'; pages: string }> = {
+  // ---- 第2章
+  flag_an_start: { ids: ['akinasu'], how: 'already', pages: '0（株を 調べると すぐ）' },
+  flag_as_start: { ids: ['asairo', 'asairo_kumo'], how: 'already', pages: '2〜3（その 露の 地の文。見る 物の 説明なので 残す）' },
+  flag_ashiato_start: { ids: ['uribo'], how: 'ask', pages: '7〜8 → 0（親子が 出る 絵は 残す）' },
+  flag_bm_start: { ids: ['busmaku'], how: 'already', pages: '1（続きから）' },
+  flag_hg_start: { ids: ['hg_mizu', 'hg_hi'], how: 'ask', pages: '12 → 0（かまどを もう1回 見てから ペロへ、は 今の まま）' },
+  flag_ky_start: { ids: ['kyuri'], how: 'already', pages: '0' },
+  flag_hn_start: { ids: [], how: 'none', pages: '穂を 見て 選ぶ だけ' },
+  flag_hm_start: { ids: ['himo'], how: 'already', pages: '1（待って！は 1回きり）' },
+  flag_ku_start: { ids: ['kutsu'], how: 'already', pages: '0' },
+  flag_mimi_start: { ids: ['mimi'], how: 'already', pages: '2' },
+  flag_mg_start: { ids: ['mg_pump', 'mg_tarai', 'mg_kae'], how: 'already', pages: '2・2・2' },
+  flag_nr_start: { ids: ['neru'], how: 'ask', pages: '3 → 0' },
+  flag_saku_start: { ids: ['sakuzoi'], how: 'already', pages: '2（2回目からの 短い 文）' },
+  flag_ub_start: { ids: ['ushibana'], how: 'already', pages: '0' },
+  flag_shikishi_start: { ids: [], how: 'none', pages: '大写し なし' },
+  flag_ss_start: { ids: ['shishito'], how: 'ask', pages: '3 → 0（はじめての 1回が すむ まで）' },
+  flag_uz_start: { ids: ['uzu'], how: 'ask', pages: '8 → 0（前は やめると 始め直せなかった：直した）' },
+  flag_yw_start: { ids: [], how: 'none', pages: 'とうもろこしは 見て 選ぶ だけ' },
+  // ---- 第3章
+  flag_ab_start: { ids: ['abura'], how: 'ask', pages: '8 → 0' },
+  flag_im_start: { ids: ['imo'], how: 'ask', pages: '11 → 0' },
+  flag_iso_start: { ids: ['iso'], how: 'already', pages: '0' },
+  flag_kr_start: { ids: [], how: 'none', pages: '大写し なし' },
+  flag_ag_start: { ids: ['amigoya'], how: 'already', pages: '1' },
+  flag_mh_start: { ids: ['mahiru'], how: 'already', pages: '2' },
+  flag_mk_start: { ids: ['mikan'], how: 'already', pages: '1' },
+  flag_mz_start: { ids: ['mizukiri'], how: 'already', pages: '0' },
+  flag_ng_start: { ids: [], how: 'none', pages: '大写し なし' },
+  flag_sk_start: { ids: ['sakana'], how: 'already', pages: '1' },
+  flag_tk_start: { ids: ['tokoro'], how: 'goesOn', pages: 'やめると 残りは ナミエが 突く' },
+  flag_yd_start: { ids: ['yose'], how: 'ask', pages: '3 → 0' },
+};
+
+/** Was one of these close-ups quit with もどる (and not opened since)? */
+export function quitBefore(...ids: string[]): boolean {
+  return ids.some((id) => flag(yameFlag(id)) > 0);
+}
+
+const SKIP_ASK = '@sys\nこの 話は、前に 聞いた。\n? すぐ やる | はじめから 聞く';
+/** QA: the last asks (ids, the answer). */
+const skipLog: { ids: string[]; skip: boolean; at: number }[] = [];
+
+/**
+ * Before a side errand's opening talk: if one of its close-ups was quit last time, ask
+ * 「すぐ やる／はじめから 聞く」. true = skip the talk and go straight to the close-up.
+ * (Not quit: nothing is asked, false.)
+ */
+export function* skipIntro(...ids: string[]): Co<boolean> {
+  if (!quitBefore(...ids)) return false;
+  const r = yield* runMsg(SKIP_ASK);
+  const skip = r === 0;
+  skipLog.push({ ids, skip, at: Math.round(game.time) });
+  return skip;
+}
+
 
 // ---------------------------------------------------------------- state
 
@@ -108,6 +187,7 @@ function cardDue(w: Widget): boolean {
 export function quitCloseup(w: Widget): void {
   if (!canQuit(w)) return;
   sfx('se_closeup_yame');
+  if (w.howto) setFlag(yameFlag(w.howto.id), 1);
   const name = w.constructor?.name ?? '?';
   if (w.quit?.()) {
     quitLog.push({ name, how: 'self', at: game.time });
@@ -142,6 +222,8 @@ game.ui.closeupHooks = {
   pushed(w) {
     owner.set(w, Task.current);
     pushedAt.set(w, game.time);
+    // (opened again: a quit before is done with — finished now, or quit again and set again)
+    if (w.howto && flag(yameFlag(w.howto.id))) setFlag(yameFlag(w.howto.id), 0);
   },
   input(w: Widget, input: Input): boolean {
     if (quitting.has(w)) return true;
@@ -308,6 +390,17 @@ function drawPic(g: Gfx, pic: HowtoPic, x: number, y: number, w: number, h: numb
     keyW = bigKey(g, ok, kx, keyTop, down, lit)[1];
     fingerAt(kx, down ? 4 : -2);
   };
+  /**
+   * Two parts side by side (the arrows / the squares on the left, the けってい key on the right),
+   * spaced by their real widths: the touch key 「けってい」 is wide, and with fixed spots it lay
+   * over the arrows (改善会議 10-26 の5). Returns the centres [left, right].
+   */
+  const sides = (leftW: number): [number, number] => {
+    const rightW = keycap(ok).width * 2;
+    const total = leftW + 10 + rightW;
+    const l = Math.round(cx - total / 2 + leftW / 2);
+    return [l, Math.round(cx + total / 2 - rightW / 2)];
+  };
   if (pic === 'tap') {
     const c = t % 1100;
     const down = c < 160;
@@ -349,12 +442,83 @@ function drawPic(g: Gfx, pic: HowtoPic, x: number, y: number, w: number, h: numb
     const hit = c >= 1000 && c < 1180;
     press(cx, hit);
     burst(g, cx, keyTop - 2, hit ? (c - 1000) / 180 : 0, 5);
-  } else if (pic === 'lr' || pic === 'ud' || pic === 'aim') {
+  } else if (pic === 'keep') {
+    // 押しつづける: pressed and kept down — the key stays lit, the dots go on counting; only at
+    // the end of the round does it come up (no "let go" arrow: letting go is the end, not the move)
+    const c = t % 2800;
+    const down = c >= 200 && c < 2600;
+    press(cx, down, down);
+    if (down) {
+      const n = Math.min(5, Math.floor((c - 200) / 420) + 1);
+      const dx = cx + Math.round(keyW / 2) + 8;
+      for (let i = 0; i < 5; i++) g.rect(dx, keyTop + 30 - i * 7, 5, 4, i < n ? UI.accent : '#D8D2C4');
+      // the finger's strain: two short strokes beside it, in turn
+      const k = Math.floor(c / 220) % 2;
+      g.rect(cx - Math.round(keyW / 2) - 7, keyTop - 10 + k * 3, 3, 1, UI.accent);
+      g.rect(cx - Math.round(keyW / 2) - 6, keyTop - 5 - k * 3, 3, 1, UI.accent);
+    }
+  } else if (pic === 'pick') {
+    // えらんで 置く: a cursor steps over the squares, けってい puts the mark in the one it is on
+    const COLS = 3;
+    const cw = 14;
+    const ch = 12;
+    const [lc, rc] = sides(COLS * cw);
+    const gx = lc - Math.round((COLS * cw) / 2);
+    const gy = y + 14;
+    const c = t % 2800;
+    const path = [0, 1, 4];
+    const at = path[Math.min(path.length - 1, Math.floor(c / 480))];
+    const marked = c >= 1560;
+    for (let i = 0; i < 6; i++) {
+      const x0 = gx + (i % COLS) * cw;
+      const y0 = gy + Math.floor(i / COLS) * ch;
+      g.rect(x0, y0, cw - 1, ch - 1, UI.cream);
+      g.frame(x0 - 1, y0 - 1, cw + 1, ch + 1, '#B8AE98');
+      if (marked && i === at) {
+        g.rect(x0 + 4, y0 + 3, 5, 5, UI.accent);
+        g.rect(x0 + 3, y0 + 4, 7, 3, UI.accent);
+      }
+    }
+    const cx0 = gx + (at % COLS) * cw;
+    const cy0 = gy + Math.floor(at / COLS) * ch;
+    g.frame(cx0 - 2, cy0 - 2, cw + 3, ch + 3, c < 1500 ? UI.border : UI.accent);
+    const down = c >= 1500 && c < 1680;
+    press(rc, down);
+    burst(g, rc, keyTop - 2, down ? (c - 1500) / 180 : 0);
+  } else if (pic === 'aim') {
+    // the cross (each arrow lit in turn), then the けってい key pressed
+    const keys = deviceKeys(['up', 'down', 'left', 'right']);
+    const c = t % 2400;
+    const [ax, rc] = sides(keys.length < 4 ? keycap(keys[0]).width * 2 : keycap('up').width * 3 + 2);
+    if (keys.length < 4) bigKey(g, keys[0], ax, keyTop, c < 1500 && c % 500 < 250);
+    else {
+      // the four arrow keys as a cross, at their own size (2× would not fit the picture)
+      const turn = c < 1500 ? Math.floor(c / 375) : -1;
+      const cap = keycap('up');
+      const cw = cap.width;
+      const chh = cap.height;
+      const spots: [GuideKey, number, number][] = [
+        ['up', ax - Math.round(cw / 2), y + 1],
+        ['right', ax + Math.round(cw / 2) + 1, y + 2 + chh],
+        ['down', ax - Math.round(cw / 2), y + 3 + chh * 2],
+        ['left', ax - Math.round(cw / 2) - cw - 1, y + 2 + chh],
+      ];
+      spots.forEach(([k, kx, ky], i) => {
+        const on = i === turn;
+        g.img(keycap(k), kx, ky + (on ? 1 : 0));
+        if (on) g.rect(kx + 1, ky + 2, cw - 2, chh - 5, UI.border, 0.12);
+      });
+    }
+    const down = c >= 1700 && c < 1880;
+    press(rc, down);
+    burst(g, rc, keyTop - 2, down ? (c - 1700) / 180 : 0);
+  } else if (pic === 'lr' || pic === 'ud') {
     // the arrows (lit in turn), then the けってい key pressed
     const arrows: GuideKey[] = pic === 'ud' ? ['up', 'down'] : ['left', 'right'];
     const keys = deviceKeys(arrows);
     const c = t % 2400;
-    const ax = cx - 34;
+    const capW = keycap(keys[0]).width * 2;
+    const [ax, rc] = sides(keys.length === 1 ? capW : capW * 2 + 4);
     if (keys.length === 1) bigKey(g, keys[0], ax, keyTop, c < 1500 && c % 500 < 250);
     else {
       const cap = keycap(keys[0]);
@@ -363,8 +527,8 @@ function drawPic(g: Gfx, pic: HowtoPic, x: number, y: number, w: number, h: numb
       bigKey(g, keys[1], ax + gap / 2, keyTop, c < 1500 && c % 1000 >= 500 && c % 1000 < 900);
     }
     const down = c >= 1700 && c < 1880;
-    press(cx + 34, down);
-    burst(g, cx + 34, keyTop - 2, down ? (c - 1700) / 180 : 0);
+    press(rc, down);
+    burst(g, rc, keyTop - 2, down ? (c - 1700) / 180 : 0);
   }
 }
 
@@ -526,6 +690,25 @@ registerDebug('closeupInfo', () => {
   };
 });
 registerDebug('closeupFlags', () => ({ ...state.flags }));
+/** QA：前置きを 短く（10-26 の 3）。今 立っている yame_、聞いた 記録、表。 */
+registerDebug('yameInfo', () => ({
+  yame: Object.keys(state.flags).filter((k) => k.startsWith('yame_') && state.flags[k] > 0),
+  asks: skipLog.slice(-8),
+  table: INTRO_SKIP,
+}));
+/** QA：寄り道の 表（audio/yorimichi.ts）と この 表の 食いちがい。 */
+registerDebug('introCheck', () => {
+  return {
+    missing: Object.keys(YORIMICHI_START).filter((k) => !(k in INTRO_SKIP)),
+    extra: Object.keys(INTRO_SKIP).filter((k) => !(k in YORIMICHI_START)),
+    ask: Object.keys(INTRO_SKIP).filter((k) => INTRO_SKIP[k].how === 'ask'),
+  };
+});
+/** QA：この 大写しを やめた 形に（`on` = 0 で 戻す）。 */
+registerDebug('yameSet', (id?: unknown, on: unknown = 1) => {
+  setFlag(yameFlag(String(id)), Number(on));
+  return quitBefore(String(id));
+});
 registerDebug('closeupQuit', () => {
   const w = topCloseup();
   if (w) quitCloseup(w);

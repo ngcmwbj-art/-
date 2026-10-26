@@ -32,6 +32,7 @@ import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
 import type { Howto } from '../../ui/closeup';
+import { skipIntro } from '../../ui/closeup';
 import * as T from '../../data/text/c3_imo';
 import { IM_UI } from '../../data/text/c3_imo';
 import { addMp, grace } from '../lib';
@@ -433,7 +434,9 @@ function* imo(): Co {
     h.dir = 'left';
   }
   try {
-    yield* say(T.IM_A);
+    // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら 前置きを とばして 焼き始めから
+    const skip = yield* skipIntro(IM_UI.howto.id);
+    if (!skip) yield* say(T.IM_A);
     const p = new ImoPanel();
     p.auto = qaAuto;
     p.autoKyou = qaKyou;
@@ -441,9 +444,11 @@ function* imo(): Co {
       yield* openPanel(p);
       setFlag(IMF.cook, 1);
       se('se_examine', { vol: 0.4 });
-      yield* say3(T.IM_NARABE);
-      yield* say(T.IM_B);
-      if (flag('flag_aqura_hiro')) yield* say3(T.IM_MAMIZU);
+      if (!skip) {
+        yield* say3(T.IM_NARABE);
+        yield* say(T.IM_B);
+        if (flag('flag_aqura_hiro')) yield* say3(T.IM_MAMIZU);
+      }
       // 3 待つ → 1ページ → 待つ →「今じゃ」返す → 待つ → 3ページ → 待つ → 串
       yield* waitCook(p, 0.3);
       yield* say3(T.IM_MATSU_1);

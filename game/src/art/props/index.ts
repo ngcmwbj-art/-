@@ -62,6 +62,8 @@ import './kyuri_art';
 import './imo_art';
 // 切ったら、また なる：区長の 家の 西の 路地の ナスの 株（02_ch2_index）
 import './akinasu_art';
+// 寝とる うちに、とる（02_ch2_index）：上の 畑の レタス・コンテナ・霧吹き・ネットの 戸
+import './retasu_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

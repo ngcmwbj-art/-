@@ -13,7 +13,9 @@
    - `node tools/playthrough.mjs`（第1章）
    - `node tools/playthrough.mjs --chapter 2`（第2章）
    - `node tools/playthrough.mjs --chapter 2 --side barnwork,delivery,sawa`（寄り道。ほかに ekinote・nihyaku・dome・wakime・sawako・gate・talk）
+   - 止まったとき（状態が `--stall` ミリ秒〈既定 45000、HD-2D は ×4〉変わらない、または待ちが切れた）：`<out>/stall_NN.png`・`stall_NN.json`（画面、top scene、地図、会話の窓、動いているコルーチンと待っている物、フラグ）と summary.json の `stalls`。同じ所を何回も回すときは近くから：`--chapter 3 --from ending`（エンディングだけ）
 4. 文の検査（ブラウザのコンソール、またはスクリプトから）：`__game.cmd.textcheck2()`、`__game.cmd.wrapCheck()`
+   - 書く前・書いたあとの点検（読むだけ。サーバーいらず）：`node tools/textlint.mjs`。(a) 天丼の割り当て表（50 2.5・60 2.6）をこえる回数と、同じ人の同じ言い出しが別の台本に出る物、(b) 1ページに朱が2語以上、(c) 場所の名前の札が出ない地図、(d) 負けたあと「戦う前から やりなおす」が出ない戦闘、を一覧にする。げむきかの案を書く前は、使う決めゼリフ・口ぐせを `node tools/textlint.mjs --only a | grep 言葉` で確かめる。`--all`（同じファイルの中の重なりも）・`--pg`（クリア後の話も）・`--json <file>`
 5. 画面写真：`node tools/shot.mjs --out <dir> --scale 3 --inline '[{"eval":"__game.cmd.warp(...)"},{"shot":"a.png"}]'`
 6. 公開用の1枚 HTML：`npm run artifact:ch2` → `dist-artifact/shun-ch2.html`。ビルドで public/fonts/game.woff2 が変わることがある（変わったら一緒にコミット）。
 - 手動確認：iPad 実機（依頼主）での見え方、音が最初の操作のあとに鳴ること。

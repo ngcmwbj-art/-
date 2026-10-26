@@ -212,6 +212,8 @@ export const HOSHI_MAP_NAMES: Record<string, string> = {
   map_hoshi_sakuzoi: '上の 柵ぞい',
   // 裏の とうもろこし畑（02_ch2_index #106）
   map_hoshi_ura_hata: '裏の とうもろこし畑',
+  // 上の 畑（02_ch2_index、寝とる うちに、とる）
+  map_hoshi_ue_hata: '上の 畑',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };

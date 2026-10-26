@@ -79,6 +79,8 @@ import { drawUbPage, hasUbPage, UB_ROW_LABEL } from './book_ushibana';
 import { drawKyPage, hasKyPage, KY_ROW_LABEL } from './book_kyuri';
 // ② の すみ『切ったら、また なる』（02_ch2_index）
 import { drawAnPage, hasAnPage, AN_ROW_LABEL } from './book_akinasu';
+// ② の すみ『寝とる うちに、とる』（02_ch2_index）
+import { drawRtPage, hasRtPage, RT_ROW_LABEL } from './book_retasu';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
@@ -105,6 +107,7 @@ import { drawMkPage, hasMkPage, MK_ROW_LABEL } from './book_mikan';
 import { drawKrPage, hasKrPage, KR_ROW_LABEL } from './book_kori';
 // ③の すみ『破れたら、つくろう』（第3章の クリア前、03_ch3_index）
 import { AG_ROW_LABEL, drawAgPage, hasAgPage } from './book_amigoya';
+import { drawHsPage, hasHsPage, HS_ROW_LABEL } from './book_housou';
 // ③の すみ『背中から、1回で』（第3章の クリア前、03_ch3_index）
 import { drawNgPage, hasNgPage, NG_ROW_LABEL } from './book_nukegara';
 // ③の すみ『つるっと、終われる』（第3章の クリア前、03_ch3_index）
@@ -130,6 +133,7 @@ function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasMkPage()) r.push({ label: MK_ROW_LABEL, draw: drawMkPage });
   if (hasKrPage()) r.push({ label: KR_ROW_LABEL, draw: drawKrPage });
   if (hasAgPage()) r.push({ label: AG_ROW_LABEL, draw: drawAgPage });
+  if (hasHsPage()) r.push({ label: HS_ROW_LABEL, draw: drawHsPage });
   if (hasNgPage()) r.push({ label: NG_ROW_LABEL, draw: drawNgPage });
   if (hasTkPage()) r.push({ label: TK_ROW_LABEL, draw: drawTkPage });
   if (hasAbPage()) r.push({ label: AB_ROW_LABEL, draw: drawAbPage });
@@ -165,6 +169,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasUbPage()) r.push({ label: UB_ROW_LABEL, draw: drawUbPage });
   if (hasKyPage()) r.push({ label: KY_ROW_LABEL, draw: drawKyPage });
   if (hasAnPage()) r.push({ label: AN_ROW_LABEL, draw: drawAnPage });
+  if (hasRtPage()) r.push({ label: RT_ROW_LABEL, draw: drawRtPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

@@ -41,6 +41,7 @@ import { ch2Open, hStage } from './common';
 import { deliveryOn, deliveryOpen } from './tsugao';
 import { mgPokosha } from './mushigomu';
 import { HOWTO } from '../../data/text/howto';
+import { quitBefore, skipIntro } from '../../ui/closeup';
 
 export const UF = {
   heard: 'flag_uz_heard',
@@ -352,11 +353,15 @@ function* tryOnce(who: 'kn' | 'shun', rule: boolean): Co<UzResult> {
 
 /** 1〜6。 */
 function* uzu(): Co {
+  // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら 蚊の 話を とばして 大写しから
+  const skip = yield* skipIntro(HOWTO.uzu.id);
   setFlag(UF.start, 1);
-  se('se_h_ka', { vol: 0.5 });
-  yield* say(T.UZ_A);
   const kn = kanenariHere();
-  if (!kn) yield* say(T.UZ_A_SOLO);
+  if (!skip) {
+    se('se_h_ka', { vol: 0.5 });
+    yield* say(T.UZ_A);
+    if (!kn) yield* say(T.UZ_A_SOLO);
+  }
   // 2 1回目（グソっ君。いなければ しゅん）は 外側の はしで 折れる、2回目は しゅん
   yield* tryOnce('kn', true);
   const r = yield* tryOnce('shun', false);
@@ -406,6 +411,11 @@ export function* uzPokosha(): Co<boolean> {
   if (!uzOpen()) return false;
   if (!flag(UF.start)) {
     if (!flag(UF.heard) || !flag('flag_seen_npc_pokosha_h0_1')) return false;
+    yield* uzu();
+    return true;
+  }
+  // (もどるで やめた あと：話しかけ直すと 最初から。前は 始まりの flag が 立った まま 今の 会話に もどって いた)
+  if (!flag(UF.done) && !flag(UF.how) && quitBefore(HOWTO.uzu.id)) {
     yield* uzu();
     return true;
   }

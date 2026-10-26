@@ -55,6 +55,9 @@ import './tokoro';
 // 急かすと、甘うならん（げむきか 10/25 の 案3）：段階3、S17 の あと 水槽の うらの ヒロスケ → 大写し「焼き芋の 窓」
 // （S19 の 前まで。S21 の 1ページは souko.ts）。aq_ura の ヒロスケ・台車を 包むので、aq_ura の あとに import する
 import './imo';
+// 終わりの 音は、下がる（げむきか 10-26 の 案3）：段階3、入口の 北の 壁の 戸 → 放送室（新しい 地図。S20 の 前まで）。
+// aq の 入口の スピーカー・深海の 展示室の 放送（S18）を 包むので、aq の あとに import する（S25 の 放送は minna.ts から 呼ぶ）
+import './housou';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

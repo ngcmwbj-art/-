@@ -62,6 +62,8 @@ const MAPS = new Set([
   'map_hoshi_sakuzoi',
   // 裏の とうもろこし畑（湯を わかしてから、02_ch2_index #106）
   'map_hoshi_ura_hata',
+  // 上の 畑（寝とる うちに、とる、02_ch2_index）
+  'map_hoshi_ue_hata',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
   // 沖の ブイの 下（海の 水で 寄せる、03_ch3_index 28）

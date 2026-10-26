@@ -33,6 +33,8 @@ import './hoshi_urayama';
 import './hoshi_sakuzoi';
 // 裏の とうもろこし畑（シゲじいと スギばあの 家の 勝手口から。湯を わかしてから、02_ch2_index #106）
 import './hoshi_ura_hata';
+// 上の 畑（寝とる うちに、とる。02_ch2_index）
+import './hoshi_ue_hata';
 import './hoshi_fx';
 // 第3章『海ぞいの町の いただきます』（62_ch3_level_art）：海ぞいの町と軽トラの荷台
 import './umizoi';
@@ -58,3 +60,5 @@ import './c3_mikan_ue';
 import './c3_kori';
 // 網小屋（破れたら、つくろう 03_ch3_index、events/ch3/amigoya.ts）
 import './c3_amigoya';
+// 放送室（終わりの 音は、下がる 03_ch3_index、events/ch3/housou.ts）
+import './c3_housou';

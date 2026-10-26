@@ -34,6 +34,7 @@ import { se } from '../ch2/compat';
 import { c3Stage, c3Town, inCh3, say3 } from './common';
 import { anyFlag } from './talked';
 import { HOWTO } from '../../data/text/howto';
+import { skipIntro } from '../../ui/closeup';
 
 export const AF = {
   desk: 'flag_ab_desk',
@@ -327,15 +328,17 @@ function* abura(): Co {
     yk.dir = 'left';
   }
   try {
+    // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら 前置きと やり方を とばして 1本目から
+    const skip = yield* skipIntro(HOWTO.abura.id);
     se('se_c3_spatula', { vol: 0.5 });
-    yield* say3(T.AB_A);
+    if (!skip) yield* say3(T.AB_A);
     const p = new HeraPanel();
     p.auto = qaAuto;
     p.autoBeta = qaBeta;
     const deki: ('kuro' | 'beta')[] = [];
     try {
       yield* openPanel(p);
-      yield* say3(T.AB_RULE);
+      if (!skip) yield* say3(T.AB_RULE);
       deki.push(yield* oneHera(p, 0));
       // 3 待っている（廊下の 先から）
       yield 300;

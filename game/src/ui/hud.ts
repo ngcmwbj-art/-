@@ -11,7 +11,7 @@ import { PixelCanvas } from '../engine/pixel';
 import { H, W } from '../engine/screen';
 import type { Co } from '../engine/co';
 import { ease } from '../engine/tween';
-import { flag, state } from '../game/state';
+import { flag, onFlagRaised, state } from '../game/state';
 import { isKeyItem, getItem } from '../data/battle';
 import { sfx } from '../audio';
 import * as worldHudMod from '../world/hud';
@@ -24,7 +24,10 @@ import { prepareVillageLit } from './cut_village_lit';
 import { prepareSunrise } from './cut_sunrise';
 import { clearCallBubbleUi, drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
 import { drawDigits, drawNumerals, numeralsWidth } from './digits';
-import { dialogTop } from './dialog';
+import { dialogTop, dialogVisible } from './dialog';
+import { YORIMICHI_START } from '../audio/yorimichi';
+import { registerDebug } from '../debug';
+import { YORIMICHI_LEN, YORI_LEN_WORD } from '../data/yorimichi_len';
 import { hudHanko, itemIcon24 } from './icons';
 import { syncSettingFlags } from './settings';
 import { autosaveTick, setAutosaveClock } from './autosave';
@@ -326,6 +329,8 @@ const HOSHI_PLACE: Record<string, string> = {
   map_hoshi_sakuzoi: '上の 柵ぞい',
   // 裏の とうもろこし畑（02_ch2_index #106）
   map_hoshi_ura_hata: '裏の とうもろこし畑',
+  // 上の 畑（02_ch2_index、寝とる うちに、とる）
+  map_hoshi_ue_hata: '上の 畑',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };
@@ -427,6 +432,9 @@ function overlaps(a: Rect, b: Rect): boolean {
 
 /** How long a place name waits for the bottom-left corner (a guide note there) before it is let go. */
 const BANNER_WAIT_MAX = 5000;
+/** 寄り道の 長さの 札の 長さ（2秒ほど）と、待つ 長さの 上限（始まりの 会話が 長くても、それより 後には 出さない）。 */
+const YORI_MS = 2000;
+const YORI_WAIT_MAX = 90000;
 /** The washi tape the place name is written on (paler than the orange name tags). */
 const PLACE_TAPE = '#EFE4C8';
 
@@ -520,6 +528,12 @@ class UiHud implements FieldHud {
   private pgHopT = 999;
   /** flag_pg_secret as last seen (-1: not yet looked this session). */
   private pgSecretSeen = -1;
+  // 寄り道の 長さの 札（改善会議 10-26 の 2）：始まりの flag で 待ち、会話の 窓が 閉じたら 上の まん中に 2秒
+  private yoriPending: { text: string; wait: number; flag: string } | null = null;
+  private yori: (Banner & { flag: string }) | null = null;
+  private yoriLast = 0;
+  /** QA: the tags put up (text, flag, game.time). */
+  readonly yoriLog: { text: string; flag: string; at: number }[] = [];
 
   show(ms = 4000): void {
     this.showT = Math.max(this.showT, ms);
@@ -751,7 +765,7 @@ class UiHud implements FieldHud {
     const free = f.controllable && !f.warping && game.fadeAlpha < 0.05;
     const corner = game.ui.widgets.some((w) => !w.modal && !w.done);
     if (this.pendingPlace) {
-      if (free && !corner) this.placeDelay -= dt;
+      if (free && !corner && !this.yori) this.placeDelay -= dt;
       else if (free) {
         this.placeWait += dt;
         // the moment has passed: don't bring an old name up late
@@ -885,6 +899,8 @@ class UiHud implements FieldHud {
     this.pgNotice = null;
     this.pgHopT = 999;
     this.pgSecretSeen = -1;
+    this.yori = null;
+    this.yoriPending = null;
     pgClockRunReset();
     curtain.a = 0;
     clearCallBubbleUi();
@@ -926,6 +942,60 @@ class UiHud implements FieldHud {
 
   showBanner(text: string, dur = 2600): void {
     this.banner = this.placeBanner(text, dur);
+  }
+
+  /** 寄り道が 始まった（その 始まりの flag）：長さの 札を 待たせる（表に ない 物は 出さない）。 */
+  yoriStart(id: string): void {
+    const len = YORIMICHI_LEN[id];
+    if (!len || !flag('flag_opening_done')) return;
+    this.yoriPending = { text: YORI_LEN_WORD[len], wait: 0, flag: id };
+  }
+
+  /**
+   * 寄り道の 長さの 札（game.overlays：大写しの 上にも 出る）。形と 出し方は 場所の 名前と 同じ
+   * （和紙テープを 左から 貼って、終わりに はがす）。場所は 画面の 上の まん中（上に 会話の 窓が
+   * あれば その 下）。会話の 窓・やりかたの カード・場所の 名前・持ち物の 付箋が ある 間は 待って、順に。
+   */
+  drawYori(g: Gfx): void {
+    const dt = Math.max(0, Math.min(100, game.time - this.yoriLast));
+    this.yoriLast = game.time;
+    const f = this.field;
+    const onField = !!f && game.top === f && game.frame - this.lastFrame <= 2 && !menuUp();
+    if (!onField || flag('flag_hud_hidden')) {
+      this.yori = null;
+      if (this.yoriPending && (this.yoriPending.wait += dt) > YORI_WAIT_MAX) this.yoriPending = null;
+      return;
+    }
+    const p = this.yoriPending;
+    if (p && !this.yori) {
+      const clear = !dialogVisible() && !game.ui.hold && !this.banner && !this.cards.some((c) => c.t >= 0) && game.fadeAlpha < 0.05;
+      if (clear) {
+        const w = textW(p.text) + 18;
+        this.yori = { text: p.text, t: 0, dur: YORI_MS, x: Math.round((W - w) / 2), y: 8, flag: p.flag };
+        this.yoriPending = null;
+        this.yoriLog.push({ text: p.text, flag: p.flag, at: Math.round(game.time) });
+      } else if ((p.wait += dt) > YORI_WAIT_MAX) this.yoriPending = null;
+    }
+    const b = this.yori;
+    if (!b) return;
+    // (the howto card over the close-up: the tag waits under it, not drawn)
+    if (game.ui.hold) return;
+    b.t += dt;
+    if (b.t > b.dur) {
+      this.yori = null;
+      return;
+    }
+    const top = dialogTop();
+    b.y = top !== null && top < 100 ? top + 64 + 8 : 8;
+    const k = 1 - Math.min(1, game.fadeAlpha);
+    if (k <= 0) return;
+    if (k < 1) g.alpha(k, () => this.drawBanner(g, b));
+    else this.drawBanner(g, b);
+  }
+
+  /** QA: the length tag now (up / waiting) and the ones shown. */
+  yoriInfo(): { up: string | null; pending: string | null; log: { text: string; flag: string; at: number }[] } {
+    return { up: this.yori?.text ?? null, pending: this.yoriPending?.text ?? null, log: this.yoriLog.slice(-8) };
   }
 
   /**
@@ -1151,6 +1221,24 @@ class UiHud implements FieldHud {
 }
 
 export const uiHud = new UiHud();
+
+// 寄り道の 長さの 札（改善会議 10-26 の 2）：始まりの flag（audio/yorimichi.ts の 表）が 0 から 立った とき
+onFlagRaised((id) => {
+  if (id in YORIMICHI_START) uiHud.yoriStart(id);
+});
+game.overlays.push((g) => uiHud.drawYori(g));
+if (import.meta.env.DEV) {
+  /** QA：寄り道の 長さの 札（今 出ている・待っている・出した 記録）。 */
+  registerDebug('yoriInfo', () => uiHud.yoriInfo());
+  /** QA：長さの 表と 始まりの flag の 表の 食いちがい（missing：長さが ない、extra：始まりの 表に ない）。 */
+  registerDebug('yoriLenCheck', () => {
+    const start = Object.keys(YORIMICHI_START);
+    const missing = start.filter((k) => !(k in YORIMICHI_LEN));
+    const extra = Object.keys(YORIMICHI_LEN).filter((k) => !(k in YORIMICHI_START));
+    const wide = Object.values(YORI_LEN_WORD).filter((t) => textW(t) + 18 > 160);
+    return { n: start.length, missing, extra, wide, short: Object.keys(YORIMICHI_LEN).filter((k) => YORIMICHI_LEN[k] === 'short') };
+  });
+}
 
 /**
  * 第3章の時計（60_ch3_story 4.4）。null: 第3章ではない（またはエンディングで

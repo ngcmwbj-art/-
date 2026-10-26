@@ -46,6 +46,7 @@ import { se } from '../ch2/compat';
 import { addToMap, c3Stage, inCh3, kita, say3 } from './common';
 import { anyFlag } from './talked';
 import { HOWTO } from '../../data/text/howto';
+import { skipIntro } from '../../ui/closeup';
 
 export const YF = {
   heard: 'flag_yd_heard',
@@ -316,7 +317,7 @@ let qaOboro = false;
 let qaShoppai = false;
 
 /** 4 ひと回し：でき（1 寄せ・2 おぼろ・3 しょっぱい）と しょっぱいか。 */
-function* nabe(): Co<{ deki: number; salty: boolean }> {
+function* nabe(skip = false): Co<{ deki: number; salty: boolean }> {
   const p = new NabePanel();
   p.auto = qaAuto;
   p.autoOboro = qaOboro;
@@ -324,7 +325,7 @@ function* nabe(): Co<{ deki: number; salty: boolean }> {
   let salty = false;
   try {
     yield* openPanel(p);
-    yield* say3(T.YD_RULE);
+    if (!skip) yield* say3(T.YD_RULE);
     for (;;) {
       p.stopped = false;
       p.active = true;
@@ -365,8 +366,10 @@ function* yoseStart(): Co {
 
 /** 4〜6（くんだ びんを 持って 屋台に もどる）。 */
 function* yoseNabe(): Co {
-  yield* say3(T.YD_BACK);
-  const r = yield* nabe();
+  // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら もどった ときの 話と やり方を とばす
+  const skip = yield* skipIntro(HOWTO.yose.id);
+  if (!skip) yield* say3(T.YD_BACK);
+  const r = yield* nabe(skip);
   setFlag(YF.deki, r.deki);
   // 5 しょうゆ、いらん
   yield* say3(r.salty ? T.YD_AJI_SHOPPAI : T.YD_AJI);

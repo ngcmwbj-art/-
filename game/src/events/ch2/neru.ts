@@ -50,6 +50,7 @@ import { se } from './compat';
 import { hStage, lanternOn, npc } from './common';
 import { choresOn } from './barn';
 import { HOWTO } from '../../data/text/howto';
+import { skipIntro } from '../../ui/closeup';
 
 export const NF = {
   kiritsu: 'flag_nr_kiritsu',
@@ -539,12 +540,14 @@ let qaBumpy = false;
 
 /** 3 かき出す。true：4つ ぜんぶ。 */
 function* kakidasu(): Co<boolean> {
+  // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら マサルの 前置きを とばす
+  const skip = yield* skipIntro(HOWTO.neru.id);
   const p = new YukaPanel('kaki');
   p.auto = qaAuto;
   let all = false;
   try {
     yield* openPanel(p);
-    yield* say(T.NR_KAKI_START);
+    if (!skip) yield* say(T.NR_KAKI_START);
     for (;;) {
       if (wetN() >= 4) {
         all = true;

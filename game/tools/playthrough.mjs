@@ -80,6 +80,12 @@
 // screen's edge through HD-2D's camera (world/placecheck.ts talkEdgeLog): one line at the end
 // ("talk edge: …"), summary.talkEdge, the first ones' pictures as <out>/talkedge_NN.png.
 // Screenshots: <out>/NN_<beat>_*.png. Result: stdout + <out>/summary.json. Exit code 1 on failure.
+// Stalls (改善会議 2026-10-26 の1): when the state stands still for --stall ms (default 45000, ×
+// --slow) while the bot presses on, or a wait runs out, <out>/stall_NN.png and stall_NN.json keep
+// the picture and the state (top scene, widgets and the dialog window, map, player, fade, the
+// running coroutines and what each waits on, the flags); summary.stalls lists them. To measure
+// how often a place stops, run it again and again from near it, e.g. the chapter-3 ending
+// (--chapter 3 --from ending runs evt_ch3_ending itself; --from taikin comes into it from S26).
 
 import { chromium } from 'playwright';
 import fs from 'node:fs';
@@ -122,7 +128,7 @@ const checks = [];
 const travelLog = { walked: 0, skipped: 0, battles: 0 };
 
 fs.mkdirSync(OUT, { recursive: true });
-for (const f of fs.readdirSync(OUT)) if (/^\d\d_.*\.png$/.test(f) || f === 'summary.json') fs.rmSync(path.join(OUT, f));
+for (const f of fs.readdirSync(OUT)) if (/^\d\d_.*\.png$/.test(f) || /^stall_\d\d\.(png|json)$/.test(f) || f === 'summary.json') fs.rmSync(path.join(OUT, f));
 
 const browser = await chromium.launch({
   headless: !HEADED,
@@ -204,6 +210,111 @@ function st() {
 
 const flag = (id) => page.evaluate((i) => window.__game.cmd.flag(i), id);
 
+// ------------------------------------------------------------------ stalls (改善会議 2026-10-26 の1)
+// When the game stops moving on (the same picture of the state for --stall ms, stretched by
+// SLOW, while the bot presses on), or a wait runs out, what was on screen is kept:
+// <out>/stall_NN.png and <out>/stall_NN.json (the top scene and the widget stack, the map and
+// the player, the fade, the dialog window's speaker / page / text, every running coroutine —
+// how deep its stack is and what it waits on: ms, a promise, or the source of its predicate,
+// e.g. `() => a.animDone()` — and the story flags), and summary.stalls lists them.
+// "The same state" leaves out the clocks (game.time, waitMs, animT): only what the player
+// would see change — the scene, the page and the text typed so far, the people's tiles and
+// poses, the fade, the flags.
+/** No change of the state's picture for this long (ms, × SLOW) = a stall. */
+const STALL_MS = Number(opt('--stall', '45000'));
+const stallLog = [];
+
+/** Everything about where the game is now that a stall record keeps (and its fingerprint). */
+function probe() {
+  return page
+    .evaluate(async () => {
+      const G = window.__game;
+      if (!G) return { top: 'none', fp: 'none' };
+      const g = G.game;
+      const f = G.cmd.fieldRef?.();
+      const widgets = (g.ui?.widgets ?? []).map((w) => {
+        const sp = typeof w.speech === 'function' ? w.speech() : null;
+        return { kind: w.constructor?.name ?? '?', modal: !!w.modal, done: !!w.done, closeup: !!w.closeup, ...(sp ? { name: sp.name, page: sp.page, text: sp.text, typing: sp.typing } : {}) };
+      });
+      const tasks = (g.scripts?.tasks ?? []).map((t) => ({
+        depth: t.stack?.length ?? 0,
+        waitMs: Math.round(t.waitMs ?? 0),
+        waitFn: t.waitFn ? String(t.waitFn).replace(/\s+/g, ' ').slice(0, 160) : null,
+        promise: t.waitPromise ? (t.waitPromise.done ? 'settled' : 'pending') : null,
+      }));
+      let flags = {};
+      try {
+        flags = { ...(await import('/src/game/state.ts')).state.flags };
+      } catch {}
+      const actors = f
+        ? f.actors
+            .filter((a) => a.visible !== false)
+            .map((a) => `${a.id}@${a.tileX},${a.tileY}${a.anim ? ':' + a.anim : ''}${a.tempPose ? '/' + a.tempPose : ''}`)
+        : [];
+      const s = {
+        top: g.top?.constructor?.name ?? '',
+        scenes: (g.scenes ?? g.stack ?? []).map?.((x) => x.constructor?.name) ?? null,
+        map: f?.map?.id ?? null,
+        player: f ? [f.player.tileX, f.player.tileY, f.player.dir] : null,
+        ctrl: !!f?.controllable,
+        fade: Math.round((g.fadeAlpha ?? 0) * 100) / 100,
+        hold: g.ui?.hold ? g.ui.hold.constructor?.name ?? 'card' : null,
+        battle: !!G.cmd.bstate?.(),
+        widgets,
+        tasks,
+        gameTime: Math.round(g.time ?? 0),
+      };
+      const flagStr = Object.entries(flags)
+        .sort()
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',');
+      const fp = JSON.stringify([s.top, s.map, s.player, s.fade, s.hold, s.battle, widgets.map((w) => [w.kind, w.page, w.text]), tasks.map((t) => [t.depth, t.waitFn, t.promise]), actors, flagStr]);
+      return { ...s, actors, flags, fp };
+    })
+    .catch((e) => ({ top: 'none', fp: 'none', error: String(e.message ?? e) }));
+}
+
+/** Watches the state's fingerprint: `.tick()` → ms since it last changed. */
+function stallWatch() {
+  let fp = null;
+  let since = Date.now();
+  let last = null;
+  return {
+    async tick() {
+      last = await probe();
+      if (last.fp !== fp) {
+        fp = last.fp;
+        since = Date.now();
+      }
+      return Date.now() - since;
+    },
+    /** Has it stood still for STALL_MS (× SLOW)? */
+    get stuck() {
+      return late(since, STALL_MS);
+    },
+    get last() {
+      return last;
+    },
+    get still() {
+      return Date.now() - since;
+    },
+  };
+}
+
+/** Keep the picture and the state of now as <out>/stall_NN.{png,json}. */
+async function recordStall(kind, why, extra = {}) {
+  const n = String(stallLog.length).padStart(2, '0');
+  const p = await probe();
+  const png = `stall_${n}.png`;
+  await page.screenshot({ path: path.join(OUT, png) }).catch(() => {});
+  const rec = { n: stallLog.length, kind, why, beat: beatName, atS: Math.round((Date.now() - T0) / 1000), ...extra, png, state: p };
+  fs.writeFileSync(path.join(OUT, `stall_${n}.json`), JSON.stringify(rec, null, 2));
+  const dlg = p.widgets?.find((w) => w.text !== undefined);
+  stallLog.push({ n: stallLog.length, kind, why, beat: beatName, top: p.top, map: p.map, dialog: dlg ? `${dlg.name ?? ''}「${dlg.text}」` : null, waits: (p.tasks ?? []).map((t) => t.waitFn ?? (t.promise ? 'promise' : t.waitMs ? `${t.waitMs}ms` : 'frame')), png });
+  log(`  STALL ${n} (${kind}): ${why} — ${p.top} ${p.map ?? ''} ${dlg ? `「${dlg.text}」` : ''} waits ${JSON.stringify(stallLog[stallLog.length - 1].waits)}`);
+  return rec;
+}
+
 /**
  * --hd2d: is the field drawn in 3D now? (__game.cmd.hd2d(): `field` = this field should be,
  * `frames` = 3D frames drawn so far — they must go up over a short wait where it should.)
@@ -231,7 +342,10 @@ async function waitFor(pred, timeout = 15000, label = 'condition') {
   for (;;) {
     const s = await st();
     if (await pred(s)) return s;
-    if (late(t0, timeout)) throw new Error(`timeout waiting for ${label} (${JSON.stringify(s)})`);
+    if (late(t0, timeout)) {
+      await recordStall('timeout', `waiting for ${label}`);
+      throw new Error(`timeout waiting for ${label} (${JSON.stringify(s)})`);
+    }
     await sleep(120);
   }
 }
@@ -456,7 +570,7 @@ async function alignTile() {
  * are won; an NPC in the way is waited for and walked round; a path that stays blocked is
  * skipped by one run with a teleport (counted in the summary).
  */
-async function travel(tx, ty, { timeout = 90000, into = null } = {}) {
+async function travel(tx, ty, { timeout = 90000, into = null, until = null, onway = {} } = {}) {
   const t0 = Date.now();
   let stalls = 0;
   let lastTile = '';
@@ -487,7 +601,12 @@ async function travel(tx, ty, { timeout = 90000, into = null } = {}) {
           if (w && w.map === into) return w;
           if (w && w.ctrl) continue;
         }
-        await advance({ label: 'onway' });
+        // (`until`: the beat's own goal. An event on the way that is the beat's own — S24's
+        // ヒロスケ・ポコシャ before (7,4) — is pressed through only up to it, not on into the
+        // next beats: 10-25 one run pressed on from S24 through the ending under this
+        // advance's 60 s and ran out at S29 「出来たてだ。」, 改善会議 10-26 の1)
+        await advance({ label: 'onway', ...(until ? { max: 600000, stopAt: until } : {}), ...onway });
+        if (until && (await until(await st()))) return st();
         continue;
       }
       if (s.map !== map0) throw new Error(`travel(${tx},${ty}): walked off ${map0} into ${s.map}`);
@@ -1092,6 +1211,7 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
   let calm = 0;
   let k = 0;
   const out = { presses: 0, battles: [] };
+  const watch = stallWatch();
   for (;;) {
     if (reloaded) throw new Error('the page reloaded (HMR) during the run');
     const s = await st();
@@ -1118,7 +1238,17 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
       continue;
     }
     calm = 0;
-    if (late(t0, max)) throw new Error(`advance: still busy after ${max * SLOW} ms (${JSON.stringify(s)})`);
+    // (改善会議 10-26 の1: the same state for STALL_MS while Z is pressed = stopped; the time
+    // running out while the state still moves on = a long event, kept as 'timeout')
+    await watch.tick();
+    if (watch.stuck) {
+      await recordStall('stall', `advance(${label}): no change for ${Math.round(watch.still / 1000)} s while pressing Z`, { presses: out.presses });
+      throw new Error(`advance: stalled — no change for ${Math.round(watch.still / 1000)} s (${JSON.stringify(s)})`);
+    }
+    if (late(t0, max)) {
+      await recordStall('timeout', `advance(${label}): still busy after ${max * SLOW} ms (the state last changed ${Math.round(watch.still / 1000)} s ago)`, { presses: out.presses });
+      throw new Error(`advance: still busy after ${max * SLOW} ms (${JSON.stringify(s)})`);
+    }
     if (shotEvery && k % shotEvery === 0) await shot(`${label}${String(k).padStart(3, '0')}`);
     k++;
     if (s.top === 'ShopScene') await tap('KeyX');
@@ -2856,10 +2986,11 @@ const BEATS3 = [
     name: 'hp',
     async run() {
       // S24: down the corridor → ヒロスケ・ポコシャ → the end of the third part (the west door's usual line)
-      await travel(7, 4);
-      await walk('right', (s) => !s.ctrl, 3000).catch(() => {});
+      const beaten = async () => !!(await flag('flag_ch3_hp_beaten'));
       const real = REAL.has('hp');
-      await advance({ shotEvery: 4, label: 'hp', max: 600000, battles: real ? 'keys' : 'win', stopAt: async () => !!(await flag('flag_ch3_hp_beaten')) });
+      await travel(7, 4, { until: beaten, onway: { battles: real ? 'keys' : 'win' } });
+      if (!(await beaten())) await walk('right', (s) => !s.ctrl, 3000).catch(() => {});
+      await advance({ shotEvery: 4, label: 'hp', max: 600000, battles: real ? 'keys' : 'win', stopAt: beaten });
       await need(['flag_ch3_hp_beaten'], 'S24');
       checks.push({ check: 'S24: ヒロスケ・ポコシャ (S25 follows)', ok: true });
       await shot('aq_end');
@@ -2902,10 +3033,21 @@ const BEATS3 = [
       let lastMap = '';
       let lastShot = 0;
       const t0 = Date.now();
+      // (改善会議 10-26 の1: a stall in the ending — the S29 lunch's 「出来たてだ。」 once, 10-25 —
+      // is kept with its picture and state, not only as the end of the 10 minutes)
+      const watch = stallWatch();
       for (;;) {
         const s = await st();
         if (s.top === 'TitleScene') break;
-        if (late(t0, 600000)) throw new Error('the ending did not reach the title');
+        await watch.tick();
+        if (watch.stuck) {
+          await recordStall('stall', `ending: no change for ${Math.round(watch.still / 1000)} s`);
+          throw new Error(`ending: stalled — no change for ${Math.round(watch.still / 1000)} s (${JSON.stringify(s)})`);
+        }
+        if (late(t0, 600000)) {
+          await recordStall('timeout', 'the ending did not reach the title');
+          throw new Error('the ending did not reach the title');
+        }
         if (s.top !== lastTop || s.map !== lastMap || Date.now() - lastShot > 2500) {
           lastTop = s.top;
           lastMap = s.map;
@@ -3303,7 +3445,7 @@ try {
     // (a slow page — HD-2D under swiftshader — may still be turning the title over the 決定 when
     // the jump lands: once settled, the field must be on top, else jump again)
     for (let k = 0; ; k++) {
-      await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [CHAPTER === 3 ? `ch3:${FROM === 'title' ? 'ch3' : FROM === 'ginza' ? 'ginza' : FROM}` : (JUMP_AS[FROM] ?? FROM), (CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')) || (CHAPTER === 3 && FROM === 'ch3')]);
+      await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [CHAPTER === 3 ? `ch3:${FROM === 'title' ? 'ch3' : FROM === 'ginza' ? 'ginza' : FROM}` : (JUMP_AS[FROM] ?? FROM), (CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')) || (CHAPTER === 3 && (FROM === 'ch3' || FROM === 'ending'))]);
       await waitFor((s) => s.top === 'FieldScene', 8000, 'jump');
       await sleep(600 * SLOW);
       if ((await st()).top === 'FieldScene' || k >= 2) break;
@@ -3412,6 +3554,8 @@ const summary = {
   results,
   errors,
   shots: shots.length,
+  // (改善会議 10-26 の1: the stalls and timeouts, each with <out>/stall_NN.png / .json)
+  stalls: stallLog,
   out: OUT,
 };
 // (2026-10-21: the conversations whose window went up or still covers someone — events/stage.ts autoPos)

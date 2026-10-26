@@ -43,6 +43,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { skipIntro } from '../../ui/closeup';
 
 export const SF = {
   heard: 'flag_ss_heard',
@@ -471,14 +472,18 @@ function pickWho(): SsWho {
 
 /** 3 七輪 → 4 くじ。当たった 人（やめたら null）。 */
 function* shichirin(first: boolean): Co<SsWho | null> {
+  // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら 穴の 話と 串の やり方を とばす
+  const skip = first && (yield* skipIntro(HOWTO.shishito.id));
   const p = new ShichirinPanel(first);
   p.auto = qaAuto;
   let who: SsWho | null = null;
   try {
     yield* openPanel(p);
     if (first) {
-      yield* say(T.SS_ANA);
-      yield* say(T.SS_KUSHI_RULE);
+      if (!skip) {
+        yield* say(T.SS_ANA);
+        yield* say(T.SS_KUSHI_RULE);
+      }
       while (p.kushi < 2) {
         if (!(yield* press(p))) return null;
         se('se_examine', { vol: 0.5 });

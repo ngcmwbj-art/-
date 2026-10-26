@@ -48,7 +48,8 @@ import { forceBoxPos, keyGuide } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn, poseAny, unpose } from './common';
 import { card, closeUribo, emerge, goBack, openUribo, run, snortHome, uriboGuideRows, waitHome } from './uribo';
-import { isCloseupQuit } from '../../ui/closeup';
+import { isCloseupQuit, skipIntro } from '../../ui/closeup';
+import { HOWTO } from '../../data/text/howto';
 
 export const AF = {
   /** マサル〔ashiato〕を 聞いた（ページが できた。足あとが 出る）。 */
@@ -452,9 +453,12 @@ function* uriboScene(): Co {
   let f = F();
   let gen: Actor | null = null;
   let temp = false;
+  // もどるで やめた あと（改善会議 10-26 の 3）：「すぐ やる」なら 話を とばして 数える ところから
+  // （行く・灯りを 低く・親子が 出て くる 絵は そのまま）
+  const skip = yield* skipIntro(HOWTO.uribo.id);
   if (f.map.id !== 'map_hoshimidai') {
     // 段階1：牛舎から ゲートの 内側へ
-    yield* say(T.URIBO_GO);
+    if (!skip) yield* say(T.URIBO_GO);
     yield* game.fadeOut(400, '#0B0B14');
     se('se_door_heavy');
     f.loadMap('map_hoshimidai', 49, 19, 'up');
@@ -483,7 +487,7 @@ function* uriboScene(): Co {
     f.snapCamera();
     yield* game.fadeIn(400);
   }
-  yield* say(T.URIBO_COME);
+  if (!skip) yield* say(T.URIBO_COME);
   // the light held low
   poseAny(p, 'crouch', 'look_down');
   forceBoxPos('bottom');
@@ -492,12 +496,14 @@ function* uriboScene(): Co {
   try {
     yield 400;
     yield* emerge(panel, 'mother');
-    yield* say(T.URIBO_SEE);
+    if (!skip) yield* say(T.URIBO_SEE);
     yield* emerge(panel, 'kids');
-    yield* say(T.URIBO_SEE2);
-    if (kanenariHere()) yield* say(T.URIBO_KANE);
-    yield* say(T.URIBO_NATSU);
-    yield* say(T.URIBO_COUNT);
+    if (!skip) {
+      yield* say(T.URIBO_SEE2);
+      if (kanenariHere()) yield* say(T.URIBO_KANE);
+      yield* say(T.URIBO_NATSU);
+      yield* say(T.URIBO_COUNT);
+    }
     // the guide first, then they set off (on an iPad held sideways the guide hides the けってい button while it is up)
     if (!qaAuto) {
       keyGuide(uriboGuideRows(), 2400, 8);

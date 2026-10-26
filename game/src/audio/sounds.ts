@@ -46,6 +46,8 @@ import './sfx_closeup';
 import './ambience_ch2';
 // chapter 3 (63_ch3_audio)
 import './sfx_ch3';
+// 終わりの 音は、下がる（03_ch3_index）：放送室の チャイムの 4音・テープ・電源
+import './sfx_housou';
 // クリア後（05_postgame）
 import './sfx_pg';
 import './ambience_pg';
