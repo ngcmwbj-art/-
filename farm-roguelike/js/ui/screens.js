@@ -16,8 +16,15 @@ FR.Screens = {
   BG_DIR: 'assets/img/bg/',
   BG_FALLBACK: 'forest.svg',
 
+  // 季節ごとの背景：秋と冬は assets/img/bg/autumn_*.jpg・winter_*.jpg（なければ battle の絵）
+  SEASON_BG: { 2: 'autumn', 3: 'winter' },
+  SEASON_SCREENS: ['battle', 'reward', 'map', 'rest'],
+
   setBackground(screen) {
-    const chain = FR.Screens.BG[screen] || ['battle'];
+    let chain = FR.Screens.BG[screen] || ['battle'];
+    const run = typeof App !== 'undefined' && App.data && App.data.run;
+    const sb = run && FR.Screens.SEASON_BG[run.season];
+    if (sb && FR.Screens.SEASON_SCREENS.includes(screen)) chain = [sb].concat(chain);
     const key = chain.join(',');
     const box = document.querySelector('.scene');
     if (!box || box.dataset.key === key) return;

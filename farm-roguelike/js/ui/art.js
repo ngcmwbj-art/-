@@ -14,7 +14,7 @@ FR.Art = {
     crow: 'crow.svg', boar: 'boar.svg', aphids: 'aphids.svg', weeds: 'weeds.svg', blast: 'blast.svg',
     avianflu: 'avianflu.svg', frost: 'frost.svg', drought: 'drought.svg', typhoon: 'typhoon.svg',
     // 家畜
-    calf: 'calf.svg', piglet: 'piglet.svg', chick: 'chick.svg', hen: 'hen.svg', dog: 'dog.svg',
+    calf: 'calf.svg', piglet: 'piglet.png', chick: 'chick.png', hen: 'hen.png', dog: 'dog.svg',
     // 野菜
     sprout: 'sprout.svg', komatsuna: 'komatsuna.svg', tomato: 'tomato.svg', cabbage: 'cabbage.svg',
     spinach: 'spinach.svg', eggplant: 'eggplant.svg', daikon: 'daikon.svg',
