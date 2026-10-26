@@ -139,9 +139,12 @@
           },
         },
         {
-          label: Msg.t(save.settings.bigText ? 'help.bigTextOn' : 'help.bigTextOff'),
+          // 文字：ふつう → 大きめ → とても大きい → ふつう
+          label: Msg.t('help.textSize.' + save.settings.textSize),
           onClick: () => {
-            save.settings.bigText = !save.settings.bigText;
+            const s = save.settings;
+            s.textSize = { normal: 'big', big: 'xl', xl: 'normal' }[s.textSize] || 'normal';
+            s.bigText = s.textSize !== 'normal';   // 前の版の保存とも合わせておく
             applyTextSize();
             persist();
             openHelp();
@@ -161,9 +164,12 @@
     });
   }
 
-  // 文字の大きさ（大きめ＝文字が約1.1倍。小さい画面では盤面を少し小さくして収める）
+  // 文字の大きさ（大きめ＝約1.1倍、とても大きい＝約1.25倍。小さい画面では盤面を少し小さくして収める）
+  // とても大きいときは big-text も付けて、大きめ用の直し（区画を1列に など）もそのまま使う
   function applyTextSize() {
-    document.documentElement.classList.toggle('big-text', !!save.settings.bigText);
+    const size = save.settings.textSize;
+    document.documentElement.classList.toggle('big-text', size === 'big' || size === 'xl');
+    document.documentElement.classList.toggle('xl-text', size === 'xl');
   }
 
   /* ---------- 各画面の準備 ---------- */

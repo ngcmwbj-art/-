@@ -34,7 +34,7 @@ const SaveData = (() => {
       seasonClears: {},                                // 季節ごとの賞状の記録 { spring: { count, y, m, d, total, n, all } }
       lastFamily: [],                                  // 区画ごとに、前に収穫した野菜のなかま（連作のひとこと用）
       tipHiddenDay: '',                                // 「今日のひとこと」を出さない日（「今日はもう出さない」を押した日）
-      settings: { sound: false, vibrate: true, bigText: false, volume: 'normal' },       // 音は最初オフ
+      settings: { sound: false, vibrate: true, bigText: false, textSize: 'normal', volume: 'normal' },       // 音は最初オフ
     };
   }
 
@@ -87,11 +87,16 @@ const SaveData = (() => {
       data.version = VERSION;
       // 新しく増えた項目は初期値で埋める（中の項目も）
       const base = defaults();
+      const settings = { ...base.settings, ...data.settings };
+      // 文字の大きさは3段（normal・big・xl）。前の版の「大きめ（bigText）」だけの保存は big として読む
+      if (!data.settings || !data.settings.textSize) settings.textSize = settings.bigText ? 'big' : 'normal';
+      if (!['normal', 'big', 'xl'].includes(settings.textSize)) settings.textSize = 'normal';
+      settings.bigText = settings.textSize !== 'normal';
       return {
         ...base,
         ...data,
         resources: { ...base.resources, ...data.resources },
-        settings: { ...base.settings, ...data.settings },
+        settings,
         stats: { ...base.stats, ...data.stats },
       };
     }

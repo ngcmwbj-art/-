@@ -1377,3 +1377,13 @@ ruby rt, .howto-row dd ruby rt { font-size: 0.6em; }
 .goal { display: flex; justify-content: center; gap: 0.6em; width: max-content; max-width: min(94vw, 480px); }
 .goal-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .goal-arrow { flex: none; }
+
+/* 文字の大きさ：とても大きい（約1.25倍。big-text も一緒に付く） */
+html.big-text.xl-text { font-size: 125%; --chrome: 290px; }
+@media (max-width: 360px) {
+  html.big-text.xl-text { --chrome: 345px; --board-size: clamp(185px, min(92vw, calc((100dvh - var(--chrome)) / 1.36)), 480px); }
+}
+/* 横向きは高さが足りず盤面が小さくなりすぎるので、文字は「大きめ」と同じにとどめる */
+@media (orientation: landscape) and (max-height: 500px) {
+  html.big-text.xl-text { font-size: 112.5%; }
+}

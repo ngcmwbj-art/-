@@ -57,7 +57,7 @@ const Quiz = (() => {
       }
       i += 1;
       const v = order[(i - 1) % order.length];
-      const q = makeQuestion(v, ['plant', 'harvest', 'pests', 'planter']);
+      const q = makeQuestion(v, ['plant', 'harvest', 'pests', 'planter', 'family']);
       const choose = (c) => {
         const ok = c === q.answer;
         if (!ok && !wrong.includes(v)) wrong.push(v);
@@ -122,13 +122,18 @@ const Quiz = (() => {
   }
 
   // 問題を1つ作る { question, answer, choices, explain }
-  // kinds：出してよい問題の種類（plant・harvest・pests・planter）
+  // kinds：出してよい問題の種類（plant・harvest・pests・planter・family）
   function makeQuestion(v, kinds = ['plant', 'harvest']) {
     let kind = kinds[Math.floor(Math.random() * kinds.length)];
     if (kind === 'pests') {
       const q = pestQuestion(v);
       if (q) return q;
       kind = 'plant';   // まちがいの選択肢が作れないときは月の問題に
+    }
+    if (kind === 'family') {
+      const q = familyQuestion(v);
+      if (q) return q;
+      kind = 'plant';   // 6つのなかまに入らない野菜（いちご・しそ など）は月の問題に
     }
     if (kind === 'planter' && v.guide.planter) return planterQuestion(v);
     if (kind !== 'harvest') kind = 'plant';
@@ -148,6 +153,22 @@ const Quiz = (() => {
       answer,
       choices: shuffle([answer, ...wrong]),
       explain: kind === 'plant' ? v.guide.plant : Msg.t('quiz.harvestExplain', { months: answer, tip: v.steps.harvest }),
+    };
+  }
+
+  // なかまの問題：「○○は何のなかま？」。答えは連作で大事な6つのなかまだけ（選択肢は4つ）
+  const FAMILIES = ['ナス', 'ウリ', 'アブラナ', 'マメ', 'キク', 'ネギ'];
+  function familyQuestion(v) {
+    if (!FAMILIES.includes(v.family)) return null;
+    const label = (f) => Msg.t('quiz.familyChoice', { family: f });
+    const answer = label(v.family);
+    const wrong = shuffle(FAMILIES.filter((f) => f !== v.family)).slice(0, 3).map(label);
+    return {
+      question: Msg.t('quiz.family', { name: v.name }),
+      answer,
+      choices: shuffle([answer, ...wrong]),
+      // 理由の1行（連作につながる）と、同じなかまの野菜の名前（育て方カードと同じ言い方）
+      explain: Msg.t('quiz.familyExplain.' + v.family) + '\n' + HowTo.familyText(v),
     };
   }
 
