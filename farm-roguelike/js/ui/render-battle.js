@@ -207,6 +207,7 @@ FR.BattleView = {
       if (['damage', 'block', 'gold', 'heal', 'blocked', 'buff', 'energy'].includes(f.kind)) {
         const anchor = f.target === 'enemy' ? enemyArt(f.enemy) : document.getElementById('b-player-art');
         FR.BattleView.floatText(anchor, f.text, f.kind + ' ' + (f.target || ''), delay);
+        FR.Sound.sfx(f.kind === 'damage' ? (f.target === 'enemy' ? 'hit' : 'hurt') : f.kind, delay);
         if (f.kind === 'damage') FR.BattleView.hit(anchor, delay);
         delay += FR.BattleView.STAGGER;
       } else if (f.kind === 'enemyMove') {
@@ -215,6 +216,7 @@ FR.BattleView = {
         const el = f.barn !== undefined
           ? document.querySelector(`.barn[data-barn="${f.barn}"]`)
           : document.querySelector(`.plot[data-plot="${f.plot}"]`);
+        FR.Sound.sfx(f.kind, delay);
         if (el) {
           el.classList.remove('pulse-' + f.kind);
           void el.offsetWidth;
@@ -223,6 +225,7 @@ FR.BattleView = {
         if ((f.kind === 'harvest' || f.kind === 'stolen') && f.text) { const t = f.text, k = f.kind; setTimeout(() => FR.Screens.toast(t, k), delay); delay += FR.BattleView.STAGGER; }
       } else if (f.kind === 'ship') {
         FR.BattleView.shipSlip(f);
+        FR.Sound.sfx('ship');
       } else if (f.kind === 'warn') {
         FR.Screens.toast(f.text, 'warn');
       } else if (f.kind === 'note') {
@@ -292,12 +295,14 @@ FR.BattleView = {
     if (!el) return;
     el.textContent = text;
     el.className = 'show ' + (cls || '');
+    FR.Sound.sfx(text === '追い払った' ? 'win' : text === '力尽きた' ? 'lose' : cls === 'enemy' ? 'enemyTurn' : 'myTurn');
     clearTimeout(FR.BattleView._bannerTimer);
     FR.BattleView._bannerTimer = setTimeout(() => { el.className = ''; }, 900);
   },
 
   // カードを使ったとき：手札から狙った先へ飛んで消える
   flyCard(cardEl, targetEl) {
+    FR.Sound.sfx('card');
     if (!cardEl) return;
     const from = cardEl.getBoundingClientRect();
     const to = (targetEl || document.getElementById('b-stage')).getBoundingClientRect();

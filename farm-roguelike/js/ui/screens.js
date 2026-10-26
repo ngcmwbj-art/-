@@ -55,9 +55,11 @@ FR.Screens = {
     clearTimeout(FR.Screens._toastTimer);
     document.getElementById('toast').className = '';
     document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-' + name));
+    if (FR.Sound) FR.Sound.screen(name);
   },
 
   toast(text, kind) {
+    if (kind === 'warn' && FR.Sound) FR.Sound.sfx('warn');
     const t = document.getElementById('toast');
     t.textContent = text;
     t.className = 'show ' + (kind || '');

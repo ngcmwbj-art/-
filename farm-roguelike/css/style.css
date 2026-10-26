@@ -640,3 +640,8 @@ img { -webkit-user-drag: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* 音の切り替え */
+.sound-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.sound-btn { opacity: .75; }
+.sound-btn.on { opacity: 1; border-color: var(--gold); }

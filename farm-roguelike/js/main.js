@@ -16,9 +16,9 @@ const App = {
     document.querySelectorAll('[data-game-title]').forEach(el => {
       el.innerHTML = t2 ? `<span class="t1">${FR.Util.escape(t1)}</span><span class="t2">${FR.Util.escape(FR.Config.title.slice(t1.length))}</span>` : FR.Util.escape(t1);
     });
-    document.title = FR.Config.title;
     document.querySelectorAll('[data-game-subtitle]').forEach(el => { el.textContent = FR.Config.subtitle; });
-    document.title = FR.Config.title;
+    FR.Sound.init();
+    App.bindSound(document.getElementById('title-sound'));
 
     // タイトル
     document.getElementById('btn-new').onclick = () => App.showSelect();
@@ -602,12 +602,24 @@ const App = {
     FR.Screens.modal(v.name, `<div class="card-detail">${FR.renderCard(v)}<div class="terms">${FR.Glossary.html(v)}</div></div>`);
   },
 
+  // 音の切り替えボタン（BGM・効果音）。box の中に2つ並べる
+  bindSound(box) {
+    if (!box) return;
+    const draw = () => {
+      box.innerHTML = ['bgm', 'sfx'].map(k => `<button class="btn small sound-btn ${FR.Sound.settings[k] ? 'on' : ''}" data-snd="${k}">${k === 'bgm' ? 'BGM' : '効果音'}：${FR.Sound.settings[k] ? 'あり' : 'なし'}</button>`).join('');
+    };
+    draw();
+    box.onclick = ev => { const b = ev.target.closest('[data-snd]'); if (b) { FR.Sound.toggle(b.dataset.snd); draw(); } };
+  },
+
   showMenu() {
     const deck = App.data.run.deck.map(FR.cardView);
     FR.Screens.modal('畑の帳面', `
+      <div class="menu-actions sound-row" id="menu-sound"></div>
       <p class="menu-note">デッキ ${deck.length}枚</p>
       <div class="card-list">${deck.map(v => FR.renderCard(v)).join('')}</div>
       <div class="menu-actions"><button class="btn" id="btn-tutorial">遊び方を見る</button><button class="btn danger" id="btn-giveup">この挑戦をあきらめる</button></div>`);
+    App.bindSound(document.getElementById('menu-sound'));
     document.getElementById('btn-tutorial').onclick = () => { FR.Screens.closeModal(); FR.Tutorial.start(); };
     document.getElementById('btn-giveup').onclick = () => {
       // 1回目は確認の表示、もう一度押すと終える（confirm() が使えない環境のため）

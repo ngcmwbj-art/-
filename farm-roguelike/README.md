@@ -82,7 +82,7 @@ farm-roguelike/
 │  ├─ map.js             1年の進み方（季節・行き先の分かれ道・休憩所）
 │  ├─ score.js           経営評価
 │  ├─ save.js            localStorage への保存
-│  ├─ ui/                描画と操作（art.js：絵の窓口 / input.js：タップとドラッグ / render-*.js）
+│  ├─ ui/                描画と操作（art.js：絵の窓口 / sound.js：効果音とBGM / input.js：タップとドラッグ / render-*.js）
 │  └─ main.js            画面のつなぎ役
 ├─ assets/img/           絵（art/：キャラ・カード、bg/：背景）
 ├─ tests/sim.js          ロジックのテスト（node tests/sim.js）
