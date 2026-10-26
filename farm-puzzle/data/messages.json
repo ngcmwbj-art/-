@@ -96,6 +96,7 @@
       "ショウガ": "3〜4年"
     },
     "rotationYearsOther": "1〜2年",
+    "nextSow": "🔄 次は{family}以外のなかま、たとえば「{name}」を（連作よけ）",
     "zukanCount": "　📖 図鑑 {n}/{total}"
   },
   "zukan": {

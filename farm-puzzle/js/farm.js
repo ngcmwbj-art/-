@@ -272,12 +272,22 @@ const Farm = (() => {
     if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
     // 旬の残りが1種になったら、ゴールが近いことを知らせる（その野菜の名前も）
     else if (leftBefore > 1 && seasonLeft().length === 1) text += '\n' + Msg.t('farm.oneLeft', { name: seasonLeft()[0].name, icon: done.icon });
-    else if (single) text += '\n' + (single.eat ? Msg.t('farm.eat', { text: single.eat }) : Msg.plain(single.steps.harvest));
+    else if (single) text += '\n' + (nextSowTip(single) || (single.eat ? Msg.t('farm.eat', { text: single.eat }) : Msg.plain(single.steps.harvest)));
     toast(text);
     Sound.play('harvest');
     acted();
     // 図鑑や季節のお知らせは、ぴょこっと演出が見えてから（0.5秒あと）
     if (hooks.onHarvest) setTimeout(() => hooks.onHarvest(firsts, next ? { done, next, vegs: doneVegs } : null), 500);
+  }
+
+  // 収穫したあと「次にここへまくなら、ちがうなかまの○○」（連作をよける輪作を、失敗する前に知らせる）
+  // 食べ方のひとことと1回おきに出す（初めての収穫はこちら）。今の季節にまけて種が手に入っている野菜から選ぶ
+  function nextSowTip(v) {
+    if (!v.family || v.perennial || data.harvested[v.id] % 2 === 0) return null;
+    const list = cfg.vegetables.filter((x) => inSeason(x) && !Missions.isLocked(x) && !x.perennial && x.family && x.family !== v.family);
+    if (!list.length) return null;
+    const pick = list[(data.harvested[v.id] + v.id.length) % list.length];
+    return Msg.t('farm.nextSow', { family: v.family, name: pick.name });
   }
 
   // 収穫のぴょこっと演出：区画から野菜が跳ねて消える（0.6秒・まとめて収穫しても1回だけ）

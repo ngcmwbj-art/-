@@ -191,6 +191,8 @@
       Zukan.render();
       // 初めての野菜を1つずつ知らせ、最後に季節のお祝い
       const queue = firsts.slice();
+      // 図鑑に載った音（レ→ソ）は最初の1回だけ。季節をそろえたときはお祝いのメロディと重ねない
+      if (firsts.length && !seasonDone) Sound.play('zukan');
       const next = () => {
         const v = queue.shift();
         if (v) Zukan.announce(v, () => showScreen('zukan'), next);
