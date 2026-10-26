@@ -3790,6 +3790,90 @@ const DayLight={
 };
 {const f=updateLights;updateLights=function(dt){f(dt);DayLight.post(dt)}}
 
+/* =====================================================================
+   MURKY WATER — below 55% water quality the tank turns faintly yellow-green ("a little"),
+   below 35% clearly murky ("a lot"). The creature always stays visible; a water change clears it.
+   ===================================================================== */
+const Nigori={t:0,murk:new THREE.Color('#4a4a26'),tint:new THREE.Color('#e0dca0'),
+  post(dt){
+    const w=S&&S.hatched?S.water:100,tg=w<35?1:w<55?.5:0;this.t+=(tg-this.t)*(1-Math.exp(-dt*(tg<this.t?.9:.25)));
+    if(this.t<.003)return;const t=this.t;
+    scene.fog.color.lerp(this.murk,.55*t);scene.fog.density+=.024*t;scene.background.copy(scene.fog.color);
+    const G=grade.uniforms,W=G.uTintW.value,a=.35*t;G.uTint.value.lerp(this.tint,a/Math.max(.001,W+a));G.uTintW.value=Math.min(.75,W+a);
+  }
+};
+{const f=updateLights;updateLights=function(dt){f(dt);Nigori.post(dt)}}
+
+/* =====================================================================
+   SLEEPING BREATH — while asleep, a few small bubbles rise from the head now and then.
+   ===================================================================== */
+const Neiki={pool:[],t:2,
+  init(){const g=new THREE.SphereGeometry(1,12,8),m=new THREE.MeshPhysicalMaterial({color:'#e8f6ff',roughness:.05,clearcoat:1,transparent:true,opacity:.55,depthWrite:false,envMapIntensity:1.4});
+    for(let i=0;i<8;i++){const b=new THREE.Mesh(g,m);b.visible=false;b.userData={life:0,v:0,max:1};scene.add(b);this.pool.push(b)}},
+  head(){const v=new V3();const a=ISO&&ISO.ant&&ISO.ant[0]&&ISO.ant[0].root;if(ISO.head)ISO.head.getWorldPosition(v);else if(a)a.getWorldPosition(v);else v.copy(C.pos);return v},
+  update(dt,time){
+    if(!this.pool.length)this.init();
+    if(Life.asleep&&!Life.dead&&started){this.t-=dt;if(this.t<0){this.t=2.4+Math.random()*2.2;const n=1+(Math.random()<.5?1:0),h=this.head();
+      for(let i=0;i<n;i++){const b=this.pool.find(x=>!x.visible);if(!b)break;b.visible=true;const d=b.userData;d.life=0;d.max=3+Math.random()*1.5;d.v=.18+Math.random()*.1;d.ph=Math.random()*6;
+        const s=(.018+Math.random()*.02)*Math.max(.5,C.size*1.6);b.scale.setScalar(s);d.s=s;b.position.set(h.x+(Math.random()-.5)*.05,h.y+.04*C.size+i*.03,h.z+(Math.random()-.5)*.05)}}}
+    this.pool.forEach(b=>{if(!b.visible)return;const d=b.userData;d.life+=dt;if(d.life>d.max){b.visible=false;return}
+      b.position.y+=d.v*dt;b.position.x+=Math.sin(time*3+d.ph)*.04*dt;b.scale.setScalar(d.s*(1+d.life*.15))});
+  }
+};
+{const f=World.update;World.update=function(dt,time){f.apply(this,arguments);Neiki.update(dt,time)}}
+
+/* =====================================================================
+   CALLED BY NAME — say its name (any kana, with or without ちゃん/くん/さん) and it turns, antennae up.
+   ===================================================================== */
+const Yobu={t:0,
+  hira(s){return String(s).replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)).replace(/\s+/g,'').toLowerCase()},
+  names(){const L=[gname(),DEFNAME,'ぐそく','ぐそっくん'].map(n=>this.hira(n).replace(/(さん|くん|君|ちゃん|様|さま)$/,'')).filter(n=>n.length>=2);return [...new Set(L)]},
+  hit(text){const t=this.hira(text);return this.names().some(n=>t.includes(n))},
+  call(){if(Life.dead||Life.asleep||Game.molting)return;this.t=2.6;C.face=Math.max(C.face,5);if(['walk','idle'].includes(C.state))setState('idle',{wait:8});if(ISO.chara){C.wave=1.6;C.waveDur=1.6}Suna.out()},
+  post(dt){if(this.t<=0||!ISO.ant)return;this.t=Math.max(0,this.t-dt);const k=smooth(0,.4,this.t)*smooth(2.6,2.2,this.t);
+    ISO.ant.forEach(a=>{if(a.root)a.root.rotation.x-=(ISO.chara?.35:.55)*k})}
+};
+{const f=Game.talk;Game.talk=function(text){try{if(Yobu.hit(text))Yobu.call()}catch(e){}return f.apply(this,arguments)}}
+
+/* =====================================================================
+   GROOMING — now and then while resting: wipes its antennae / face, or yawns and stretches.
+   ===================================================================== */
+const Shigusa={t:0,dur:0,k:null,next:35,
+  free(){return started&&C.state==='idle'&&C.talk<=0&&C.face<=0&&!Game.molting&&!Molt.phase&&!Life.asleep&&!Life.dead&&!Nade.on&&!Hashi.on&&!Cine.on&&!Dream.on&&!Suna.on&&!C.curlT},
+  post(dt,time){
+    if(!this.k){this.next-=dt;if(this.next<0){this.next=40+Math.random()*50;if(this.free()){const h=new Date().getHours(),sleepy=h>=21||h<7||(C.drowsy||0)>.5;this.k=Math.random()<(sleepy?.6:.35)?'yawn':'groom';this.t=0;this.dur=this.k==='yawn'?2.6:3.2}}return}
+    if(!this.free()&&this.t<.3){this.k=null;return}
+    this.t+=dt;if(this.t>this.dur){this.k=null;return}const e=smooth(0,.5,this.t)*smooth(this.dur,this.dur-.6,this.t),I=ISO;
+    if(this.k==='groom'){
+      if(I.chara){const A=I.arms[1];A.sh.rotation.x-=1.25*e;A.el.rotation.x-=1.55*e;A.wr.rotation.z+=Math.sin(time*9)*.45*e;if(I.head)I.head.rotation.z+=.12*e}
+      else{I.ant.forEach(a=>{if(a.root)a.root.rotation.x+=.45*e});I.legs.forEach(L=>{if(L.front&&L.k<2)L.js[0].rotation.z+=e*(.7+.35*Math.sin(time*9+L.s))})}
+    }else{
+      if(I.chara){I.mouthOpen.scale.y=Math.max(I.mouthOpen.scale.y,1.15*e);I.eyes.forEach(x=>x.scale.y*=1-.85*e);I.arms.forEach(A=>{A.sh.rotation.z+=A.s*2.1*e;A.sh.rotation.x-=.3*e});if(I.head)I.head.rotation.x-=.18*e}
+      else{I.mouth.forEach(m=>{m.m.rotation.y=m.s*.65*e;m.m.rotation.x=.35*e});I.body.rotation.x-=.1*e;I.ant.forEach(a=>{if(a.root)a.root.rotation.y+=(a.s||1)*.3*e})}
+    }
+  }
+};
+
+/* =====================================================================
+   BURYING — sometimes it settles into the sand with only its face showing (as real ones do).
+   Only for a little while; talking, food, a touch or a call brings it straight out.
+   ===================================================================== */
+const Suna={on:false,b:0,t:0,next:150,
+  free(){return started&&!Game.molting&&!Molt.phase&&!Life.asleep&&!Life.dead&&!Nade.on&&!Hashi.on&&!Cine.on&&!Dream.on&&!foods.length&&S.stage>=1&&!Photo.on},
+  out(){if(this.on){this.on=false;puff(C.pos.clone(),10)}},
+  pre(dt){
+    if(this.on){this.t-=dt;if(this.t<0||!this.free()||C.state!=='idle'||C.talk>0)this.out()}
+    else{this.next-=dt;if(this.next<0){this.next=180+Math.random()*240;if(this.free()&&C.state==='idle'&&C.talk<=0&&C.face<=0&&Kibun.v>-.5){this.on=true;this.t=22+Math.random()*18;puff(C.pos.clone(),14);
+      if(!S.sunaHint){S.sunaHint=1;save();setTimeout(()=>say('（'+gname()+'が砂にもぐって、顔だけ出しています。本物のオオグソクムシも、こうして砂にうずまって休みます）',{narr:true}),1500)}}}}
+    this.b=damp(this.b,this.on?1:0,this.on?.8:2.5,dt);
+    if(this.b>.002){const gy=heightAt(C.pos.x,C.pos.z),sc=C.size;C.yOverride=gy-this.b*sc*(ISO.chara?(C.crawl>.5?.3:1.12):.36)}else if(this.wasOn)C.yOverride=null;this.wasOn=this.b>.002;
+  },
+  post(){if(this.b<=.002||!ISO)return;if(!ISO.chara)ISO.body.rotation.x-=.22*this.b}
+};
+canvas.addEventListener('pointerdown',()=>Suna.out());
+['feed','water'].forEach(m=>{const f=Game[m];Game[m]=function(){Suna.out();return f.apply(this,arguments)}});
+{const f=updateCreature;updateCreature=function(dt,time){Suna.pre(dt);f(dt,time);Yobu.post(dt);Shigusa.post(dt,time);Suna.post()}}
+
 let started=false;
 function boot(){
   load();
@@ -4001,7 +4085,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
