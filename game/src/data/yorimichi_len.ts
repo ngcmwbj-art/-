@@ -16,6 +16,38 @@ export const YORI_LEN_WORD: Record<YoriLen, string> = {
 
 /** 寄り道の 始まりの flag → 長さ（コメントは 測った めやす）。 */
 export const YORIMICHI_LEN: Record<string, YoriLen> = {
+  // ---- 第2章
+  flag_an_start: 'normal', // akinasu 読む 35＋大写し 3回・歩く 7か所：約3分半
+  flag_as_start: 'normal', // asairo 読む 62＋大写し 4回・8か所：約5分
+  flag_ashiato_start: 'normal', // ashiato 読む 49＋うり坊・9か所：約5分
+  flag_bm_start: 'normal', // busmaku 読む 34＋幕・2か所：約2分
+  flag_hg_start: 'normal', // hagama 読む 64＋大写し 2回・4か所：約4分半
+  flag_ky_start: 'normal', // kyuri 読む 91＋葉の かげ・3か所：約5分半
+  flag_hn_start: 'normal', // hana 読む 77＋穂 6か所：約6分
+  flag_hm_start: 'normal', // himo 読む 約40＋爪（大写しまで 19ページ）：約3分
+  flag_ku_start: 'normal', // kutsu 読む 74＋長靴・5か所：約5分
+  flag_mimi_start: 'normal', // mimi 読む 47＋耳あわせ・7か所：約4分
+  flag_mg_start: 'normal', // mushigomu 読む 52＋大写し 3回・7か所：約4分半
+  flag_nr_start: 'normal', // neru 読む 46＋大写し 2回・7か所：約4分
+  flag_saku_start: 'normal', // sakuzoi 読む 24＋畦・柵ぞい 6か所を 歩く：約3分
+  flag_ub_start: 'normal', // ushibana 読む 31＋房 3つ：約2分半
+  flag_shikishi_start: 'normal', // shikishi 読む 86・11か所：約7分
+  flag_ss_start: 'normal', // shishito 読む 46＋七輪・5か所：約3分半
+  flag_uz_start: 'short', // uzu 読む 35＋大写し 2回・ポコシャの 前だけ：約2分 弱
+  flag_yw_start: 'normal', // yuwaka 読む 53＋とうもろこし・9か所：約5分
+  // ---- 第3章
+  flag_ab_start: 'normal', // abura 読む 32＋ヘラ 2本・廊下の 机：約2分
+  flag_im_start: 'normal', // imo 読む 48＋焼き芋の 窓：約3分
+  flag_iso_start: 'normal', // iso 読む 69＋磯・6か所：約4分半
+  flag_kr_start: 'normal', // kori 読む 56＋氷の 道 3本：約5分
+  flag_ag_start: 'normal', // amigoya 読む 53＋網の 目 3つ：約4分
+  flag_mh_start: 'normal', // mahiru 読む 56＋のぞき 3回・7か所：約4分
+  flag_mk_start: 'normal', // mikan 読む 46＋枝 3本・8か所：約4分
+  flag_mz_start: 'normal', // mizukiri 読む 34＋水切り・7か所：約3分
+  flag_ng_start: 'normal', // nukegara 読む 32・7か所：約3分
+  flag_sk_start: 'normal', // sakana 読む 49＋浮き 3回：約3分半
+  flag_tk_start: 'normal', // tokoro 読む 57＋天突き・3か所：約3分半
+  flag_yd_start: 'normal', // yose 読む 34＋なべ・沖まで 5か所：約3分
   flag_rt_start: 'normal', // retasu 寝とる うちに、とる（読む 約69ページ＋大写し 3回＋村から ネットの 戸・上の 畑：約4分）
   flag_hs_start: 'normal', // housou 終わりの 音は、下がる（読む 約66ページ＋大写し 2回＋入口から 1部屋：約4分）
 };

@@ -435,6 +435,7 @@ const BANNER_WAIT_MAX = 5000;
 /** 寄り道の 長さの 札の 長さ（2秒ほど）と、待つ 長さの 上限（始まりの 会話が 長くても、それより 後には 出さない）。 */
 const YORI_MS = 2000;
 const YORI_WAIT_MAX = 90000;
+const YORI_CLEAR_MS = 450;
 /** The washi tape the place name is written on (paler than the orange name tags). */
 const PLACE_TAPE = '#EFE4C8';
 
@@ -529,7 +530,7 @@ class UiHud implements FieldHud {
   /** flag_pg_secret as last seen (-1: not yet looked this session). */
   private pgSecretSeen = -1;
   // 寄り道の 長さの 札（改善会議 10-26 の 2）：始まりの flag で 待ち、会話の 窓が 閉じたら 上の まん中に 2秒
-  private yoriPending: { text: string; wait: number; flag: string } | null = null;
+  private yoriPending: { text: string; wait: number; flag: string; clear: number } | null = null;
   private yori: (Banner & { flag: string }) | null = null;
   private yoriLast = 0;
   /** QA: the tags put up (text, flag, game.time). */
@@ -948,7 +949,7 @@ class UiHud implements FieldHud {
   yoriStart(id: string): void {
     const len = YORIMICHI_LEN[id];
     if (!len || !flag('flag_opening_done')) return;
-    this.yoriPending = { text: YORI_LEN_WORD[len], wait: 0, flag: id };
+    this.yoriPending = { text: YORI_LEN_WORD[len], wait: 0, flag: id, clear: 0 };
   }
 
   /**
@@ -969,7 +970,9 @@ class UiHud implements FieldHud {
     const p = this.yoriPending;
     if (p && !this.yori) {
       const clear = !dialogVisible() && !game.ui.hold && !this.banner && !this.cards.some((c) => c.t >= 0) && game.fadeAlpha < 0.05;
-      if (clear) {
+      // (clear for a moment: not in the gap between two pages of one conversation)
+      p.clear = clear ? p.clear + dt : 0;
+      if (p.clear >= YORI_CLEAR_MS) {
         const w = textW(p.text) + 18;
         this.yori = { text: p.text, t: 0, dur: YORI_MS, x: Math.round((W - w) / 2), y: 8, flag: p.flag };
         this.yoriPending = null;

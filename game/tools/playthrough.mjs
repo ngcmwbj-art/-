@@ -607,6 +607,12 @@ async function travel(tx, ty, { timeout = 90000, into = null, until = null, onwa
         // advance's 60 s and ran out at S29 「出来たてだ。」, 改善会議 10-26 の1)
         await advance({ label: 'onway', ...(until ? { max: 600000, stopAt: until } : {}), ...onway });
         if (until && (await until(await st()))) return st();
+        // the event on the way took him to another map (S20: ツガオ in the hall → the store room):
+        // the beat's own event, not a wrong door — the caller goes on from there
+        if ((await st()).map !== map0) {
+          log(`  travel(${tx},${ty}): an event on the way took him to ${(await st()).map}`);
+          return st();
+        }
         continue;
       }
       if (s.map !== map0) throw new Error(`travel(${tx},${ty}): walked off ${map0} into ${s.map}`);
@@ -2954,9 +2960,11 @@ const BEATS3 = [
       // S20: to the bench → ツガオ → the first battle (never won, never game over) → taken → S21・S22
       await enterDoor(5, 8, 'down', 'map_c3_aq_hall');
       await advance({ label: 'hall_in' });
-      await travel(12, 10);
-      await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
       const real = REAL.has('tsugao1');
+      // (ツガオ's event can start before (12,10): then it is pressed through here, 10-26 — the same as S24)
+      const met = async () => !!(await flag('flag_ch3_tsugao1'));
+      await travel(12, 10, { until: met, onway: { battles: real ? 'keys' : 'win' } });
+      if (!(await met())) await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
       await advance({ shotEvery: 4, label: 'tsugao1', max: 480000, battles: real ? 'keys' : 'win' });
       await need(['flag_ch3_tsugao1', 'flag_ch3_souko', 'flag_ch3_ego_night'], 'S20〜S22');
       const s = await st();
