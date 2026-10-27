@@ -530,6 +530,32 @@ FR.Battle = {
     return best;
   },
 
+  // このターン、敵の行動で何が起きるかの見込み（戦闘の写しで実際に動かしてみる。本物は変えない）
+  // hp：減る健康度 / dead：力尽きる / crops：失う作物 / fruits：落ちる・奪われる実 / wilt：しおれる区画 / animals：倒れる家畜
+  forecast(b) {
+    if (b.over) return null;
+    const sim = Object.assign({}, b, {
+      run: Object.assign({}, b.run, { stats: Object.assign({}, b.run.stats) }),
+      plots: b.plots.map(p => p && Object.assign({}, p)),
+      barns: b.barns.map(a => a && Object.assign({}, a)),
+      statuses: Object.assign({}, b.statuses),
+      enemies: b.enemies.map(e => Object.assign({}, e)),
+      discard: b.discard.slice(),
+      fx: [], over: false
+    });
+    FR.Battle.enemyAct(sim);
+    const out = { hp: b.run.hp - sim.run.hp, dead: sim.run.hp <= 0, crops: 0, fruits: 0, wilt: 0, animals: 0 };
+    b.plots.forEach((p, i) => {
+      const q = sim.plots[i];
+      if (!p) return;
+      if (!q) out.crops++;
+      else if (p.tree && q.fruits < p.fruits) out.fruits += p.fruits - q.fruits;
+      else if (q.growth < p.growth) out.wilt++;
+    });
+    b.barns.forEach((a, i) => { if (a && !sim.barns[i]) out.animals++; });
+    return out;
+  },
+
   enemyAct(b) {
     for (const e of FR.Battle.aliveEnemies(b)) {
       if (b.over) return;

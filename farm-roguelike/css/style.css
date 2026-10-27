@@ -141,7 +141,7 @@ img { -webkit-user-drag: none; }
 .hud-btn { white-space: nowrap; font-family: var(--mincho); font-size: 13px; background: rgba(0, 0, 0, .35); border: 1px solid var(--panel-line); border-radius: 3px; padding: 3px 8px; display: inline-flex; gap: 5px; align-items: baseline; }
 .hud-btn b { color: var(--gold); }
 .relic-row { display: flex; gap: 6px; padding: 0 6px; min-height: 30px; }
-.relic { width: 30px; height: 30px; padding: 0; background: #d9cfb4; border: 1px solid var(--gold); border-radius: 50%; overflow: hidden; display: grid; place-items: center; }
+.relic { width: 30px; height: 30px; padding: 0; background: #d9cfb4; border: 1px solid var(--gold); border-radius: 50%; display: grid; place-items: center; }
 .relic img { width: 26px; height: 26px; }
 
 /* 舞台：左に農家、右に敵。足もとをそろえる */
@@ -224,9 +224,9 @@ img { -webkit-user-drag: none; }
 .plot.ripe, .barn.ripe { cursor: pointer; }
 .plot.ripe small, .barn.ripe small { color: var(--gold); }
 .plot.ripe { box-shadow: inset 0 4px 6px rgba(0, 0, 0, .3), 0 0 0 1px var(--gold), 0 0 12px rgba(240, 190, 90, .6); }
-.pulse-plant, .pulse-grow { animation: pulse .5s ease; }
-.pulse-harvest { animation: harvested .6s ease; }
-.pulse-stolen { animation: stolen .6s ease; }
+.pulse-plant, .pulse-grow { animation: pulse calc(.5s * var(--spd, 1)) ease; }
+.pulse-harvest { animation: harvested calc(.6s * var(--spd, 1)) ease; }
+.pulse-stolen { animation: stolen calc(.6s * var(--spd, 1)) ease; }
 
 /* 収穫ボタン：畑の右端。収穫できるときだけ光る */
 .field-row { display: flex; gap: 6px; align-items: stretch; justify-content: center; }
@@ -447,7 +447,7 @@ img { -webkit-user-drag: none; }
 .float-text {
   position: fixed; z-index: 80; transform: translate(-50%, 0); pointer-events: none;
   font-family: var(--mincho); font-weight: 800; font-size: 26px; text-shadow: 0 2px 4px #000, 0 0 2px #000;
-  animation: floatUp 1.9s ease-out both;
+  animation: floatUp calc(1.9s * var(--spd, 1)) ease-out both;
 }
 .float-text.damage.enemy { color: #ffe0b0; }
 .float-text.damage.player { color: #ff8a6a; }
@@ -468,15 +468,15 @@ img { -webkit-user-drag: none; }
   100% { opacity: 0; transform: translate(-50%, -54px) scale(1); }
 }
 @keyframes shakeX { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
-.shake { animation: shakeX .35s ease; }
-.lunge { animation: lunge .45s ease; }
-.lunge-left { animation: lungeL .5s cubic-bezier(.3,.7,.3,1); }
-.lunge-right { animation: lungeR .5s cubic-bezier(.3,.7,.3,1); }
+.shake { animation: shakeX calc(.35s * var(--spd, 1)) ease; }
+.lunge { animation: lunge calc(.45s * var(--spd, 1)) ease; }
+.lunge-left { animation: lungeL calc(.5s * var(--spd, 1)) cubic-bezier(.3,.7,.3,1); }
+.lunge-right { animation: lungeR calc(.5s * var(--spd, 1)) cubic-bezier(.3,.7,.3,1); }
 @keyframes lungeL { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(-46px, 4px) scale(1.06); } }
 @keyframes lungeR { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(46px, -2px) scale(1.04); } }
-.hit-flash img { animation: hitFlash .5s ease; }
+.hit-flash img { animation: hitFlash calc(.5s * var(--spd, 1)) ease; }
 @keyframes hitFlash { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
-.enemy-unit .unit-art.hit-flash img { animation: hitFlashMirror .5s ease; }
+.enemy-unit .unit-art.hit-flash img { animation: hitFlashMirror calc(.5s * var(--spd, 1)) ease; }
 @keyframes hitFlashMirror { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; }
 .unit-bar .bar > b { transition: width .7s cubic-bezier(.3,.7,.3,1); }
@@ -645,3 +645,56 @@ img { -webkit-user-drag: none; }
 .sound-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .sound-btn { opacity: .75; }
 .sound-btn.on { opacity: 1; border-color: var(--gold); }
+
+/* 受ける被害の見込み（農家の頭の上） */
+.player-unit { position: relative; }
+.forecast {
+  position: absolute; left: 50%; top: -6px; transform: translate(-50%, -100%); z-index: 6; pointer-events: none;
+  display: grid; justify-items: center; gap: 1px; white-space: nowrap; padding: 3px 9px; border-radius: 3px;
+  font-size: 13px; line-height: 1.3; background: rgba(15, 13, 10, .82); border: 1px solid var(--panel-line); color: #f3e6c8;
+}
+.forecast[hidden] { display: none; }
+.forecast b { font-weight: 800; }
+.forecast span { font-size: 12px; color: #f0b0a0; }
+.forecast.hurt b { color: #ffb39c; }
+.forecast.safe b { color: #b6e0a0; }
+.forecast.danger { border-color: #e0553a; background: rgba(90, 20, 10, .88); }
+.forecast.danger b { color: #ffd2c4; }
+.unit-bar .bar > i.hp-loss {
+  position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none;
+  background: repeating-linear-gradient(135deg, rgba(255, 220, 200, .75) 0 3px, rgba(160, 30, 20, .75) 3px 6px);
+}
+
+/* 農具・固有スキルの伸ばし方を選ぶ */
+.relic-pick { width: 100%; max-width: 560px; margin: 4px auto 8px; }
+.relic-pick:empty { display: none; }
+.relic-pick-lead { text-align: center; font-size: 15px; color: var(--panel-text); margin: 6px 0 8px; text-shadow: 0 1px 3px #000; }
+.relic-pick-lead b { color: var(--gold); }
+.relic-options { display: grid; gap: 8px; }
+.relic-option {
+  display: flex; align-items: center; gap: 12px; text-align: left; padding: 8px 12px; color: var(--panel-text);
+  background: rgba(20, 17, 12, .88); border: 1px solid var(--panel-line); border-radius: 4px; cursor: pointer;
+}
+.relic-option:hover, .relic-option:focus-visible { border-color: var(--gold); }
+.ro-art { flex: none; width: 52px; height: 52px; display: grid; place-items: center; background: #d6cfb8; border-radius: 50%; border: 2px solid var(--gold); }
+.ro-art img { width: 40px; height: 40px; }
+.ro-body { display: grid; gap: 2px; font-size: 14px; line-height: 1.45; }
+.ro-body b { font-family: var(--mincho); font-size: 17px; color: var(--gold); }
+.relic-owned { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; font-size: 14px; line-height: 1.5; }
+.relic-owned li b { color: var(--gold); margin-right: 8px; }
+.relic-kind { color: var(--gold); font-size: 13px; margin: 0 0 4px; }
+.relic { position: relative; }
+.relic.tool { border-color: #9fb8c6; }
+.relic-lv { position: absolute; right: -4px; bottom: -4px; font-style: normal; font-size: 11px; font-weight: 800; min-width: 16px; height: 16px;
+  line-height: 16px; text-align: center; border-radius: 8px; background: var(--gold); color: #2a1a08; }
+
+/* 出来事「？」 */
+.event-page { max-width: 560px; }
+.event-art { width: 84px; height: 84px; margin: 4px auto 0; display: grid; place-items: center; background: #d6cfb8; border-radius: 50%; border: 2px solid var(--gold); }
+.event-art img { width: 64px; height: 64px; }
+.event-text { font-size: 16px; line-height: 1.7; color: var(--panel-text); background: rgba(20, 17, 12, .82); border: 1px solid var(--panel-line); border-radius: 4px; padding: 10px 14px; margin: 0 0 10px; }
+.event-log:empty { display: none; }
+.event-log { background: rgba(20, 17, 12, .88); border: 1px solid var(--gold); border-radius: 4px; padding: 8px 14px; margin-top: 10px; }
+.event-log p { margin: 4px 0; font-size: 15px; color: #f3e6c8; }
+.map-choice.chosen { border-color: var(--gold); }
+.map-choice.chosen:disabled { opacity: 1; }

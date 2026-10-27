@@ -14,13 +14,13 @@ FR.Art = {
     crow: 'crow.svg', boar: 'boar.svg', aphids: 'aphids.svg', weeds: 'weeds.svg', blast: 'blast.svg',
     avianflu: 'avianflu.svg', frost: 'frost.svg', drought: 'drought.svg', typhoon: 'typhoon.svg',
     // 家畜
-    calf: 'calf.svg', piglet: 'piglet.png', chick: 'chick.png', hen: 'hen.png', dog: 'dog.svg',
+    calf: 'calf.png', piglet: 'piglet.png', chick: 'chick.png', hen: 'hen.png', dog: 'dog.svg',
     // 野菜
-    sprout: 'sprout.png', komatsuna: 'komatsuna.png', tomato: 'tomato.svg', cabbage: 'cabbage.svg',
-    spinach: 'spinach.png', eggplant: 'eggplant.svg', daikon: 'daikon.svg',
+    sprout: 'sprout.png', komatsuna: 'komatsuna.png', tomato: 'tomato.png', cabbage: 'cabbage.svg',
+    spinach: 'spinach.png', eggplant: 'eggplant.png', daikon: 'daikon.png',
     // 柑橘
     sapling: 'sapling.png', fruittree: 'fruittree.svg', mikantree: 'mikantree.png', lemontree: 'lemontree.png',
-    yuzutree: 'yuzutree.svg', dekopontree: 'dekopontree.svg', mikanbox: 'mikanbox.svg', jar: 'jar.svg',
+    yuzutree: 'yuzutree.png', dekopontree: 'dekopontree.png', mikanbox: 'mikanbox.svg', jar: 'jar.svg',
     // 道具・作業・機械
     weeding: 'weeding.svg', mulch: 'mulch.svg', seeds: 'seeds.svg', basket: 'basket.svg', water: 'water.svg',
     net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.svg',

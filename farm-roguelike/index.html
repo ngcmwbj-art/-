@@ -52,10 +52,11 @@
 
     <section class="stage" id="b-stage">
       <div class="unit player-unit" id="b-player">
+        <div class="forecast" id="b-forecast" hidden></div>
         <div class="unit-art" id="b-player-art"></div>
         <div class="unit-bar">
           <span class="block-badge" id="b-block" hidden></span>
-          <div class="bar"><b id="b-hp-bar"></b><span id="b-hp-text"></span></div>
+          <div class="bar"><b id="b-hp-bar"></b><i class="hp-loss" id="b-hp-loss"></i><span id="b-hp-text"></span></div>
         </div>
         <div class="statuses" id="b-statuses"></div>
       </div>
@@ -82,6 +83,7 @@
   <div class="panel-page">
     <h2 class="page-title">追い払った</h2>
     <p class="reward-gold" id="reward-gold"></p>
+    <div class="relic-pick" id="reward-relics"></div>
     <p class="reward-lead">1枚えらんでデッキに加える</p>
     <div class="terms" id="reward-terms"></div>
     <div class="reward-cards" id="reward-cards"></div>
@@ -102,6 +104,20 @@
     <div class="map-choices" id="map-choices"></div>
     <p class="map-status" id="map-status"></p>
     <button class="btn small" id="map-deck">デッキを見る</button>
+  </div>
+</section>
+
+<!-- ── 出来事「？」──────────────────────────────── -->
+<section class="screen" id="screen-event">
+  <div class="panel-page event-page">
+    <p class="map-season">出来事</p>
+    <div class="event-art" id="event-art"></div>
+    <h2 class="page-title" id="event-title"></h2>
+    <p class="event-text" id="event-text"></p>
+    <div class="rest-options" id="event-options"></div>
+    <div class="event-log" id="event-log"></div>
+    <div class="reward-actions"><button class="btn primary" id="event-next" hidden>先へ進む</button></div>
+    <p class="map-status" id="event-status"></p>
   </div>
 </section>
 
@@ -126,6 +142,7 @@
     <h2 class="page-title" id="season-title"></h2>
     <p class="result-lead" id="season-lead"></p>
     <table class="result-parts"><tbody id="season-parts"></tbody></table>
+    <div class="relic-pick" id="season-skill"></div>
     <div class="reward-actions"><button class="btn primary" id="season-next"></button></div>
   </div>
 </section>
@@ -187,6 +204,7 @@
 <script src="data/seasons.js"></script>
 <script src="data/glossary.js"></script>
 <script src="data/relics.js"></script>
+<script src="data/events.js"></script>
 <script src="data/farmers.js"></script>
 <!-- 仕組み -->
 <script src="js/core/util.js"></script>
@@ -196,11 +214,13 @@
 <script src="js/reward.js"></script>
 <script src="js/market.js"></script>
 <script src="js/map.js"></script>
+<script src="js/events.js"></script>
 <script src="js/ui/tutorial.js"></script>
 <script src="js/score.js"></script>
 <script src="js/save.js"></script>
 <!-- 画面 -->
 <script src="js/ui/sound.js"></script>
+<script src="js/ui/speed.js"></script>
 <script src="js/ui/art.js"></script>
 <script src="js/ui/render-card.js"></script>
 <script src="js/ui/screens.js"></script>

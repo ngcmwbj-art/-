@@ -39,15 +39,19 @@ FR.BattleView = {
     $('b-gold').textContent = r.gold;
     $('b-floor').textContent = b.boss ? '季節の大災害' : '';
     $('b-deck-count').textContent = r.deck.length;
-    $('b-relics').innerHTML = r.relics.map(id => {
+    // 固有スキルの伸ばし方は並べず、固有スキルの絵に「段階」を付ける
+    const lv = FR.RelicPool.skillLevel(r);
+    $('b-relics').innerHTML = r.relics.filter(id => FR.Relics[id] && !FR.Relics[id].skillOf).map(id => {
       const rl = FR.Relics[id];
-      return `<button class="relic" data-relic="${id}" aria-label="${E(rl.name)}">${FR.Art.img(rl.art, '', rl.name)}</button>`;
+      const badge = rl.rarity === 'basic' && lv > 1 ? `<i class="relic-lv">${lv}</i>` : '';
+      return `<button class="relic ${rl.rarity}" data-relic="${id}" aria-label="${E(rl.name)}">${FR.Art.img(rl.art, '', rl.name)}${badge}</button>`;
     }).join('');
 
     // 農家
     $('b-player-art').innerHTML = FR.Art.farmerImg(r.farmerId, f.name);
     $('b-hp-bar').style.width = (100 * r.hp / r.maxHp) + '%';
     $('b-hp-text').textContent = `${r.hp}/${r.maxHp}`;
+    FR.BattleView.renderForecast(b);
     $('b-block').textContent = b.block || '';
     $('b-block').hidden = !b.block;
     $('b-player').classList.toggle('has-block', !!b.block);
@@ -198,6 +202,28 @@ FR.BattleView = {
     cards.forEach(c => { c.style.margin = `0 ${margin}px`; });
   },
 
+  // 受ける被害の見込み：農家の頭の上に出し、体力バーの減る分を縞模様で見せる
+  // 敵のターン中（操作できない間）と戦闘の終わりは出さない
+  renderForecast(b) {
+    const el = document.getElementById('b-forecast');
+    const loss = document.getElementById('b-hp-loss');
+    const fc = !FR.HandInput.locked && FR.Battle.forecast(b);
+    if (!fc) { el.hidden = true; loss.style.width = '0'; return; }
+    const r = b.run;
+    const parts = [];
+    if (fc.crops) parts.push(`作物 −${fc.crops}`);
+    if (fc.fruits) parts.push(`実 −${fc.fruits}`);
+    if (fc.wilt) parts.push(`しおれ ${fc.wilt}`);
+    if (fc.animals) parts.push(`家畜 −${fc.animals}`);
+    const head = fc.dead ? `このままだと力尽きる（−${fc.hp}）` : fc.hp > 0 ? `受ける被害 −${fc.hp}` : '守りきれる';
+    el.className = 'forecast ' + (fc.dead ? 'danger' : fc.hp > 0 ? 'hurt' : 'safe');
+    el.innerHTML = `<b>${head}</b>` + (parts.length ? `<span>${parts.join('・')}</span>` : '');
+    el.hidden = false;
+    const lost = Math.min(fc.hp, r.hp);
+    loss.style.left = (100 * (r.hp - lost) / r.maxHp) + '%';
+    loss.style.width = (100 * lost / r.maxHp) + '%';
+  },
+
   // 起きたことの演出
   playFx(b) {
     const fx = b.fx.splice(0);
@@ -244,11 +270,12 @@ FR.BattleView = {
     el.style.top = (rect.top + rect.height * (cls === 'move' ? 0.05 : 0.3)) + 'px';
     el.style.animationDelay = delay + 'ms';
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2200 + delay);
+    setTimeout(() => el.remove(), 2200 * FR.Speed.mult() + delay);
   },
 
-  // 数字を出す間隔（ミリ秒）。大きくするとゆっくりになる
-  STAGGER: 280,
+  // 数字を出す間隔（ミリ秒・「ゆっくり」のとき）。大きくするとゆっくりになる
+  STAGGER_BASE: 280,
+  get STAGGER() { return Math.round(FR.BattleView.STAGGER_BASE * FR.Speed.mult()); },
 
   // 当たったとき：赤く光ってゆれる
   hit(el, delay) {
@@ -286,7 +313,7 @@ FR.BattleView = {
     setTimeout(() => {
       el.className = '';
       setTimeout(() => { FR.BattleView._slips.shift(); FR.BattleView._nextSlip(); }, 300);
-    }, 2400);
+    }, 2400 * FR.Speed.readMult());
   },
 
   // 画面中央に大きく文字を出す（「敵のターン」など）
@@ -297,7 +324,7 @@ FR.BattleView = {
     el.className = 'show ' + (cls || '');
     FR.Sound.sfx(text === '追い払った' ? 'win' : text === '力尽きた' ? 'lose' : cls === 'enemy' ? 'enemyTurn' : 'myTurn');
     clearTimeout(FR.BattleView._bannerTimer);
-    FR.BattleView._bannerTimer = setTimeout(() => { el.className = ''; }, 900);
+    FR.BattleView._bannerTimer = setTimeout(() => { el.className = ''; }, 900 * FR.Speed.mult());
   },
 
   // カードを使ったとき：手札から狙った先へ飛んで消える
@@ -317,7 +344,7 @@ FR.BattleView = {
       { transform: 'translate(0, 0) scale(1.1) rotate(0deg)', opacity: 1 },
       { transform: `translate(${dx * .55}px, ${dy * .55}px) scale(1.15) rotate(0deg)`, opacity: 1, offset: .55 },
       { transform: `translate(${dx}px, ${dy}px) scale(.35) rotate(8deg)`, opacity: 0 }
-    ], { duration: 420, easing: 'cubic-bezier(.3,.6,.3,1)' }).onfinish = () => ghost.remove();
+    ], { duration: 420 * FR.Speed.mult(), easing: 'cubic-bezier(.3,.6,.3,1)' }).onfinish = () => ghost.remove();
   },
 
   // 農家・敵が前に出る（攻撃のしぐさ）
@@ -326,6 +353,6 @@ FR.BattleView = {
     el.classList.remove('lunge-left', 'lunge-right');
     void el.offsetWidth;
     el.classList.add(dir === 'right' ? 'lunge-right' : 'lunge-left');
-    setTimeout(() => el.classList.remove('lunge-left', 'lunge-right'), 520);
+    setTimeout(() => el.classList.remove('lunge-left', 'lunge-right'), 520 * FR.Speed.mult());
   }
 };

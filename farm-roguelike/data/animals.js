@@ -11,7 +11,7 @@
    ========================================================= */
 FR.Animals = {
   calf: {
-    name: 'F1子牛', matureName: 'F1肥育牛', stages: 3, gold: 24, yield: 30, grading: 'beef',
+    name: '牛', matureName: '肥育牛', stages: 3, gold: 24, yield: 30, grading: 'beef',
     onShip: [{ op: 'heal', amount: 6 }], shipText: '健康度+6',
     art: { growing: 'calf', ripe: 'calf' }
   },
