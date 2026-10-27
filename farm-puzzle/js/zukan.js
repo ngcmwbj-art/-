@@ -129,6 +129,18 @@ const Zukan = (() => {
       // 絵だけでは何の野菜か分からないので、名前も小さく
       h('div', { class: 'cert-vegs' }, vegs.map((v) => h('span', { class: 'cert-veg' }, vegIcon(v), h('small', {}, v.name)))),
       h('div', { class: 'cert-stats' }, Msg.t('season.certStats', { total: rec.total, n: rec.n, all: rec.all })),
+      h('div', { class: 'cert-date' }, Msg.t('season.certDate', { y: rec.y, m: rec.m, d: rec.d })),
+      rec.count > 1 && rec.first ? h('div', { class: 'cert-first' }, Msg.t('season.certFirst', { m: rec.first.m, d: rec.first.d, y: rec.first.y })) : null);
+  }
+
+  // 図鑑コンプリートの賞状（35種の絵がならぶ）
+  function zukanCertificate(rec) {
+    return h('div', { class: 'certificate zukan-cert' },
+      h('div', { class: 'cert-title' }, Msg.t('season.certTitle')),
+      h('div', { class: 'cert-text' }, Msg.t('zukan.certText', { all: cfg.vegetables.length })),
+      h('div', { class: 'cert-note' }, Msg.t('zukan.certNote')),
+      h('div', { class: 'cert-vegs all' }, cfg.vegetables.map((v) => h('span', { class: 'cert-veg', title: v.name }, vegIcon(v)))),
+      h('div', { class: 'cert-stats' }, Msg.t('zukan.certStats', { total: rec.total })),
       h('div', { class: 'cert-date' }, Msg.t('season.certDate', { y: rec.y, m: rec.m, d: rec.d })));
   }
 
@@ -176,7 +188,20 @@ const Zukan = (() => {
           });
         },
       }, s.icon)),
-      h('span', { class: 'badge-season trophy' + (all ? ' got' : ''), title: Msg.t('zukan.badgeAll') }, '🏆'));
+      h('span', { class: 'badge-season trophy' + (all ? ' got' : ''), title: Msg.t('zukan.badgeAll'), 'aria-label': Msg.t('zukan.badgeAll') }, '🏆'),
+      // 図鑑をぜんぶそろえたら📖に色。押すと図鑑の賞状を見返せる
+      h('button', {
+        class: 'badge-season book' + (data.zukanComplete ? ' got' : ''),
+        type: 'button',
+        title: Msg.t(data.zukanComplete ? 'zukan.bookGot' : 'zukan.bookNot', { n: Object.keys(data.harvested).length, all: cfg.vegetables.length }),
+        'aria-label': Msg.t(data.zukanComplete ? 'zukan.bookGot' : 'zukan.bookNot', { n: Object.keys(data.harvested).length, all: cfg.vegetables.length }),
+        onclick: () => Modal.open({
+          title: Msg.t('zukan.completeTitle'),
+          body: data.zukanComplete ? h('div', { class: 'season-complete' }, zukanCertificate(data.zukanComplete))
+            : h('p', { class: 'badge-note' }, Msg.t('zukan.bookNot', { n: Object.keys(data.harvested).length, all: cfg.vegetables.length })),
+          buttons: [{ label: Msg.t('common.close'), primary: true }],
+        }),
+      }, '📖'));
   }
 
   // 今月まける野菜のカード（植える時期・育てやすさ・プランターの向き・育て方カードへ）
@@ -242,5 +267,5 @@ const Zukan = (() => {
     });
   }
 
-  return { init, render, announce, certificate, seasonWork };
+  return { init, render, announce, certificate, zukanCertificate, seasonWork };
 })();

@@ -204,6 +204,8 @@
       const next = () => {
         const v = queue.shift();
         if (v) Zukan.announce(v, () => showScreen('zukan'), next);
+        // 図鑑がぜんぶそろったら1回だけ図鑑の賞状（季節のお祝いはそのあと）
+        else if (!save.zukanComplete && Object.keys(save.harvested).length >= config.vegetables.length) celebrateZukan(next, !!seasonDone);
         else if (seasonDone) celebrateSeason(seasonDone);
         else if (!save.seasonWorkShown) showSeasonWork();
       };
@@ -215,8 +217,12 @@
     // 賞状の中身を記録しておく（図鑑の季節バッジからいつでも見返せるように。回数は季節が進んだときだけ数える）
     const today = new Date();
     const prev = save.seasonClears[done.id];
+    // はじめてそろえた日は上書きせずに残す（前の版の記録は、1回目のものならその日付がはじめての日）
+    const first = prev ? (prev.first || (prev.count === 1 ? { y: prev.y, m: prev.m, d: prev.d } : null))
+      : { y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate() };
     const rec = {
       count: (prev ? prev.count : 0) + 1,
+      first,
       y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate(),
       total: Object.values(save.harvested).reduce((a, b) => a + b, 0),
       n: Object.keys(save.harvested).length, all: config.vegetables.length,
@@ -233,6 +239,22 @@
         h('p', {}, Msg.t('season.completeBody', { done: done.name, icon: next.icon, season: next.name }))
       ),
       buttons: [{ label: Msg.t('season.toNext', { icon: next.icon, season: next.name }), primary: true, onClick: () => welcomeSeason(next) }],
+    });
+  }
+
+  // 図鑑35種がそろったお祝い（賞状は図鑑の📖バッジから見返せる）
+  // quiet：すぐあとに季節のお祝いが続くときは、メロディをそちらにまかせる
+  function celebrateZukan(onAfter, quiet) {
+    const today = new Date();
+    save.zukanComplete = { y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate(),
+      total: Object.values(save.harvested).reduce((a, b) => a + b, 0) };
+    persist();
+    Zukan.render();
+    if (!quiet) setTimeout(() => Sound.play('fanfare'), 300);
+    Modal.open({
+      title: Msg.t('zukan.completeTitle'),
+      body: h('div', { class: 'season-complete' }, Zukan.zukanCertificate(save.zukanComplete), h('p', {}, Msg.t('zukan.completeBody'))),
+      buttons: [{ label: Msg.t('common.close'), primary: true, onClick: () => { if (onAfter) onAfter(); } }],
     });
   }
 
