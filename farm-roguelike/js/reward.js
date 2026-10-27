@@ -20,7 +20,9 @@ FR.Reward = {
     const boss = run.node && run.node.type === 'boss';
     const tier = boss ? 0 : FR.Map.tier(run.node && run.node.enc);
     const T = FR.Reward.TIER[tier] || { weight: FR.Reward.RARITY_WEIGHT, gold: [10, 16] };
-    const gold = boss ? FR.Util.randInt(rnd, 40, 55) : FR.Util.randInt(rnd, T.gold[0], T.gold[1]);
+    // 農協の組合員証など、勝つたびに銭が増える農具
+    const bonus = run.relics.reduce((s, id) => s + ((FR.Relics[id] && FR.Relics[id].rewardGold) || 0), 0);
+    const gold = (boss ? FR.Util.randInt(rnd, 40, 55) : FR.Util.randInt(rnd, T.gold[0], T.gold[1])) + bonus;
     const W = boss ? FR.Reward.BOSS_WEIGHT : T.weight;
     // 出てくるカード：初期カード以外で、全員共通 or この農家タイプのもの
     const pool = Object.keys(FR.Cards).filter(id => {
@@ -33,6 +35,41 @@ FR.Reward = {
       const id = FR.Util.weighted(rnd, left.map(id => ({ value: id, weight: W[FR.Cards[id].rarity] })));
       cards.push(id);
     }
-    return { gold, cards, goldTaken: false, boss, tier };
+    // ★3の強い敵とボスに勝つと、農具を3つから1つ
+    let relics = null;
+    if (boss || tier === 3) {
+      const left = FR.RelicPool.tools(run);
+      relics = [];
+      while (relics.length < FR.Reward.RELIC_CHOICES && left.length) relics.push(left.splice(Math.floor(rnd() * left.length), 1)[0]);
+      if (!relics.length) relics = null;
+    }
+    return { gold, cards, goldTaken: false, boss, tier, relics, relicTaken: null };
+  },
+
+  RELIC_CHOICES: 3,
+
+  // 報酬の農具を1つもらう（もらえるのは1回だけ）
+  takeRelic(run, id) {
+    const rw = run.reward;
+    if (!rw || !rw.relics || rw.relicTaken || !rw.relics.includes(id)) return false;
+    run.relics.push(id);
+    rw.relicTaken = id;
+    return true;
+  },
+
+  // 季節のボスのあとの、固有スキルの伸ばし方（2つ）。シードで決まるので開き直しても同じ
+  skillChoices(run) {
+    const left = FR.RelicPool.skillUps(run);
+    const rnd = FR.Util.rng(run.seed * 13 + run.season * 101 + 7);
+    const out = [];
+    while (out.length < 2 && left.length) out.push(left.splice(Math.floor(rnd() * left.length), 1)[0]);
+    return out;
+  },
+
+  takeSkill(run, id) {
+    if (!run.skillChoice || !run.skillChoice.includes(id)) return false;
+    run.relics.push(id);
+    run.skillChoice = null;
+    return true;
   }
 };

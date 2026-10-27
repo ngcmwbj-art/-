@@ -69,7 +69,7 @@ farm-roguelike/
 │  ├─ encounters.js      戦闘の顔ぶれ（どの敵が何体で、どの季節に出るか）
 │  ├─ seasons.js         季節とボス、行き先の種類
 │  ├─ glossary.js        言葉の説明
-│  ├─ relics.js          レリック
+│  ├─ relics.js          レリック（固有スキル・その伸ばし方・農具）
 │  ├─ farmers.js         農家タイプ
 │  └─ statuses.js        状態（地力・かかしなど）
 ├─ js/
@@ -115,6 +115,7 @@ sickle: {
 ### 敵・作物・レリック・農家タイプ
 
 各ファイルの先頭に書き方の説明があります。農家タイプは `data/farmers.js` に1件足し、
+農具は `data/relics.js` に `rarity: 'tool'` で1件足すと、★3の敵やボスの報酬に出ます。固有スキルの伸ばし方は `rarity: 'skill'` と `skillOf`（どの固有スキルか）で足します。
 `enabled: true` にして、専用カードの `pool` にタイプIDを入れれば選べるようになります。
 
 ### 絵について

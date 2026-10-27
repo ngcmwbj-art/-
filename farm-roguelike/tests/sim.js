@@ -122,10 +122,18 @@ function playYear(farmerId, seed, bot) {
       if (rw.cards.some(id => { const cc = FR.Cards[id]; return !(cc.pool.includes('common') || cc.pool.includes(farmerId)); })) fail('他のタイプのカードが報酬に出た');
       run.gold += rw.gold;
       FR.Run.addCard(run, rw.cards[Math.floor(rnd() * rw.cards.length)], false);
+      // 農具：★3とボスでは必ず候補が出る（持っていないものがある限り）
+      if ((c.type === 'boss' || rw.tier === 3) && !rw.relics && FR.RelicPool.tools(run).length) fail('★3・ボスで農具が出ない');
+      if (rw.relics) { run.reward = rw; if (!FR.Reward.takeRelic(run, rw.relics[0])) fail('農具を受け取れない'); if (FR.Reward.takeRelic(run, rw.relics[1] || rw.relics[0])) fail('農具が2つ取れた'); run.reward = null; }
       run.battleIndex++;
       if (c.type === 'boss') {
         const res = FR.Map.endSeason(run);
         if (res.clear) { run.cleared = true; return run; }
+        // 固有スキルを伸ばす（2つから1つ）
+        const sc = FR.Reward.skillChoices(run);
+        if (sc.length !== 2) fail(`固有スキルの伸ばし方が ${sc.length} 個（2のはず）`);
+        run.skillChoice = sc;
+        if (!FR.Reward.takeSkill(run, sc[Math.floor(rnd() * sc.length)])) fail('固有スキルを伸ばせない');
         FR.Map.nextSeason(run);
         continue;
       }
@@ -316,6 +324,27 @@ if (unused.length) fail('一度も使われなかったカード: ' + unused.joi
 console.log('ボットの成績（1年を通して）', results);
 console.log('使われたカード', Object.keys(played).length, '種（強化後を含む）');
 if (noPhoto.length) console.log('いただいた絵がまだないカード（道具の絵で表示）:', noPhoto.join('、'));
+// レリック（固有スキル・伸ばし方・農具）のデータと、どれも戦闘で動くか
+for (const [id, r] of Object.entries(FR.Relics)) {
+  if (!artNames.has(r.art)) fail(`レリック ${id} の絵 ${r.art} がない`);
+  if (!['basic', 'skill', 'tool'].includes(r.rarity)) fail(`レリック ${id} の種類 ${r.rarity} が不明`);
+  if (r.skillOf && !FR.Relics[r.skillOf]) fail(`レリック ${id} の skillOf ${r.skillOf} がない`);
+  for (const list of Object.values(r.hooks || {})) for (const e of list) if (!FR.Effects.OPS[e.op]) fail(`レリック ${id} の効果 ${e.op} が不明`);
+}
+for (const farmerId of Object.keys(FR.Farmers)) {
+  if (FR.RelicPool.skillUps(FR.Run.create(farmerId, 1)).length < 4) fail(`${farmerId} の伸ばし方が4つない`);
+  const run = FR.Run.create(farmerId, 9);
+  run.relics = run.relics.concat(Object.keys(FR.Relics).filter(id => {
+    const r = FR.Relics[id];
+    return r.skillOf === FR.Farmers[farmerId].relic || (r.rarity === 'tool' && (r.pool.includes('common') || r.pool.includes(farmerId)));
+  }));
+  run.node = { type: 'battle', enc: 'boar' };
+  try {
+    const b = FR.Battle.create(run);
+    for (let t = 0; t < 4 && !b.over; t++) { FR.Battle.endTurn(b); }
+  } catch (err) { fail(`${farmerId} の農具を全部持った戦闘で例外: ${err.message}`); }
+}
+
 // 農家ごとの固有スキル（レリック）が実際に効くか
 {
   const node = { type: 'battle', enc: 'crow' };

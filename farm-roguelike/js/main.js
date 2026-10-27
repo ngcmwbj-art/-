@@ -43,7 +43,12 @@ const App = {
       const btn = ev.target.closest('[data-relic]');
       if (!btn) return;
       const r = FR.Relics[btn.dataset.relic];
-      FR.Screens.modal(r.name, `<p class="relic-text">${FR.Util.escape(r.text)}</p>`);
+      const E = FR.Util.escape;
+      // 固有スキルなら、伸ばした分もまとめて見せる
+      const ups = r.rarity === 'basic' ? App.data.run.relics.filter(id => FR.Relics[id].skillOf === btn.dataset.relic) : [];
+      const head = r.rarity === 'basic' ? '固有スキル' : r.rarity === 'tool' ? '農具' : '';
+      FR.Screens.modal(r.name, `<p class="relic-kind">${head}${ups.length ? `・段階${ups.length + 1}` : ''}</p><p class="relic-text">${E(r.text)}</p>`
+        + (ups.length ? `<ul class="relic-owned">${ups.map(id => `<li><b>${E(FR.Relics[id].name)}</b>${E(FR.Relics[id].text)}</li>`).join('')}</ul>` : ''));
     };
     // 区画・畜舎をタップすると説明
     document.getElementById('b-field').onclick = ev => {
@@ -332,6 +337,9 @@ const App = {
     const st = run.stats;
     const res = FR.Map.endSeason(run);
     run.seasonResult = { season: run.season, heal: res.heal, clear: res.clear, harvest: st.harvest, gold: run.gold, damage: st.damageTaken };
+    // 次の季節があるなら、固有スキルを1段伸ばす（2つから選ぶ）
+    run.skillChoice = res.clear ? null : FR.Reward.skillChoices(run);
+    if (run.skillChoice && !run.skillChoice.length) run.skillChoice = null;
     run.phase = 'season';
     App.save();
     App.showSeasonEnd();
@@ -350,6 +358,27 @@ const App = {
       ['これまでの収穫量', r.harvest], ['手元の銭', r.gold], ['受けた被害', r.damage], ['健康度', `${run.hp} / ${run.maxHp}`]
     ].map(([k, v]) => `<tr><th>${E(k)}</th><td>${E(v)}</td></tr>`).join('');
     document.getElementById('season-next').textContent = r.clear ? '経営評価を見る' : `${FR.Seasons[r.season + 1].name}へ進む`;
+    // 固有スキルを伸ばす（選ぶまで次へ進めない）
+    const box = document.getElementById('season-skill');
+    const base = FR.Relics[FR.Farmers[run.farmerId].relic];
+    if (run.skillChoice) {
+      box.innerHTML = `<p class="relic-pick-lead">固有スキル「${E(base.name)}」を伸ばす（1つ選ぶ）</p>`
+        + `<div class="relic-options">${run.skillChoice.map(id => App.relicButton(id)).join('')}</div>`;
+      box.onclick = ev => {
+        const b = ev.target.closest('[data-pick]');
+        if (!b || !FR.Reward.takeSkill(run, b.dataset.pick)) return;
+        FR.Sound.sfx('energy');
+        App.save();
+        App.showSeasonEnd();
+      };
+    } else {
+      const ups = run.relics.filter(id => FR.Relics[id].skillOf);
+      box.innerHTML = ups.length && !r.clear
+        ? `<p class="relic-pick-lead">固有スキル「${E(base.name)}」 段階${FR.RelicPool.skillLevel(run)}</p><ul class="relic-owned">${ups.map(id => `<li><b>${E(FR.Relics[id].name)}</b>${E(FR.Relics[id].text)}</li>`).join('')}</ul>`
+        : '';
+      box.onclick = null;
+    }
+    document.getElementById('season-next').disabled = !!run.skillChoice;
     FR.Screens.show('season');
   },
 
@@ -602,6 +631,13 @@ const App = {
     FR.Screens.modal(v.name, `<div class="card-detail">${FR.renderCard(v)}<div class="terms">${FR.Glossary.html(v)}</div></div>`);
   },
 
+  // 農具・固有スキルの伸ばし方を選ぶボタン
+  relicButton(id) {
+    const r = FR.Relics[id], E = FR.Util.escape;
+    return `<button class="relic-option" data-pick="${id}"><span class="ro-art">${FR.Art.img(r.art, '', r.name)}</span>`
+      + `<span class="ro-body"><b>${E(r.name)}</b><span>${E(r.text)}</span></span></button>`;
+  },
+
   // 音の切り替えボタン（BGM・効果音）。box の中に2つ並べる
   bindSound(box) {
     if (!box) return;
@@ -647,12 +683,34 @@ const App = {
     document.getElementById('reward-gold').textContent =
       `銭 +${rw.gold}` + (rw.autoHarvestGold ? `（実っていた作物を半値で収穫 +${rw.autoHarvestGold}）` : '')
       + (rw.tier === 3 ? '・強い相手だったので良いカードが出やすい' : '');
+    App.renderRewardRelics();
     document.getElementById('reward-cards').innerHTML = rw.cards.map(id => FR.renderCard(FR.cardView({ id, uid: 0 }))).join('');
     document.getElementById('reward-take').disabled = true;
     document.getElementById('reward-terms').innerHTML = '<p class="terms-hint">カードをタップすると、言葉の説明が出ます</p>';
     document.querySelector('#screen-reward .page-title').textContent = run.reward.boss ? '季節の災いを退けた' : '追い払った';
     document.getElementById('reward-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚`;
     FR.Screens.show('reward');
+  },
+
+  renderRewardRelics() {
+    const run = App.data.run, rw = run.reward, E = FR.Util.escape;
+    const box = document.getElementById('reward-relics');
+    if (!rw.relics) { box.innerHTML = ''; box.onclick = null; return; }
+    if (rw.relicTaken) {
+      const r = FR.Relics[rw.relicTaken];
+      box.innerHTML = `<p class="relic-pick-lead">農具を手に入れた：<b>${E(r.name)}</b>（${E(r.text)}）</p>`;
+      box.onclick = null;
+      return;
+    }
+    box.innerHTML = `<p class="relic-pick-lead">${rw.boss ? '' : '手ごわい相手に勝った。'}農具を1つ選ぶ（ずっと効く道具）</p>`
+      + `<div class="relic-options">${rw.relics.map(id => App.relicButton(id)).join('')}</div>`;
+    box.onclick = ev => {
+      const b = ev.target.closest('[data-pick]');
+      if (!b || !FR.Reward.takeRelic(run, b.dataset.pick)) return;
+      FR.Sound.sfx('energy');
+      App.save();
+      App.renderRewardRelics();
+    };
   },
 
   takeReward(cardId) {

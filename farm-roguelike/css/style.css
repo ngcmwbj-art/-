@@ -141,7 +141,7 @@ img { -webkit-user-drag: none; }
 .hud-btn { white-space: nowrap; font-family: var(--mincho); font-size: 13px; background: rgba(0, 0, 0, .35); border: 1px solid var(--panel-line); border-radius: 3px; padding: 3px 8px; display: inline-flex; gap: 5px; align-items: baseline; }
 .hud-btn b { color: var(--gold); }
 .relic-row { display: flex; gap: 6px; padding: 0 6px; min-height: 30px; }
-.relic { width: 30px; height: 30px; padding: 0; background: #d9cfb4; border: 1px solid var(--gold); border-radius: 50%; overflow: hidden; display: grid; place-items: center; }
+.relic { width: 30px; height: 30px; padding: 0; background: #d9cfb4; border: 1px solid var(--gold); border-radius: 50%; display: grid; place-items: center; }
 .relic img { width: 26px; height: 26px; }
 
 /* 舞台：左に農家、右に敵。足もとをそろえる */
@@ -664,3 +664,26 @@ img { -webkit-user-drag: none; }
   position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none;
   background: repeating-linear-gradient(135deg, rgba(255, 220, 200, .75) 0 3px, rgba(160, 30, 20, .75) 3px 6px);
 }
+
+/* 農具・固有スキルの伸ばし方を選ぶ */
+.relic-pick { width: 100%; max-width: 560px; margin: 4px auto 8px; }
+.relic-pick:empty { display: none; }
+.relic-pick-lead { text-align: center; font-size: 15px; color: var(--panel-text); margin: 6px 0 8px; text-shadow: 0 1px 3px #000; }
+.relic-pick-lead b { color: var(--gold); }
+.relic-options { display: grid; gap: 8px; }
+.relic-option {
+  display: flex; align-items: center; gap: 12px; text-align: left; padding: 8px 12px; color: var(--panel-text);
+  background: rgba(20, 17, 12, .88); border: 1px solid var(--panel-line); border-radius: 4px; cursor: pointer;
+}
+.relic-option:hover, .relic-option:focus-visible { border-color: var(--gold); }
+.ro-art { flex: none; width: 52px; height: 52px; display: grid; place-items: center; background: #d6cfb8; border-radius: 50%; border: 2px solid var(--gold); }
+.ro-art img { width: 40px; height: 40px; }
+.ro-body { display: grid; gap: 2px; font-size: 14px; line-height: 1.45; }
+.ro-body b { font-family: var(--mincho); font-size: 17px; color: var(--gold); }
+.relic-owned { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; font-size: 14px; line-height: 1.5; }
+.relic-owned li b { color: var(--gold); margin-right: 8px; }
+.relic-kind { color: var(--gold); font-size: 13px; margin: 0 0 4px; }
+.relic { position: relative; }
+.relic.tool { border-color: #9fb8c6; }
+.relic-lv { position: absolute; right: -4px; bottom: -4px; font-style: normal; font-size: 11px; font-weight: 800; min-width: 16px; height: 16px;
+  line-height: 16px; text-align: center; border-radius: 8px; background: var(--gold); color: #2a1a08; }

@@ -39,9 +39,12 @@ FR.BattleView = {
     $('b-gold').textContent = r.gold;
     $('b-floor').textContent = b.boss ? '季節の大災害' : '';
     $('b-deck-count').textContent = r.deck.length;
-    $('b-relics').innerHTML = r.relics.map(id => {
+    // 固有スキルの伸ばし方は並べず、固有スキルの絵に「段階」を付ける
+    const lv = FR.RelicPool.skillLevel(r);
+    $('b-relics').innerHTML = r.relics.filter(id => FR.Relics[id] && !FR.Relics[id].skillOf).map(id => {
       const rl = FR.Relics[id];
-      return `<button class="relic" data-relic="${id}" aria-label="${E(rl.name)}">${FR.Art.img(rl.art, '', rl.name)}</button>`;
+      const badge = rl.rarity === 'basic' && lv > 1 ? `<i class="relic-lv">${lv}</i>` : '';
+      return `<button class="relic ${rl.rarity}" data-relic="${id}" aria-label="${E(rl.name)}">${FR.Art.img(rl.art, '', rl.name)}${badge}</button>`;
     }).join('');
 
     // 農家
