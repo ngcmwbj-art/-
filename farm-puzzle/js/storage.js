@@ -104,16 +104,26 @@ const SaveData = (() => {
     }
   }
 
+  // 保存できたら true。できなかったら false（呼ぶ側で1回だけそっと知らせる）
   function save(data) {
+    const text = JSON.stringify(data);
     try {
       // 今の保存を「ひとつ前」として予備に移してから書く（読める保存だけを予備にする）
       const prev = localStorage.getItem(KEY);
       if (prev) {
-        try { JSON.parse(prev); localStorage.setItem(BACKUP, prev); } catch (e) { /* 壊れた保存は予備にしない */ }
+        try { JSON.parse(prev); localStorage.setItem(BACKUP, prev); } catch (e) { /* 壊れた保存・容量不足のときは予備をあきらめる */ }
       }
-      localStorage.setItem(KEY, JSON.stringify(data));
+      localStorage.setItem(KEY, text);
+      return true;
     } catch (e) {
-      /* 保存できない環境では何もしない */
+      // 容量がいっぱいのときは、予備を消して場所をあけ、本体だけでももう一度書く（遊んだ分を優先）
+      try {
+        localStorage.removeItem(BACKUP);
+        localStorage.setItem(KEY, text);
+        return true;
+      } catch (e2) {
+        return false;   // プライベートモードなど、この端末では保存できない
+      }
     }
   }
 

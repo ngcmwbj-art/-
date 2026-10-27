@@ -209,7 +209,11 @@ function toast(text, ms = 4000, important = false) {
   // お祝いなどの窓が開いているあいだは待たせる（2つまで）
   if (modalIsOpen()) {
     toastHeld.push([text, ms, important]);
-    if (toastHeld.length > 2) toastHeld.shift();
+    // ためるのは2つまで。捨てるのは大事でないものから（保存できないお知らせなどは残す）
+    if (toastHeld.length > 2) {
+      const i = toastHeld.findIndex((x) => !x[2]);
+      toastHeld.splice(i >= 0 ? i : 0, 1);
+    }
     return;
   }
   if (toastImportant && !important) {

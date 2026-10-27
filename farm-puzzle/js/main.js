@@ -27,9 +27,13 @@
   Sound.init(save.settings);
 
   // 保存して、上のバーとタブの表示を最新にする
+  let saveWarned = false;   // 保存できなかったお知らせは1回だけ
   function persist() {
     Missions.check();   // ミッションを満たしたチャレンジ野菜の種を渡す
-    SaveData.save(save);
+    if (!SaveData.save(save) && !saveWarned) {
+      saveWarned = true;
+      toast(Msg.t('save.failed'), 6000, true);
+    }
     refreshHud();
   }
 

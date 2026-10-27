@@ -326,7 +326,8 @@ const Farm = (() => {
   function tellStep(v, step) {
     const text = Msg.plain(v.steps[step]);
     const tip = step === 'sow' && v.mistake ? Msg.plain(v.mistake) : '';
-    const word = (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && (text + tip).includes(w.term));
+    // お知らせが3行をこえないよう、失敗しないコツを出すときは「ことばの説明」はつけない（育て方カードで読める）
+    const word = tip ? null : (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && text.includes(w.term));
     let msg = `${Msg.t('farm.stepNames.' + step)}：${text}`;
     if (tip) msg += '\n' + Msg.t('farm.mistake', { text: tip });
     if (word) msg += '\n' + Msg.t('farm.word', { term: word.term, reading: word.reading, text: word.text });
