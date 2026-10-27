@@ -12,7 +12,7 @@
 //     指で さわる（flag_fr_yubi）、持ち上げる（flag_fr_mochi：1回目だけ グソっ君の つっこみ。失敗に しない）。
 //     3か所 見る 前に 指へ 行くと flag_fr_junban（かくしの はなまるが 出ない）。ぜんぶ すむと flag_fr_fureai →
 //     貼り紙の すみに 光と「！」→ いちばん 下の 字（flag_fr_yomu）→ グソっ君が 出てきて 朱肉 +2・帳面③の すみ（flag_fr_done）。
-//   ・水槽に いる 間に 北の 戸へ 行くと、グソっ君は いったん 出てくる（「ほな、いったん 休憩や。」）。
+//   ・水槽に いる 間に 北の 戸から 出ると、グソっ君は 回廊で 追いついて くる（「生き物 役、いったん 休憩や。」）。
 //   ・やり込み：部屋の 物 ○/3（手おけ・蛇口・踏み台）。S19 の あと（flag_ch3_esa_done）に 貼り紙を 読むと「えさの 部屋の
 //     札の 字と、同じや。」（1回、flag_fr_esa）。済んだ あとの 水槽は くぼみ（グソっ君「わいの 席や。」1回）。
 //   ・かくし：下の 紙の 字（flag_sh_tsuzuri）→ 5 で「光で 読めたな。」。やくそくの 順の まま → はなまる（flag_fr_hana）。
@@ -154,9 +154,8 @@ addToMap(KAIRO, [
 
 const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}): MapObj => ({ t: 'obj', id, x, y, script: id, ...extra }) as unknown as MapObj;
 addToMap(FUREAI, [
-  // the way out (shut while グソっ君 is in the pool: the bump below brings him out first)
-  { t: 'door', id: 'door_c3_aq_fureai_out', x: FR_DOOR[0], y: FR_DOOR[1], to: KAIRO, tx: TO_MAE[0], ty: TO_MAE[1], dir: 'up', se: 'se_door', cond: { when: () => !flag(FF.in) } } as unknown as MapObj,
-  { t: 'trig', id: 'trig_fr_deru', x: FR_IN_AT[0], y: FR_IN_AT[1], w: 1, h: 1, on: 'bump', script: 'trig_fr_deru', cond: { when: () => flag(FF.in) > 0 } } as unknown as MapObj,
+  // the way out (グソっ君 left in the pool catches up in the corridor: evt_fr_kairo)
+  { t: 'door', id: 'door_c3_aq_fureai_out', x: FR_DOOR[0], y: FR_DOOR[1], to: KAIRO, tx: TO_MAE[0], ty: TO_MAE[1], dir: 'up', se: 'se_door' } as unknown as MapObj,
   O('obj_fr_harigami', FR_HARIGAMI[0], FR_HARIGAMI[1], { w: 2, face: 'up' }),
   O('obj_fr_suisou', FR_SUISOU[0], FR_SUISOU[1], { w: 6, h: 3 }),
   O('obj_fr_jaguchi', FR_JAGUCHI[0], FR_JAGUCHI[1]),
@@ -164,10 +163,14 @@ addToMap(FUREAI, [
   O('obj_fr_oke', FR_OKE[0], FR_OKE[1]),
 ]);
 
-// leaving some other way while グソっ君 is in the pool (a warp, a load): he is back in the line in the corridor
+// leaving while グソっ君 is in the pool: he scrambles out and catches up in the corridor (once a time)
 addToMap(KAIRO, [], ['evt_fr_kairo']);
 registerScript('evt_fr_kairo', function* (): Co {
-  if (flag(FF.in)) knTank(false);
+  if (!flag(FF.in)) return;
+  knTank(false);
+  if (!inCh3() || !knHere()) return;
+  yield 300;
+  yield* say(T.FR_DERU);
 });
 
 // ================================================================ 見のがさない しるし
@@ -197,7 +200,7 @@ const IH = 92;
 const SPOTS: [number, number][] = [
   [26, 18], // 触角の 先
   [104, 80], // 足
-  [178, 46], // しっぽの 扇
+  [170, 46], // しっぽの 扇
 ];
 /** 指（絵の 右上の 2本の 指の 印）。 */
 const YUBI_AT: [number, number] = [190, 10];
@@ -247,10 +250,15 @@ function closeup(): HTMLCanvasElement {
   p.line(40, 22, 22, 16, '#5A3A2A');
   p.line(cx - 52, cy - 12, 46, 12, '#5A3A2A');
   p.line(46, 12, 30, 6, '#5A3A2A');
-  // the fan at the tail (east): five ribs
-  for (let k = -2; k <= 2; k++) p.line(cx + 56, cy, cx + 74, cy + k * 7, '#A8693A');
-  p.poly([[cx + 55, cy - 4], [cx + 75, cy - 16], [cx + 77, cy + 16], [cx + 55, cy + 4]], '#D49A5C');
-  for (let k = -2; k <= 2; k++) p.line(cx + 57, cy + Math.sign(k), cx + 75, cy + k * 7, '#8A5A3A');
+  // the tail end (east): a rounded shield with a small fan of plates either side, fringed (not a fish's tail)
+  p.poly([[cx + 52, cy - 12], [cx + 64, cy - 8], [cx + 68, cy + 2], [cx + 64, cy + 12], [cx + 52, cy + 14]], '#5A3A2A');
+  p.poly([[cx + 52, cy - 10], [cx + 63, cy - 7], [cx + 66, cy + 2], [cx + 62, cy + 10], [cx + 52, cy + 12]], '#D49A5C');
+  p.line(cx + 54, cy + 1, cx + 63, cy + 1, '#A8693A');
+  for (const [dy, len] of [[-10, 7], [11, 7]] as const) {
+    p.poly([[cx + 56, cy + dy - 2], [cx + 56 + len, cy + dy - 3], [cx + 57 + len, cy + dy + 2], [cx + 56, cy + dy + 2]], '#A8693A');
+    for (let k = 0; k < len; k += 2) p.set(cx + 57 + k, cy + dy + (dy < 0 ? -3 : 3), '#5A3A2A');
+  }
+  for (let y = cy - 6; y <= cy + 8; y += 2) p.set(cx + 67, y, '#5A3A2A');
   closeImg = p.toCanvas();
   return closeImg;
 }
@@ -379,12 +387,12 @@ export class FureaiPanel implements Widget {
     g.text(FR_UI.me, RX, oy + 2, { color: '#F4ECD8' });
     const seen = flag(FF.me);
     FR_UI.parts.forEach((name, i) => {
-      const y = oy + 22 + i * 20 + (i === 3 ? 8 : 0);
+      const y = oy + 19 + i * 17 + (i === 3 ? 20 : 0);
       const done = i < 3 ? !!(seen & (1 << i)) : flag(FF.yubi) > 0;
-      if (i === 3) g.text(FR_UI.yubi, RX, y - 16, { color: '#F4ECD8' });
+      if (i === 3) g.text(FR_UI.yubi, RX, y - 18, { color: '#F4ECD8' });
       if (this.phase === 'select' && this.cur === i) g.rect(RX, y + 6, 4, 4, RED);
       g.text(name, RX + 8, y, { color: done ? '#FFE7A3' : DIM });
-      if (done) g.text(FR_UI.seen, RX + 8 + g.measure(name) + 6, y, { color: '#7AC88A' });
+      if (done) g.text(i < 3 ? FR_UI.seen : FR_UI.touched, RX + 8 + g.measure(name) + 6, y, { color: '#7AC88A' });
     });
   }
 }
@@ -495,23 +503,6 @@ registerScript('evt_fr_enter', function* (): Co {
   yield 400;
   yield* say(T.FR_IN);
 });
-
-/** 水槽に いる 間に 北の 戸の 前で 上へ 押した：いったん 出てきてから 回廊へ。 */
-registerScript('trig_fr_deru', function* (): Co {
-  const f = field();
-  if (!f || !flag(FF.in) || f.player.dir !== 'up') return;
-  yield* comeOut(T.FR_DERU);
-  yield* f.warpCo(KAIRO, TO_MAE[0], TO_MAE[1], 'up', 'se_door', FUREAI);
-});
-
-function* comeOut(text: string): Co {
-  yield* say3(trim(text).split(/\n(?=@narr)/)[0]);
-  se('se_c3_aq_glass', { vol: 0.4 });
-  knTank(false);
-  yield 200;
-  const rest = trim(text).split(/\n(?=@narr)/).slice(1).join('\n');
-  if (rest) yield* say3(rest);
-}
 
 /** 2・5 貼り紙。 */
 registerScript('obj_fr_harigami', function* (): Co {
@@ -774,7 +765,10 @@ export function frTextCheck(): { pages: number; bad: string[] } {
   // the close-up's words: the right column, the keys under the picture
   const room = SX + CW - RX - 2;
   for (const l of [FR_UI.me, FR_UI.yubi]) if (measure(l) > room) bad.push(`ui: ${l}: ${measure(l)}px > ${room}`);
-  for (const l of FR_UI.parts) if (8 + measure(l) + 6 + measure(FR_UI.seen) > room) bad.push(`ui: ${l}+見た: wide`);
+  FR_UI.parts.forEach((l, i) => {
+    const mark = i < 3 ? FR_UI.seen : FR_UI.touched;
+    if (8 + measure(l) + 6 + measure(mark) > room) bad.push(`ui: ${l}+${mark}: wide`);
+  });
   if (measure(FR_UI.keys) > RX - SX - 16) bad.push(`ui keys: ${measure(FR_UI.keys)}px > ${RX - SX - 16}`);
   return { pages, bad };
 }

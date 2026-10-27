@@ -255,6 +255,8 @@ export class SunaPanel implements Widget {
 
   /** build：次の 段（バケツに しめった 砂を 詰めた ところから）。 */
   startTier(i: number): void {
+    // (QA: the tier tried without packing once is packed the next time)
+    if (this.tier === i && this.phase === 'result') this.autoNoPack = this.autoNoPack.filter((x) => x !== i);
     this.tier = i;
     this.packs = 0;
     this.sel = 0;
@@ -424,7 +426,7 @@ export class SunaPanel implements Widget {
     const dent = (c: string) => {
       g.rect(x - 16, y - 2, 32, 22, c);
       for (let i = 0; i < 4; i++) g.rect(x - 15 + i * 8, y - 26 + Math.abs(i - 1.5) * 3, 6, 22, c);
-      g.rect(x - 26, y + 4, 9, 6, c);
+      g.rect(x - 26, y + 4, 11, 6, c);
     };
     if (this.kind === 'shittori') {
       dent(S.wetDk);
@@ -433,12 +435,21 @@ export class SunaPanel implements Widget {
       return;
     }
     if (this.kind === 'kawaki') {
-      // the print fills back in at once; grains trickle where the fingers were
-      g.alpha(Math.max(0, 0.6 - k * 0.6), () => dent(S.dk));
-      for (let i = 0; i < 14; i++) {
-        const gx = x - 16 + ((i * 7) % 32);
-        const gy = y - 20 + ((this.t / 30 + i * 9) % 40);
-        g.rect(gx, Math.round(gy), 1, 1, S.dk);
+      // no print: a shapeless shallow hollow where the sand ran back in, little cones of it at its rim,
+      // and grains still trickling down into it
+      for (let d = -8; d <= 8; d++) {
+        const hw = Math.round(22 * Math.sqrt(1 - (d / 8.5) ** 2));
+        g.rect(x - hw, y + 6 + d * 2, hw * 2, 2, Math.abs(d) > 6 ? S.sand : d < 0 ? S.dk : S.sand);
+      }
+      for (let i = 0; i < 5; i++) {
+        const cx = x - 14 + i * 7;
+        g.rect(cx - 2, y - 12, 5, 2, S.sand);
+        g.rect(cx - 1, y - 13, 3, 1, '#FFF6E0');
+      }
+      for (let i = 0; i < 18; i++) {
+        const gx = x - 18 + ((i * 7) % 36);
+        const gy = y - 12 + ((this.t / 25 + i * 9) % 34);
+        g.rect(gx, Math.round(gy), 1, 2, S.dk);
       }
       return;
     }
@@ -468,8 +479,11 @@ export class SunaPanel implements Widget {
     palm(x - 22, y + 7, 4, 3, c);
     palm(x, y + 8, 17, 13, rim);
     palm(x, y + 8, 16, 12, c);
-    // the sleeve of the T-shirt at the bottom edge
-    g.rect(x - 14, y + 20, 28, 30, rim === '#6A5A3A' ? rim : '#3E8A4E');
+    // the wrist, then the sleeve of the T-shirt at the bottom edge
+    g.rect(x - 11, y + 18, 22, 14, rim);
+    g.rect(x - 10, y + 18, 20, 14, c);
+    g.rect(x - 15, y + 32, 30, 24, rim === '#6A5A3A' ? rim : '#3E8A4E');
+    if (rim !== '#6A5A3A') g.rect(x - 15, y + 32, 30, 2, '#5AA86A');
   }
 
   // ---------------------------------------------------------------- その2・波：浜の 横から（海は 奥、城は 手前）
@@ -492,11 +506,13 @@ export class SunaPanel implements Widget {
     const reach = Math.max(run, Math.round(this.wave * (BASE + 6 - SHORE)));
     this.foam(g, oy + SHORE, reach);
     // グソっ君 between the sea and the castle, his back to us, both claws up (ばんざい)
-    const ky = oy + BASE - 22;
+    const ky = oy + BASE - 18;
     if (this.kn) {
       const s = charSprite('kanenari');
       const img = poseFrame(s, 'zipper', 'up');
-      const kx = CX + 44;
+      const kx = CX + 40;
+      // his short noon shadow, then him
+      g.alpha(0.3, () => g.rect(Math.round(kx - 12), ky - 2, 24, 3, '#6A5A3A'));
       g.img(img, Math.round(kx - img.width), Math.round(ky - img.height * 2), { scale: 2 });
       // the wave runs between his legs: the foam over his feet
       if (reach > ky - oy - SHORE - 4) g.alpha(0.75, () => g.rect(Math.round(kx - img.width) + 4, ky - 5, img.width * 2 - 8, 5, '#E8F2F4'));
@@ -534,12 +550,7 @@ export class SunaPanel implements Widget {
     let y = by;
     for (let i = 0; i < n; i++) {
       const [hw, h] = TIERS[i];
-      for (let r = 0; r < h; r++) {
-        const w = hw - Math.floor((r * 4) / h);
-        g.rect(CX - w, y - r - 1, w * 2, 1, r === h - 1 ? S.wetLt : r % 5 === 0 ? S.wetDk : S.wet);
-      }
-      // the bucket's rings pressed into its side
-      g.rect(CX - hw + 2, y - Math.round(h * 0.6), hw * 2 - 4, 1, S.wetDk);
+      this.tierShape(g, CX, y, hw, h);
       if (i === 0 && this.melt >= 1) {
         // the foot eaten away: notches, soaked darker
         g.rect(CX - hw, y - 4, hw * 2, 4, '#A89468');
@@ -558,7 +569,7 @@ export class SunaPanel implements Widget {
       g.rect(CX - 4, by - 6, 8, 5, '#8A8A90');
       g.rect(CX - 3, by - 6, 6, 1, '#B0B0B8');
     }
-    if (this.placed.includes('eda') && n >= 3) this.flag(g, CX, y);
+    if (this.placed.includes('eda') && n >= 3) this.flag(g, CX, y - 2);
     // what came out of the bucket when it went wrong
     if (this.phase === 'rise' || this.phase === 'result') {
       if (this.slump === 'zuru') {
@@ -580,6 +591,32 @@ export class SunaPanel implements Widget {
           g.rect(CX - hw, ty + d - 1, hw * 2, 1, col);
         }
       }
+    }
+  }
+
+  /**
+   * 1段（バケツの 形を さかさに：上が 少し 細い）。左は 影、右は 日なた、上の 面は 明るく、
+   * てっぺんの ふちに バケツの 型の でこぼこ（城の 壁の 形）。
+   */
+  private tierShape(g: Gfx, cx: number, y: number, hw: number, h: number): void {
+    const S = SR_SAND;
+    for (let r = 0; r < h; r++) {
+      const w = hw - Math.floor((r * 3) / h);
+      g.rect(cx - w, y - r - 1, w * 2, 1, S.wet);
+      g.rect(cx - w, y - r - 1, Math.max(2, Math.round(w * 0.35)), 1, S.wetDk);
+      g.rect(cx + w - Math.max(2, Math.round(w * 0.3)), y - r - 1, Math.max(2, Math.round(w * 0.3)), 1, S.wetLt);
+    }
+    // the ring the bucket's rim pressed round its middle
+    const mw = hw - 1;
+    g.rect(cx - mw, y - Math.round(h * 0.45), mw * 2, 1, '#A89468');
+    // the top: a lighter face, and the battlements the bucket's mould leaves on its edge
+    const tw = hw - 3;
+    const ty = y - h;
+    g.rect(cx - tw, ty - 1, tw * 2, 2, S.wetLt);
+    const step = Math.max(4, Math.round(tw / 2));
+    for (let x = cx - tw; x + 2 < cx + tw; x += step) {
+      g.rect(x, ty - 3, 3, 2, S.wet);
+      g.rect(x, ty - 3, 3, 1, S.wetLt);
     }
   }
 
@@ -649,12 +686,13 @@ export class SunaPanel implements Widget {
     const ky = oy + 64;
     if (this.phase === 'ready') SR_UI.keysPress.forEach((l, i) => g.text(l, RX, ky + i * 15, { color: '#FFE7A3' }));
     if (this.phase === 'menu') {
+      const ky = oy + 50;
       SR_UI.menu.forEach((l, i) => {
         const on = this.sel === i;
         if (on) g.rect(RX - 2, ky + i * 16 - 1, SX + CW - RX, 15, '#4A3A5A');
         g.text((on ? '▶' : '　') + l, RX, ky + i * 16, { color: on ? '#FFE7A3' : '#8A84A0' });
       });
-      SR_UI.keysMenu.forEach((l, i) => g.text(l, RX, ky + 34 + i * 15, { color: '#8A84A0' }));
+      SR_UI.keysMenu.forEach((l, i) => g.text(l, RX, ky + 36 + i * 15, { color: '#8A84A0' }));
     }
     if (this.phase === 'lift') SR_UI.keysLift.forEach((l, i) => g.text(l, RX, ky + i * 15, { color: '#FFE7A3' }));
   }

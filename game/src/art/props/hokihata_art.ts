@@ -70,13 +70,15 @@ function kabu(i: number, cut: boolean): HTMLCanvasElement {
     const hx = sx + lean;
     for (let y = 8; y < 13; y++) p.set(hx, y, HB_STEM);
     const dir = i === 1 ? -1 : 1;
-    for (let k = -3; k <= 3; k++) {
-      // each strand from the neck out and down
-      for (let t = 0; t < 9; t++) {
-        const x = hx + Math.round(k * 0.7 + dir * t * 0.55);
-        const y = 7 - Math.round(t * 0.2) + Math.round((t * t) / 6) + Math.abs(k) - 3;
+    for (let k = -4; k <= 4; k++) {
+      // each strand from the neck up, over and down (the weight of it to one side)
+      for (let t = 0; t < 12; t++) {
+        const x = hx + Math.round(k * 0.6 + dir * t * 0.6);
+        const y = 6 - Math.round(t * 0.5) + Math.round((t * t) / 9) + Math.abs(k);
         if (x < 0 || x >= KW || y < 0) continue;
-        p.set(x, y + 2, (k + t) % 3 === 0 ? HB_HO_LT : (k + t) % 3 === 1 ? HB_HO : HB_HO_DK);
+        const c = (k + t) % 3 === 0 ? HB_HO_LT : (k + t) % 3 === 1 ? HB_HO : HB_HO_DK;
+        p.set(x, y + 2, c);
+        if (t > 6) p.set(x, y + 3, c);
       }
     }
     p.set(hx, 3, HB_HO_DK);
@@ -157,27 +159,31 @@ registerProp('prop_hb_sao', () => {
 
 // ---------------------------------------------------------------- 去年の ほうき
 
-const HW = 10;
-const HH = 26;
+const HW = 14;
+const HH = 28;
 
 function houki(sakasa: boolean): HTMLCanvasElement {
   const p = new PixelCanvas(HW, HH);
   // the broom: a short handle of bound stalks, the head of dried 穂 (straw-gold, worn)
   const head = (y0: number, down: boolean) => {
-    for (let k = 0; k < 11; k++) {
+    for (let k = 0; k < 13; k++) {
       const y = y0 + k;
-      const half = down ? 1 + Math.floor(k / 3) : 4 - Math.floor(k / 3);
-      p.hline(5 - half, 4 + half, y, k % 2 ? STRAW : '#D8C488');
+      const half = down ? 2 + Math.floor(k / 2.5) : 6 - Math.floor(k / 2.5);
+      p.hline(7 - half, 6 + half, y, k % 2 ? '#E8D490' : '#D0B468');
+      if (half > 2) p.set(7 - half + ((k * 3) % (half * 2)), y, '#A88848');
     }
   };
+  const handle = (y0: number) => {
+    p.rect(5, y0, 4, 13, '#C8A860');
+    p.rect(5, y0, 1, 13, '#E0C880');
+    for (const y of [y0 + 2, y0 + 6, y0 + 10]) p.hline(4, 9, y, '#B8402E');
+  };
   if (!sakasa) {
-    p.rect(4, 1, 2, 13, '#A8904A');
-    for (const y of [3, 7, 11]) p.hline(3, 6, y, '#7A3A2A');
+    handle(1);
     head(14, true);
   } else {
     head(1, false);
-    p.rect(4, 12, 2, 13, '#A8904A');
-    for (const y of [14, 18, 22]) p.hline(3, 6, y, '#7A3A2A');
+    handle(14);
   }
   outline(p, { bottom: true, soft: true });
   return p.toCanvas();
@@ -195,5 +201,5 @@ registerProp('prop_hb_houki', () => {
     }
     return c;
   };
-  return { ox: 3, oy: 16 - HH, w: HW, h: HH, foot: 15, img, contact: 6, shadow: 8 } satisfies PropArt;
+  return { ox: 1, oy: 16 - HH, w: HW, h: HH, foot: 15, img, contact: 8, shadow: 8 } satisfies PropArt;
 });

@@ -109,7 +109,7 @@ registerProp('prop_fr_shell', () => {
     img: () => img,
     glow: (g: Gfx, x: number, y: number, env: PropEnv) => {
       // the noon column from the little window straight down onto the rocks, its dust
-      lightQuad(g, x + SHAFT.x, y, SHAFT.w, SHAFT.y1, 0, NOON, 0.17);
+      lightQuad(g, x + SHAFT.x, y, SHAFT.w, SHAFT.y1, 0, NOON, 0.28);
       dust(g, x + SHAFT.x, y + 4, SHAFT.w, SHAFT.y1 - 6, 0, 10, env.t, 7719, 0.5);
       // once the three are done: the light on the notice's corner (the faded line)
       if (env.flag(FUREAI)) {

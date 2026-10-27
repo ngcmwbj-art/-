@@ -190,8 +190,8 @@ const CH = PH - 8;
 const RX = SX + 222;
 const KEYS_Y = 94;
 /** 切る 所（大写しの 中の 高さ、上から）：穂首の すぐ下・1つ 下の 節・2つ 下の 節。 */
-const CUT_Y = [34, 60, 90];
-const NECK_Y = 30;
+const CUT_Y = [36, 62, 90];
+const NECK_Y = 32;
 const GROUND_Y = 106;
 
 type Phase = 'idle' | 'erabu' | 'ha';
@@ -327,13 +327,18 @@ export class FushiPanel implements Widget {
     // the head: a heavy spray of reddish-brown strands from the neck, up and over, drooping to the right
     const hx = cx;
     const hy = Y(NECK_Y);
-    for (let s = -5; s <= 5; s++) {
+    // (a fountain: each strand up from the neck, then over and down, the right side longer — the weight of it)
+    for (let s = -6; s <= 6; s++) {
       let px = hx;
       let py = hy;
-      for (let t = 1; t <= 14; t++) {
-        const u = t / 14;
-        const x = hx + Math.round(s * 2.2 * u + 30 * u * u);
-        const y = hy - Math.round(22 * u) + Math.round(34 * u * u * u) + Math.abs(s);
+      const ex = hx + s * 4 + (s >= 0 ? 10 : 2);
+      const ey = hy - 4 + Math.abs(s) * 2 + (s > 0 ? s : 0);
+      const tx = hx + s * 1.5;
+      const ty = hy - 26 + Math.abs(s);
+      for (let t = 1; t <= 12; t++) {
+        const u = t / 12;
+        const x = Math.round((1 - u) * (1 - u) * hx + 2 * (1 - u) * u * tx + u * u * ex);
+        const y = Math.round((1 - u) * (1 - u) * hy + 2 * (1 - u) * u * ty + u * u * ey);
         g.line(px, py, x, y, (s + t) % 3 === 0 ? HB_HO_LT : (s + t) % 3 === 1 ? HB_HO : HB_HO_DK);
         px = x;
         py = y;
@@ -342,8 +347,8 @@ export class FushiPanel implements Widget {
       g.rect(px - 1, py, 2, 2, HB_HO_DK);
     }
     // the names, small, on the left (the 穂, the 穂首, the 節)
-    g.text(HB_UI.ho, cx + 44, Y(4), { color: '#F4D8B0' });
-    g.text(HB_UI.hokubi, cx - 44, Y(CUT_Y[0] - 8), { color: '#D8E0C8' });
+    g.text(HB_UI.ho, cx + 44, Y(NECK_Y - 16), { color: '#F4D8B0' });
+    g.text(HB_UI.hokubi, cx - 44, Y(CUT_Y[0] + 2), { color: '#D8E0C8' });
     g.text(HB_UI.fushi, cx - 24, Y(CUT_Y[1]) - 7, { color: '#D8E0C8' });
     g.text(HB_UI.fushi, cx - 24, Y(CUT_Y[2]) - 7, { color: '#D8E0C8' });
     // the sickle where it would cut (small: the blade only a short curve), the guide across the stalk
@@ -617,9 +622,9 @@ wrap(KUCHO, function* (_ctx, orig): Co {
   yield* orig();
   if (!school || pgOn() || flag('flag_ch2_boss_beaten')) return;
   const talked = kuchoTalks() > before;
-  // 段階0：最初の 5ページだけ（1回。寄り合いの あとの いつもの 会話の あと）
+  // 段階0：最初の 5ページだけ（1回。寄り合いの あとの いつもの 会話の あと。寄り合いの 場面は 数に 入らない）
   if (hStage() === 0) {
-    if (flag('flag_ch2_yoriai') && talked && before >= 1 && !flag(HF.h0)) {
+    if (flag('flag_ch2_yoriai') && talked && !flag(HF.h0)) {
       setFlag(HF.h0, 1);
       yield* say(T.HB_H0);
     }
@@ -642,7 +647,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 
 /**
  * QA: __game.cmd.hokihata(step = 'kucho', stage = 'h1', auto = false)（'h1' トマトの 灯り・'h2' よびごえ・'h0' 灯りの 前）
- *   'h0'      段階0、寄り合いの あと 区長と 1回 話した、区長の 前 (6,4) 上向き（話すと 最初の 5ページ）
+ *   'h0'      段階0、寄り合いの あと、区長の 前 (6,4) 上向き（話すと 最初の 5ページ）
  *   'kucho'   いつもの 会話を 1回 聞いた あと、区長の 前 (6,4) 上向き（話すと〔houki〕）
  *   'kabu'    〔houki〕の あと、1株目の 前 (39,33) 右向き（大写し）
  *   'kabu3'   2本 刈った あと、3株目の 前 (39,35) 右向き
@@ -664,6 +669,8 @@ if (import.meta.env.DEV) {
     const go = (m: string, x: number, y: number, d: string) => cmd().warp?.(m, x, y, d);
     const s = flag('flag_ch2_stage');
     setFlag('flag_ch2_yoriai', 1);
+    // (まつ先生の 鍵の 呼びかけは 先に すんだ 形：集会所に 入っても 呼ばれない)
+    if (want >= 1) setFlag('flag_dome_key', 1);
     setFlag(`flag_seen_${KUCHO}_h${s}`, Math.max(1, flag(`flag_seen_${KUCHO}_h${s}`)));
     if (step === 'h0' || step === 'kucho') return go(SCHOOL, 6, 4, 'up');
     setFlag(HF.start, 1);

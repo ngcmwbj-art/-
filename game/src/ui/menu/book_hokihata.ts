@@ -61,13 +61,13 @@ export function drawHbPage(g: Gfx, x: number, y: number, w: number): void {
   g.px(bx + 12, ly + PIC_H - 10, pc);
   let ty = ly + PIC_H;
   pageText(g, HB_BOOK.marks(marks()), x + 2, ty, { color: UI.text });
-  // the 区長's tiny 「えー」 in the corner (at the end of the count's line)
-  pageText(g, HB_BOOK.kucho, x + w - 6 - textW(HB_BOOK.kucho), ty, { color: UI.pencil });
   ty += LINE_H;
   for (const l of HB_BOOK.quote) {
     pageText(g, l, x + 4, ty, { color: '#8A5A3A' });
     ty += LINE_H;
   }
+  // the 区長's tiny 「えー」 in the corner (under his words)
+  pageText(g, HB_BOOK.kucho, x + w - 6 - textW(HB_BOOK.kucho), ty, { color: UI.pencil });
 }
 
 export function hbBookCheck(): { pages: number; bad: string[] } {
@@ -79,9 +79,9 @@ export function hbBookCheck(): { pages: number; bad: string[] } {
   for (const l of HB_BOOK.titleLines) if (textW(l) > room) bad.push(`${l}: ${textW(l)}px`);
   if (2 + textW(HB_BOOK.marks([1, 2, 1])) > room) bad.push('◎△: wide');
   for (const l of HB_BOOK.quote) if (4 + textW(l) > room) bad.push(`${l}: ${4 + textW(l)}px`);
-  if (2 + textW(HB_BOOK.marks([1, 2, 1])) + 8 + textW(HB_BOOK.kucho) > room) bad.push('えー が 字に かかる');
+  if (textW(HB_BOOK.kucho) + 6 > room) bad.push('えー が はみ出す');
   const y = SP.y + 28;
-  const bottom = y + TITLE_H * HB_BOOK.titleLines.length + 6 + PIC_H + LINE_H * (1 + HB_BOOK.quote.length);
+  const bottom = y + TITLE_H * HB_BOOK.titleLines.length + 6 + PIC_H + LINE_H * (2 + HB_BOOK.quote.length);
   if (bottom > SP.y + SP.h - 2) bad.push(`本文: bottom ${bottom} > ${SP.y + SP.h - 2}`);
   return { pages: 1, bad };
 }

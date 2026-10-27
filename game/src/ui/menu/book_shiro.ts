@@ -49,8 +49,10 @@ function pic(g: Gfx, x: number, y: number): void {
   }
   g.line(x, by + 2, x + 92, by + 2, '#9AA0A8');
   // グソっ君 in front of the castle, both claws spread wide
-  const kx = x + 46;
-  g.ring(kx, by - 6, 4, pc);
+  const kx = x + 48;
+  g.ring(kx, by - 6, 5, pc);
+  g.line(kx - 3, by - 1, kx - 4, by + 1, pc);
+  g.line(kx + 3, by - 1, kx + 4, by + 1, pc);
   g.line(kx - 4, by - 8, kx - 9, by - 14, pc);
   g.line(kx + 4, by - 8, kx + 9, by - 14, pc);
   g.line(kx - 9, by - 14, kx - 11, by - 12, pc);
