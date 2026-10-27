@@ -74,12 +74,12 @@ export const FUSHIGI3: Record<string, Fushigi3> = {
   fushigi_ch3_06: {
     title: '干物の 年輪',
     place: '干物屋の干し台',
-    book: '干しすぎた アジの 開きに、日の あとが 輪に なっている。',
+    book: '日に 当てすぎた アジの 開きに、日の あとが 輪に なっている。',
     pressed: `@narr
 アジの 開きの 輪が、
 ひとつ ふえた 気が した。`,
     after: `@narr
-干しすぎた アジの 開き。
+日に 当てすぎた アジの 開き。
 輪は、数えきれない。`,
   },
   fushigi_ch3_07: {

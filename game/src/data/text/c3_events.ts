@@ -302,7 +302,7 @@ export const C3_TALK: Record<string, Record<string, string>> = {
   },
   npc_c3_kanshiin: {
     c1_1: `@npc_c3_kanshiin
-ピッ！{w=300}……あ、つい。
+……あ、こんにちは。
 /
 監視員の {name:npc_c3_kanshiin}です。{w=300}
 遊泳旗を、下ろす 時間なんです。
@@ -395,10 +395,10 @@ export const C3_KID_AGAIN: Record<string, string> = {
   npc_c3_kid_b: `@npc_c3_kid_b
 でも、ちょっと あきた。`,
   npc_c3_kid_c: `@npc_c3_kid_c
-……それ、でっかい ダンゴムシ？
+……あ、エビの なかまの 人。
 @npc_kanenari
-ダンゴムシ ちゃうで。{w=300}
-エビや カニの なかまや。`,
+覚えて くれたんか。{w=300}
+……ええ子や。`,
 };
 
 /**
@@ -606,7 +606,7 @@ export const C3_OBJ: Record<string, C3Obj> = {
   },
   obj_c3_himono_dai: {
     text: `@narr
-干しすぎた アジの 開きに、
+日に 当てすぎた アジの 開きに、
 日の あとが 輪に なっている。`,
   },
 };
