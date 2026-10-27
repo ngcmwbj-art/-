@@ -48,6 +48,7 @@ FR.BattleView = {
     $('b-player-art').innerHTML = FR.Art.farmerImg(r.farmerId, f.name);
     $('b-hp-bar').style.width = (100 * r.hp / r.maxHp) + '%';
     $('b-hp-text').textContent = `${r.hp}/${r.maxHp}`;
+    FR.BattleView.renderForecast(b);
     $('b-block').textContent = b.block || '';
     $('b-block').hidden = !b.block;
     $('b-player').classList.toggle('has-block', !!b.block);
@@ -196,6 +197,28 @@ FR.BattleView = {
     const step = n > 1 ? Math.min(natural, (avail - 2 * half) / (n - 1)) : cw;
     const margin = (step - cw) / 2;
     cards.forEach(c => { c.style.margin = `0 ${margin}px`; });
+  },
+
+  // 受ける被害の見込み：農家の頭の上に出し、体力バーの減る分を縞模様で見せる
+  // 敵のターン中（操作できない間）と戦闘の終わりは出さない
+  renderForecast(b) {
+    const el = document.getElementById('b-forecast');
+    const loss = document.getElementById('b-hp-loss');
+    const fc = !FR.HandInput.locked && FR.Battle.forecast(b);
+    if (!fc) { el.hidden = true; loss.style.width = '0'; return; }
+    const r = b.run;
+    const parts = [];
+    if (fc.crops) parts.push(`作物 −${fc.crops}`);
+    if (fc.fruits) parts.push(`実 −${fc.fruits}`);
+    if (fc.wilt) parts.push(`しおれ ${fc.wilt}`);
+    if (fc.animals) parts.push(`家畜 −${fc.animals}`);
+    const head = fc.dead ? `このままだと力尽きる（−${fc.hp}）` : fc.hp > 0 ? `受ける被害 −${fc.hp}` : '守りきれる';
+    el.className = 'forecast ' + (fc.dead ? 'danger' : fc.hp > 0 ? 'hurt' : 'safe');
+    el.innerHTML = `<b>${head}</b>` + (parts.length ? `<span>${parts.join('・')}</span>` : '');
+    el.hidden = false;
+    const lost = Math.min(fc.hp, r.hp);
+    loss.style.left = (100 * (r.hp - lost) / r.maxHp) + '%';
+    loss.style.width = (100 * lost / r.maxHp) + '%';
   },
 
   // 起きたことの演出

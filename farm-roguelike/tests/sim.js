@@ -333,5 +333,32 @@ if (noPhoto.length) console.log('いただいた絵がまだないカード（�
   if (l.block - lb !== 6) fail(`カウベル：出荷で守り +${l.block - lb}（6のはず）`);
 }
 
+// 被害の見込み：本物を変えず、実際に敵が動いたときと同じ結果になるか（いろいろな戦闘で）
+{
+  let checked = 0;
+  for (const farmerId of Object.keys(FR.Farmers)) {
+    for (const en of FR.Encounters.concat([{ id: 'boss', boss: true }])) {
+      const run = FR.Run.create(farmerId, 21 + checked);
+      run.node = en.boss ? { type: 'boss', boss: FR.Map.bossId(run) } : { type: 'battle', enc: en.id };
+      const b = FR.Battle.create(run);
+      if (b.plots.length) { b.plots[0] = { crop: 'komatsuna', growth: 1, stages: 2 }; if (b.plots[1] !== undefined) b.plots[1] = { crop: 'unshu', tree: true, growth: 2, stages: 2, fruits: 2, maxFruits: 3 }; }
+      if (b.barns.length) b.barns[0] = { animal: 'calf', growth: 1, stages: 3, care: 0 };
+      for (let t = 0; t < 3 && !b.over; t++) {
+        const before = JSON.stringify([b.run.hp, b.plots, b.barns, b.statuses, b.enemies.map(e => [e.hp, e.strength])]);
+        const fc = FR.Battle.forecast(b);
+        if (JSON.stringify([b.run.hp, b.plots, b.barns, b.statuses, b.enemies.map(e => [e.hp, e.strength])]) !== before) fail(`見込みで本物が変わった（${en.id}）`);
+        const hp0 = b.run.hp, crops0 = b.plots.filter(Boolean).length;
+        FR.Battle.endTurnBegin(b); FR.Battle.enemyAct(b);
+        if (hp0 - b.run.hp !== fc.hp) fail(`見込みの被害 ${fc.hp} と実際 ${hp0 - b.run.hp} がちがう（${farmerId}・${en.id}）`);
+        if (crops0 - b.plots.filter(Boolean).length !== fc.crops) fail(`見込みの作物 ${fc.crops} と実際がちがう（${en.id}）`);
+        checked++;
+        if (b.over) break;
+        FR.Battle.endTurnFinish(b);
+      }
+    }
+  }
+  if (checked < 30) fail('見込みのテストが少ない');
+}
+
 console.log(failures ? `失敗 ${failures} 件` : 'すべて OK');
 process.exit(failures ? 1 : 0);
