@@ -272,9 +272,11 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 .rm-past{display:flex;flex-wrap:wrap;gap:6px}
 .rm-past button{font-size:12px;padding:5px 10px}
 
-.moodline{margin-top:4px;font-family:var(--f-body);font-size:13px;color:var(--ink);letter-spacing:0;line-height:1.5;max-width:min(320px,60vw)}
+.moodline{pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-top:4px;font-family:var(--f-body);font-size:13px;color:var(--ink);letter-spacing:0;line-height:1.5;max-width:min(320px,60vw)}
 .moodline span{font-family:var(--f-data);font-size:10.5px;color:var(--dim);margin-right:2px}
 .moodline.warn{color:#ffc46b}
+.moodline:not(:empty)::after{content:" ›";color:var(--dim)}
+.yousu-glow{position:relative;z-index:6;box-shadow:0 0 0 2px rgba(255,210,122,.85),0 0 12px rgba(255,210,122,.55)!important;animation:tutGlow 1.6s ease-in-out infinite}
 .moodline.good{color:#9fe3b0}
 .moodline.dark{color:#ff8f8f}
 #clock,.actions small{display:none}
@@ -507,7 +509,7 @@ body.kbd #tutchip{display:none}
 <div class="modal" id="namebox" hidden><div class="sheet nb" role="dialog" aria-labelledby="nb-title"><header><h3 id="nb-title">名前をつける</h3></header><p id="nb-msg"></p><input id="nb-in" type="text" maxlength="10" autocomplete="off" placeholder="10文字まで"><div class="nb-row"><button type="button" class="primary" id="nb-ok">決める</button><button type="button" id="nb-later">あとで</button></div></div></div>
 <div id="nadehand" hidden></div>
 <div id="hashichip" hidden><span>箸で口元まで運んでください</span><button type="button" id="hashi-drop">上から落とす</button></div>
-<div id="tutchip" hidden><span>はじめての案内 <b id="tut-n"></b></span><button type="button" id="tut-skip">とばす</button></div>
+<div id="tutchip" hidden><span>はじめての案内 <b id="tut-n"></b></span><button type="button" id="tut-next" hidden>次へ</button><button type="button" id="tut-skip">とばす</button></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3 id="mem-name">グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
@@ -1835,7 +1837,7 @@ function remember(fact){if(!fact)return;fact=String(fact).slice(0,60);const key=
 function tick(mins){
   S.hunger=clamp(S.hunger+mins*.05*(S.stage===0?.3:1),0,100);
   S.water=clamp(S.water-mins*(.02+foods.filter(f=>f.rest&&!f.accepted).length*.4),0,100);
-  S.temp=clamp(S.temp+mins*.004*(14-S.temp)/4,2,24);
+  S.temp=clamp(S.temp+mins*.004*(12-S.temp)/4,2,24);
   let dm=0;
   if(S.light==='white'){S.whiteMin+=mins;dm-=.18*mins*smooth(3,20,S.whiteMin)}else{S.whiteMin=Math.max(0,S.whiteMin-mins*2);dm+=.06*mins}
   const tOff=Math.max(0,Math.abs(S.temp-10)-2);dm-=tOff*.25*mins;
@@ -2258,9 +2260,9 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     const ageAdult=S.adultAt?(Date.now()-S.adultAt)/DAY:0;S.maxHealth=clamp(100-Math.max(0,ageAdult-60)*2,0,100);
     S.health=clamp((S.health??100)-dmg+(good?.03*mins:0),0,S.maxHealth);
     if(S.light==='white')shape(-.02*mins,0);
-    if(S.water<30||S.hunger>90)addDark(.01*mins);if(Date.now()-(S.lastBully||0)>6*3600e3)addDark(-.005*mins);
-    Trouble.tick(mins);
-    if(S.health<=0&&!this.dead)this.die(S.maxHealth<=0?'老衰':'衰弱');
+    if((S.water<30||S.hunger>90)&&!Offline.on)addDark(.01*mins);if(Date.now()-(S.lastBully||0)>6*3600e3)addDark(-.005*mins);
+    if(!Offline.on)Trouble.tick(mins);
+    if(S.health<=0&&!this.dead&&!(Offline.on&&S.maxHealth>0))this.die(S.maxHealth<=0?'老衰':'衰弱');
   },
   update(dt,time){
     if(this.dead||!started)return;
@@ -2347,7 +2349,8 @@ function lifeDiaryLocal(k){
 function evText(e){return({fed:`${e.v}を食べた`,molt:`${e.v}回目の脱皮をした`,talk:`飼い主に${e.n||1}回話しかけられた`,poke:`${e.n||1}回つつかれた`,trouble:`${e.v}が起きた`,fixed:`${e.v}を飼い主が直した`,
   dream:'鯨の夢を見た',woke:'夜中に起こされた',fast:`絶食${e.v}日に達した`,mate:`${e.v}が同居することになった`,mateAte:`${e.v}に餌を取られた`,mateBye:`${e.v}がいなくなった`,slime:'ヌタウナギが粘液を出して水がネバネバになった',hatch:'母の育房から生まれた',sleep:'夜は眠った'})[e.c]||''}
 const Diary={keys:[],page:0,
-  ensure(){S.diary=S.diary||{};const today=dkey();Object.keys(S.events||{}).forEach(k=>{if(k<today&&!S.diary[k])S.diary[k]={t:lifeDiaryLocal(k),by:'local'}})},
+  ensure(){S.diary=S.diary||{};const today=dkey();Object.keys(S.events||{}).forEach(k=>{if(k<today&&!S.diary[k])S.diary[k]={t:lifeDiaryLocal(k),by:'local'}});
+    const ks=Object.keys(S.diary).sort();while(ks.length>365)delete S.diary[ks.shift()]},
   open(){this.ensure();const today=dkey();this.keys=[...new Set(Object.keys(S.diary).concat(Object.keys(S.weekly||{}),today))].sort();this.page=this.keys.length-1;this.tab('diary');$('diary').hidden=false;this.render();save()},
   close(){$('diary').hidden=true},
   tab(t){$('d-book').hidden=t!=='diary';$('d-graves').hidden=t!=='graves';$('d-tab-diary').setAttribute('aria-pressed',t==='diary');$('d-tab-graves').setAttribute('aria-pressed',t==='graves');if(t==='graves')this.graves()},
@@ -3550,11 +3553,11 @@ setInterval(()=>MoodLine.update(),1000);
    ===================================================================== */
 const Tutor={i:-1,t:0,
   STEPS:[
-    {el:'say',done:'talk',text:'（まずは話しかけてみましょう。下の欄に「こんにちは」と書いて「話す」を押してください。マイクのボタンで、声でも話しかけられます）'},
-    {el:'btn-light',done:'light',text:'（次は照明です。「照明」を押すと、赤色灯・消灯・白色灯が切り替わります。グソっ君は暗いほうが落ち着き、白い光はまぶしがります）'},
-    {el:'btn-temp',done:'temp',text:'（水温も大事です。好きな水温は8〜12℃。「水温」から上げ下げできます）'},
-    {el:'moodline',auto:7,text:'（左上の「様子」に、今の気持ちや困っていることが出ます。困ったときは、まずここを見てください）'},
-    {el:'daily',auto:8,text:'（「今日のお世話」を3つ終えると、連続記録がのびます。餌は、もう少し大きくなってから。しばらくは、お腹に残った栄養で育ちます）'}
+    {el:'say',done:'talk',text:'（まずは話しかけてみましょう。下の欄に「こんにちは」と書いて「話す」を押してください）'},
+    {el:'btn-light',done:'light',text:'（照明のボタンを押すと、明かりが変わります。グソっ君は暗いほうが落ち着きます）'},
+    {el:'btn-temp',done:'temp',text:'（「水温」を押すと、水温を上げ下げできます。好きな水温は8〜12℃です）'},
+    {el:'btn-more',done:'more',next:true,text:'（「その他」には、日記・写真・図鑑などがまとまっています）'},
+    {el:'moodline',done:'yousu',next:true,text:'（困ったときは、左上の「様子」をタップしてください。次にやることを教えてくれます）'}
   ],
   begin(){if(S.tut)return;S.tut='on';save();if(S.gname)this.go(0);else Name.open('この子に名前をつけてあげてください。あとから「設定」でも変えられます。',()=>this.go(0))},
   go(i){
@@ -3563,14 +3566,14 @@ const Tutor={i:-1,t:0,
     this.i=i;this.t=0;
     if(i>=this.STEPS.length){this.end(true);return}
     const st=this.STEPS[i],el=$(st.el);if(el)el.classList.add('tut-glow');
-    $('tutchip').hidden=false;$('tut-n').textContent=(i+1)+' / '+this.STEPS.length;
+    $('tutchip').hidden=false;$('tut-next').hidden=!st.next;$('tut-n').textContent=(i+1)+' / '+this.STEPS.length;
     queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(st.text,{narr:true});
   },
   hit(k){if(this.i<0)return;const st=this.STEPS[this.i];if(st&&st.done===k){const n=this.i+1;this.i=-2;setTimeout(()=>this.go(n),k==='talk'?4200:2600)}},
   end(ok){
     document.querySelectorAll('.tut-glow').forEach(e=>e.classList.remove('tut-glow'));
     this.i=-1;S.tut='done';save();$('tutchip').hidden=true;
-    if(ok)say('（案内はここまでです。分からなくなったら「様子」を見てください。ゆっくり見守ってあげましょう）',{narr:true});
+    if(ok)say(S.stage===0?'（案内はここまでです。小さいうちは、お腹の栄養で育つので餌はいりません。ゆっくり見守ってあげましょう）':'（案内はここまでです。ゆっくり見守ってあげましょう）',{narr:true});
   },
   update(){
     if(!S||!started||Cine.on)return;
@@ -3653,7 +3656,7 @@ const Season={deco:null,decoK:null,said:false,
     const g=this.MODEL[k]();g.traverse(o=>{if(o.isMesh)o.castShadow=true});const x=1.7,z=-.5;g.position.set(x,heightAt(x,z),z);g.rotation.y=-.5;scene.add(g);this.deco=g;
   },
   day:null,
-  tick(){if(!S||!ISO)return;const D=dkey();if(D!==this.day){this.day=D;this.said=false;this.place()}if(started&&!this.said&&Daily.sess>12)this.greet()}
+  tick(){if(!S||!ISO)return;const D=dkey();if(D!==this.day){this.day=D;this.said=false;this.place()}if(started&&!this.said&&Daily.sess>12&&!Game.molting&&!Molt.phase&&!Dream.on&&!Cine.on&&!Life.asleep&&!Life.dead)this.greet()}
 };
 setInterval(()=>Season.tick(),2000);
 
@@ -4154,10 +4157,61 @@ canvas.addEventListener('pointerdown',()=>Suna.out());
 ['feed','water'].forEach(m=>{const f=Game[m];Game[m]=function(){Suna.out();return f.apply(this,arguments)}});
 {const f=updateCreature;updateCreature=function(dt,time){Suna.pre(dt);f(dt,time);Yobu.post(dt);Shigusa.post(dt,time);Suna.post()}}
 
+/* =====================================================================
+   TIME AWAY — simulated in 30-minute slices (up to two weeks), never in one jump.
+   While you are away it can weaken, but it waits for you: health stops at 20
+   (only old age, the natural end of its life, still runs its course).
+   ===================================================================== */
+const Offline={on:false,
+  run(mins){
+    const total=Math.min(Math.max(0,mins),60*24*14);let left=total;this.on=true;
+    try{while(left>0){const m=Math.min(30,left);tick(m);if(S.hatched&&S.maxHealth>0&&S.health<20)S.health=Math.min(S.maxHealth,20);left-=m}}
+    finally{this.on=false}
+  }
+};
+
+/* =====================================================================
+   WHITE LIGHT STARTLES — switching the white lamp on makes it shrink back for a moment.
+   ===================================================================== */
+{const f=Game.light;Game.light=function(){const r=f.apply(this,arguments);
+  if(started&&S.light==='white'&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&!Molt.phase&&!Cine.on&&!Dream.on&&!Hashi.on&&!Nade.on&&['idle','walk'].includes(C.state)){C.curlT=.45;setState('curl',{hold:1.4});Suna.out()}
+  return r}}
+
+/* =====================================================================
+   WHAT TO DO NEXT — tap 「様子」 and it tells you the next step and lights up the button to press.
+   ===================================================================== */
+const Yousu={
+  help(){
+    if(Life.dead)return null;
+    if(Life.asleep)return{t:'眠っています。起こさないように、そっと見守ってあげてください。'};
+    if(Game.molting||Molt.phase)return{t:'脱皮中です。触らずに、そっと見守ってあげてください。'};
+    if(Trouble.cur)return{t:'上に出ている知らせの「対処する」を押してください。',el:'alert-btn'};
+    if(S.health<40)return S.water<80?{t:'弱っています。まず「水換え」で水をきれいにしてあげてください。',el:'btn-water'}:{t:'弱っています。「水温」を押して、9〜11℃に整えてあげてください。',el:'btn-temp'};
+    if(S.water<55)return{t:'「水換え」を押すと、水がきれいになります。',el:'btn-water'};
+    if(S.temp>12.5)return{t:'「水温」を押して「− 下げる」で、10℃くらいにしてあげてください。',el:'btn-temp'};
+    if(S.temp<7.5)return{t:'「水温」を押して「＋ 上げる」で、10℃くらいにしてあげてください。',el:'btn-temp'};
+    if(S.light==='white'&&S.whiteMin>10)return{t:'照明のボタンを押して、赤色灯にすると落ち着きます。',el:'btn-light'};
+    if(S.stage>=1&&S.hunger>75)return{t:'「餌をやる」から餌を選んで、差し出してみてください。',el:'btn-feed'};
+    if(darkLv()>=2)return{t:'つつかずに、話しかけたり、長押しでなでたりしてあげてください。',el:'say'};
+    const o=Onegai.cur();if(o&&!o.done)return{t:'今日のおねがいは「'+Onegai.L[o.k].lb+'」です。かなえなくても大丈夫です。'};
+    if(S.mood<=40)return S.light==='white'?{t:'照明を赤色灯にしたり、話しかけたりすると、機嫌が直ります。',el:'btn-light'}:{t:'話しかけたり、長押しでなでたりすると、機嫌が直ります。',el:'say'};
+    return{t:'今は困っていません。話しかけたり、長押しでなでたりしてみましょう。',el:'say'};
+  },
+  tap(){
+    if(!started||!S)return;Tutor.hit('yousu');const h=this.help();if(!h)return;
+    queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say('（'+h.t+'）',{narr:true});
+    document.querySelectorAll('.yousu-glow').forEach(e=>e.classList.remove('yousu-glow'));
+    const el=h.el&&$(h.el);if(el&&el.offsetParent!==null){el.classList.add('yousu-glow');clearTimeout(this.h);this.h=setTimeout(()=>el.classList.remove('yousu-glow'),6000)}
+  }
+};
+$('moodline').addEventListener('click',e=>{e.stopPropagation();Yousu.tap()});
+$('btn-more').addEventListener('click',()=>Tutor.hit('more'));
+$('tut-next').addEventListener('click',e=>{e.stopPropagation();if(Tutor.i>=0)Tutor.go(Tutor.i+1)});
+
 let started=false;
 function boot(){
   load();
-  const away=(Date.now()-S.last)/60000;Daily.pre(away);if(S.hatched)tick(Math.min(away,60*24*3));
+  const away=(Date.now()-S.last)/60000;Daily.pre(away);if(S.hatched)Offline.run(away);
   buildTextures();
   scene.environment=makeEnv();
   buildTerrain();buildRocks();buildPebbles();buildShafts();buildBubbles();buildSediment();buildSurface();
@@ -4365,7 +4419,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
