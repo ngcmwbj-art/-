@@ -190,6 +190,7 @@ const App = {
     if (run.phase === 'reward' && run.reward) App.showReward();
     else if (run.phase === 'market' && run.market) App.showMarket();
     else if (run.phase === 'rest') App.showRest();
+    else if (run.phase === 'event' && run.event) App.showEvent();
     else if (run.phase === 'season' && run.seasonResult) App.showSeasonEnd();
     else if (run.phase === 'battle' && run.node) App.startBattle();
     else App.goMap();
@@ -279,11 +280,44 @@ const App = {
       App.save();
       return App.showMarket();
     }
+    if (c.type === 'event') {
+      run.phase = 'event';
+      FR.EventRun.start(run);
+      App.save();
+      return App.showEvent();
+    }
     if (c.type === 'rest') {
       run.phase = 'rest';
       App.save();
       return App.showRest();
     }
+  },
+
+  // ── 出来事「？」 ─────────────────────────────
+  showEvent() {
+    const run = App.data.run, ev = run.event, d = FR.Events[ev.id], E = FR.Util.escape;
+    document.getElementById('event-art').innerHTML = FR.Art.img(d.art, '', d.name);
+    document.getElementById('event-title').textContent = d.name;
+    document.getElementById('event-text').textContent = d.text;
+    const box = document.getElementById('event-options');
+    box.innerHTML = d.options.map((o, k) => {
+      const ok = FR.EventRun.canChoose(run, o);
+      const done = ev.chosen !== null;
+      return `<button class="map-choice ${done && ev.chosen === k ? 'chosen' : ''}" data-ev="${k}" ${done || !ok ? 'disabled' : ''}>
+        <span class="mc-body"><b>${E(o.label)}</b><span class="mc-text">${E(ok ? o.text : `銭が足りない（${o.need} 要る）`)}</span></span></button>`;
+    }).join('');
+    box.onclick = e => {
+      const b = e.target.closest('[data-ev]');
+      if (!b || !FR.EventRun.choose(run, +b.dataset.ev)) return;
+      FR.Sound.sfx('gold');
+      App.save();
+      App.showEvent();
+    };
+    document.getElementById('event-log').innerHTML = ev.log.map(l => `<p>${E(l)}</p>`).join('');
+    document.getElementById('event-next').hidden = ev.chosen === null;
+    document.getElementById('event-next').onclick = () => { run.event = null; App.advance(); };
+    document.getElementById('event-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚`;
+    FR.Screens.show('event');
   },
 
   // ── 休憩所 ──────────────────────────────────

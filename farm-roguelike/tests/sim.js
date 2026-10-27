@@ -7,8 +7,8 @@ const fs = require('fs');
 const path = require('path');
 global.window = global;
 const root = path.join(__dirname, '..');
-['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/seasons.js', 'data/glossary.js', 'data/relics.js', 'data/farmers.js',
- 'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/market.js', 'js/map.js', 'js/score.js']
+['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/seasons.js', 'data/glossary.js', 'data/relics.js', 'data/events.js', 'data/farmers.js',
+ 'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/market.js', 'js/map.js', 'js/events.js', 'js/score.js']
   .forEach(f => vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }));
 
 let failures = 0;
@@ -142,6 +142,16 @@ function playYear(farmerId, seed, bot) {
       const k = run.market.stock.findIndex(it => it.price <= run.gold);
       if (k >= 0) FR.Market.buy(run, k);
       run.market = null;
+    } else if (c.type === 'event') {
+      const ev = FR.EventRun.start(run);
+      const opts = FR.Events[ev.id].options;
+      const k = Math.floor(rnd() * opts.length);
+      const hp0 = run.hp;
+      if (FR.EventRun.choose(run, k)) { if (run.hp < 1) fail('出来事で健康度が0に'); }
+      else if (FR.EventRun.canChoose(run, opts[k])) fail(`出来事 ${ev.id} の選び方 ${k} が選べない`);
+      if (FR.EventRun.choose(run, 0)) fail('出来事で2回選べた');
+      void hp0;
+      run.event = null;
     } else if (c.type === 'rest') {
       if (run.hp < run.maxHp * 0.7) FR.Map.restHeal(run);
       else if (FR.Map.upgradable(run).length) FR.Map.upgrade(run, FR.Map.upgradable(run)[0].uid);
@@ -324,6 +334,30 @@ if (unused.length) fail('一度も使われなかったカード: ' + unused.joi
 console.log('ボットの成績（1年を通して）', results);
 console.log('使われたカード', Object.keys(played).length, '種（強化後を含む）');
 if (noPhoto.length) console.log('いただいた絵がまだないカード（道具の絵で表示）:', noPhoto.join('、'));
+// 出来事：データの参照先と、どの選び方も3タイプで動くか
+for (const [id, ev] of Object.entries(FR.Events)) {
+  if (!artNames.has(ev.art)) fail(`出来事 ${id} の絵 ${ev.art} がない`);
+  if (!ev.options || ev.options.length < 2 || ev.options.length > 3) fail(`出来事 ${id} の選び方は2〜3個`);
+  for (const farmerId of Object.keys(FR.Farmers)) {
+    if (ev.farmers && !ev.farmers.includes(farmerId)) continue;
+    ev.options.forEach((o, k) => {
+      for (const e of o.effects) {
+        if (!FR.EventRun.OPS[e.op]) fail(`出来事 ${id} の効果 ${e.op} が不明`);
+        if (e.op === 'card' && e.id && !FR.Cards[e.id]) fail(`出来事 ${id} のカード ${e.id} がない`);
+        if (e.op === 'nextBattle' && !FR.Statuses[e.status]) fail(`出来事 ${id} の状態 ${e.status} がない`);
+      }
+      const run = FR.Run.create(farmerId, 4);
+      run.gold = 100;
+      run.event = { id, chosen: null, log: [] };
+      const deck0 = run.deck.length;
+      try { if (!FR.EventRun.choose(run, k)) fail(`出来事 ${id} の ${o.label} が選べない（${farmerId}）`); }
+      catch (err) { fail(`出来事 ${id} の ${o.label} で例外（${farmerId}）: ${err.message}`); }
+      if (o.effects.some(e => e.op === 'card') && run.deck.length !== deck0 + 1) fail(`出来事 ${id} の ${o.label} でカードが増えない（${farmerId}）`);
+      if (o.effects.some(e => e.op === 'remove') && run.deck.length !== deck0 - 1) fail(`出来事 ${id} の ${o.label} でカードが減らない（${farmerId}）`);
+    });
+  }
+}
+
 // レリック（固有スキル・伸ばし方・農具）のデータと、どれも戦闘で動くか
 for (const [id, r] of Object.entries(FR.Relics)) {
   if (!artNames.has(r.art)) fail(`レリック ${id} の絵 ${r.art} がない`);

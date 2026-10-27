@@ -18,7 +18,7 @@ FR.Screens = {
 
   // 季節ごとの背景：秋と冬は assets/img/bg/autumn_*.jpg・winter_*.jpg（なければ battle の絵）
   SEASON_BG: { 2: 'autumn', 3: 'winter' },
-  SEASON_SCREENS: ['battle', 'reward', 'map', 'rest'],
+  SEASON_SCREENS: ['battle', 'reward', 'map', 'rest', 'event'],
 
   setBackground(screen) {
     let chain = FR.Screens.BG[screen] || ['battle'];

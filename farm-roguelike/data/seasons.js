@@ -21,5 +21,6 @@ FR.NodeTypes = {
   battle: { name: '戦い', art: null, text: '害獣や天候と戦う。勝てば報酬のカード' },
   market: { name: '市場', art: 'coin', text: 'カードを買う・売る' },
   rest:   { name: '休憩所', art: 'sunrise', text: '休んで回復するか、カードを強化する' },
+  event:  { name: '出来事', art: 'scarecrow', text: '何かが起きる。品評会・頼みごと・行商人など' },
   boss:   { name: '季節の大災害', art: null, text: '季節の終わりのボス。勝てば次の季節へ' }
 };
