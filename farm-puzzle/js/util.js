@@ -131,10 +131,13 @@ const Modal = (() => {
     });
 
     root.classList.remove('hidden');
+    toastHoldForModal();
   }
 
   function close() {
     document.getElementById('modal').classList.add('hidden');
+    // 続けて次の窓が開くこともあるので、ひと呼吸おいてから、待たせていたお知らせを出す
+    setTimeout(toastReleaseAfterModal, 0);
   }
 
   return { open, close };
@@ -179,7 +182,36 @@ let toastTimer = null;
 // important：大事なお知らせ（実った・種が手に入った など）。出ている間に来たお知らせは、消えてから順番に出す
 let toastImportant = false;
 const toastQueue = [];
+let toastShowing = null;     // いま出ているお知らせ [text, ms, important]
+const toastHeld = [];        // 窓が開いているあいだ待たせているお知らせ
+function modalIsOpen() {
+  const m = document.getElementById('modal');
+  return !!m && !m.classList.contains('hidden');
+}
+// 窓が開いたら、出ているお知らせは窓のうしろで透けないようにいったん引っこめ、閉じたあとに出し直す
+function toastHoldForModal() {
+  const el = document.getElementById('toast');
+  if (!el || !el.classList.contains('show') || !toastShowing) return;
+  clearTimeout(toastTimer);
+  el.classList.remove('show');
+  toastHeld.unshift(toastShowing);
+  toastShowing = null;
+  toastImportant = false;
+}
+function toastReleaseAfterModal() {
+  if (modalIsOpen() || !toastHeld.length) return;
+  const list = toastHeld.splice(0);
+  toast(...list[0]);
+  list.slice(1).forEach((x) => toastQueue.push([x[0], x[1]]));
+}
+
 function toast(text, ms = 4000, important = false) {
+  // お祝いなどの窓が開いているあいだは待たせる（2つまで）
+  if (modalIsOpen()) {
+    toastHeld.push([text, ms, important]);
+    if (toastHeld.length > 2) toastHeld.shift();
+    return;
+  }
   if (toastImportant && !important) {
     toastQueue.push([text, ms]);
     if (toastQueue.length > 2) toastQueue.shift();   // ためるのは2つまで（古いものから捨てる）
@@ -188,11 +220,13 @@ function toast(text, ms = 4000, important = false) {
   const el = document.getElementById('toast');
   el.textContent = text;
   el.classList.add('show');
+  toastShowing = [text, ms, important];
   toastImportant = important;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.classList.remove('show');
     toastImportant = false;
+    toastShowing = null;
     const next = toastQueue.shift();
     if (next) setTimeout(() => toast(next[0], next[1]), 250);
   }, ms);

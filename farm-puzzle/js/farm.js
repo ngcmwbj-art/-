@@ -21,6 +21,7 @@ const Farm = (() => {
   let hooks = {};     // { onChange, onAction, onHarvest(初めて収穫した野菜の一覧, seasonDone) }
   let root = null;
   let tipClosed = false;   // ひとことを ✕ で閉じたか（開き直すまで）
+  let welcomeClosed = false;   // 「おかえりなさい」を閉じたか（この回だけ）
   let seasonOpen = false;  // 季節の帯を開いているか（ふだんは1行にたたむ）
   let othersOpen = false;  // 種えらびで「ほかの季節の野菜」を開いているか
 
@@ -582,6 +583,15 @@ const Farm = (() => {
   }
 
   function dailyTip() {
+    // しばらくぶりに開いたときは、まず「おかえりなさい」（閉じるといつものひとことに）
+    if (hooks.welcomeBack && !welcomeClosed) {
+      return h('div', { class: 'daily-tip welcome', role: 'note' },
+        h('span', { class: 'daily-icon' }, '🏡'),
+        h('div', { class: 'daily-body' },
+          h('div', { class: 'daily-title' }, Msg.t('daily.welcomeTitle')),
+          h('div', { class: 'daily-text' }, Msg.t('daily.welcomeText'))),
+        h('button', { class: 'daily-close', type: 'button', 'aria-label': Msg.t('common.close'), onclick: () => { welcomeClosed = true; render(); } }, '✕'));
+    }
     // はじめの案内のあいだは出さない（見るところを少なく）
     if (tipClosed || data.onboardStep < 2 || data.tipHiddenDay === todayKey()) return null;
     const vegs = cfg.vegetables.filter(inSeason);

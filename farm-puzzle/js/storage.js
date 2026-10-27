@@ -31,6 +31,7 @@ const SaveData = (() => {
       stats: { bestCombo: 0, bestMulti: 0, bestLines: 0, bestMarks: 0 },  // ミッション用のいままでの最高
       onboardStep: null,                               // はじめの案内：0=種まき 1=水やり 2=おわり（null は起動時に決める）
       seasonWorkShown: false,                          // 最初の収穫のあとに「季節の畑しごと」を見せたか
+      lastPlayed: null,                                // 最後に開いた日（'2026-10-27'。しばらくぶりのときに「おかえりなさい」）
       zukanComplete: null,                             // 図鑑35種をそろえた記録 { y, m, d, total }（賞状を見返す用）
       seasonClears: {},                                // 季節ごとの賞状の記録 { spring: { count, y, m, d, total, n, all } }
       lastFamily: [],                                  // 区画ごとに、前に収穫した野菜のなかま（連作のひとこと用）

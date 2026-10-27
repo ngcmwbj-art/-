@@ -19,6 +19,11 @@
   Msg.applyToDom();
 
   const save = SaveData.load();
+  // 3日以上あけて開いたら、畑の「今日のひとこと」の欄で「おかえりなさい」（窓は増やさない・日数は出さない）
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const welcomeBack = !!save.lastPlayed && (Date.parse(todayStr) - Date.parse(save.lastPlayed)) / 86400000 >= 3;
+  save.lastPlayed = todayStr;
   Sound.init(save.settings);
 
   // 保存して、上のバーとタブの表示を最新にする
@@ -191,6 +196,7 @@
   Farm.init({
     data: save,
     config,
+    welcomeBack,
     onChange: persist,
     // 畑で作業したら「一手もどす」はできなくなる
     onAction: () => Puzzle.clearUndo(),

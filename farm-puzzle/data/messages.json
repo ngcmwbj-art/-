@@ -108,7 +108,7 @@
     "bookGot": "図鑑コンプリート（押すと賞状）",
     "bookNot": "図鑑をぜんぶうめると色がつきます（いま {n}/{all}）",
     "title": "やさい図鑑",
-    "count": "図鑑ぜんぶ {found}/{total}",
+    "count": "📖 図鑑 {found}/{total}種類",
     "season": "旬：{text}",
     "times": "収穫 {n}回",
     "unknownName": "？？？",
@@ -131,7 +131,7 @@
     "monthHarvestNote": "旬の野菜は、スーパーで選ぶときの目安にも。",
     "harvestMonths": "🧺 収穫：{months}",
     "monthSow": "🌱 {m}月にまける野菜",
-    "countNow": "図鑑 {icon}{season} {n}/{total}"
+    "countNow": "📖 図鑑（{icon}{season}）{n}/{total}"
   },
   "hud": {
     "water": "水",
@@ -199,7 +199,7 @@
     "workNote": "図鑑の「季節のバッジ」を押すと、いつでも読み返せます。",
     "certTitle": "賞　状",
     "certText": "あなたは {icon}{season}の旬の野菜を\nぜんぶ育てて収穫しました",
-    "certStats": "これまでに {total}こ収穫　・　図鑑 {n}/{all}",
+    "certStats": "これまでに {total}こ収穫　・　📖 図鑑 {n}/{all}",
     "certDate": "{y}年{m}月{d}日　はたけパズル",
     "certCount": "{icon}{season} {n}回目",
     "certFirst": "はじめてそろえた日：{y}年{m}月{d}日",
@@ -322,7 +322,9 @@
   },
   "daily": {
     "title": "🌱 今日のひとこと（{name}）",
-    "hideToday": "今日はもう出さない"
+    "hideToday": "今日はもう出さない",
+    "welcomeTitle": "🏡 おかえりなさい",
+    "welcomeText": "畑の野菜は元気です。好きなところから続けてね。"
   },
   "goal": {
     "harvest": "🧺 収穫できる野菜があります",

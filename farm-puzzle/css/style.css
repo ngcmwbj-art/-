@@ -1393,3 +1393,19 @@ html.big-text.xl-text { font-size: 125%; --chrome: 290px; }
 .cert-vegs.all { gap: 2px 4px; }
 .cert-vegs.all .cert-veg { font-size: 1.25rem; }
 .cert-first, .cert-note { font-size: 0.8rem; color: var(--sub); margin-top: 4px; }
+
+/* ---------- 31回目：色が見分けにくい人にも（色だけにたよらない） ---------- */
+/* 栽培カレンダー：植える月は下に線、とれる月は上に線。とれる月の色も少し濃く */
+.cal-cell.plant { box-shadow: inset 0 -3px 0 var(--green-dark); }
+.cal-cell.harvest { background: #f5c08a; color: #8a4f14; box-shadow: inset 0 3px 0 #a8622a; }
+.cal-cell.plant.harvest { background: linear-gradient(135deg, #cfe9c2 50%, #f5c08a 50%); box-shadow: inset 0 -3px 0 var(--green-dark), inset 0 3px 0 #a8622a; }
+.cal-key.plant::before { box-shadow: inset 0 -2px 0 var(--green-dark); }
+.cal-key.harvest::before { background: #f5c08a; box-shadow: inset 0 2px 0 #a8622a; }
+/* 区画の作業の段：すんだ段は✓、次の段は▶。文字の色も濃く */
+.steps li.done { color: #2f6b2a; }
+.steps li { position: relative; }
+.steps li.next { color: #8a4f14; }
+/* 印は段の右上に小さく重ねる（幅を広げない） */
+.steps li.done::after, .steps li.next::after { position: absolute; top: -5px; right: -2px; font-size: 0.6rem; line-height: 1; }
+.steps li.done::after { content: '✓'; color: #2f6b2a; font-weight: bold; }
+.steps li.next::after { content: '▶'; color: #8a4f14; }
