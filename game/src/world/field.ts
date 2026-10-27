@@ -1508,7 +1508,12 @@ export class FieldScene implements Scene {
     return [p.tileX + dx, p.tileY + dy];
   }
 
-  private tryInteract(): void {
+  /**
+   * Who or what 決定 would examine right now, without examining it (改善会議
+   * 2026-10-27 の3: the frame at its feet, world/marks.ts, asks this too).
+   * The order is the one 決定 has always used:
+   */
+  examineTarget(): { actor: Actor; obj?: undefined } | { obj: ExamineObj; actor?: undefined } | null {
     const p = this.player;
     const [dx, dy] = DIR_VEC[p.dir];
     const [px, py] = this.probe();
@@ -1517,27 +1522,18 @@ export class FieldScene implements Scene {
     // probe point, then the centre of the facing tile
     const onTile = this.actorOnTile(tx, ty);
     let a = (onTile && onTile.kind !== 'player' ? onTile : null) ?? this.actorAt(px, py, 3, [tx, ty]) ?? this.actorAt(tx * 16 + 8, ty * 16 + 12, 2, [tx, ty]);
-    if (a && a.kind !== 'player') {
-      this.startScript(interactActor(this, a));
-      return;
-    }
+    if (a && a.kind !== 'player') return { actor: a };
     // 2) objects on the tile in front (and through counters)
     for (let k = 0; k < 4; k++) {
       const o = this.objectAt(tx, ty, p.dir);
-      if (o) {
-        this.startScript(interactObject(this, o));
-        return;
-      }
+      if (o) return { obj: o };
       const c = cellAt(this.map, tx, ty);
       if (!c.counter && k > 0) break;
       if (!c.counter && k === 0) break;
       tx += dx;
       ty += dy;
       a = this.actorAt(tx * 16 + 8, ty * 16 + 12, 6);
-      if (a && a.kind !== 'player') {
-        this.startScript(interactActor(this, a));
-        return;
-      }
+      if (a && a.kind !== 'player') return { actor: a };
     }
     // 2b) the feet box straddles two rows (columns): what is in front of the other one
     {
@@ -1549,15 +1545,19 @@ export class FieldScene implements Scene {
       for (const [ax, ay] of alt) {
         if (ax === fx && ay === fy) continue;
         const o = this.objectAt(ax, ay, p.dir);
-        if (o && !o.flat) {
-          this.startScript(interactObject(this, o));
-          return;
-        }
+        if (o && !o.flat) return { obj: o };
       }
     }
     // 3) flat things under the player's feet
     const o = this.objectAt(p.tileX, p.tileY, null);
-    if (o && o.flat) this.startScript(interactObject(this, o));
+    if (o && o.flat) return { obj: o };
+    return null;
+  }
+
+  private tryInteract(): void {
+    const t = this.examineTarget();
+    if (t?.actor) this.startScript(interactActor(this, t.actor));
+    else if (t?.obj) this.startScript(interactObject(this, t.obj));
   }
 
   /** Run a coroutine as a field script: locks the player until it ends. */

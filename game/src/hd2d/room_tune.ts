@@ -132,4 +132,6 @@ export const LIE: Record<string, number> = {
   mall_food_table: 10, // フードコート: the near chairs stand with the pedestal
   in_sr_bench: 6, // 休憩所: the plain bench
   in_md_dogbed: 3, // マダム: the dog's round bed
+  // ふれあいの 磯（目で、いちばん 長く、03_ch3_index）：水の ない 低い 水槽（岩と グソっ君は 上に 寝る、前の 縁が 立つ）
+  prop_fr_suisou: 12,
 };

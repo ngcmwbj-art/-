@@ -207,7 +207,8 @@ function tsukutsuku(c: AmbCtx, t: number, vol: number, pan: number, dest: AudioN
 /**
  * amb_c3_umi — the sea. 12:00: ① the far swell's floor ② a 「ちゃぷ」 under the
  * quay every 12–25 s, no breaking waves; ambientEvent('amb_c3_umi',
- * 'wave_on', n) (S09's lens, n = 1–3) starts the beach's waves at n/3.
+ * 'wave_on', n) (S09's lens, n = 1–3) starts the beach's waves at n/3;
+ * 'shiro' (pan): one wave with the sand castle melting softly inside it (events/ch3/shiro.ts).
  * 12:01: ④ the beach's waves every 7–9 s (rising over 4 s), ⑥ the
  * 「ちゃぷちゃぷ」 every 3–6 s. ambientEvent(…, 'yose'): one wave pushes in and
  * does not draw back — its 「さー」 cut after 80 ms (S00, the chapter's door).
@@ -246,6 +247,12 @@ registerAmbience('amb_c3_umi', (c) => {
       } else if (name === 'yose') {
         // a wave comes in once and does not go out (the stopped town, ahead)
         beachWave(c, at, 0.014, c.dest, true);
+      } else if (name === 'shiro') {
+        // 波に 見せる 城（events/ch3/shiro.ts）: one of the beach's own waves, a little nearer, and under its
+        // draw-back the castle's foot giving way — a soft low 「さらっ」 inside the wave, never on its own
+        const pan = Math.max(-0.6, Math.min(0.6, Number(arg) || 0));
+        beachWave(c, at, 0.015, c.dest);
+        v(c, { at: at + 0.7, wave: 'noise', dur: 0.9, attack: 0.25, decay: 0.8, sustain: 0, release: 0.3, vol: 0.004, filter: { type: 'lowpass', freq: 700, freqEnd: 300, time: 1, q: 0.5 }, pan });
       }
     },
     stop(t) {

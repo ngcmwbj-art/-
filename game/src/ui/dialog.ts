@@ -873,6 +873,34 @@ export function* say(text: string | string[], o: SayOpts = {}): Co {
 
 // ---- the choice window ----------------------------------------------------------------
 
+/** How long a choice waits before it takes 決定 (改善会議 2026-10-27 の1: about 0.3 s, no longer). */
+export const CHOICE_WAIT_MS = 250;
+
+/**
+ * 改善会議 2026-10-27 の1 (選択肢の押しまちがい): a choice takes 決定 only once
+ * (a) CHOICE_WAIT_MS have gone by and (b) 決定 (key, touch button, the touch
+ * anywhere-tap, pad) has been seen let go since the choice opened — someone
+ * mashing or holding 決定 through the talk stops at the choice instead of
+ * taking its first option. The arrows are not held back.
+ */
+export class ConfirmGate {
+  private t = 0;
+  private let = false;
+  constructor(private readonly wait = CHOICE_WAIT_MS) {}
+  /** Call once per frame (before reading 決定). */
+  tick(dt: number, input: Input): void {
+    this.t += dt;
+    if (!input.rawDown('confirm')) this.let = true;
+  }
+  /** 決定 pressed this frame and allowed to count. */
+  pressed(input: Input): boolean {
+    return this.t >= this.wait && this.let && input.pressed('confirm');
+  }
+  get open(): boolean {
+    return this.t >= this.wait && this.let;
+  }
+}
+
 export class ChoiceBox implements Widget {
   modal = true;
   done = false;
@@ -882,6 +910,7 @@ export class ChoiceBox implements Widget {
   private t = 0;
   private moveT = 999;
   private pressT = -1;
+  private readonly gate = new ConfirmGate();
   private readonly w: number;
   private readonly h: number;
 
@@ -910,6 +939,7 @@ export class ChoiceBox implements Widget {
   update(dt: number, input: Input): void {
     this.t += dt;
     this.moveT += dt;
+    this.gate.tick(dt, input);
     if (this.pressT >= 0) {
       this.pressT += dt;
       if (this.pressT >= 110) this.finish();
@@ -919,7 +949,7 @@ export class ChoiceBox implements Widget {
     const n = this.options.length;
     if (input.repeat('down')) this.move(1, n);
     else if (input.repeat('up')) this.move(-1, n);
-    if (input.pressed('confirm')) {
+    if (this.gate.pressed(input)) {
       if (this.isDisabled(this.index)) {
         sfx('se_buzzer');
         return;

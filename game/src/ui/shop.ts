@@ -25,7 +25,7 @@ import { ease } from '../engine/tween';
 import { addItem, countItem, flag, setFlag, state } from '../game/state';
 import { getItem, isKeyItem, shopLimit } from '../data/battle';
 import { sfx } from '../audio';
-import { dialogFrame, dialogVisible, say } from './dialog';
+import { ConfirmGate, dialogFrame, dialogVisible, say } from './dialog';
 import { digitsWidth, drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { coinBoxIcon, itemIcon12, itemIcon24, purseIcon } from './icons';
 import { HOSHI_SPEAKERS, MUJIN_SHOP } from '../data/text/hoshi_npcs';
@@ -266,6 +266,8 @@ interface Confirm {
   qtyT: number;
   qtyDir: number;
   pressT: number;
+  /** 決定 counts only after it was let go (改善会議 2026-10-27 の1). */
+  gate: ConfirmGate;
 }
 
 class ShopScene implements Scene {
@@ -287,6 +289,8 @@ class ShopScene implements Scene {
   private goods: string[];
   private leaving = false;
   private confirm: Confirm | null = null;
+  /** The shelf, too, takes 決定 only after it was let go since the shop opened (改善会議 2026-10-27 の1). */
+  private gate = new ConfirmGate(160);
 
   constructor(private def: ShopDef) {
     this.goods = def.goods();
@@ -338,6 +342,8 @@ class ShopScene implements Scene {
       return;
     }
     this.openT += dt;
+    this.gate.tick(dt, game.input);
+    this.confirm?.gate.tick(dt, game.input);
     if (this.openT < 160 || this.busy || game.ui.modal) return;
     const input = game.input;
     if (this.confirm) {
@@ -348,7 +354,7 @@ class ShopScene implements Scene {
     if (n && input.repeat('down')) this.move(1, n);
     else if (n && input.repeat('up')) this.move(-1, n);
     if (this.lockT > 0) return;
-    if (input.pressed('confirm') && n) this.pick();
+    if (this.gate.pressed(input) && n) this.pick();
     else if (input.pressed('cancel') || input.pressed('menu')) this.leave();
   }
 
@@ -369,7 +375,7 @@ class ShopScene implements Scene {
       return;
     }
     sfx('se_confirm');
-    this.confirm = { id, qty: 1, index: 1, t: 0, moveT: 999, qtyT: 999, qtyDir: 0, pressT: -1 };
+    this.confirm = { id, qty: 1, index: 1, t: 0, moveT: 999, qtyT: 999, qtyDir: 0, pressT: -1, gate: new ConfirmGate(120) };
   }
 
   private updateConfirm(dt: number): void {
@@ -409,7 +415,7 @@ class ShopScene implements Scene {
         sfx('se_cursor', { pitch: 0.7, vol: 0.6 });
       }
     }
-    if (input.pressed('confirm')) {
+    if (c.gate.pressed(input)) {
       sfx(c.index === 0 ? 'se_confirm' : 'se_cancel');
       c.pressT = 0;
     } else if (input.pressed('cancel')) {

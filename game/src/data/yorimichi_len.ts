@@ -47,7 +47,10 @@ export const YORIMICHI_LEN: Record<string, YoriLen> = {
   flag_ng_start: 'normal', // nukegara 読む 32・7か所：約3分
   flag_sk_start: 'normal', // sakana 読む 49＋浮き 3回：約3分半
   flag_tk_start: 'normal', // tokoro 読む 57＋天突き・3か所：約3分半
+  flag_sr_start: 'normal', // shiro 波に 見せる 城（読む 約40ページ＋大写し「砂」4回＋浜の 6か所：約3分半）
   flag_yd_start: 'normal', // yose 読む 34＋なべ・沖まで 5か所：約3分
   flag_rt_start: 'normal', // retasu 寝とる うちに、とる（読む 約69ページ＋大写し 3回＋村から ネットの 戸・上の 畑：約4分）
+  flag_hb_start: 'normal', // hokihata 穂は ほうき、茎は 柄（読む 約45ページ＋大写し 3回＋集会所・東の 路地・竹ざお・集会所：約3分半）
+  flag_fr_start: 'normal', // fureai 目で、いちばん 長く（読む 約45ページ＋手洗い＋大写し「ふれあい」4か所＋回廊から 1部屋：約3分）
   flag_hs_start: 'normal', // housou 終わりの 音は、下がる（読む 約66ページ＋大写し 2回＋入口から 1部屋：約4分）
 };

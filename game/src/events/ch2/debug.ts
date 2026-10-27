@@ -77,6 +77,8 @@ import { AG_TEXTS } from '../../data/text/c3_amigoya';
 import { HS_TEXTS } from '../../data/text/c3_housou';
 import { NG_TEXTS } from '../../data/text/c3_nukegara';
 import { TK_TEXTS } from '../../data/text/c3_tokoro';
+import { SR_TEXTS } from '../../data/text/c3_shiro';
+import { FR_TEXTS } from '../../data/text/c3_fureai';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
 import { KU_TEXTS } from '../../data/text/hoshi_kutsu';
@@ -86,6 +88,7 @@ import { UB_TEXTS } from '../../data/text/hoshi_ushibana';
 import { KY_TEXTS } from '../../data/text/hoshi_kyuri';
 import { AN_TEXTS } from '../../data/text/hoshi_akinasu';
 import { RT_TEXTS } from '../../data/text/hoshi_retasu';
+import { HB_TEXTS } from '../../data/text/hoshi_hokihata';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -556,6 +559,8 @@ function collectTexts(): [string, string][] {
   walk('akinasu', AN_TEXTS);
   // げむきか10/26の案5（寝とる うちに、とる。02_ch2_index）
   walk('retasu', RT_TEXTS);
+  // げむきか10/27の案5（穂は ほうき、茎は 柄。02_ch2_index）
+  walk('hokihata', HB_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -606,6 +611,10 @@ function collectTexts(): [string, string][] {
   walk('c3Nukegara', NG_TEXTS);
   // げむきか10/25の案1（つるっと、終われる。第3章の クリア前、03_ch3_index）
   walk('c3Tokoro', TK_TEXTS);
+  // げむきか10/27の案1（波に 見せる 城。第3章の クリア前、03_ch3_index）
+  walk('c3Shiro', SR_TEXTS);
+  // げむきか10/27の案3（目で、いちばん 長く。第3章の クリア前、03_ch3_index）
+  walk('c3Fureai', FR_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());

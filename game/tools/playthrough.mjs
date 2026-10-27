@@ -1875,8 +1875,27 @@ async function pickChoice(downs, timeout = 15000) {
     await tap('ArrowDown');
     await sleep(120);
   }
-  await tap('KeyZ');
-  await sleep(400);
+  await choiceZ();
+}
+
+/**
+ * 決定 on the open choice. A choice takes 決定 only after CHOICE_WAIT_MS and once 決定 was let
+ * go (改善会議 10-27 の1), so on a slow machine the first Z may come too early: press again
+ * while that same choice is still waiting.
+ */
+async function choiceZ() {
+  const mark = () => page.evaluate(() => {
+    const w = window.__game.game.ui.widgets.find((x) => x.constructor.name === 'ChoiceBox' && !x.done);
+    if (w && !w.__pt) w.__pt = Math.random();
+    return w ? `${w.__pt}:${w.result}` : null;
+  });
+  const before = await mark();
+  for (let k = 0; k < 4; k++) {
+    await tap('KeyZ');
+    await sleep(400);
+    const now = await mark();
+    if (!before || now !== before) return;
+  }
 }
 
 /** A value of the game state (money, an item count). */
@@ -3185,8 +3204,7 @@ async function pgPick(want, timeout = 15000) {
     await sleep(160);
   }
   if ((await box()) !== want) throw new Error(`pgPick: cursor not on ${want}`);
-  await tap('KeyZ');
-  await sleep(400);
+  await choiceZ();
 }
 /** Ride ツガオ便 from this town: talk to the truck (or run the stop's script), take option `downs`. */
 async function pgRide(downs, label, script = null) {

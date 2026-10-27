@@ -114,6 +114,8 @@ export const AQ_ROOMS = new Set([
   'map_c3_aq_ura',
   // 放送室（終わりの 音は、下がる、03_ch3_index）：入口の 北の 壁の 戸から
   'map_c3_aq_hoso',
+  // ふれあいの 磯（目で、いちばん 長く、03_ch3_index）：回廊の 南の 壁の 戸から
+  'map_c3_aq_fureai',
 ]);
 
 /** The rooms drawn in HD-2D: chapter 1's houses, shops and the mall, and chapter 2's (CH2_ROOMS). */

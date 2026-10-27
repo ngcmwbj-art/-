@@ -6,10 +6,15 @@
 // locked) while he can walk. It only saves while he stands free on the
 // field, so a save never lands in the middle of an event.
 // A little masking-tape note 「オートセーブ」 shows in the top-right corner.
+// When the write fails (a private window, storage full or blocked — 改善会議
+// 2026-10-27 の2) a soft note says so once per session, in words only (no
+// sound: some play muted), and the game goes on as before.
 
+import { registerDebug } from '../debug';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { W } from '../engine/screen';
+import { markText } from '../engine/textzones';
 import { ease } from '../engine/tween';
 import { flag, saveGame, setFlag, state } from '../game/state';
 import type { FieldScene } from '../world/field';
@@ -18,6 +23,11 @@ import { drawTape, textW } from './window';
 /** How long Minato must stand free before a save (chained events settle first). */
 const SETTLE_MS = 450;
 const LABEL = 'オートセーブ';
+/** The once-per-session note when the save could not be written. */
+export const SAVE_FAIL_LABEL = 'この 画面では、セーブ できないみたい。';
+
+/** The failure note was shown in this session (not again until the page reloads). */
+let failShown = false;
 
 let savedMap: string | null = null;
 let savedExp = -1;
@@ -39,11 +49,17 @@ function freeNow(f: FieldScene): boolean {
 function write(): boolean {
   setFlag('flag_saved', 1);
   const ok = saveGame();
-  if (ok) {
-    savedMap = state.map;
-    savedExp = expNow();
-  }
+  // also on a failure: this place counts as done, so it does not try again every frame
+  savedMap = state.map;
+  savedExp = expNow();
   return ok;
+}
+
+/** The soft note, once a session (改善会議 2026-10-27 の2). */
+function failNote(): void {
+  if (failShown) return;
+  failShown = true;
+  game.ui.push(new AutosaveNote(SAVE_FAIL_LABEL));
 }
 
 /** Called by the field HUD every frame the field runs. */
@@ -63,6 +79,7 @@ export function autosaveTick(dt: number, f: FieldScene): void {
   if (freeMs < SETTLE_MS) return;
   if (state.map === savedMap && expNow() === savedExp) return;
   if (write()) game.ui.push(new AutosaveNote());
+  else failNote();
 }
 
 /** Where the clock plate ends (the note sits under it while it is out). */
@@ -88,6 +105,7 @@ export function resetAutosave(): void {
 if (typeof document !== 'undefined')
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden || !cur || game.frame - lastFrame > 2 || !freeNow(cur)) return;
+    // (the page is hidden: a failure here is told when the player is back, on the next save)
     write();
   });
 
@@ -96,15 +114,30 @@ class AutosaveNote implements Widget {
   done = false;
   private t = 0;
   private readonly y = Math.max(6, clockBottom() + 4);
+  /** The failure note stays long enough to read (4.5 s), on a paler tape. */
+  private readonly hold: number;
+  constructor(private readonly label = LABEL) {
+    this.hold = label === LABEL ? 1600 : 4500;
+  }
   update(dt: number): void {
     this.t += dt;
-    if (this.t > 1900) this.done = true;
+    if (this.t > this.hold + 300) this.done = true;
   }
   draw(g: Gfx): void {
     const t = this.t;
-    const k = t < 160 ? ease.cubicOut(t / 160) : t > 1600 ? 1 - (t - 1600) / 300 : 1;
-    const w = textW(LABEL) + 16;
+    const k = t < 160 ? ease.cubicOut(t / 160) : t > this.hold ? 1 - (t - this.hold) / 300 : 1;
+    const w = textW(this.label) + 16;
     const x = W - 6 - w + Math.round((1 - k) * 10);
-    drawTape(g, x, this.y, w, 18, LABEL, { color: '#F6D98A', seed: 21, alpha: Math.max(0, k) });
+    const fail = this.label !== LABEL;
+    drawTape(g, x, this.y, w, 18, this.label, fail ? { color: '#EFE6D2', seed: 23, alpha: Math.max(0, k), ink: '#5A5070' } : { color: '#F6D98A', seed: 21, alpha: Math.max(0, k) });
+    if (fail) markText(W - 6 - w, this.y, w, 18, true);
   }
+}
+
+// QA: __game.cmd.saveFailNote() shows the failure note now; saveFailReset() lets it show again
+if (import.meta.env.DEV) {
+  registerDebug('saveFailNote', () => game.ui.push(new AutosaveNote(SAVE_FAIL_LABEL)));
+  registerDebug('saveFailReset', () => {
+    failShown = false;
+  });
 }

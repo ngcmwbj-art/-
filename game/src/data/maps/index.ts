@@ -62,3 +62,5 @@ import './c3_kori';
 import './c3_amigoya';
 // 放送室（終わりの 音は、下がる 03_ch3_index、events/ch3/housou.ts）
 import './c3_housou';
+// ふれあいの 磯（目で、いちばん 長く 03_ch3_index、events/ch3/fureai.ts）
+import './c3_fureai';

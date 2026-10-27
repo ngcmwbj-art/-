@@ -18,6 +18,7 @@ import { C, cursorStamp, drawNote, tapeCanvas } from './ui/note';
 import { BAYER4, PixelCanvas } from '../engine/pixel';
 import { taggedBalloon } from './gusokkun';
 import { markText } from '../engine/textzones';
+import { ConfirmGate } from '../ui/dialog';
 
 export type GameOverChoice = 'retry' | 'load';
 
@@ -31,12 +32,15 @@ class GameOverScene implements Scene {
   private pickT = 0;
   private flipT = -1;
   private readonly canLoad = hasSave();
+  /** 決定 only after it was let go (改善会議 2026-10-27 の1). */
+  private readonly gate = new ConfirmGate(1000 + 180);
 
   constructor(private readonly bossNote: boolean) {}
 
   update(dt: number): void {
     this.t += dt;
     const inp = game.input;
+    this.gate.tick(dt, inp);
     if (this.flipT >= 0) {
       this.flipT += dt;
       if (this.flipT > 400 && inp.pressed('confirm')) this.done = true;
@@ -58,7 +62,7 @@ class GameOverScene implements Scene {
       this.index = 1 - this.index;
       sfx('se_cursor');
     }
-    if (inp.pressed('confirm')) {
+    if (this.gate.pressed(inp)) {
       if (this.index === 1 && !this.canLoad) {
         sfx('se_buzzer');
         return;

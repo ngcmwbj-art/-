@@ -22,6 +22,7 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_hm_start: 'himo 紐の 番',
   flag_ku_start: 'kutsu はく 前に、ふる',
   flag_rt_start: 'retasu 寝とる うちに、とる',
+  flag_hb_start: 'hokihata 穂は ほうき、茎は 柄',
   flag_mimi_start: 'mimi ふくじんづけと 耳の あいさつ',
   flag_mg_start: 'mushigomu 上へ 降る 雪',
   flag_nr_start: 'neru 前から 寝る',
@@ -38,12 +39,14 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_kr_start: 'kori 明日の 朝の 氷',
   flag_ag_start: 'amigoya 破れたら、つくろう',
   flag_hs_start: 'housou 終わりの 音は、下がる',
+  flag_fr_start: 'fureai 目で、いちばん 長く',
   flag_mh_start: 'mahiru 真昼の 顔',
   flag_mk_start: 'mikan 落とすけえ、甘うなる',
   flag_mz_start: 'mizukiri 低う、平たく',
   flag_ng_start: 'nukegara 背中から、1回で',
   flag_sk_start: 'sakana やっと、魚の 昼',
   flag_tk_start: 'tokoro つるっと、終われる',
+  flag_sr_start: 'shiro 波に 見せる 城',
   flag_yd_start: 'yose 海の 水で 寄せる',
 };
 
