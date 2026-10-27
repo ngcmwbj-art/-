@@ -270,11 +270,12 @@ FR.BattleView = {
     el.style.top = (rect.top + rect.height * (cls === 'move' ? 0.05 : 0.3)) + 'px';
     el.style.animationDelay = delay + 'ms';
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2200 + delay);
+    setTimeout(() => el.remove(), 2200 * FR.Speed.mult() + delay);
   },
 
-  // 数字を出す間隔（ミリ秒）。大きくするとゆっくりになる
-  STAGGER: 280,
+  // 数字を出す間隔（ミリ秒・「ゆっくり」のとき）。大きくするとゆっくりになる
+  STAGGER_BASE: 280,
+  get STAGGER() { return Math.round(FR.BattleView.STAGGER_BASE * FR.Speed.mult()); },
 
   // 当たったとき：赤く光ってゆれる
   hit(el, delay) {
@@ -312,7 +313,7 @@ FR.BattleView = {
     setTimeout(() => {
       el.className = '';
       setTimeout(() => { FR.BattleView._slips.shift(); FR.BattleView._nextSlip(); }, 300);
-    }, 2400);
+    }, 2400 * FR.Speed.readMult());
   },
 
   // 画面中央に大きく文字を出す（「敵のターン」など）
@@ -323,7 +324,7 @@ FR.BattleView = {
     el.className = 'show ' + (cls || '');
     FR.Sound.sfx(text === '追い払った' ? 'win' : text === '力尽きた' ? 'lose' : cls === 'enemy' ? 'enemyTurn' : 'myTurn');
     clearTimeout(FR.BattleView._bannerTimer);
-    FR.BattleView._bannerTimer = setTimeout(() => { el.className = ''; }, 900);
+    FR.BattleView._bannerTimer = setTimeout(() => { el.className = ''; }, 900 * FR.Speed.mult());
   },
 
   // カードを使ったとき：手札から狙った先へ飛んで消える
@@ -343,7 +344,7 @@ FR.BattleView = {
       { transform: 'translate(0, 0) scale(1.1) rotate(0deg)', opacity: 1 },
       { transform: `translate(${dx * .55}px, ${dy * .55}px) scale(1.15) rotate(0deg)`, opacity: 1, offset: .55 },
       { transform: `translate(${dx}px, ${dy}px) scale(.35) rotate(8deg)`, opacity: 0 }
-    ], { duration: 420, easing: 'cubic-bezier(.3,.6,.3,1)' }).onfinish = () => ghost.remove();
+    ], { duration: 420 * FR.Speed.mult(), easing: 'cubic-bezier(.3,.6,.3,1)' }).onfinish = () => ghost.remove();
   },
 
   // 農家・敵が前に出る（攻撃のしぐさ）
@@ -352,6 +353,6 @@ FR.BattleView = {
     el.classList.remove('lunge-left', 'lunge-right');
     void el.offsetWidth;
     el.classList.add(dir === 'right' ? 'lunge-right' : 'lunge-left');
-    setTimeout(() => el.classList.remove('lunge-left', 'lunge-right'), 520);
+    setTimeout(() => el.classList.remove('lunge-left', 'lunge-right'), 520 * FR.Speed.mult());
   }
 };

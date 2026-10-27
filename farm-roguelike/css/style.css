@@ -224,9 +224,9 @@ img { -webkit-user-drag: none; }
 .plot.ripe, .barn.ripe { cursor: pointer; }
 .plot.ripe small, .barn.ripe small { color: var(--gold); }
 .plot.ripe { box-shadow: inset 0 4px 6px rgba(0, 0, 0, .3), 0 0 0 1px var(--gold), 0 0 12px rgba(240, 190, 90, .6); }
-.pulse-plant, .pulse-grow { animation: pulse .5s ease; }
-.pulse-harvest { animation: harvested .6s ease; }
-.pulse-stolen { animation: stolen .6s ease; }
+.pulse-plant, .pulse-grow { animation: pulse calc(.5s * var(--spd, 1)) ease; }
+.pulse-harvest { animation: harvested calc(.6s * var(--spd, 1)) ease; }
+.pulse-stolen { animation: stolen calc(.6s * var(--spd, 1)) ease; }
 
 /* 収穫ボタン：畑の右端。収穫できるときだけ光る */
 .field-row { display: flex; gap: 6px; align-items: stretch; justify-content: center; }
@@ -447,7 +447,7 @@ img { -webkit-user-drag: none; }
 .float-text {
   position: fixed; z-index: 80; transform: translate(-50%, 0); pointer-events: none;
   font-family: var(--mincho); font-weight: 800; font-size: 26px; text-shadow: 0 2px 4px #000, 0 0 2px #000;
-  animation: floatUp 1.9s ease-out both;
+  animation: floatUp calc(1.9s * var(--spd, 1)) ease-out both;
 }
 .float-text.damage.enemy { color: #ffe0b0; }
 .float-text.damage.player { color: #ff8a6a; }
@@ -468,15 +468,15 @@ img { -webkit-user-drag: none; }
   100% { opacity: 0; transform: translate(-50%, -54px) scale(1); }
 }
 @keyframes shakeX { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
-.shake { animation: shakeX .35s ease; }
-.lunge { animation: lunge .45s ease; }
-.lunge-left { animation: lungeL .5s cubic-bezier(.3,.7,.3,1); }
-.lunge-right { animation: lungeR .5s cubic-bezier(.3,.7,.3,1); }
+.shake { animation: shakeX calc(.35s * var(--spd, 1)) ease; }
+.lunge { animation: lunge calc(.45s * var(--spd, 1)) ease; }
+.lunge-left { animation: lungeL calc(.5s * var(--spd, 1)) cubic-bezier(.3,.7,.3,1); }
+.lunge-right { animation: lungeR calc(.5s * var(--spd, 1)) cubic-bezier(.3,.7,.3,1); }
 @keyframes lungeL { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(-46px, 4px) scale(1.06); } }
 @keyframes lungeR { 0%, 100% { transform: translate(0, 0); } 35% { transform: translate(46px, -2px) scale(1.04); } }
-.hit-flash img { animation: hitFlash .5s ease; }
+.hit-flash img { animation: hitFlash calc(.5s * var(--spd, 1)) ease; }
 @keyframes hitFlash { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
-.enemy-unit .unit-art.hit-flash img { animation: hitFlashMirror .5s ease; }
+.enemy-unit .unit-art.hit-flash img { animation: hitFlashMirror calc(.5s * var(--spd, 1)) ease; }
 @keyframes hitFlashMirror { 0% { filter: none; } 20% { filter: brightness(2.2) sepia(1) hue-rotate(-30deg) saturate(4); } 100% { filter: none; } }
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; }
 .unit-bar .bar > b { transition: width .7s cubic-bezier(.3,.7,.3,1); }

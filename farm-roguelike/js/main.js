@@ -18,6 +18,7 @@ const App = {
     });
     document.querySelectorAll('[data-game-subtitle]').forEach(el => { el.textContent = FR.Config.subtitle; });
     FR.Sound.init();
+    FR.Speed.init();
     App.bindSound(document.getElementById('title-sound'));
 
     // タイトル
@@ -409,8 +410,13 @@ const App = {
     FR.BattleView.playFx(App.battle);
   },
 
-  // 戦闘のテンポ（ミリ秒）。数を大きくするとゆっくりになる
-  TEMPO: {
+  // 戦闘のテンポ（ミリ秒・「ゆっくり」のとき）。数を大きくするとゆっくりになる。速さの設定で倍率が掛かる（js/ui/speed.js）
+  get TEMPO() {
+    const m = FR.Speed.mult(), out = {};
+    for (const [k, v] of Object.entries(App.TEMPO_BASE)) out[k] = Math.round(v * m);
+    return out;
+  },
+  TEMPO_BASE: {
     fly: 380,         // カードが飛んでいく時間
     afterPlay: 350,   // カードの効果が出たあと、次の操作ができるまで
     discard: 450,     // ターン終了で手札を捨てる
@@ -642,10 +648,15 @@ const App = {
   bindSound(box) {
     if (!box) return;
     const draw = () => {
-      box.innerHTML = ['bgm', 'sfx'].map(k => `<button class="btn small sound-btn ${FR.Sound.settings[k] ? 'on' : ''}" data-snd="${k}">${k === 'bgm' ? 'BGM' : '効果音'}：${FR.Sound.settings[k] ? 'あり' : 'なし'}</button>`).join('');
+      box.innerHTML = ['bgm', 'sfx'].map(k => `<button class="btn small sound-btn ${FR.Sound.settings[k] ? 'on' : ''}" data-snd="${k}">${k === 'bgm' ? 'BGM' : '効果音'}：${FR.Sound.settings[k] ? 'あり' : 'なし'}</button>`).join('')
+        + `<button class="btn small sound-btn on" data-speed="1">戦闘の速さ：${FR.Speed.level().name}</button>`;
     };
     draw();
-    box.onclick = ev => { const b = ev.target.closest('[data-snd]'); if (b) { FR.Sound.toggle(b.dataset.snd); draw(); } };
+    box.onclick = ev => {
+      const b = ev.target.closest('[data-snd]');
+      if (b) { FR.Sound.toggle(b.dataset.snd); draw(); }
+      if (ev.target.closest('[data-speed]')) { FR.Speed.next(); draw(); }
+    };
   },
 
   showMenu() {

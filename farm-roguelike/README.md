@@ -82,7 +82,7 @@ farm-roguelike/
 │  ├─ map.js             1年の進み方（季節・行き先の分かれ道・休憩所）
 │  ├─ score.js           経営評価
 │  ├─ save.js            localStorage への保存
-│  ├─ ui/                描画と操作（art.js：絵の窓口 / sound.js：効果音とBGM / input.js：タップとドラッグ / render-*.js）
+│  ├─ ui/                描画と操作（art.js：絵の窓口 / sound.js：効果音とBGM / speed.js：戦闘の速さ / input.js：タップとドラッグ / render-*.js）
 │  └─ main.js            画面のつなぎ役
 ├─ assets/img/           絵（art/：キャラ・カード、bg/：背景）
 ├─ tests/sim.js          ロジックのテスト（node tests/sim.js）
@@ -115,8 +115,8 @@ sickle: {
 ### 敵・作物・レリック・農家タイプ
 
 各ファイルの先頭に書き方の説明があります。農家タイプは `data/farmers.js` に1件足し、
-農具は `data/relics.js` に `rarity: 'tool'` で1件足すと、★3の敵やボスの報酬に出ます。固有スキルの伸ばし方は `rarity: 'skill'` と `skillOf`（どの固有スキルか）で足します。
 `enabled: true` にして、専用カードの `pool` にタイプIDを入れれば選べるようになります。
+農具は `data/relics.js` に `rarity: 'tool'` で1件足すと、★3の敵やボスの報酬に出ます。固有スキルの伸ばし方は `rarity: 'skill'` と `skillOf`（どの固有スキルか）で足します。
 
 ### 絵について
 
