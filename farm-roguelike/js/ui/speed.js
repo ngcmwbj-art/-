@@ -21,7 +21,10 @@ FR.Speed = {
   mult() { return FR.Speed.level().mult; },
   // 読む必要がある表示（出荷票など）は、はやくても縮めすぎない
   readMult() { return Math.max(0.7, FR.Speed.mult()); },
-  apply() { document.documentElement.style.setProperty('--spd', FR.Speed.mult()); },
+  apply() {
+    document.documentElement.style.setProperty('--spd', FR.Speed.mult());
+    document.documentElement.dataset.speed = FR.Speed.id;   // 「はやい」では待機中の揺れを止める（css）
+  },
   // 次の速さへ（ゆっくり → ふつう → はやい → ゆっくり）
   next() {
     const i = FR.Speed.LEVELS.findIndex(l => l.id === FR.Speed.id);

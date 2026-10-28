@@ -175,11 +175,28 @@ const App = {
       const b = ev.target.closest('[data-farmer]');
       if (b && !b.disabled) App.newRun(b.dataset.farmer);
     };
+    App.renderDifficulty();
     FR.Screens.show('select');
   },
 
+  // 難しさの選択（前に選んだものを覚えておく。はじめは「ふつう」）
+  renderDifficulty() {
+    const E = FR.Util.escape, D = FR.Config.difficulties;
+    const cur = D[App.data.meta.difficulty] ? App.data.meta.difficulty : FR.Config.defaultDifficulty;
+    const box = document.getElementById('difficulty-row');
+    box.innerHTML = '<span class="dif-label">難しさ</span>' + Object.keys(D).map(id =>
+      `<button class="dif ${id === cur ? 'on' : ''}" role="radio" aria-checked="${id === cur}" data-dif="${id}"><b>${E(D[id].name)}</b><span>${E(D[id].text)}</span></button>`).join('');
+    box.onclick = ev => {
+      const b = ev.target.closest('[data-dif]');
+      if (!b) return;
+      App.data.meta.difficulty = b.dataset.dif;
+      App.save();
+      App.renderDifficulty();
+    };
+  },
+
   newRun(farmerId) {
-    App.data.run = FR.Run.create(farmerId, FR.Util.newSeed());
+    App.data.run = FR.Run.create(farmerId, FR.Util.newSeed(), App.data.meta.difficulty);
     App.data.meta.runs++;
     App.goMap();
   },
@@ -253,7 +270,8 @@ const App = {
         <span class="mc-body"><span class="mc-kind">${E(t.name)}</span><b>${E(title)}</b><span class="mc-text">${c.type === 'battle' ? sub : E(sub)}</span></span>
       </button>`;
     }).join('');
-    document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚`;
+    document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚 ・ 難しさ：${FR.Run.difficulty(run).name}`
+      + App.herdText(run);
     FR.Screens.show('map');
   },
 
@@ -291,6 +309,13 @@ const App = {
       App.save();
       return App.showRest();
     }
+  },
+
+  // 長期肥育の牛の様子（行き先の画面に1行で）
+  herdText(run) {
+    const herd = (run.herd || []).filter(Boolean);
+    if (!herd.length) return '';
+    return '\n畜舎の牛 ' + herd.map(a => `${a.growth >= a.stages ? '出荷できる' : `${a.growth}/${a.stages}段`}・${FR.Battle.gradeOf(a.care, 0, a.animal).label}`).join('　');
   },
 
   // ── 出来事「？」 ─────────────────────────────
@@ -653,7 +678,8 @@ const App = {
       <table class="grade-table"><thead><tr><th>${kind}</th>${table.map(x => `<th class="${x.label === g.label ? 'now' : ''}">${x.label}</th>`).join('')}</tr></thead>
         <tbody><tr><td>手入れ</td>${table.map(x => `<td class="${x.label === g.label ? 'now' : ''}">${x.care}〜</td>`).join('')}</tr>
         <tr><td>銭</td>${table.map(x => `<td class="${x.label === g.label ? 'now' : ''}">×${x.mult}</td>`).join('')}</tr></tbody></table>
-      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>`
+      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>
+      ${def.keep ? '<p class="menu-note">牛は長期肥育です。戦闘に勝ったあとも畜舎に残り、育ちと手入れが次の戦闘へ続きます（病気で倒れると戻りません）。冬のボスに勝つと、育ちきった牛は満額で出荷されます。</p>' : ''}`
       + App.actionButton('barn', i, mature, `「${g.label}」で出荷する（銭${value}）`, 'まだ出荷できるまで育っていない'));
     App.bindAction();
   },
@@ -876,6 +902,7 @@ const App = {
       : run.hp <= 0
         ? `${se.name}の${run.step + 1}段目で、農場は力尽きた。（${run.stats.battlesWon}度、災いを退けた）`
         : `${se.name}の途中で、この挑戦を終えた。（${run.stats.battlesWon}度、災いを退けた）`;
+    document.getElementById('result-lead').textContent += `　難しさ：${FR.Run.difficulty(run).name}`;
     FR.Screens.show('result');
   }
 };

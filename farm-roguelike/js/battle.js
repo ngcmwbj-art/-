@@ -9,6 +9,7 @@
      → ターン終了：手札を捨てる → 敵の行動 → 作物と木が1段育つ（成木は実が1つなる）→ 敵の次の行動を決める
    畑（plots）：野菜 { crop, growth, stages } / 木 { crop, tree:true, growth, stages, fruits, maxFruits }
    畜舎（barns）：{ animal, growth, stages, care }  家畜は自然には育たない
+     長期肥育（keep の家畜＝牛）は、勝ったあと run.herd に残り、次の戦闘の畜舎に戻る
    ========================================================= */
 FR.Battle = {
   create(run) {
@@ -29,7 +30,7 @@ FR.Battle = {
       const def = FR.Enemies[id];
       // ボスは季節ごとに強さが決まっているので、レベルでは増やさない
       const grow = def.kind === 'boss' ? 1 : 1 + level * sc.hpPerLevel;
-      const hp = Math.round(FR.Util.randInt(rnd, def.hp[0], def.hp[1]) * grow);
+      const hp = Math.max(1, Math.round(FR.Util.randInt(rnd, def.hp[0], def.hp[1]) * grow * FR.Run.difficulty(run).enemyHp));
       return {
         uid: k + 1, id, def, name: def.name, hp, maxHp: hp, strength: def.kind === 'boss' ? 0 : strength, dead: false,
         turnsLeft: def.turns || null,   // 天候：あと何ターンで過ぎ去るか
@@ -49,7 +50,8 @@ FR.Battle = {
       draw: FR.Util.shuffle(rnd, run.deck.map(c => ({ ...c }))),
       hand: [], discard: [], exhaust: [],
       plots: new Array(farmer.plots).fill(null),
-      barns: new Array(farmer.barns || 0).fill(null),
+      // 畜舎：長期肥育の牛（run.herd）がいれば、同じ場所に戻す
+      barns: new Array(farmer.barns || 0).fill(null).map((_, i) => (run.herd && run.herd[i]) ? Object.assign({}, run.herd[i]) : null),
       turn: 0,
       playedThisTurn: 0,
       lastHarvested: 0,
@@ -485,7 +487,7 @@ FR.Battle = {
   intentLabel(b, e) {
     const it = e.intent;
     if (!it) return null;
-    const dmg = (it.damage || 0) + e.strength;
+    const dmg = FR.Battle.enemyDamage(b, e);
     const withDmg = (kind, extra) => ({ name: it.name, value: it.damage ? dmg : extra, kind });
     switch (it.intent) {
       case 'attack': return { name: it.name, value: dmg, kind: 'attack' };
@@ -530,6 +532,13 @@ FR.Battle = {
     return best;
   },
 
+  // 敵の一撃の大きさ（技の数字＋力。難しさの倍率を掛ける）
+  enemyDamage(b, e) {
+    const it = e.intent;
+    const base = (it.damage || 0) + e.strength;
+    return Math.max(0, Math.round(base * FR.Run.difficulty(b.run).enemyDamage));
+  },
+
   // このターン、敵の行動で何が起きるかの見込み（戦闘の写しで実際に動かしてみる。本物は変えない）
   // hp：減る健康度 / dead：力尽きる / crops：失う作物 / fruits：落ちる・奪われる実 / wilt：しおれる区画 / animals：倒れる家畜
   forecast(b) {
@@ -568,7 +577,7 @@ FR.Battle = {
     if (b.over || e.dead) return;
     {
       const it = e.intent;
-      const dmg = (it.damage || 0) + e.strength;
+      const dmg = FR.Battle.enemyDamage(b, e);
       b.fx.push({ kind: 'enemyMove', enemy: e.uid, text: `${e.name}：${it.name}` });
       if (it.intent === 'attack') {
         FR.Battle.damagePlayer(b, dmg);
@@ -655,13 +664,21 @@ FR.Battle = {
         auto += Math.floor(c.gold / 2);
       }
     });
-    b.barns.forEach(a => {
-      if (!a || a.growth < a.stages) return;
+    // 長期肥育の牛は畜舎に残す（1年の最後の戦いだけは、育ちきった牛を満額で出荷する）
+    const lastOfYear = b.boss && r.season >= FR.Seasons.length - 1;
+    r.herd = b.barns.map(() => null);
+    b.barns.forEach((a, i) => {
+      if (!a) return;
       const def = FR.Animals[a.animal];
       const g = FR.Battle.gradeOf(a.care, 0, a.animal);
-      r.stats.harvest += Math.floor(def.yield * g.mult / 2);
-      auto += Math.floor(def.gold * g.mult / 2);
+      if (def.keep && !lastOfYear) { r.herd[i] = { animal: a.animal, growth: a.growth, stages: a.stages, care: a.care }; return; }
+      if (a.growth < a.stages) return;
+      const full = def.keep && lastOfYear;
+      r.stats.harvest += Math.floor(def.yield * g.mult / (full ? 1 : 2));
+      auto += Math.floor(def.gold * g.mult / (full ? 1 : 2));
+      if (full) r.stats.shipped = (r.stats.shipped || 0) + 1;
     });
+    if (!r.herd.some(Boolean)) r.herd = null;
     if (auto) { r.gold += auto; r.stats.goldEarned += auto; }
     b.autoHarvestGold = auto;
     r.stats.battlesWon++;

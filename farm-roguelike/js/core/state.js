@@ -5,12 +5,13 @@
    - 戦闘中の山札や手札は保存しない。再開すると「その戦闘の最初から」
    ========================================================= */
 FR.Run = {
-  create(farmerId, seed) {
+  create(farmerId, seed, difficulty) {
     const f = FR.Farmers[farmerId];
     const run = {
       version: FR.Config.saveVersion,
       seed: seed,
       farmerId: farmerId,
+      difficulty: FR.Config.difficulties[difficulty] ? difficulty : FR.Config.defaultDifficulty,   // 難しさ（FR.Config.difficulties）
       hp: f.hp,
       maxHp: f.hp,
       gold: f.gold,
@@ -31,6 +32,9 @@ FR.Run = {
     f.deck.forEach(id => FR.Run.addCard(run, id, false));
     return run;
   },
+
+  // この挑戦の難しさの設定（古い保存データは「ふつう」）
+  difficulty(run) { return FR.Config.difficulties[run.difficulty] || FR.Config.difficulties[FR.Config.defaultDifficulty]; },
 
   addCard(run, id, upgraded) {
     run.deck.push({ uid: run.nextUid++, id: id, upgraded: !!upgraded });

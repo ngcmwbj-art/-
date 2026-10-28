@@ -8,10 +8,11 @@
    - onTurnMature：育ちきっている間、毎ターン始めに起きること（鶏の卵など）
    - grading：格付けの表の名前（FR.GradeTables）。null なら格付けなし（採卵鶏）
    - art：育ち中・育ちきったときの絵
+   - keep：長期肥育。戦闘に勝ったあとも畜舎に残り、育ちと手入れが次の戦闘へ持ち越される（1年の中だけ）
    ========================================================= */
 FR.Animals = {
   calf: {
-    name: '牛', matureName: '肥育牛', stages: 3, gold: 24, yield: 30, grading: 'beef',
+    name: '牛', matureName: '肥育牛', stages: 3, gold: 24, yield: 30, grading: 'beef', keep: true,
     onShip: [{ op: 'heal', amount: 6 }], shipText: '健康度+6',
     art: { growing: 'calf', ripe: 'calf' }
   },
