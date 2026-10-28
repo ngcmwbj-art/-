@@ -396,6 +396,31 @@ for (const farmerId of Object.keys(FR.Farmers)) {
   if (l.block - lb !== 6) fail(`カウベル：出荷で守り +${l.block - lb}（6のはず）`);
 }
 
+// 長期肥育：牛は勝ったあとも畜舎に残り、次の戦闘に戻る。子豚は残らない。1年の最後は満額で出荷
+{
+  const run = FR.Run.create('livestock', 8);
+  run.node = { type: 'battle', enc: 'crow' };
+  let b = FR.Battle.create(run);
+  b.barns[0] = { animal: 'calf', growth: 2, stages: 3, care: 5 };
+  b.barns[1] = { animal: 'piglet', growth: 2, stages: 2, care: 0 };
+  b.barns[2] = { animal: 'calf', growth: 3, stages: 3, care: 1 };
+  const g0 = run.gold;
+  FR.Battle.win(b);
+  if (!run.herd || !run.herd[0] || run.herd[0].care !== 5 || run.herd[1] || !run.herd[2]) fail('長期肥育：牛が畜舎に残らない／子豚が残った');
+  if (run.gold - g0 !== Math.floor(14 * FR.Battle.gradeOf(0, 0, 'piglet').mult / 2)) fail(`長期肥育：育ちきった牛まで半値で売られた（銭 +${run.gold - g0}）`);
+  b = FR.Battle.create(run);
+  if (!b.barns[0] || b.barns[0].growth !== 2 || b.barns[1] || !b.barns[2]) fail('長期肥育：次の戦闘で牛が戻らない');
+  b.barns[0] = null;   // 病気で倒れた
+  FR.Battle.win(b);
+  if (run.herd[0]) fail('長期肥育：倒れた牛が戻った');
+  run.season = FR.Seasons.length - 1; run.node = { type: 'boss', boss: 'plagueBoss' };
+  b = FR.Battle.create(run);
+  const g1 = run.gold;
+  FR.Battle.win(b);
+  if (run.herd) fail('長期肥育：1年の最後に牛が残った');
+  if (run.gold - g1 !== Math.floor(24 * FR.Battle.gradeOf(1, 0, 'calf').mult)) fail(`長期肥育：1年の最後の出荷が満額でない（銭 +${run.gold - g1}）`);
+}
+
 // 難しさ「のんびり」：敵の勢いと攻撃が弱くなる。古い保存データ（difficulty なし）は「ふつう」
 {
   const mk = dif => { const run = FR.Run.create('vegetable', 5, dif); run.node = { type: 'battle', enc: 'boar' }; return FR.Battle.create(run); };

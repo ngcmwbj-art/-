@@ -270,7 +270,8 @@ const App = {
         <span class="mc-body"><span class="mc-kind">${E(t.name)}</span><b>${E(title)}</b><span class="mc-text">${c.type === 'battle' ? sub : E(sub)}</span></span>
       </button>`;
     }).join('');
-    document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚 ・ 難しさ：${FR.Run.difficulty(run).name}`;
+    document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚 ・ 難しさ：${FR.Run.difficulty(run).name}`
+      + App.herdText(run);
     FR.Screens.show('map');
   },
 
@@ -308,6 +309,13 @@ const App = {
       App.save();
       return App.showRest();
     }
+  },
+
+  // 長期肥育の牛の様子（行き先の画面に1行で）
+  herdText(run) {
+    const herd = (run.herd || []).filter(Boolean);
+    if (!herd.length) return '';
+    return '\n畜舎の牛 ' + herd.map(a => `${a.growth >= a.stages ? '出荷できる' : `${a.growth}/${a.stages}段`}・${FR.Battle.gradeOf(a.care, 0, a.animal).label}`).join('　');
   },
 
   // ── 出来事「？」 ─────────────────────────────
@@ -670,7 +678,8 @@ const App = {
       <table class="grade-table"><thead><tr><th>${kind}</th>${table.map(x => `<th class="${x.label === g.label ? 'now' : ''}">${x.label}</th>`).join('')}</tr></thead>
         <tbody><tr><td>手入れ</td>${table.map(x => `<td class="${x.label === g.label ? 'now' : ''}">${x.care}〜</td>`).join('')}</tr>
         <tr><td>銭</td>${table.map(x => `<td class="${x.label === g.label ? 'now' : ''}">×${x.mult}</td>`).join('')}</tr></tbody></table>
-      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>`
+      <p class="menu-note">手入れは、給餌・良質な乾草・ブラッシング・ワクチンなどのカードで増えます。</p>
+      ${def.keep ? '<p class="menu-note">牛は長期肥育です。戦闘に勝ったあとも畜舎に残り、育ちと手入れが次の戦闘へ続きます（病気で倒れると戻りません）。冬のボスに勝つと、育ちきった牛は満額で出荷されます。</p>' : ''}`
       + App.actionButton('barn', i, mature, `「${g.label}」で出荷する（銭${value}）`, 'まだ出荷できるまで育っていない'));
     App.bindAction();
   },

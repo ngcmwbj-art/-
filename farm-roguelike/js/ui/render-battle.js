@@ -115,7 +115,9 @@ FR.BattleView = {
       const g = FR.Battle.gradeOf(a.care, 0, a.animal);
       // 採卵鶏は格付けの代わりに産んだ卵の数
       const badge = def.layer ? (mature ? `卵${a.eggs || 0}` : '') : g.label;
-      return `<div class="barn ${mature ? 'ripe' : ''}" data-barn="${i}">
+      // 長期肥育の牛は、育つほど絵を大きく見せる
+      const size = def.keep ? ` style="--grow:${(0.78 + 0.22 * Math.min(1, a.growth / a.stages)).toFixed(2)}"` : '';
+      return `<div class="barn ${mature ? 'ripe' : ''} ${def.keep ? 'keep' : ''}" data-barn="${i}"${size}>
         ${FR.Art.img(mature ? def.art.ripe : def.art.growing, '', def.name)}
         <span class="crop-name">${E(mature ? def.matureName : def.name)}</span>
         <span class="grade">${badge}</span>

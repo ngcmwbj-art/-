@@ -9,6 +9,7 @@
      → ターン終了：手札を捨てる → 敵の行動 → 作物と木が1段育つ（成木は実が1つなる）→ 敵の次の行動を決める
    畑（plots）：野菜 { crop, growth, stages } / 木 { crop, tree:true, growth, stages, fruits, maxFruits }
    畜舎（barns）：{ animal, growth, stages, care }  家畜は自然には育たない
+     長期肥育（keep の家畜＝牛）は、勝ったあと run.herd に残り、次の戦闘の畜舎に戻る
    ========================================================= */
 FR.Battle = {
   create(run) {
@@ -49,7 +50,8 @@ FR.Battle = {
       draw: FR.Util.shuffle(rnd, run.deck.map(c => ({ ...c }))),
       hand: [], discard: [], exhaust: [],
       plots: new Array(farmer.plots).fill(null),
-      barns: new Array(farmer.barns || 0).fill(null),
+      // 畜舎：長期肥育の牛（run.herd）がいれば、同じ場所に戻す
+      barns: new Array(farmer.barns || 0).fill(null).map((_, i) => (run.herd && run.herd[i]) ? Object.assign({}, run.herd[i]) : null),
       turn: 0,
       playedThisTurn: 0,
       lastHarvested: 0,
@@ -662,13 +664,21 @@ FR.Battle = {
         auto += Math.floor(c.gold / 2);
       }
     });
-    b.barns.forEach(a => {
-      if (!a || a.growth < a.stages) return;
+    // 長期肥育の牛は畜舎に残す（1年の最後の戦いだけは、育ちきった牛を満額で出荷する）
+    const lastOfYear = b.boss && r.season >= FR.Seasons.length - 1;
+    r.herd = b.barns.map(() => null);
+    b.barns.forEach((a, i) => {
+      if (!a) return;
       const def = FR.Animals[a.animal];
       const g = FR.Battle.gradeOf(a.care, 0, a.animal);
-      r.stats.harvest += Math.floor(def.yield * g.mult / 2);
-      auto += Math.floor(def.gold * g.mult / 2);
+      if (def.keep && !lastOfYear) { r.herd[i] = { animal: a.animal, growth: a.growth, stages: a.stages, care: a.care }; return; }
+      if (a.growth < a.stages) return;
+      const full = def.keep && lastOfYear;
+      r.stats.harvest += Math.floor(def.yield * g.mult / (full ? 1 : 2));
+      auto += Math.floor(def.gold * g.mult / (full ? 1 : 2));
+      if (full) r.stats.shipped = (r.stats.shipped || 0) + 1;
     });
+    if (!r.herd.some(Boolean)) r.herd = null;
     if (auto) { r.gold += auto; r.stats.goldEarned += auto; }
     b.autoHarvestGold = auto;
     r.stats.battlesWon++;
