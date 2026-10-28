@@ -1070,6 +1070,15 @@ canvas { display: block; width: 100%; height: 100%; }
         r: rand(5, 9) * (0.8 + k * 0.4), col: '#d8c49a', g: -40, puff: true });
     }
   }
+  // やられた瞬間：荷台の積み荷を全部、大きく宙へ。地面で弾んで、ころころ転がる
+  function crashSpill(wx, y, vx) {
+    const n = Math.max(8, Math.min(TOMATO_MAX, tomatoes));
+    for (let i = 0; i < n; i++) {
+      const life = rand(2.6, 3.4);
+      parts.push({ x: wx + rand(-20, 20), y: y - rand(0, 14), vx: rand(vx[0], vx[1]), vy: rand(-760, -380), life, max: life,
+        r: 5, col: cargo.col, g: 1500, tomato: true, big: true, i, spin: rand(-1, 1) });
+    }
+  }
   const spillTomatoes = (n, wx, y, vx) => emit(n, wx, y, { vx, vy: [-420, -150], life: [0.8, 1.4], r: [4, 6], col: cargo.col, tomato: true });
   function loseTomato(n, why) {
     if (tomatoes <= 0 || state !== 'play') return;
@@ -1258,12 +1267,12 @@ canvas { display: block; width: 100%; height: 100%; }
     if (kind === 'boar') {
       shake = 0.5; flash = 0.25; truck.dent = 1; truck.spilled = true;
       sfx('boar');
-      spillTomatoes(14, cam + TRUCK_X + 28, truck.y - 50, [-60, 260]);
+      crashSpill(cam + TRUCK_X + 28, truck.y - 50, [-80, 380]);
     } else if (kind === 'wall') {
       shake = 0.45; flash = 0.2; truck.dent = 1; truck.spilled = true;
       truck.vy = -220;
       sfx('crash');
-      spillTomatoes(12, cam + TRUCK_X + 28, truck.y - 50, [-40, 220]);
+      crashSpill(cam + TRUCK_X + 28, truck.y - 50, [-260, 160]);
       emit(16, cam + TRUCK_FRONT, truck.y - 20, { vx: [-220, 60], vy: [-300, -60], life: [0.4, 0.8], r: [2, 5], col: '#8a6440' });
     } else if (kind === 'flat') {
       truck.flat = true; shake = 0.2;
@@ -1616,7 +1625,7 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     if (!truck.spilled && truck.fallT > 0.3) {
       truck.spilled = true;
-      spillTomatoes(Math.min(16, tomatoes + 2), cx - 10, truck.y - 44, [-140, 240]);
+      crashSpill(cx - 10, truck.y - 44, [-200, 300]);
     }
   }
 
@@ -1776,7 +1785,14 @@ canvas { display: block; width: 100%; height: 100%; }
       if (p.tomato || p.stick) {
         const pit = find('gap', p.x);
         const floor = (pit ? Math.min(pitSurface(pit, p.x), WATER_Y - (pit.lv || 0) + 2) : groundAt(p.x)) - (p.tomato ? 4 : 1);
-        if (p.y > floor) { p.y = floor; p.vy = 0; p.vx *= p.stick ? 0.2 : 0.8; if (p.stick) p.flat = true; }
+        if (p.y > floor) {
+          p.y = floor;
+          // 大きく散った積み荷は弾んで転がる
+          if (p.big && p.vy > 160) { p.vy = -p.vy * 0.42; p.vx *= 0.8; }
+          else { p.vy = 0; p.vx *= p.big ? Math.pow(0.35, dt) : (p.stick ? 0.2 : 0.8); }
+          if (p.stick) p.flat = true;
+        }
+        if (p.big) p.rot = (p.rot || 0) + p.vx * dt / 6;
       }
     }
     parts = parts.filter(p => p.life > 0);
@@ -3447,6 +3463,14 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
         continue;
       }
+      if (p.big) {
+        // 積み荷そのものの絵で、転がる向きに回して描く
+        ctx.globalAlpha = Math.min(1, p.life / p.max * 4);
+        ctx.save(); ctx.translate(p.x - cam, p.y); ctx.rotate(p.rot || 0); ctx.scale(1.15, 1.15);
+        drawItem(cargo.id === 'calf' ? 'hay' : cargo.id, 0, 0, p.i);
+        ctx.restore();
+        continue;
+      }
       if (p.puff) {
         const f = 1 - p.life / p.max;
         ctx.globalAlpha = Math.max(0, (1 - f) * 0.6);
@@ -4539,7 +4563,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; },
-      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get rk() { return rk; }, get env() { return env; }, get r3() { return { ok: r3.ok, on: hdActive(), stats: r3.stats, prof: r3.prof, chunks: r3.chunks && r3.chunks.length }; }, get score() { return score; }, get steps() { return steps; },
+      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get parts() { return parts; }, die: k => die(k), get rk() { return rk; }, get env() { return env; }, get r3() { return { ok: r3.ok, on: hdActive(), stats: r3.stats, prof: r3.prof, chunks: r3.chunks && r3.chunks.length }; }, get score() { return score; }, get steps() { return steps; },
       get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep, bgm: bgmMode, pos: bgmEl ? bgmEl.currentTime : null, src: !!bgmSrc }; },
       suspendAudio() { return ac && ac.suspend(); }, get clock() { return clock; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
