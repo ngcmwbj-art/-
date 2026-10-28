@@ -698,3 +698,13 @@ img { -webkit-user-drag: none; }
 .event-log p { margin: 4px 0; font-size: 15px; color: #f3e6c8; }
 .map-choice.chosen { border-color: var(--gold); }
 .map-choice.chosen:disabled { opacity: 1; }
+
+/* 難しさの選択（農家を選ぶ画面） */
+.difficulty-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; width: 100%; max-width: 440px; margin: -4px auto 12px; }
+.dif-label { grid-column: 1 / -1; text-align: center; font-size: 14px; color: var(--panel-text); text-shadow: 0 1px 3px #000; }
+.dif { display: grid; gap: 1px; align-content: start; text-align: left; padding: 6px 12px; color: var(--panel-text-soft);
+  background: rgba(20, 17, 12, .85); border: 1px solid var(--panel-line); border-radius: 4px; cursor: pointer; opacity: .8; }
+.dif b { font-family: var(--mincho); font-size: 16px; color: var(--panel-text); }
+.dif span { font-size: 12px; line-height: 1.4; }
+.dif.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); opacity: 1; }
+.dif.on b { color: var(--gold); }

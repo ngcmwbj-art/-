@@ -396,6 +396,17 @@ for (const farmerId of Object.keys(FR.Farmers)) {
   if (l.block - lb !== 6) fail(`カウベル：出荷で守り +${l.block - lb}（6のはず）`);
 }
 
+// 難しさ「のんびり」：敵の勢いと攻撃が弱くなる。古い保存データ（difficulty なし）は「ふつう」
+{
+  const mk = dif => { const run = FR.Run.create('vegetable', 5, dif); run.node = { type: 'battle', enc: 'boar' }; return FR.Battle.create(run); };
+  const n = mk('normal'), e = mk('easy');
+  if (!(e.enemies[0].maxHp < n.enemies[0].maxHp)) fail('のんびりで敵の勢いが減らない');
+  e.enemies[0].intent = n.enemies[0].intent = { intent: 'attack', damage: 12, name: 'test' };
+  if (!(FR.Battle.enemyDamage(e, e.enemies[0]) < FR.Battle.enemyDamage(n, n.enemies[0]))) fail('のんびりで攻撃が弱くならない');
+  const old = FR.Run.create('vegetable', 5); delete old.difficulty;
+  if (FR.Run.difficulty(old).name !== 'ふつう') fail('難しさのない保存データが「ふつう」にならない');
+}
+
 // 被害の見込み：本物を変えず、実際に敵が動いたときと同じ結果になるか（いろいろな戦闘で）
 {
   let checked = 0;

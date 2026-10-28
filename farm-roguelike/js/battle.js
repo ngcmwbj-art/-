@@ -29,7 +29,7 @@ FR.Battle = {
       const def = FR.Enemies[id];
       // ボスは季節ごとに強さが決まっているので、レベルでは増やさない
       const grow = def.kind === 'boss' ? 1 : 1 + level * sc.hpPerLevel;
-      const hp = Math.round(FR.Util.randInt(rnd, def.hp[0], def.hp[1]) * grow);
+      const hp = Math.max(1, Math.round(FR.Util.randInt(rnd, def.hp[0], def.hp[1]) * grow * FR.Run.difficulty(run).enemyHp));
       return {
         uid: k + 1, id, def, name: def.name, hp, maxHp: hp, strength: def.kind === 'boss' ? 0 : strength, dead: false,
         turnsLeft: def.turns || null,   // 天候：あと何ターンで過ぎ去るか
@@ -485,7 +485,7 @@ FR.Battle = {
   intentLabel(b, e) {
     const it = e.intent;
     if (!it) return null;
-    const dmg = (it.damage || 0) + e.strength;
+    const dmg = FR.Battle.enemyDamage(b, e);
     const withDmg = (kind, extra) => ({ name: it.name, value: it.damage ? dmg : extra, kind });
     switch (it.intent) {
       case 'attack': return { name: it.name, value: dmg, kind: 'attack' };
@@ -530,6 +530,13 @@ FR.Battle = {
     return best;
   },
 
+  // 敵の一撃の大きさ（技の数字＋力。難しさの倍率を掛ける）
+  enemyDamage(b, e) {
+    const it = e.intent;
+    const base = (it.damage || 0) + e.strength;
+    return Math.max(0, Math.round(base * FR.Run.difficulty(b.run).enemyDamage));
+  },
+
   // このターン、敵の行動で何が起きるかの見込み（戦闘の写しで実際に動かしてみる。本物は変えない）
   // hp：減る健康度 / dead：力尽きる / crops：失う作物 / fruits：落ちる・奪われる実 / wilt：しおれる区画 / animals：倒れる家畜
   forecast(b) {
@@ -568,7 +575,7 @@ FR.Battle = {
     if (b.over || e.dead) return;
     {
       const it = e.intent;
-      const dmg = (it.damage || 0) + e.strength;
+      const dmg = FR.Battle.enemyDamage(b, e);
       b.fx.push({ kind: 'enemyMove', enemy: e.uid, text: `${e.name}：${it.name}` });
       if (it.intent === 'attack') {
         FR.Battle.damagePlayer(b, dmg);

@@ -13,7 +13,7 @@ FR.Save = {
     } catch (e) { data = null; }
     if (!data || typeof data !== 'object') data = {};
     data = FR.Save.migrate(data);
-    data.meta = Object.assign({ best: 0, runs: 0, clears: 0, tutorialDone: false }, data.meta);
+    data.meta = Object.assign({ best: 0, runs: 0, clears: 0, tutorialDone: false, difficulty: 'normal' }, data.meta);
     return data;
   },
 
