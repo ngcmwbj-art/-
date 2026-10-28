@@ -7,7 +7,7 @@
 //   子どもたちは 丘の 広場に いる。波に 見せる 城の 貝がらの かざりと まぎれない ように、段階1 の 貝がらは 置かない）。
 //   ・監視台の 下の カイト npc_c3_kanshiin (57,28)：グソっ君が いる とき、頭の 上に「！」（addMarkSource。見のがし 対策）。
 //     話すと いつもの〔c2〕（はじめの 1回）の あと、浮き輪の 子 npc_c3_kid_c が 港の 岸壁から 浜へ 走って きて〔ana〕
-//     （flag_tm_start）。子どもの 歩きは 見える 所から（防波堤から だと 10秒 かかるので、岸壁 (44,25) から）。
+//     （flag_tm_start）。子どもの 歩きは 見える 所の すぐ 外から（防波堤から だと 10秒 かかるので、岸壁 (42,25) から）。
 //   ・貝がら 3つ obj_tm_kai_1〜3（監視台の まわり (55,28)・(59,29)・(56,30)。案の 5つ → 会議 10-28 で へらして 近くに）：
 //     調べると 大写し「穴」の 寄り（TsumePanel 'look'）。穴の あいた 二枚貝 2つ・ふちの 欠けた 貝 1つ（flag_tm_kai_<n>）。
 //     3つ 見ると その 場で カイトが「くらべて みよう」→ 大写し「穴」TsumePanel 'cards'：←→ で うたがわしい 者の カード
@@ -78,7 +78,9 @@ const AT = {
   chawan: [62, 30] as [number, number],
 };
 /** 子どもが 走り だす 所（港の 岸壁）と、カイトの そばの 空いた マス（前から 空いて いる 物）。 */
-const KID_FROM: [number, number] = [44, 25];
+const KID_FROM: [number, number] = [42, 25];
+/** もどる ときの 曲がり角（防波堤の もと）。 */
+const KID_WAY: [number, number] = [44, 25];
 const KID_SPOTS: [number, number][] = [
   [58, 28],
   [56, 28],
@@ -608,7 +610,7 @@ function kidBack(): void {
   const a = c.a;
   const px = (x: number, y: number): [number, number] => [x * 16 + 8, y * 16 + 16];
   a.pathSpeed = 4 * 16;
-  a.path.push(px(a.tileX, KID_FROM[1]), px(KID_FROM[0], KID_FROM[1]), [KID_FROM[0] * 16 + 8, c.y], [c.x, c.y]);
+  a.path.push(px(a.tileX, KID_WAY[1]), px(KID_WAY[0], KID_WAY[1]), [KID_WAY[0] * 16 + 8, c.y], [c.x, c.y]);
 }
 
 // ================================================================ 台本
