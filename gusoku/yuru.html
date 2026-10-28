@@ -34,6 +34,14 @@ body{touch-action:none;-webkit-user-select:none;user-select:none}
 .gauges{pointer-events:auto;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-width:196px;font-family:var(--f-data);font-size:11px}
 .gauges summary{list-style:none;cursor:pointer;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;display:flex;justify-content:space-between;gap:10px}
 .gauges summary::-webkit-details-marker{display:none}
+.hud-right{display:flex;align-items:flex-start;gap:8px;pointer-events:none}
+.mutebtn{pointer-events:auto;flex:none;width:36px;height:36px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.mutebtn svg{width:18px;height:18px;fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.mutebtn .x{display:none}
+.mutebtn.on{border-color:rgba(255,160,120,.6)}
+.mutebtn.on .w{display:none}
+.mutebtn.on .x{display:inline;stroke:#ffa078}
+body.idle .mutebtn,body.photo .mutebtn,body.cine .mutebtn{visibility:hidden}
 .gauges[open] summary{margin-bottom:8px}
 .g-row{display:grid;grid-template-columns:44px 1fr 52px;align-items:center;gap:8px;padding-block:3px}
 .g-row span:first-child{color:var(--dim);font-family:var(--f-body);font-size:11px}
@@ -342,6 +350,7 @@ body.kbd #tutchip{display:none}
       <button type="button" class="letterchip" id="letterchip" hidden>✉ 手紙が届きました</button>
     </div>
   </div>
+  <div class="hud-right"><button type="button" class="mutebtn" id="mute" aria-label="音を消す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="w" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/><path class="x" d="M3 3l18 18"/></svg></button>
   <details class="gauges" id="gauges">
     <summary><span>水槽の数値</span><span id="gsum">▾</span></summary>
     <div class="g-row"><span>水温</span><div class="bar" id="b-temp"><i></i></div><output id="o-temp">10.0℃</output></div>
@@ -352,7 +361,7 @@ body.kbd #tutchip{display:none}
     <div class="g-row"><span>体力</span><div class="bar" id="b-health"><i></i></div><output id="o-health">100</output></div>
     <div class="g-row"><span>信頼</span><div class="bar" id="b-trust"><i></i></div><output id="o-trust">0</output></div>
     <div class="ai-state"><span>会話エンジン</span><em id="aistate">簡易</em></div>
-  </details>
+  </details></div>
 </div>
 
 <div class="console">
@@ -1157,7 +1166,7 @@ function buildIsopod(opt){
   const hips=new THREE.Group();hips.position.y=.6;I.body.add(hips);I.hips=hips;
   const torso=new THREE.Group();hips.add(torso);I.torso=torso;
   // belly (front, segmented)
-  mk(bellyGeo(),shellMat,torso,[0,BC.y,0],null,.02);
+  I.belly=mk(bellyGeo(),shellMat,torso,[0,BC.y,0],null,.02);
   // back: overlapping tergite bands + leaf-like side flaps
   const back=new THREE.Group();torso.add(back);
   for(let i=0;i<7;i++){const y0=1.22-i*.19,y1=y0-.27;
@@ -4208,6 +4217,89 @@ $('moodline').addEventListener('click',e=>{e.stopPropagation();Yousu.tap()});
 $('btn-more').addEventListener('click',()=>Tutor.hit('more'));
 $('tut-next').addEventListener('click',e=>{e.stopPropagation();if(Tutor.i>=0)Tutor.go(Tutor.i+1)});
 
+/* =====================================================================
+   MUTE — one small speaker at the top right silences everything (voice, sounds, the sea),
+   and stays muted next time.
+   ===================================================================== */
+const Mute={on:(()=>{try{return localStorage.getItem('gusoku.mute')==='1'}catch(e){return false}})(),
+  apply(){if(Audio2.master&&Audio2.ctx){const g=Audio2.master.gain,t=Audio2.ctx.currentTime;g.cancelScheduledValues(t);g.setTargetAtTime(this.on?0:.9,t,.05)}
+    if(this.on&&window.speechSynthesis)try{speechSynthesis.cancel()}catch(e){}
+    const b=$('mute');b.classList.toggle('on',this.on);b.setAttribute('aria-label',this.on?'音を出す':'音を消す');b.title=this.on?'消音中（押すと音が出ます）':'音を消す';
+    $('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ')+(this.on?'（消音中）':'')},
+  toggle(){this.on=!this.on;try{localStorage.setItem('gusoku.mute',this.on?'1':'0')}catch(e){}this.apply();toast(this.on?'音を消しました':'音を出します')}
+};
+$('mute').addEventListener('click',e=>{e.stopPropagation();Mute.toggle()});
+{const f=Audio2.init;Audio2.init=function(){const r=f.apply(this,arguments);Mute.apply();return r}}
+{const f=speak;speak=function(text,emo){if(Mute.on){const tts=ttsOn;ttsOn=false;try{return f.apply(this,arguments)}finally{ttsOn=tts}}return f.apply(this,arguments)}}
+$('set-voice').addEventListener('click',()=>setTimeout(()=>Mute.apply(),0));
+Mute.apply();
+
+/* =====================================================================
+   TAIL WAG — the tail fan flaps when it is happy (with the happy sounds, favourite food, a good mood).
+   ===================================================================== */
+const Shippo={t:0,next:30,
+  go(d){this.t=Math.max(this.t,d||2.4)},
+  post(dt,time){
+    this.next-=dt;if(this.next<0){this.next=35+Math.random()*40;if(Kibun.v>.7&&!Life.asleep)this.go(1.8)}
+    if(this.t<=0||!ISO)return;this.t=Math.max(0,this.t-dt);if(Life.asleep||Life.dead||Game.molting||Molt.phase)return;
+    const k=smooth(0,.4,this.t),w=Math.sin(time*11)*k;
+    if(ISO.chara){const j=ISO.joints[6];if(j){j.rotation.y+=w*.45;j.rotation.x-=.15*k}}
+    else{const J=ISO.joints,n=J.length;if(n>2){J[n-1].rotation.y=w*.28;J[n-2].rotation.y=w*.12}}
+  }
+};
+['joy','ate','find'].forEach(m=>{const f=Sfx[m];Sfx[m]=function(){Shippo.go(m==='ate'?1.6:2.6);return f.apply(this,arguments)}});
+{const f=Suki.hearts;Suki.hearts=function(){Shippo.go(3);return f.apply(this,arguments)}}
+{const f=Nade.hearts;Nade.hearts=function(){Shippo.go(2.2);return f.apply(this,arguments)}}
+
+/* =====================================================================
+   FULL TUMMY — after a meal the belly looks a little rounder, slowly going back over a couple of days.
+   ===================================================================== */
+const Onaka={v:0,
+  target(){if(!S||!S.hatched||S.stage<1||Game.molting||Molt.phase||!S.fed)return 0;const h=(Date.now()-(S.lastAteAt||0))/3600000;return h<0?0:clamp(1-h/60,0,1)},
+  post(dt){if(!ISO)return;this.v=(Game.molting||Molt.phase)?0:damp(this.v,this.target(),.6,dt);const f=this.v;
+    if(ISO.chara){if(ISO.belly)ISO.belly.scale.set(1+.1*f,1+.03*f,1+.22*f)}
+    else ISO.body.scale.set(1+.09*f,1+.07*f,1)}
+};
+
+/* =====================================================================
+   SHY — pinch in very close and it backs off a little, or (グソっ君) hides its face.
+   ===================================================================== */
+const Hazukashi={t:0,cool:0,
+  post(dt){
+    this.cool=Math.max(0,this.cool-dt);
+    const free=started&&['idle','walk'].includes(C.state)&&!Game.molting&&!Molt.phase&&!Life.asleep&&!Life.dead&&!Nade.on&&!Hashi.on&&!Cine.on&&!Dream.on&&!Photo.on&&!Suna.on&&S.stage>=1;
+    if(free&&CAM.zoom<.42)this.t+=dt;else this.t=0;
+    if(this.t<.8||this.cool>0)return;this.t=0;this.cool=25;
+    if(ISO.chara){C.curlT=.4;setState('curl',{hold:1.8})}
+    else{const a=new V3(C.pos.x-camera.position.x,0,C.pos.z-camera.position.z).normalize().multiplyScalar(.6*C.size+.2);setState('walk',{target:new V3(clamp(C.pos.x+a.x,-5,5),0,clamp(C.pos.z+a.z,-3,3))})}
+    if(!S.shyHint){S.shyHint=1;save();say('（近すぎて、少し恥ずかしいようです）',{narr:true})}
+  }
+};
+{const f=updateCreature;updateCreature=function(dt,time){f(dt,time);Shippo.post(dt,time);Onaka.post(dt);Hazukashi.post(dt)}}
+
+/* =====================================================================
+   HUMMING (グソっ君 only) — in a good mood it hums a few notes, at most three times a day.
+   Stops the moment it starts talking; silent when muted.
+   ===================================================================== */
+const Hana={next:120,
+  MEL:[[0,2,4,7,4],[4,2,0,2,4,4],[7,4,2,4,0],[0,4,7,9,7,4]],
+  tick(dt){
+    if(VARIANT!=='yuru'||!started||!S)return;this.next-=dt;if(this.next>0)return;this.next=150+Math.random()*180;
+    const D=dkey();if(!S.hum||S.hum.d!==D)S.hum={d:D,n:0};
+    if(S.hum.n>=3||Mute.on||!voiceOn||Kibun.v<.5||C.state!=='idle'||C.talk>0||typing||queue.length||Life.asleep||Life.dead||Game.molting||Molt.phase||Mic.on||S.stage<1)return;
+    S.hum.n++;save();this.hum();
+  },
+  hum(){const c=Audio2.ctx;if(!c||!Voice.bus)return;Voice.stop();
+    const gw=clamp((S.molts||0)/9,0,1);Voice.gw=gw;const f0=270*Math.pow(105/270,gw)*1.12,mel=pickR(this.MEL);
+    let t=c.currentTime+.05;const t0=t;Voice.bus.gain.cancelScheduledValues(t);Voice.bus.gain.setValueAtTime(.3,t);
+    mel.forEach((m,i)=>{const f=f0*Math.pow(2,m/12),d=i===mel.length-1?.6:.3;Voice.syllable(t,i%2?'s':'g',i%2?'o':'u',f,f*(i===mel.length-1?.94:1),d,.5);t+=d+.06});
+    Voice.bus.gain.setValueAtTime(.7,t+.1);C.talk=Math.max(C.talk,t-t0);
+    if(ISO.chara){C.wave=1.4;C.waveDur=1.4}Shippo.go(t-t0);
+    if(!S.humHint){S.humHint=1;save();setTimeout(()=>say('（'+gname()+'が、鼻歌をうたっています。ごきげんのようです）',{narr:true}),(t-t0)*1000+300)}}
+};
+{const f=Voice.speak;Voice.speak=function(){if(this.bus&&Audio2.ctx){const g=this.bus.gain,t=Audio2.ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(.7,t)}return f.apply(this,arguments)}}
+setInterval(()=>Hana.tick(1),1000);
+
 let started=false;
 function boot(){
   load();
@@ -4419,7 +4511,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>

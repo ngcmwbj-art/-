@@ -58,7 +58,7 @@ function buildIsopod(opt){
   const hips=new THREE.Group();hips.position.y=.6;I.body.add(hips);I.hips=hips;
   const torso=new THREE.Group();hips.add(torso);I.torso=torso;
   // belly (front, segmented)
-  mk(bellyGeo(),shellMat,torso,[0,BC.y,0],null,.02);
+  I.belly=mk(bellyGeo(),shellMat,torso,[0,BC.y,0],null,.02);
   // back: overlapping tergite bands + leaf-like side flaps
   const back=new THREE.Group();torso.add(back);
   for(let i=0;i<7;i++){const y0=1.22-i*.19,y1=y0-.27;
