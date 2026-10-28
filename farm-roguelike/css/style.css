@@ -712,3 +712,22 @@ img { -webkit-user-drag: none; }
 /* 長期肥育の牛：育つほど大きく */
 .barn.keep img { transform: scale(var(--grow, 1)); transform-origin: 50% 100%; }
 .map-status { white-space: pre-line; }
+
+/* 待機中の動き：背景を抜いた絵（農家・敵・家畜）だけ、息をするように小さく揺らす
+   - transform は向き（敵の左右反転）や大きさ（牛の育ち）に使っているので、別の scale・rotate で動かす
+   - 「はやい」と「動きを減らす」設定では止める。カードの絵と背景は動かさない */
+@keyframes idleBreath { 0%, 100% { scale: 1 1; } 50% { scale: 1.012 1.03; } }
+@keyframes idleSway { 0%, 100% { rotate: -0.8deg; } 50% { rotate: 0.8deg; } }
+.player-unit .unit-art img { transform-origin: 50% 100%; animation: idleBreath 3.6s ease-in-out infinite; }
+.enemy-unit:not(.dead) .unit-art img { transform-origin: 50% 100%; animation: idleSway 3.2s ease-in-out infinite; }
+.enemy-unit:nth-child(2) .unit-art img { animation-delay: -1.1s; animation-duration: 2.9s; }
+.enemy-unit:nth-child(3) .unit-art img { animation-delay: -2.2s; animation-duration: 3.5s; }
+.barn:not(.empty) img { transform-origin: 50% 100%; animation: idleBreath 4.2s ease-in-out infinite; }
+.barn:nth-child(even) img { animation-delay: -1.6s; }
+/* 当たったときの光は、揺れより優先（光り終わると揺れに戻る） */
+.player-unit .unit-art.hit-flash img { animation: hitFlash calc(.5s * var(--spd, 1)) ease; }
+.enemy-unit:not(.dead) .unit-art.hit-flash img { animation: hitFlashMirror calc(.5s * var(--spd, 1)) ease; }
+html[data-speed="fast"] .player-unit .unit-art img, html[data-speed="fast"] .enemy-unit .unit-art img, html[data-speed="fast"] .barn img { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .player-unit .unit-art img, .enemy-unit .unit-art img, .barn img { animation: none; }
+}
