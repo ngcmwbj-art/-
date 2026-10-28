@@ -44,6 +44,7 @@ import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
 import { isCloseupQuit, skipIntro } from '../../ui/closeup';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const HF = {
   look: 'flag_hg_look',
@@ -249,7 +250,8 @@ export class MizuPanel extends HgPanel {
 
   /** 決めた 水の 判定。 */
   judge(): Kama | 'ooi' | 'sukunai' {
-    const d = this.lv - WRIST;
+    // ひろい：±2→±3、±6→±9 px（改善会議 10-28 の5）
+    const d = (this.lv - WRIST) / closeupWide();
     if (d > 6) return 'ooi';
     if (d < -6) return 'sukunai';
     if (d > 2) return 'yawa';
@@ -426,10 +428,10 @@ export class HiPanel extends HgPanel {
         // わらを ひとにぎり
         se('se_c3_hajiku', { vol: 0.5 });
         this.burst = 1000;
-        this.okoge = this.tm <= 3000 ? (this.kobore ? 'usui' : 'kitsune') : 'koge';
+        this.okoge = this.tm <= 3000 * closeupWide() ? (this.kobore ? 'usui' : 'kitsune') : 'koge'; // ひろい：3→4.5秒
         return;
       }
-      if (this.tm > 4500) {
+      if (this.tm > 4500 * closeupWide()) {
         this.okoge = 'nashi';
         this.fire = 0;
         this.pending = 'waraNone';
@@ -472,7 +474,7 @@ export class HiPanel extends HgPanel {
     } else if (this.dan === 2) {
       if (fl >= 2) {
         this.kobT += dt;
-        if (this.kobT > 3000 && !this.kobore) {
+        if (this.kobT > 3000 * closeupWide() && !this.kobore) { // ひろい：強火の まま 3→4.5秒 で ふきこぼれ
           this.kobore = true;
           this.pending = 'kobore';
           return;

@@ -47,6 +47,7 @@ import { se } from '../ch2/compat';
 import { addToMap, c3Stage, inCh3, say3 } from './common';
 import { teruInside } from '../../data/maps/umizoi';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const MF = {
   start: 'flag_mz_start',
@@ -354,7 +355,9 @@ export type Katachi = 'usui' | 'futsu' | 'buatsui';
 /** 跳ねる 数：石の 形と はなした 高さ（段階2 は 少し 減って 6まで）。 */
 export function mzCount(kata: Katachi, v: number, stage: number): number {
   const row = { usui: [9, 5, 3], futsu: [8, 5, 3], buatsui: [7, 4, 2] }[kata];
-  let n = v >= BAND.best ? row[0] : v >= BAND.mid ? row[1] : v >= BAND.low ? row[2] : 0;
+  // ひろい：いちばんの 帯（上の はしまで）を 1.5倍 → 0.82 から 0.73 で（目盛りの 絵は BAND の まま。改善会議 10-28 の5）
+  const best = 1 - (1 - BAND.best) * closeupWide();
+  let n = v >= best ? row[0] : v >= BAND.mid ? row[1] : v >= BAND.low ? row[2] : 0;
   if (stage >= 2) n = Math.min(6, Math.max(0, n - 2));
   return n;
 }

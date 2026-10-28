@@ -39,6 +39,7 @@ import { ch2Open, hStage, lanternOn } from './common';
 import { DF } from './dome';
 import { deliveryOn, deliveryOpen } from './tsugao';
 import { HOWTO } from '../../data/text/howto';
+import { widenRange } from '../../ui/closeup_wide';
 
 export const MF = {
   start: 'flag_mg_start',
@@ -490,7 +491,9 @@ export class PumpPanel extends Panel {
   autoT = 0;
 
   zone(): 'low' | 'good' | 'over' {
-    return this.v < GOOD_LO ? 'low' : this.v <= GOOD_HI ? 'good' : 'over';
+    // ひろい：ちょうどの 間を まん中から 1.5倍（帯の 絵は GOOD_LO〜GOOD_HI の まま。改善会議 10-28 の5）
+    const [lo, hi] = widenRange(GOOD_LO, GOOD_HI, 0, 1);
+    return this.v < lo ? 'low' : this.v <= hi ? 'good' : 'over';
   }
 
   tick(dt: number): void {
@@ -510,7 +513,7 @@ export class PumpPanel extends Panel {
     this.pushT = 220;
     this.v = Math.min(1.05, this.v + PUMP_STEP);
     se('se_c3_pump', { vol: 0.55, pitch: 0.9 + this.v * 0.3 });
-    if (this.v > GOOD_HI + 0.04) this.result = 'over';
+    if (this.v > widenRange(GOOD_LO, GOOD_HI, 0, 1)[1] + 0.04) this.result = 'over';
   }
 
   scene(g: Gfx, dy: number): void {

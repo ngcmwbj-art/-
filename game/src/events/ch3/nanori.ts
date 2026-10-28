@@ -40,6 +40,7 @@ import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { addToMap, say3 } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const NF = {
   zure: 'flag_nn_zure',
@@ -210,8 +211,9 @@ export class NightSeaPanel implements Widget {
     se('se_clock_tick', { vol: 0.5, pitch: 1.0 });
     const tenths = Math.round(sec * 10);
     const err = Math.abs(sec - L.period / 1000);
-    this.word(fmtSec(tenths), L.x, L.y - 14, 1200, err <= L.tol ? '#FFE7A3' : '#FF8A7A');
-    if (err > L.tol) {
+    const tol = L.tol * closeupWide(); // ひろい：ずれて よい 秒 ×1.5（改善会議 10-28 の5）
+    this.word(fmtSec(tenths), L.x, L.y - 14, 1200, err <= tol ? '#FFE7A3' : '#FF8A7A');
+    if (err > tol) {
       this.result = 'miss';
       return;
     }

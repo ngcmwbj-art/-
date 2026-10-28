@@ -42,6 +42,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, npc, routeTiles } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const BF = {
   look: 'flag_bm_look',
@@ -282,7 +283,7 @@ export class MakuPanel implements Widget {
   /** すべって 止まった：線に 近ければ ぴたり、遠ければ ずれたまま。 */
   private settle(): void {
     const r = Math.round(this.pos);
-    if (Math.abs(this.pos - r) < SNAP) {
+    if (Math.abs(this.pos - r) < SNAP * closeupWide()) { // ひろい：0.25→0.375（改善会議 10-28 の5）
       this.glide = r;
       if (Math.abs(this.pos - r) < 0.001) this.arrive(r);
     } else {

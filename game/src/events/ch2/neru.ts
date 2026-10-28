@@ -51,6 +51,7 @@ import { hStage, lanternOn, npc } from './common';
 import { choresOn } from './barn';
 import { HOWTO } from '../../data/text/howto';
 import { skipIntro } from '../../ui/closeup';
+import { widenInt } from '../../ui/closeup_wide';
 
 export const NF = {
   kiritsu: 'flag_nr_kiritsu',
@@ -320,7 +321,8 @@ export class YukaPanel implements Widget {
   }
 
   flat(): boolean {
-    return Math.max(...this.piles) - Math.min(...this.piles) <= 1;
+    // ひろい：高い 所と 低い 所の 差 1→2 まで よし（改善会議 10-28 の5）
+    return Math.max(...this.piles) - Math.min(...this.piles) <= widenInt(1);
   }
 
   update(dt: number, input: Input): void {

@@ -3,6 +3,9 @@
 // on its right edge lead to もちもの／ハンコ／つよさ／みました帳／せってい.
 // Opened with C/Tab or X in the field (hud.ts watches the keys), from the
 // title (settings only) and from scripts (openMenu()).
+// 改善会議 2026-10-28 の2：プレイヤーが メニューの ボタンで 開くと、前に 見ていた タブ（みました帳は
+// 前の 冊・前の 見出し）から 開く。台本が タブを 名指しで 開く 所（runMenu('book') など）は そのまま。
+// 覚えるのは 遊んでいる あいだだけ（セーブ しない。開き直したら「もちもの」から）。
 
 import type { Co } from '../../engine/co';
 import { Runner } from '../../engine/co';
@@ -19,7 +22,7 @@ import type { MenuCtx, MenuPage } from './types';
 import { ItemsPage } from './items';
 import { HankoPage } from './hanko';
 import { StatsPage } from './stats';
-import { BookPage } from './book';
+import { BookPage, hasBook2, hasBook3 } from './book';
 import { SettingsPage } from './settingsPage';
 import { markTextScreen } from '../../engine/textzones';
 import { drawGoalTape, goalLine } from './goal';
@@ -46,12 +49,16 @@ export class MenuScene implements Scene, MenuCtx {
   /** つぎの目当て1行（改善会議 2026-10-23 の 4。手帳の 上の テープ。開いたときに 1回 決める）。 */
   private goal = '';
 
-  constructor(readonly titleMode = false, startTab = 'items') {
+  constructor(
+    readonly titleMode = false,
+    startTab = 'items',
+    book: BookPage = new BookPage(),
+  ) {
     this.pages = {
       items: new ItemsPage(),
       hanko: new HankoPage(),
       stats: new StatsPage(),
-      book: new BookPage(),
+      book,
       settings: new SettingsPage(),
     };
     this.order = titleMode ? ['settings'] : TABS.map((t) => t.id);
@@ -92,6 +99,7 @@ export class MenuScene implements Scene, MenuCtx {
     if (this.closeT >= 0) return;
     this.after = after ?? null;
     this.closeT = 0;
+    if (!this.titleMode) lastTab = this.pageId;
     sfx('se_menu_close');
   }
 
@@ -189,11 +197,25 @@ export class MenuScene implements Scene, MenuCtx {
 }
 
 let current: MenuScene | null = null;
+/** The tab the field menu was last closed on, and its みました帳 page (the open notebook and section). */
+let lastTab = 'items';
+let keptBook: BookPage | null = null;
+let keptBooks = '';
 
-/** Open the field menu (no-op if already open). */
-export function openMenu(tab = 'items'): MenuScene | null {
+/** The みました帳 page kept between player-opened menus (a new notebook: it starts afresh, on top). */
+function rememberedBook(): BookPage {
+  const books = `${hasBook2()}${hasBook3()}`;
+  if (!keptBook || books !== keptBooks) {
+    keptBook = new BookPage();
+    keptBooks = books;
+  }
+  return keptBook;
+}
+
+/** Open the field menu (no-op if already open). No tab: the player opened it — the tab he last looked at. */
+export function openMenu(tab?: string): MenuScene | null {
   if (current && !current.done) return null;
-  current = new MenuScene(false, tab);
+  current = tab ? new MenuScene(false, tab) : new MenuScene(false, lastTab, rememberedBook());
   uiHud.clearNotes();
   game.push(current);
   return current;

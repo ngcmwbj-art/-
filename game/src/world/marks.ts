@@ -7,6 +7,9 @@
 //            足もとに、四すみの かぎ（「 」を 4つ 地面に 置いた 形）。頭の上の「！」とは 形も 場所も ちがう。
 //            歩いている あいだは 相手を 変えない（止まって 0.12 秒 たったら 新しい 相手に うつる。同じ 相手なら
 //            そのまま）。会話・大写し・メニューのあいだは 出さない。「しるし：なし」で いっしょに 消える。
+//            （改善会議 2026-10-28 の1）線は 2 px、かぎは 6 px。敵のシンボル（kind 'sym'）には 出さない。
+//            真下から 上を 向いたとき（しゅんが 相手の 足もとに かさなる）は、枠を しゅんの 頭の すぐ上へ
+//            持ち上げる（しゅんの 形で くりぬかれて 消えないように）。
 // 1〜3 は同じ形・同じ色（会議：印が2種類あると画面がうるさい）。点滅はおだやかに（明るさが 1.8 秒で
 // ゆっくり上下するだけ）。せってい「しるし：あり／なし」で まとめて消せる（ui/settings.ts marks）。
 //
@@ -168,7 +171,9 @@ function aimKey(t: { actor?: Actor; obj?: ExamineObj }): string {
 function updateAim(f: FieldScene, dt: number): void {
   stillMs = f.player.moving ? 0 : stillMs + dt;
   const on = settings.marks && f.controllable;
-  const t = on ? f.examineTarget() : null;
+  const t0 = on ? f.examineTarget() : null;
+  // (not on an enemy symbol: walking into it is what happens there)
+  const t = t0?.actor?.kind === 'sym' ? null : t0;
   const key = t ? aimKey(t) : '';
   const cur = aims.find((x) => x.want);
   if (!t) {
@@ -211,14 +216,27 @@ function aimRect(f: FieldScene, x: Aim): [number, number, number, number] | null
   return [at.x - hw, at.foot - 7, at.x + hw, at.foot + 2];
 }
 
-/** 1 px の点を 2 つの点のあいだに 並べる（影の色、その上に 明るい色）。 */
+/** 線の太さ（px）と、かぎの長さ（px）。 */
+const AIM_LINE = 2;
+const AIM_ARM = 6;
+
+/** 2 px の点を 2 つの点のあいだに 並べる（影の色、その上に 明るい色）。 */
 function dots(g: Gfx, x0: number, y0: number, x1: number, y1: number, col: string, oy: number): void {
   const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
   g.ctx.fillStyle = col;
-  for (let i = 0; i <= n; i++) g.ctx.fillRect(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n) + oy, 1, 1);
+  const h = AIM_LINE / 2;
+  for (let i = 0; i <= n; i++)
+    g.ctx.fillRect(Math.round(x0 + ((x1 - x0) * i) / n - h), Math.round(y0 + ((y1 - y0) * i) / n - h) + oy, AIM_LINE, AIM_LINE);
 }
 
-/** 四すみの かぎ（地面の四角の すみから、となりの すみへ 4 px ずつ）。 */
+/** 人の 絵の 画面の 四角（左・上・右・下。くりぬき と 持ち上げに 使う）。 */
+function bodyRect(f: FieldScene, b: Actor, cx: number, cy: number): [number, number, number, number] {
+  const [fx0, fy0] = fxAt(f, b.x - 8, b.y, cx, cy, b.y);
+  const [fx1, fy1] = fxAt(f, b.x + 8, b.y - (b.sprite?.h ?? 24) - 2, cx, cy, b.y);
+  return [Math.min(fx0, fx1), Math.min(fy0, fy1) - 1, Math.max(fx0, fx1), Math.max(fy0, fy1) + 1];
+}
+
+/** 四すみの かぎ（地面の四角の すみから、となりの すみへ 6 px ずつ）。 */
 function drawAim(g: Gfx, f: FieldScene, x: Aim, cx: number, cy: number): void {
   if (x.a <= 0.01) return;
   const r = aimRect(f, x);
@@ -231,19 +249,34 @@ function drawAim(g: Gfx, f: FieldScene, x: Aim, cx: number, cy: number): void {
     [rr, t],
     [rr, b],
     [l, b],
-  ].map(([wx, wy]) => fxAt(f, wx, wy, cx, cy, wy));
+  ].map(([wx, wy]) => [...fxAt(f, wx, wy, cx, cy, wy)] as [number, number]);
   const ctx = g.ctx;
   ctx.save();
   // HD-2D: the frame lies over the picture, so leave out whoever stands in front of
   // it (Minato and his partner): it reads as lying behind them, as in 2D
   if (fxElsewhere(f)) {
+    const p = f.player;
+    // looking straight up at it, he stands over the whole frame: lift it to just over his head
+    // (the same shape, the same size), so it is not cut away by him
+    let lifted = false;
+    if (p.visible && p.dir === 'up' && x.actor !== p) {
+      const [bl, bt, br] = bodyRect(f, p, cx, cy);
+      const xs = pts.map((q) => q[0]);
+      const ys = pts.map((q) => q[1]);
+      const over = Math.min(br, Math.max(...xs)) - Math.max(bl, Math.min(...xs));
+      const low = Math.max(...ys);
+      if (over > 4 && low > bt - AIM_LINE - 1) {
+        const dy = low - (bt - AIM_LINE - 1);
+        for (const q of pts) q[1] -= dy;
+        lifted = true;
+      }
+    }
     ctx.beginPath();
     ctx.rect(-50, -50, 10000, 10000);
-    for (const b of [f.player, f.follower]) {
-      if (!b || !b.visible || b === x.actor) continue;
-      const [fx0, fy0] = fxAt(f, b.x - 8, b.y, cx, cy, b.y);
-      const [fx1, fy1] = fxAt(f, b.x + 8, b.y - (b.sprite?.h ?? 24) - 2, cx, cy, b.y);
-      ctx.rect(Math.min(fx0, fx1), Math.max(fy0, fy1) + 1, Math.abs(fx1 - fx0), -Math.abs(fy1 - fy0) - 2);
+    for (const b of [p, f.follower]) {
+      if (!b || !b.visible || b === x.actor || (lifted && b === p)) continue;
+      const [l, tp, r, bm] = bodyRect(f, b, cx, cy);
+      ctx.rect(l, bm, r - l, tp - bm);
     }
     ctx.clip('evenodd');
   }
@@ -257,7 +290,7 @@ function drawAim(g: Gfx, f: FieldScene, x: Aim, cx: number, cy: number): void {
         for (const j of [(i + 1) % 4, (i + 3) % 4]) {
           const [bx, by] = pts[j];
           const len = Math.hypot(bx - ax, by - ay) || 1;
-          const k = Math.min(0.45, 4 / len);
+          const k = Math.min(0.45, AIM_ARM / len);
           dots(g, ax, ay, ax + (bx - ax) * k, ay + (by - ay) * k, col, oy);
         }
       }

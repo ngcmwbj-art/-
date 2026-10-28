@@ -77,6 +77,7 @@ import {
 } from '../../art/props/dome_sky_art';
 import * as T from '../../data/text/hoshi_dome';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 // ---------------------------------------------------------------- flags (50 11.8)
 
@@ -497,6 +498,15 @@ export class DomeEyePanel implements Widget {
   }
 
   /** Blur level 0 (sharp) … 5. */
+  /** ピントが 合った と みる か（ぼけの 絵は level() の まま。ひろい なら ±0.06→±0.09：改善会議 10-28 の5）。 */
+  sharp(): boolean {
+    return Math.abs(this.focus - this.best) < 0.06 * closeupWide();
+  }
+  /** まん中に 来た と みる 近さ（px。ひろい なら 6→9）。 */
+  centerR(): number {
+    return 6 * closeupWide();
+  }
+
   level(): number {
     const d = Math.abs(this.focus - this.best);
     if (d < 0.06) return 0;
@@ -532,7 +542,7 @@ export class DomeEyePanel implements Widget {
           sfx('se_dome_handle');
         }
       } else this.pushFrom = -1;
-      if (this.dist() < 6) this.centeredT += dt;
+      if (this.dist() < this.centerR()) this.centeredT += dt;
       else this.centeredT = 0;
     } else if (this.phase === 'focus') {
       let v = (this.keys.r ? 1 : 0) - (this.keys.l ? 1 : 0);
@@ -571,7 +581,7 @@ export class DomeEyePanel implements Widget {
     g.img(barrel(), 0, 0);
     // the middle (a guide for the game, not in the glass): a faint broken ring while aiming
     if (this.phase === 'aim') {
-      const on = this.dist() < 6;
+      const on = this.dist() < this.centerR();
       for (let i = 0; i < 16; i += 2) {
         const a = (i / 16) * Math.PI * 2 + this.t * 0.0006;
         g.rect(Math.round(EYE.cx + Math.cos(a) * 11), Math.round(EYE.cy + Math.sin(a) * 11), 1, 1, on ? '#F6D98A' : '#5E6278');
@@ -640,7 +650,7 @@ function* eyeSession(n: 1 | 2 | 3): Co {
     p.canMove = true;
     let sharpT = 0;
     for (;;) {
-      const sharp = p.level() === 0;
+      const sharp = p.sharp();
       if (sharp) p.cues.set('look', T.DOME_WORD.sharp, { ...cueAt(), tone: 'go', mode: 'beat', scale: 1, button: '見る！' });
       else p.cues.drop('look');
       if (p.auto) {

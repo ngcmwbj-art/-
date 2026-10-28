@@ -48,6 +48,7 @@ import { se } from './compat';
 import { ch2Open, hStage, lanternOn, routeTiles } from './common';
 import { DF } from './dome';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const TF = {
   /** 鉄棒を 2回 調べた あとの グソっ君。 */
@@ -158,6 +159,8 @@ const DRAIN = 0.14;
 const DRAIN_HAKU = -0.06;
 /** はなして いて いい 間（押しなおし）。 */
 const REGRIP_MS = 350;
+/** 肩の 当たり（目盛りの 絵は 0.78 の まま。ひろい なら 下の はしを 0.67 まで：改善会議 10-28 の5）。 */
+const kataOk = (): number => 1 - 0.22 * closeupWide();
 /** 肩の 印の 1往復。 */
 const KATA_MS = 1400;
 /** 1回：息の 波（短い）、引く 長さ、ゲージ。 */
@@ -323,7 +326,7 @@ export class TetsuPanel implements Widget {
     const down = this.auto ? !(haku && this.breathK() > 0.05 && this.breathK() < 0.12) : input.down('confirm');
     if (!down) this.relT += dt;
     else {
-      if (this.relT > 0 && this.relT <= REGRIP_MS && haku && this.breathed !== cyc) {
+      if (this.relT > 0 && this.relT <= REGRIP_MS * closeupWide() && haku && this.breathed !== cyc) {
         this.breathed = cyc;
         this.word(T.TETSU_UI.hai, SHUN_X - SX + 26, BAR_Y - SY + 6, 700, '#BDEFFA');
         se('se_cursor', { pitch: 0.7, vol: 0.3 });
@@ -331,7 +334,7 @@ export class TetsuPanel implements Widget {
       this.relT = 0;
     }
     const good = haku && this.breathed === cyc;
-    this.grip = Math.min(1, this.grip - (dt / 1000) * (good ? DRAIN_HAKU : DRAIN));
+    this.grip = Math.min(1, this.grip - (dt / 1000) * (good ? DRAIN_HAKU : DRAIN / closeupWide()));
     this.cntT += dt;
     if (this.cntT >= COUNT_MS) {
       this.cntT -= COUNT_MS;
@@ -343,7 +346,7 @@ export class TetsuPanel implements Widget {
         return;
       }
     }
-    if (this.grip <= 0 || this.relT > REGRIP_MS) {
+    if (this.grip <= 0 || this.relT > REGRIP_MS * closeupWide()) {
       this.grip = Math.max(0, this.grip);
       this.result = this.count >= HANG_PASS ? 'done' : 'fall';
     }
@@ -376,7 +379,7 @@ export class TetsuPanel implements Widget {
     if (!press || this.coolT > 0) return;
     this.coolT = 300;
     const wx = SHUN_X - SX + 30;
-    if (pos >= 0.78) {
+    if (pos >= kataOk()) {
       this.streak++;
       this.lift = this.streak * 2;
       this.shun = 'pull';
@@ -404,7 +407,7 @@ export class TetsuPanel implements Widget {
       const pos = this.kataPos();
       const press = this.auto ? pos > 0.98 : this.take();
       if (!press) return;
-      if (pos >= 0.78) {
+      if (pos >= kataOk()) {
         this.bonus = pos >= 0.94;
         this.step = 'iki';
         this.ikiT = 0;
@@ -436,7 +439,7 @@ export class TetsuPanel implements Widget {
       return;
     }
     this.pull = Math.min(1, this.pull + dt / PULL_MS);
-    this.grip -= (dt / 1000) * PULL_DRAIN;
+    this.grip -= ((dt / 1000) * PULL_DRAIN) / closeupWide();
     this.lift = 2 + Math.round(this.pull * 10);
     if (this.pull >= 1) {
       this.shun = 'over';

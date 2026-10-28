@@ -39,6 +39,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide, widenRange } from '../../ui/closeup_wide';
 
 export const AF = {
   look: 'flag_as_look',
@@ -261,7 +262,7 @@ export class AsPanel implements Widget {
       this.pos = 0.08;
       this.vel = Math.max(0, this.vel);
     }
-    if (Math.abs(this.vel) > ph.vmax) {
+    if (Math.abs(this.vel) > ph.vmax * closeupWide()) { // ひろい：割れる 速さ ×1.5（改善会議 10-28 の5）
       this.splash = 600;
       se('se_h_watercup', { vol: 0.4, pitch: 1.6 });
       this.result = 'ng';
@@ -287,10 +288,12 @@ export class AsPanel implements Widget {
     this.twang = 500;
     const pw = this.power;
     this.power = 0;
-    if (pw < KUMO_OK[0]) {
+    // ひろい：ちょうど いい 幅を まん中から 1.5倍（帯の 絵は KUMO_OK の まま。改善会議 10-28 の5）
+    const ok = widenRange(KUMO_OK[0], KUMO_OK[1], 0, 1);
+    if (pw < ok[0]) {
       se('se_cursor', { vol: 0.3 });
       this.result = 'weak';
-    } else if (pw > KUMO_OK[1]) {
+    } else if (pw > ok[1]) {
       this.splash = 700;
       se('se_h_watercup', { vol: 0.4, pitch: 1.6 });
       this.result = 'strong';

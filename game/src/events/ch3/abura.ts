@@ -35,6 +35,7 @@ import { c3Stage, c3Town, inCh3, say3 } from './common';
 import { anyFlag } from './talked';
 import { HOWTO } from '../../data/text/howto';
 import { skipIntro } from '../../ui/closeup';
+import { widenInt } from '../../ui/closeup_wide';
 
 export const AF = {
   desk: 'flag_ab_desk',
@@ -173,7 +174,8 @@ export class HeraPanel implements Widget {
       }
       this.lastDir = d;
       if (this.nobasu >= NOBASU_N) {
-        this.deki[this.hon] = this.drops >= 2 ? 'beta' : 'kuro';
+        // ひろい：2てき までは べたべたに ならない（ふつうは 1てき。改善会議 10-28 の5）
+        this.deki[this.hon] = this.drops >= widenInt(2) ? 'beta' : 'kuro';
         this.phase = 'end';
       }
     }
@@ -245,7 +247,7 @@ export class HeraPanel implements Widget {
           } else if (h === this.hon) {
             soot = 1 - this.fuku / FUKU_N;
             oil = this.phase === 'nobasu' ? 0.3 + (0.7 * this.nobasu) / NOBASU_N : this.phase === 'teki' && this.drops ? 0.15 : 0;
-            beta = this.drops >= 2 && this.phase === 'nobasu';
+            beta = this.drops >= widenInt(2) && this.phase === 'nobasu';
           }
           this.hera(g, cx, y, soot, oil, beta, false);
         }

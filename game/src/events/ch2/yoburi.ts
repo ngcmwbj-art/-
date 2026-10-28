@@ -57,6 +57,7 @@ import { hStage, lanternOn, say } from './common';
 import { ekinoteHooks } from './ekinote';
 import { mizubeTextCheck } from '../mizube_check';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const YB = {
   /** トマじいの〔yoburi〕を 聞いた。 */
@@ -237,6 +238,13 @@ export class YoburiPanel implements Widget {
     if (c.kind === 'kawanina') return d < R ? 'edge' : null;
     if (d < RC) return 'core';
     return d < R ? 'edge' : null;
+  }
+
+  /** すくえる か：光の ふちに いる（ひろい なら ふちの 外側を R×1.5 まで。光の 輪の 絵は R の まま。改善会議 10-28 の5）。 */
+  scoopable(c: Cr): boolean {
+    const d = Math.abs(c.x - this.ringX);
+    const r = R * closeupWide();
+    return c.kind === 'kawanina' ? d < r : d >= RC && d < r;
   }
 
   update(dt: number, input: Input): void {
@@ -623,7 +631,7 @@ export function* scoop(p: YoburiPanel, onFirst: (key: 'awa' | 'dive') => Co): Co
     setFlag(YB.scoops, flag(YB.scoops) + 1);
     // the one to scoop: lit at the edge, on the mud (the nearest to the light's middle)
     const cand = p.crs
-      .filter((c) => (c.state === 'out' || c.state === 'hide') && p.lit(c) === 'edge')
+      .filter((c) => (c.state === 'out' || c.state === 'hide') && p.scoopable(c))
       .sort((a, b) => Math.abs(a.x - p.ringX) - Math.abs(b.x - p.ringX))[0];
     p.phase = 'scoop';
     p.netX = cand ? cand.x : p.ringX;

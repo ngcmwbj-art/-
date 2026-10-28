@@ -140,6 +140,8 @@ export const PLACES: Record<string, PlaceDef> = {
   map_hoshi_ura_hata: { outside: () => ',' },
   // 上の 畑（寝とる うちに、とる、02_ch2_index）：北と 東は 杉の 林が 続く、西と 南は ネットの 外の 草地
   map_hoshi_ue_hata: { outside: (tx, ty) => (ty < 1 || tx > 14 ? 'H' : ',') },
+  // 分校の そば畑（ちがう 花が、となりに、02_ch2_index）：北は 杉、西と 東は 竹やぶが 続く、南は 校庭の がわの 草地
+  map_hoshi_gakkyuen: { outside: (tx, ty) => (ty < 1 ? 'H' : ty > 8 ? ',' : tx < 1 || tx > 14 ? 'T' : ',') },
   // 海ぞいの町 (chapter 3, 62 8.9): the harbour and the sea lie lower than the
   // quay (8 px: the quay's and the breakwater's faces stand over the water);
   // the boats float on it. Past the south edge the sea goes on (the edge rows).

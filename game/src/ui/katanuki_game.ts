@@ -27,6 +27,7 @@ import { drawDigits, digitsWidth } from './digits';
 import { drawWindow, UI } from './window';
 import { BANZUKE_CARD, BANZUKE_ROWS, IKARI_COUNT, KATA_NAME, KATA_UI, type KataKey, type TipKey } from '../data/text/katanuki';
 import { HOWTO } from '../data/text/howto';
+import { closeupWide } from './closeup_wide';
 
 // ================================================================ 型の 線（板の 上の px、閉じた 線）
 
@@ -514,7 +515,8 @@ export class KatanukiGame implements Widget {
       const safe = (16 + 58 * (1 - this.sh.danger[i])) * soft;
       if (this.v > safe) {
         if (this.crack < 0.02) this.newCrack(i);
-        const k = (this.v / safe - 1) * 1.5 * (this.crackNE && this.o.ne ? 1.3 : 1);
+        // ひろい：ひびの のび方を 1/1.5（改善会議 10-28 の5、ui/closeup.ts closeupWide）
+        const k = ((this.v / safe - 1) * 1.5 * (this.crackNE && this.o.ne ? 1.3 : 1)) / closeupWide();
         this.crack += k * s;
       }
       const before = this.pos;

@@ -47,6 +47,7 @@ import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { c3Stage, inCh3, kita, say3 } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const SF = {
   start: 'flag_sk_start',
@@ -465,15 +466,17 @@ function* uki(p: UkiPanel): Co<UkiOutcome> {
     // (a press from the 「つん」 on is not 早い: it counts as the bite)
     // the last gap: a small 「つん」 a moment before it goes under (改善会議 10-24 の 2:
     // the ear gets ready; the ぴくっ before was the 「ツン」 of a taste)
-    if (yield* waitPress(p, gap - PRE_SINK_MS)) return 'early';
+    // ひろい：早めの 押しを 許す 間 200→300ms（改善会議 10-28 の5）
+    const pre = PRE_SINK_MS * closeupWide();
+    if (yield* waitPress(p, gap - pre)) return 'early';
     se('se_uki_maetsun');
-    preHit = yield* waitPress(p, PRE_SINK_MS);
+    preHit = yield* waitPress(p, pre);
   }
   // 沈む：the float goes under; this is the moment (a generous second)
   p.phase = 'sink';
   se('se_tsuri_gui', { vol: 0.5 });
   // (1100 → 1250ms: 改善会議 10-24 の 2：少し ゆるく)
-  const SINK = 1250;
+  const SINK = 1250 * closeupWide(); // ひろい：1.25→1.875秒（改善会議 10-28 の5）
   for (let t = 0, t0 = game.time; t < SINK; t = game.time - t0) {
     p.dip = Math.min(20, 4 + (t / 180) * 16);
     if (preHit || (p.auto ? t > 260 : p.take('confirm'))) return 'hit';

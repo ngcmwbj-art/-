@@ -95,6 +95,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_hg_start: { ids: ['hg_mizu', 'hg_hi'], how: 'ask', pages: '12 → 0（かまどを もう1回 見てから ペロへ、は 今の まま）' },
   flag_ky_start: { ids: ['kyuri'], how: 'already', pages: '0' },
   flag_rt_start: { ids: ['retasu'], how: 'already', pages: '0（光る 玉を 調べると すぐ。やめた 玉は flag が 立たず、もう 一度 はじめから）' },
+  flag_sb_start: { ids: ['soba'], how: 'already', pages: '0（そばを 調べると すぐ。のぞいた 花と 立てた 札は 残り、続きから）' },
   flag_hb_start: { ids: ['hokihata'], how: 'already', pages: '0（光る 株を 調べると すぐ。やめた 株は flag が 立たず、もう 一度 はじめから）' },
   flag_hn_start: { ids: [], how: 'none', pages: '穂を 見て 選ぶ だけ' },
   flag_hm_start: { ids: ['himo'], how: 'already', pages: '1（待って！は 1回きり）' },
@@ -121,6 +122,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_sk_start: { ids: ['sakana'], how: 'already', pages: '1' },
   flag_tk_start: { ids: ['tokoro'], how: 'goesOn', pages: 'やめると 残りは ナミエが 突く' },
   flag_sr_start: { ids: ['suna', 'shiro'], how: 'already', pages: '0（砂・城の 所を 調べると すぐ。積んだ 段は 残る）' },
+  flag_tm_start: { ids: ['ana'], how: 'already', pages: '0〜1（カイトか 見た 貝がらを 調べると すぐ。くらべた カードは 残る）' },
   flag_yd_start: { ids: ['yose'], how: 'ask', pages: '3 → 0' },
   flag_hs_start: { ids: ['housou'], how: 'ask', pages: 'チャイムの 前置き → 0（housou、10-26）' },
   flag_fr_start: { ids: ['fureai'], how: 'already', pages: '0〜1（水槽を 調べると すぐ。見た 所は 残る。生き物 役は 1回きり）' },
@@ -148,6 +150,10 @@ export function* skipIntro(...ids: string[]): Co<boolean> {
   return skip;
 }
 
+// ---------------------------------------------------------------- ひろい（改善会議 2026-10-28 の 5）
+// 大写しの 当たりの 幅を「ツッコミ判定：ひろい」で 広げる 共通の 関数は ui/closeup_wide.ts（軽い ファイル：
+// ui/ の 遊びからも 読み込みの 輪に ならない よう 分けた）。ここからも 使える。
+export { CLOSEUP_WIDE_MUL, closeupWide, widenInt, widenRange } from './closeup_wide';
 
 // ---------------------------------------------------------------- state
 

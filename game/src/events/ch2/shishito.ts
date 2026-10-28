@@ -44,6 +44,7 @@ import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
 import { skipIntro } from '../../ui/closeup';
+import { widenRange } from '../../ui/closeup_wide';
 
 export const SF = {
   heard: 'flag_ss_heard',
@@ -506,7 +507,9 @@ function* shichirin(first: boolean): Co<SsWho | null> {
       p.sides[k] = h;
       p.flips++;
       se('se_examine', { vol: 0.4, pitch: 0.8 });
-      const iro = h < YOI[0] ? 'nama' : h <= YOI[1] ? 'yoi' : 'koge';
+      // ひろい：当たりの 帯を まん中から 1.5倍（帯の 絵は YOI の まま。改善会議 10-28 の5）
+      const yoi = widenRange(YOI[0], YOI[1], 0, 1);
+      const iro = h < yoi[0] ? 'nama' : h <= yoi[1] ? 'yoi' : 'koge';
       if (iro === 'yoi' && !flag(SF.iro)) {
         setFlag(SF.iro, 1);
         yield* say(T.SS_IRO.yoi);

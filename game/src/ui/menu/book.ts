@@ -82,6 +82,7 @@ import { drawAnPage, hasAnPage, AN_ROW_LABEL } from './book_akinasu';
 // ② の すみ『寝とる うちに、とる』（02_ch2_index）
 import { drawRtPage, hasRtPage, RT_ROW_LABEL } from './book_retasu';
 import { drawHbPage, hasHbPage, HB_ROW_LABEL } from './book_hokihata';
+import { drawSbPage, hasSbPage, SB_ROW_LABEL } from './book_soba';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
@@ -115,6 +116,8 @@ import { drawNgPage, hasNgPage, NG_ROW_LABEL } from './book_nukegara';
 import { drawTkPage, hasTkPage, TK_ROW_LABEL } from './book_tokoro';
 // ③の すみ『波に 見せる 城』（第3章の クリア前、03_ch3_index）
 import { drawSrPage, hasSrPage, SR_ROW_LABEL } from './book_shiro';
+// ③の すみ『穴は、だれかの ごちそうさま』（第3章の クリア前、03_ch3_index）
+import { drawTmPage, hasTmPage, TM_ROW_LABEL } from './book_tsumeta';
 // ③の すみ『目で、いちばん 長く』（第3章の クリア前、03_ch3_index）
 import { drawFrPage, FR_ROW_LABEL, hasFrPage } from './book_fureai';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
@@ -142,6 +145,7 @@ function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasNgPage()) r.push({ label: NG_ROW_LABEL, draw: drawNgPage });
   if (hasTkPage()) r.push({ label: TK_ROW_LABEL, draw: drawTkPage });
   if (hasSrPage()) r.push({ label: SR_ROW_LABEL, draw: drawSrPage });
+  if (hasTmPage()) r.push({ label: TM_ROW_LABEL, draw: drawTmPage });
   if (hasFrPage()) r.push({ label: FR_ROW_LABEL, draw: drawFrPage });
   if (hasAbPage()) r.push({ label: AB_ROW_LABEL, draw: drawAbPage });
   if (hasImPage()) r.push({ label: IM_ROW_LABEL, draw: drawImPage });
@@ -178,6 +182,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasAnPage()) r.push({ label: AN_ROW_LABEL, draw: drawAnPage });
   if (hasRtPage()) r.push({ label: RT_ROW_LABEL, draw: drawRtPage });
   if (hasHbPage()) r.push({ label: HB_ROW_LABEL, draw: drawHbPage });
+  if (hasSbPage()) r.push({ label: SB_ROW_LABEL, draw: drawSbPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

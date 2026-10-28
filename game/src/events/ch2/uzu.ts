@@ -42,6 +42,7 @@ import { deliveryOn, deliveryOpen } from './tsugao';
 import { mgPokosha } from './mushigomu';
 import { HOWTO } from '../../data/text/howto';
 import { quitBefore, skipIntro } from '../../ui/closeup';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const UF = {
   heard: 'flag_uz_heard',
@@ -191,7 +192,7 @@ export class UzPanel implements Widget {
     if (hold && this.loose > 0) {
       const k = dt / 1000;
       this.sep = Math.min(1, this.sep + k * 0.42);
-      this.loose = Math.max(0, this.loose - k * 0.9);
+      this.loose = Math.max(0, this.loose - (k * 0.9) / closeupWide()); // ひろい：ゆるみが もつ 間 ×1.5（改善会議 10-28 の5）
       if (Math.floor(this.t / 300) !== Math.floor((this.t - dt) / 300)) se('se_h_uzu_twist', { vol: 0.18, pitch: 1.3 });
     }
     // グソっ君の はさみ：すきまが 少し 開いた ところで、外側の はしが 折れる

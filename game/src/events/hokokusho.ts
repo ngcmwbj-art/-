@@ -118,6 +118,7 @@ import {
 } from '../data/text/hokokusho';
 import { NigaoeCard, ReportCard, showCard } from '../ui/hokokusho_card';
 import { FoodGame, LegsGame, SizeGame, SuiriGame } from '../ui/hokokusho_games';
+import { widenInt } from '../ui/closeup_wide';
 import { addMp, getKeyItem, onMap, once } from './lib';
 import { keyGuide } from './stage';
 
@@ -218,7 +219,8 @@ function* playSize(): Co<number> {
   yield () => gm.done;
   const cm = gm.result || SIZE_TRUE + 30;
   const err = Math.abs(cm - SIZE_TRUE);
-  const g = err <= 1 ? 3 : err <= 6 ? 2 : 1;
+  // ひろい：±1→±2、±6→±9 cm（改善会議 10-28 の5、ui/closeup_wide.ts）
+  const g = err <= widenInt(1) ? 3 : err <= widenInt(6) ? 2 : 1;
   if (g >= grade('size')) setFlag(HK.sizeCm, cm);
   setGrade('size', g);
   yield* msg(hkSizeResult(cm, g));

@@ -47,6 +47,7 @@ import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { WF } from './wakime';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const TH = {
   /** 張り紙の あとの グソっ君（1回）。 */
@@ -697,7 +698,7 @@ export function* kaeshiScene(): Co {
       const pressed = p.take() || (p.auto && Math.abs(p.steam - 0.5) < 0.03);
       if (pressed && p.scoopT <= 0) {
         const d = p.steam - 0.5;
-        const good = Math.abs(d) <= GOOD;
+        const good = Math.abs(d) <= GOOD * closeupWide(); // ひろい：±0.14→±0.21（改善会議 10-28 の5）
         p.scoops.push(good);
         p.scoopT = SCOOP_MS;
         p.burst = good ? 600 : 200;

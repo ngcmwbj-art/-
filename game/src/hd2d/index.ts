@@ -23,6 +23,7 @@
 // hd2dField(f) answer it for the other parts (the battles, the ending's cuts).
 // Debug: __game.cmd.hd2dQuality('light'|'normal'), hd2dStats(), hd2dCam({pitch, fov, dist}).
 
+import { viewOnly } from '../engine/viewonly';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { Co } from '../engine/co';
@@ -64,6 +65,8 @@ const MAPS = new Set([
   'map_hoshi_ura_hata',
   // 上の 畑（寝とる うちに、とる、02_ch2_index）
   'map_hoshi_ue_hata',
+  // 分校の そば畑（ちがう 花が、となりに、02_ch2_index）
+  'map_hoshi_gakkyuen',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
   // 沖の ブイの 下（海の 水で 寄せる、03_ch3_index 28）
@@ -180,7 +183,8 @@ function drawField(g: Gfx, f: FieldScene): boolean {
   const actors = [...f.actors, f.player];
   if (f.follower) actors.push(f.follower);
   for (const a of actors) {
-    if (!a.emote || !a.visible) continue;
+    // (none while the dialog window is put away to look at the picture: engine/viewonly.ts)
+    if (!a.emote || !a.visible || viewOnly.on) continue;
     if (f.light.actorAlpha(a) < 0.05 && a.kind !== 'sym') continue;
     const s = v.headOnScreen(a);
     if (!s) continue;

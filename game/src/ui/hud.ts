@@ -5,6 +5,7 @@
 // world/hud's setFieldHud(); the field's menu key (C/Tab and X) is also
 // watched here, since the HUD is updated by the field every frame.
 
+import { viewOnly } from '../engine/viewonly';
 import type { Gfx } from '../engine/gfx';
 import { game } from '../engine/game';
 import { PixelCanvas } from '../engine/pixel';
@@ -331,6 +332,8 @@ const HOSHI_PLACE: Record<string, string> = {
   map_hoshi_ura_hata: '裏の とうもろこし畑',
   // 上の 畑（02_ch2_index、寝とる うちに、とる）
   map_hoshi_ue_hata: '上の 畑',
+  // 分校の そば畑（02_ch2_index、ちがう 花が、となりに。第1章の「学級園」と 名前を 分ける）
+  map_hoshi_gakkyuen: '分校の そば畑',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };
@@ -1229,7 +1232,9 @@ export const uiHud = new UiHud();
 onFlagRaised((id) => {
   if (id in YORIMICHI_START) uiHud.yoriStart(id);
 });
-game.overlays.push((g) => uiHud.drawYori(g));
+game.overlays.push((g) => {
+  if (!viewOnly.on) uiHud.drawYori(g);
+});
 if (import.meta.env.DEV) {
   /** QA：寄り道の 長さの 札（今 出ている・待っている・出した 記録）。 */
   registerDebug('yoriInfo', () => uiHud.yoriInfo());

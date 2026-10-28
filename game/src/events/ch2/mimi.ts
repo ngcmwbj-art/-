@@ -49,6 +49,7 @@ import { deliveryOn } from './tsugao';
 import { MUSHI_DONE } from './mushi';
 import { HOWTO } from '../../data/text/howto';
 import { isCloseupQuit } from '../../ui/closeup';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const MF = {
   /** 片目だけ（ページが できた）。 */
@@ -390,10 +391,10 @@ function* playRound(p: MimiPanel): Co<boolean> {
   const flapRound = p.round >= 4;
   if (flapRound) {
     p.flap = 0;
-    p.limit = FLAP_LIMIT;
+    p.limit = FLAP_LIMIT * closeupWide(); // ひろい：まにあう 時間 ×1.5（改善会議 10-28 の5）
   } else {
     p.flap = -1;
-    p.limit = LIMIT;
+    p.limit = LIMIT * closeupWide();
     // (never the shape his ears already have)
     p.dogEar = pickEar(p.kaneEar);
     se('se_cursor', { pitch: 1.4, vol: 0.4 });

@@ -15,6 +15,7 @@ import { isCh2Map } from './maps';
 import { oddOn, pgOn } from './postgame';
 import * as snd from './audio';
 import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
+import { viewOnly } from '../engine/viewonly';
 
 export interface FieldHud {
   update(dt: number, f: FieldScene): void;
@@ -214,6 +215,8 @@ export const HOSHI_MAP_NAMES: Record<string, string> = {
   map_hoshi_ura_hata: '裏の とうもろこし畑',
   // 上の 畑（02_ch2_index、寝とる うちに、とる）
   map_hoshi_ue_hata: '上の 畑',
+  // 分校の そば畑（02_ch2_index、ちがう 花が、となりに。第1章の「学級園」と 名前を 分ける）
+  map_hoshi_gakkyuen: '分校の そば畑',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };
@@ -513,7 +516,10 @@ let impl: FieldHud = defaultHud;
 
 export const hud: FieldHud & { show(ms?: number): void; setTime(s: string | null): void } = {
   update: (dt, f) => impl.update(dt, f),
-  draw: (g, f) => impl.draw(g, f),
+  // (not while the dialog window is put away to look at the picture: engine/viewonly.ts)
+  draw: (g, f) => {
+    if (!viewOnly.on) impl.draw(g, f);
+  },
   show: (ms = 4000) => defaultHud.show(ms),
   setTime: (s) => {
     defaultHud.override = s;

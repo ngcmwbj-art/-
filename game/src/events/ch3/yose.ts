@@ -47,6 +47,7 @@ import { addToMap, c3Stage, inCh3, kita, say3 } from './common';
 import { anyFlag } from './talked';
 import { HOWTO } from '../../data/text/howto';
 import { skipIntro } from '../../ui/closeup';
+import { widenRange } from '../../ui/closeup_wide';
 
 export const YF = {
   heard: 'flag_yd_heard',
@@ -331,11 +332,13 @@ function* nabe(skip = false): Co<{ deki: number; salty: boolean }> {
       p.active = true;
       while (!p.stopped) yield null;
       p.active = false;
-      if (p.mizu < MIN) {
+      // ひろい：ちょうどの 間を まん中から 1.5倍（0.38〜0.82 → 0.27〜0.93。改善会議 10-28 の5）
+      const [lo, hi] = widenRange(MIN, MAX, 0, 1.2);
+      if (p.mizu < lo) {
         yield* say3(T.YD_SUKUNAI);
         continue;
       }
-      if (p.mizu > MAX) {
+      if (p.mizu > hi) {
         salty = true;
         yield* say3(T.YD_OOI);
       }

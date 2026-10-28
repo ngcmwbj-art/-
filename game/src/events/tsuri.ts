@@ -35,6 +35,7 @@ import { Cues, cueSize } from '../battle/ui/cue';
 import { field } from '../world/field';
 import { sfx } from '../audio';
 import { drawTape, drawWindow, outlinedText, UI } from '../ui/window';
+import { closeupWide } from '../ui/closeup_wide';
 import {
   FLOOR_Y,
   INLET,
@@ -1049,7 +1050,8 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
   yield* animate(160, (k) => (p.gauge = k), ease.backOut);
   const homeX = geo.home[0] - side * 4;
   // (2600 → 2900ms: 改善会議 10-24 の 2：少し ゆるく)
-  const window = p.still1 ? Infinity : 2900;
+  // （改善会議 10-28 の5：ひろい なら ×closeupWide）
+  const window = p.still1 ? Infinity : 2900 * closeupWide();
   let started = false;
   let tLast = 0;
   for (let t = 0, t0 = game.time; t < window; t = game.time - t0) {
@@ -1109,7 +1111,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     p.danger = p.still1 ? 1.01 : spec.danger - (stage === 2 ? 0.03 : 0) - Math.max(0, p.depth - 0.7) * 0.5;
     const zone = p.tension > p.danger;
     if (zone && !p.still1) {
-      p.grip -= spec.drain * dt;
+      p.grip -= (spec.drain / closeupWide()) * dt; // ひろい：赤で はなす までの 間が 1.5倍（10-28 の5）
       if (!lastZone) sfx('se_tsuri_slip');
     } else p.grip = Math.min(1, p.grip + 0.35 * dt);
     lastZone = zone;
@@ -1145,7 +1147,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     }
     if (p.depth <= 0.001 && !holding) {
       bottomT += stepMs;
-      if (bottomT > 2800 && !p.still1) { // (2500 → 2800ms: 改善会議 10-24 の 2：少し ゆるく)
+      if (bottomT > 2800 * closeupWide() && !p.still1) { // (2500 → 2800ms: 改善会議 10-24 の 2：少し ゆるく)
         result = 'lost';
         break;
       }

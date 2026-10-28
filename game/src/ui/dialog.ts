@@ -29,7 +29,7 @@
 // needs a 4th line gets a window one line taller (more lines: taller still).
 
 import type { Co } from '../engine/co';
-import { charWidth, drawGlyph, LINE_H } from '../engine/font';
+import { charWidth, drawGlyph, drawText, LINE_H } from '../engine/font';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import type { Input } from '../engine/input';
@@ -39,9 +39,12 @@ import { hash2 } from '../engine/rng';
 import { markText } from '../engine/textzones';
 import { buttonZones, freeSpan } from '../engine/safezones';
 import { ease } from '../engine/tween';
+import { viewOnly } from '../engine/viewonly';
+import { field } from '../world/field';
 import { sfx, textBlip, textFastForward } from '../audio';
 import { allItems, getSkill } from '../data/battle';
 import { textSpeedMul } from './settings';
+import { kanaText } from './kana';
 import { cursorImg, drawCursor, drawMarker, drawWindow, phraseWrap, tapeImg, textW, UI } from './window';
 
 export type DialogStyle = 'normal' | 'narr' | 'sys' | 'flip' | 'inner';
@@ -306,7 +309,8 @@ interface Request {
 function buildRequest(text: string | string[], o: SayOpts): Request {
   const style = styleFor(o);
   const col = textColor(style);
-  const src = (Array.isArray(text) ? text : [text]).map((t) => (style === 'sys' ? markSys(t) : t));
+  // ひらがな（せってい、改善会議 10-28 の4）：表示する ここ 1か所で 置きかえる（文の 元・名札は そのまま。ui/kana.ts）
+  const src = (Array.isArray(text) ? text : [text]).map((t) => kanaText(style === 'sys' ? markSys(t) : t));
   const pages: Page[] = [];
   for (const t of src) pages.push(...(layoutPages(t, TEXT_W, col) as Page[]));
   return { pages, src, col, narrow: null, o, style, done: false };
@@ -348,8 +352,22 @@ export function dialogFrame(): { x: number; w: number } {
 
 // ---- the dialog box ----------------------------------------------------------------------
 
+/** The word left in the corner while the window is put away (改善会議 2026-10-28 の3). */
+const VIEW_WORD = 'ひょうじ';
+
 class DialogBox implements Widget {
   done = false;
+  viewKeep = true;
+  /**
+   * 絵だけを 見る（改善会議 2026-10-28 の3）：会話の あいだ「メニュー」で 窓を しまう。HUD・頭の上の 印・
+   * 吹き出しも 消え（engine/viewonly.ts）、すみに「ひょうじ」だけ 残る。もう一度「メニュー」、けってい、
+   * もどる、十字、どこに タッチしても 戻る（戻すだけ：文は 進まない）。もどるの 長押し（早送り）を している
+   * あいだ・選択肢・大写し・戦闘では しまわない。
+   */
+  private putAway = false;
+  private putT = 0;
+  /** もどる that brought the window back is not the start of a fast-forward (let go first). */
+  private ffwdHold = false;
   queue: Request[] = [];
   cur: Request | null = null;
   /** Choice window attached to this box (stays open while it's up). */
@@ -396,6 +414,7 @@ class DialogBox implements Widget {
 
   /** Close at once: every waiting say() returns (a cut that is skipped). */
   dismiss(): void {
+    this.bringBack();
     for (const q of this.queue) q.done = true;
     this.queue = [];
     if (this.cur) this.cur.done = true;
@@ -502,8 +521,41 @@ class DialogBox implements Widget {
     return !!this.cur && this.page >= this.cur.pages.length - 1;
   }
 
+  /** Is the picture the thing to look at now (a talk in the field, not a choice, a close-up game or a battle)? */
+  private canPutAway(input: Input): boolean {
+    const r = this.cur;
+    if (!r || this.openK < 1 || this.choice || (r.ask && this.lastPage) || input.down('cancel')) return false;
+    if (game.ui.widgets.some((w) => w.closeup && !w.done)) return false;
+    const f = field();
+    return !!f && game.top === f;
+  }
+
+  private bringBack(): void {
+    if (this.putAway) viewOnly.on = false;
+    this.putAway = false;
+  }
+
   update(dt: number, input: Input): void {
     this.t += dt;
+    if (this.putAway) {
+      this.putT += dt;
+      // anything brings it back (and nothing else happens on that press)
+      if (!this.cur || game.top !== field()) this.bringBack();
+      else if ((['menu', 'confirm', 'cancel', 'up', 'down', 'left', 'right'] as const).some((k) => input.pressed(k))) {
+        this.bringBack();
+        this.ffwdHold = true;
+        sfx('se_page', { vol: 0.6 });
+      }
+      return;
+    }
+    if (this.cur && input.pressed('menu') && this.canPutAway(input)) {
+      this.putAway = true;
+      this.putT = 0;
+      viewOnly.on = true;
+      sfx('se_page', { pitch: 0.9, vol: 0.6 });
+      return;
+    }
+    if (this.ffwdHold && !input.down('cancel')) this.ffwdHold = false;
     this.tagT += dt;
     this.styleT += dt;
     if (this.pressT >= 0) this.pressT += dt;
@@ -532,7 +584,7 @@ class DialogBox implements Widget {
     // text starts while the window is still settling (first 60 ms)
     if (this.openK < 0.5) return;
     this.pageT += dt;
-    this.ffwd = input.down('cancel') && this.pageT > 120;
+    this.ffwd = input.down('cancel') && this.pageT > 120 && !this.ffwdHold;
     const r = this.cur;
     if (!this.pageDone) {
       const cps = (r.o.cps ?? 40) * textSpeedMul() * (this.ffwd ? 4 : 1);
@@ -622,6 +674,12 @@ class DialogBox implements Widget {
 
   draw(g: Gfx): void {
     if (this.openK <= 0) return;
+    if (this.putAway) {
+      // only the small word in the top right corner (how to bring it back)
+      const a = 0.55 + 0.25 * Math.min(1, this.putT / 300);
+      drawText(g.ctx, VIEW_WORD, W - 8, 6, { color: UI.bg, outline: UI.border, align: 'right', alpha: a });
+      return;
+    }
     const k = this.openK;
     const e = ease.cubicOut(k);
     const v = this.view();

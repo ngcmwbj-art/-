@@ -65,8 +65,12 @@ import './akinasu_art';
 // 寝とる うちに、とる（02_ch2_index）：上の 畑の レタス・コンテナ・霧吹き・ネットの 戸
 import './retasu_art';
 import './hokihata_art';
+// ちがう 花が、となりに（02_ch2_index）：分校の そば畑の そば・道具小屋・名札の 杭・当番表・竹垣と 戸
+import './soba_art';
 // 波に 見せる 城（03_ch3_index）：海水浴場の バケツ・城・乾いた 砂・かざり 3つ
 import './shiro_art';
+// 穴は、だれかの ごちそうさま（03_ch3_index）：海水浴場の 貝がら・ツメタガイの 殻・砂の お茶わん（段階2）
+import './tsumeta_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

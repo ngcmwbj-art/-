@@ -7,6 +7,7 @@
 // Draw order: scenes (bottom-most opaque upward) → ui → fade/flash → present.
 
 import { Co, FRAME_MS, Runner } from './co';
+import { viewOnly } from './viewonly';
 import { Gfx } from './gfx';
 import { Input } from './input';
 import { H, Screen, W } from './screen';
@@ -31,6 +32,8 @@ export interface Widget {
   done: boolean;
   /** A close-up game (大写し): on touch, a tap anywhere on the window is けってい (engine/touch.ts). */
   closeup?: boolean;
+  /** Drawn while the dialog window is put away to look at the picture (engine/viewonly.ts): only the dialog's own word. */
+  viewKeep?: boolean;
   /**
    * A close-up game's card (改善会議 2026-10-25 の1, ui/closeup.ts): shown once, the first
    * time it is played (`id` → the saved flag howto_<id>). `line` is one short line, keys as
@@ -90,7 +93,7 @@ export class UILayer {
     if (topModal) input.consume();
   }
   draw(g: Gfx): void {
-    for (const w of this.widgets) w.draw(g);
+    for (const w of this.widgets) if (!viewOnly.on || w.viewKeep) w.draw(g);
     this.hold?.draw(g);
   }
 }

@@ -26,6 +26,7 @@ import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
 import { setButtonZones, type Zone } from './safezones';
 import { onTextZones, uiBands } from './textzones';
+import { viewOnly } from './viewonly';
 
 const INK = '#2A2440';
 const PAPER = '#FBF3DC';
@@ -369,6 +370,13 @@ export function installTouch(input: Input, screen?: Screen): void {
       if (!active || e.pointerType === 'mouse') return;
       const t = e.target as Element | null;
       if (t === canvas || (t instanceof Element && t.closest('.tc-btn,.tc-pad'))) return;
+      // the dialog window put away to look at the picture (改善会議 2026-10-28 の3): a touch
+      // anywhere brings it back (けってい; the dialog takes it as 「戻す」 only), so it never seems stuck
+      if (viewOnly.on) {
+        e.preventDefault();
+        holdConfirm(e.pointerId, window);
+        return;
+      }
       syncCloseup();
       if (!closeup) return;
       e.preventDefault();

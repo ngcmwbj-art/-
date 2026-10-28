@@ -11,7 +11,7 @@ import { makeCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { charWidth } from '../../engine/font';
 import { sfx, setVolume } from '../../audio';
-import { BRIGHT_LABELS, MARK_LABELS, saveSettings, settings, SPEED_LABELS, syncSettingFlags, textSpeedMul, WIDE_LABELS } from '../settings';
+import { BRIGHT_LABELS, KANA_LABELS, MARK_LABELS, saveSettings, settings, SPEED_LABELS, syncSettingFlags, textSpeedMul, WIDE_LABELS } from '../settings';
 import { drawDigits } from '../digits';
 import { cursorImg, dottedLine, drawCursor, drawMarker, drawTape, textW, UI } from '../window';
 import { buttonsTop } from '../../engine/safezones';
@@ -20,11 +20,16 @@ import type { MenuCtx, MenuPage } from './types';
 
 // しるし（あり・なし）：調べられる物の きらりと、ヒントの行き先の「！」（改善会議 2026-10-20、world/marks.ts）
 // 明るさ（ふつう・あかるい）：夜・建物の中など 暗い所の 持ち上げ（改善会議 2026-10-22、hd2d/view.ts darkLift）
-const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定', 'しるし', '明るさ'];
-const ROW_Y = SP.y + 32;
+// ひらがな（なし・あり）：会話の むずかしい 言葉を ひらがなに（改善会議 2026-10-28 の 4、ui/kana.ts）。
+// （7行目。1回の 会議で ふやす 行は 1行まで。行が 7つに なったので、はじめの 行を 4px 上げ、下の 説明を 6px 下げ、
+//   行の 間を 17px に つめた：テープ 18px の 下の 1px が 次の 行に かかる だけ）
+const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定', 'しるし', '明るさ', 'ひらがな'];
+const ROW_Y = SP.y + 28;
 const ROW_H = 28;
 /** The note at the bottom of the spread (its first line; a dotted line 5px above it). */
-const NOTE_Y = SP.y + 150;
+const NOTE_Y = SP.y + 156;
+/** The rows can't come closer than this (the tapes are 18px tall). */
+const MIN_STEP = 17;
 
 /**
  * The rows' first top and pitch: 28px apart (as before 表示 came and went),
@@ -35,11 +40,11 @@ const NOTE_Y = SP.y + 150;
  */
 function rowSpots(): { y0: number; step: number } {
   const n = LABELS.length - 1;
-  const fit = Math.min(ROW_H, Math.floor((NOTE_Y - 8 - 18 - ROW_Y) / n));
+  const fit = Math.max(MIN_STEP, Math.min(ROW_H, Math.floor((NOTE_Y - 6 - 18 - ROW_Y) / n)));
   const top = buttonsTop(SP.x + 1, LP.x + 120, 999) - 1;
   if (ROW_Y + n * fit + 18 <= top) return { y0: ROW_Y, step: fit };
   const y0 = SP.y + 28;
-  return { y0, step: Math.max(20, Math.min(fit, Math.floor((top - 18 - y0) / n))) };
+  return { y0, step: Math.max(MIN_STEP, Math.min(fit, Math.floor((top - 18 - y0) / n))) };
 }
 
 /** How far a row's cursor, marker and label move right to clear the left buttons (iPad sideways; 0 elsewhere). */
@@ -140,6 +145,13 @@ export class SettingsPage implements MenuPage {
       this.sampleT = 0;
       this.knobT = 0;
       sfx('se_stamp_light');
+    } else if (this.row === 6) {
+      // tapes: なし (left) / あり (right)
+      const v = wrap ? !settings.kana : d > 0;
+      if (v === settings.kana && !wrap) return;
+      settings.kana = v;
+      this.knobT = 0;
+      sfx('se_stamp_light');
     } else if (this.row === 5) {
       // tapes: ふつう (left) / あかるい (right)
       const v = wrap ? !settings.bright : d > 0;
@@ -179,7 +191,8 @@ export class SettingsPage implements MenuPage {
       else if (i === 2) this.drawTapes(g, y, SPEED_LABELS, settings.speed, sel);
       else if (i === 3) this.drawTapes(g, y, WIDE_LABELS, settings.wide ? 1 : 0, sel);
       else if (i === 4) this.drawTapes(g, y, MARK_LABELS, settings.marks ? 0 : 1, sel);
-      else this.drawTapes(g, y, BRIGHT_LABELS, settings.bright ? 1 : 0, sel);
+      else if (i === 5) this.drawTapes(g, y, BRIGHT_LABELS, settings.bright ? 1 : 0, sel);
+      else this.drawTapes(g, y, KANA_LABELS, settings.kana ? 1 : 0, sel);
     });
     // the note at the bottom of the spread
     const ny = NOTE_Y;
@@ -189,13 +202,17 @@ export class SettingsPage implements MenuPage {
     if (row === 2) this.drawSample(g, nx, ny);
     else if (row === 3) {
       g.text('ふつう：いつもの 間。', nx, ny, { color: settings.wide ? UI.textDim : UI.pencil });
-      g.text('ひろい：受付が 2倍。', nx, ny + 17, { color: settings.wide ? UI.pencil : UI.textDim });
+      // （改善会議 10-28 の5：寄り道の 大写しの 遊びにも 効く。ui/closeup_wide.ts）
+      g.text('ひろい：受付が 2倍。寄り道も。', nx, ny + 17, { color: settings.wide ? UI.pencil : UI.textDim });
     } else if (row === 4) {
       g.text('調べられる 物と、', nx, ny, { color: UI.pencil });
       g.text('行き先の 上に「！」を 出す。', nx, ny + 17, { color: UI.pencil });
     } else if (row === 5) {
       g.text('夜や 建物の 中が 暗いときは、', nx, ny, { color: UI.pencil });
       g.text('あかるい に すると 見やすい。', nx, ny + 17, { color: UI.pencil });
+    } else if (row === 6) {
+      g.text('むずかしい 言葉を、', nx, ny, { color: UI.pencil });
+      g.text('会話で ひらがなに する。', nx, ny + 17, { color: UI.pencil });
     } else if (row === 0 || row === 1) g.text('0 に すると、音が 消える。', nx, ny, { color: UI.pencil });
     else g.text('せっていは すぐに 保存される。', nx, ny, { color: UI.pencil });
   }

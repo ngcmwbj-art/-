@@ -40,6 +40,7 @@ import {
   uriboImg,
 } from '../../art/props/ashiato_art';
 import { HOWTO } from '../../data/text/howto';
+import { widenRange } from '../../ui/closeup_wide';
 
 const PX = 24;
 const PY = 4;
@@ -122,7 +123,9 @@ export class UriboPanel implements Widget {
 
   /** The kid now in the counting band, not counted yet. */
   countable(): Walker | null {
-    for (const k of this.kids) if (!k.counted && k.alpha > 0.5 && k.x >= BAND[0] && k.x <= BAND[1]) return k;
+    // ひろい：数える 帯を まん中から 1.5倍（24→36px。地面の 印は BAND の まま。改善会議 10-28 の5）
+    const [b0, b1] = widenRange(BAND[0], BAND[1]);
+    for (const k of this.kids) if (!k.counted && k.alpha > 0.5 && k.x >= b0 && k.x <= b1) return k;
     return null;
   }
 

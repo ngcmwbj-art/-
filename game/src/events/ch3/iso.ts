@@ -44,6 +44,7 @@ import { se } from '../ch2/compat';
 import { addToMap, say3 } from './common';
 import { jumpMap } from './prologue';
 import { HOWTO } from '../../data/text/howto';
+import { closeupWide } from '../../ui/closeup_wide';
 
 export const IF = {
   start: 'flag_iso_start',
@@ -220,7 +221,7 @@ export class IsoPanel implements Widget {
   update(dt: number, input: Input): void {
     this.t += dt;
     if (this.funaRun > 0) this.funaRun = Math.max(0, this.funaRun - dt);
-    if (this.active) this.spent += dt / 1000;
+    if (this.active) this.spent += dt / 1000 / closeupWide(); // ひろい：潮が 満ちる まで ×1.5（改善会議 10-28 の5）
     if (input.pressed('confirm')) this.ePress = true;
     if (input.pressed('cancel')) this.eCancel = true;
     if (this.result || !this.active) return;
