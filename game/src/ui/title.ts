@@ -36,7 +36,7 @@ import { audioReady, musicPosition, playAmbient, playBgm, sfx, stopAllAmbient, s
 import { registerScene } from '../boot';
 import { digitsWidth, drawDigits } from './digits';
 import { chapter1Cleared, chapter2Cleared, clearRecord, clearRecordCh2, continueGame, msgPages, saveKind, startChapter2, startChapter3, startNewGame, type ClearRecord, type SaveKind } from './flow';
-import { CH2_TITLE_CONFIRM, CH2_TITLE_CONFIRM_OPTIONS, CH2_TITLE_OVERWRITE } from '../data/text/hoshi_events';
+import { CH2_TITLE_CONFIRM, CH2_TITLE_CONFIRM_OPTIONS, CH2_TITLE_OVERWRITE, TITLE_NEW_CONFIRM, TITLE_NEW_CONFIRM_OPTIONS } from '../data/text/hoshi_events';
 import { CH3_TITLE_CONFIRM, CH3_TITLE_CONFIRM_OPTIONS, CH3_TITLE_OVERWRITE } from '../data/text/c3_events';
 import { runSettings } from './menu';
 import { ask } from './dialog';
@@ -293,7 +293,37 @@ export class TitleScene implements Scene {
       this.askChapter3();
       return;
     }
+    if (id === 'new' && this.canLoad) {
+      this.askNew();
+      return;
+    }
     this.leave(id);
+  }
+
+  /**
+   * 「はじめる」 with a save in the slot (改善会議 2026-10-29 の1): the same
+   * question as 「第2章から」, 「前の つづきが 消えるよ。」, with やめる first.
+   * Without a save it starts right away as before.
+   */
+  private askNew(): void {
+    this.busy = true;
+    this.asking = true;
+    const self = this;
+    game.scripts.run(
+      (function* (): Co {
+        yield 140;
+        const i = yield* ask(msgPages(TITLE_NEW_CONFIRM), TITLE_NEW_CONFIRM_OPTIONS, { voice: 'sys', cancel: 1, index: 1 });
+        self.asking = false;
+        if (i === 0) {
+          self.busy = false;
+          self.leave('new');
+          return;
+        }
+        yield 120;
+        self.busy = false;
+        self.pickT = -1;
+      })(),
+    );
   }
 
   /**

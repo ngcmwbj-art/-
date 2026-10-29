@@ -25,6 +25,11 @@ export const CH2_TITLE_OVERWRITE = `@sys
 いまの きろくは、
 上書きされます。`;
 
+/** 「はじめる」 when the slot holds a save (改善会議 2026-10-29 の1): asked first, やめる first. */
+export const TITLE_NEW_CONFIRM = `@sys
+前の つづきが 消えるよ。`;
+export const TITLE_NEW_CONFIRM_OPTIONS = ['はじめから', 'やめる'];
+
 /** The clear card on the title (lines 1–2; the ② line only with the chapter-2 record). */
 export function clearCardLines(one: { f: number; a: number; t: number }, two: { f: number; a: number; t: number } | null): string[] {
   const out = [`① ふしぎ ${one.f}/12 あいて ${one.a}/7 ツッコミ ${one.t}/19`];

@@ -1330,8 +1330,17 @@ const BEATS = [
       await tap('KeyZ');
       await sleep(2600);
       await shot('menu');
-      // 「はじめる」 (the first tape)
+      // 「はじめる」 (the first tape). With a save in the slot it asks first
+      // (改善会議 2026-10-29 の1, やめる first): up to はじめから
+      await pickTitle('new');
       await tap('KeyZ');
+      await sleep(900);
+      if (await page.evaluate(() => !!window.__game.game.top.asking)) {
+        await shot('ask_new');
+        await tap('ArrowUp');
+        await sleep(200);
+        await tap('KeyZ');
+      }
       await waitFor((s) => s.top === 'FieldScene' && s.map === 'map_home_2f', 20000, 'the new game');
     },
   },
