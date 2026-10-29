@@ -731,3 +731,9 @@ html[data-speed="fast"] .player-unit .unit-art img, html[data-speed="fast"] .ene
 @media (prefers-reduced-motion: reduce) {
   .player-unit .unit-art img, .enemy-unit .unit-art img, .barn img { animation: none; }
 }
+
+/* 空に浮かぶ敵（記録的な大雪など）：絵だけを上に浮かせる。体力のバーは足もとのまま */
+.enemy-unit .unit-art img { translate: 0 calc(var(--lift, 0) * -100%); }
+/* 次の行動の印も、浮かせた分だけ上げる（絵の高さ＝敵の幅÷aspect） */
+.enemy-unit { container-type: inline-size; }
+.enemy-unit .intent { translate: 0 calc(var(--lift, 0) * -100cqw / var(--aspect, 1)); }

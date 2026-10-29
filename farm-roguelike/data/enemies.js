@@ -5,7 +5,7 @@
    - hp：勢い（敵の体力）の範囲 [最小, 最大]。hpGrowth：戦闘を重ねるごとに増える量
    - turns：天候だけ。このターン数を耐えきると過ぎ去る（勢いを0にしても勝ち）
    - art：'enemy:ID' は assets/img/enemies/ID.png（いただいた絵）。それ以外は js/ui/art.js の名前
-   - size：絵の大きさ（1 がふつう） / aspect：絵の横÷縦（なければ 1＝正方形。横長の絵は 2 など）
+   - size：絵の大きさ（1 がふつう） / aspect：絵の横÷縦（なければ 1＝正方形。横長の絵は 2 など） / lift：絵を上に浮かせる量（絵の高さに対する割合。空に浮かぶ雲など）
    - moves：行動。intent の種類
        attack  … 健康度に damage（hits 回）
        steal   … いちばん育った野菜か、木の実を1つ奪う（なければ・覆いがあれば damage）
@@ -156,7 +156,7 @@ FR.Enemies = {
     pattern: ['gust', 'storm', 'surge', 'eye', 'gust', 'storm']
   },
   heavySnowBoss: {
-    name: '記録的な大雪', kind: 'boss', art: 'enemy:heavySnow', size: 1.6, aspect: 2,
+    name: '記録的な大雪', kind: 'boss', art: 'enemy:heavySnow', size: 1.6, aspect: 2, lift: 0.3,
     hp: [150, 158], hpGrowth: 0,
     moves: {
       snowfall:  { name: '積もる雪', intent: 'blight', amount: 2, damage: 9 },
