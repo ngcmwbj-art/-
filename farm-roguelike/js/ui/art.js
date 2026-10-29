@@ -31,11 +31,11 @@ FR.Art = {
   },
   // 敵の絵（いただいた絵から切り出し、背景を透明にした PNG）
   ENEMY_BASE: 'assets/img/enemies/',
-  ENEMIES: ['crowSmall', 'crow', 'boar', 'aphids', 'weeds', 'blast', 'avianFlu', 'frost', 'drought', 'typhoon'],
+  ENEMIES: ['crowSmall', 'crow', 'boar', 'aphids', 'weeds', 'blast', 'avianFlu', 'frost', 'drought', 'typhoon', 'frostNight', 'heavySnow'],
 
   // カードの絵（いただいた絵から切り出した 360×240 の JPEG）。ここにある ID はこの絵を使い、ない ID は上の FILES の絵を使う
   CARD_BASE: 'assets/img/cards/',
-  CARDS: new Set(["auction", "bagging", "barnRepair", "birdNet", "brushing", "bullRush", "buyCalf", "buyChicks", "buyPiglet", "companion", "compost", "concentrate", "contract", "directSale", "drone", "earlyPick", "earlyRise", "familyHelp", "feed", "fence", "fertilizer", "festival", "firework", "frostFan", "goodHarvestSign", "grafting", "grassCover", "greenhouse", "guardDogs", "harvest", "hay", "hilling", "lightTruck", "liquidFert", "machineOil", "manure", "marmalade", "mikanBox", "mikanMorning", "monorail", "morningEggs", "morningRounds", "morningWork", "mulch", "nightWatch", "pesticide", "pickling", "plantDekopon", "plantEggplant", "plantLemon", "plantTomato", "plantUnshu", "plantYuzu", "pruning", "restInField", "rhythm", "rotation", "scarecrow", "shearsCut", "ship", "shoo", "soilBlessing", "sorting", "sowDaikon", "sowKomatsuna", "sowSpinach", "sowYomogi", "sprinkler", "stoneWall", "subsidy", "thinning", "tiller", "tmrMixer", "tractor", "treeRipening", "tunnel", "vaccine", "vegSoup", "water", "weeding"]),
+  CARDS: new Set(["auction", "disinfect", "bagging", "barnRepair", "birdNet", "brushing", "bullRush", "buyCalf", "buyChicks", "buyPiglet", "companion", "compost", "concentrate", "contract", "directSale", "drone", "earlyPick", "earlyRise", "familyHelp", "feed", "fence", "fertilizer", "festival", "firework", "frostFan", "goodHarvestSign", "grafting", "grassCover", "greenhouse", "guardDogs", "harvest", "hay", "hilling", "lightTruck", "liquidFert", "machineOil", "manure", "marmalade", "mikanBox", "mikanMorning", "monorail", "morningEggs", "morningRounds", "morningWork", "mulch", "nightWatch", "pesticide", "pickling", "plantDekopon", "plantEggplant", "plantLemon", "plantTomato", "plantUnshu", "plantYuzu", "pruning", "restInField", "rhythm", "rotation", "scarecrow", "shearsCut", "ship", "shoo", "soilBlessing", "sorting", "sowDaikon", "sowKomatsuna", "sowSpinach", "sowYomogi", "sprinkler", "stoneWall", "subsidy", "thinning", "tiller", "tmrMixer", "tractor", "treeRipening", "tunnel", "vaccine", "vegSoup", "water", "weeding"]),
 
   FALLBACK: {},
 

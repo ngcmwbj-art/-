@@ -67,7 +67,7 @@ FR.BattleView = {
       b.enemies.every((e, k) => box.children[k].dataset.uid == e.uid && box.children[k].dataset.id === e.id);
     box.dataset.battle = battleKey;
     if (!same) {
-      box.innerHTML = b.enemies.map(e => `<div class="unit enemy-unit" data-uid="${e.uid}" data-id="${e.id}" style="--size:${e.def.size || 1};--count:${count}">
+      box.innerHTML = b.enemies.map(e => `<div class="unit enemy-unit" data-uid="${e.uid}" data-id="${e.id}" style="--size:${e.def.size || 1};--count:${count};--aspect:${e.def.aspect || 1};--lift:${e.def.lift || 0}">
         <div class="intent"></div>
         <div class="unit-art">${FR.Art.img(e.def.art, '', e.name)}</div>
         <div class="unit-bar"><div class="bar"><b></b><span></span></div></div>

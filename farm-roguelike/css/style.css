@@ -156,8 +156,8 @@ img { -webkit-user-drag: none; }
 .player-unit .unit-art { width: calc(var(--unit) * .86); height: calc(var(--unit) * 1.24); }
 .player-unit .unit-art::after { display: none; }
 .enemies { display: flex; align-items: flex-end; justify-content: flex-end; gap: 2%; flex: 1; min-width: 0; }
-.enemy-unit { width: min(calc(var(--unit) * var(--size)), calc(62vw / var(--count))); cursor: pointer; transition: opacity .6s, transform .6s; }
-.enemy-unit .unit-art { width: 100%; aspect-ratio: 1; }
+.enemy-unit { width: min(calc(var(--unit) * var(--size) * (1 + (var(--aspect, 1) - 1) * .5)), calc(62vw * (1 + (var(--aspect, 1) - 1) * .3) / var(--count))); cursor: pointer; transition: opacity .6s, transform .6s; }
+.enemy-unit .unit-art { width: 100%; aspect-ratio: var(--aspect, 1); }
 /* 敵の絵は右向きに描いてあるので、左右を反転して農家の方を向かせる */
 .enemy-unit .unit-art img { transform: scaleX(-1); }
 .enemy-unit.dead { opacity: 0; transform: translateY(-14px) scale(.9); pointer-events: none; }
@@ -731,3 +731,9 @@ html[data-speed="fast"] .player-unit .unit-art img, html[data-speed="fast"] .ene
 @media (prefers-reduced-motion: reduce) {
   .player-unit .unit-art img, .enemy-unit .unit-art img, .barn img { animation: none; }
 }
+
+/* 空に浮かぶ敵（記録的な大雪など）：絵だけを上に浮かせる。体力のバーは足もとのまま */
+.enemy-unit .unit-art img { translate: 0 calc(var(--lift, 0) * -100%); }
+/* 次の行動の印も、浮かせた分だけ上げる（絵の高さ＝敵の幅÷aspect） */
+.enemy-unit { container-type: inline-size; }
+.enemy-unit .intent { translate: 0 calc(var(--lift, 0) * -100cqw / var(--aspect, 1)); }
