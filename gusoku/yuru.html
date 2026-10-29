@@ -831,7 +831,7 @@ function buildBubbles(){
     new THREE.MeshPhysicalMaterial({color:'#9fb8b0',roughness:.25,transmission:.0,transparent:true,opacity:.55,clearcoat:1}));
   scene.add(tube);
 }
-let sed,sedData=[],sedIdx=0;
+let sed,sedData=[],sedIdx=0,sedWas=true;
 function buildSediment(){
   const N=260;const pos=new Float32Array(N*3),a=new Float32Array(N),s=new Float32Array(N);
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3).setUsage(THREE.DynamicDrawUsage));
@@ -1642,14 +1642,14 @@ const lightNow={lamp:1.7,hemi:.5,rim:.4,dens:.04,caus:1,uLamp:1,red:0,dark:0,col
 function updateLights(dt){
   const L=LIGHTS[Cine.on||Dream.on?'cine':(Trouble.cur&&Trouble.cur.type==='blackout')?'off':(S?S.light:'white')],k=1-Math.exp(-dt*1.8);
   ['lamp','hemi','rim','dens','caus','uLamp','red','dark'].forEach(n=>lightNow[n]+= (L[n]-lightNow[n])*k);
-  lightNow.col.lerp(new THREE.Color(L.col),k);lightNow.fog.lerp(new THREE.Color(L.fog),k);
+  lightNow.col.lerp(L._c||(L._c=new THREE.Color(L.col)),k);lightNow.fog.lerp(L._f||(L._f=new THREE.Color(L.fog)),k);
   lamp.intensity=lightNow.lamp*(1+Math.sin(U.time.value*.6)*.02);lamp.color.copy(lightNow.col);hemi.intensity=lightNow.hemi;rim.intensity=lightNow.rim;
   scene.fog.color.copy(lightNow.fog);scene.background.copy(lightNow.fog);scene.fog.density=lightNow.dens;
   U.caus.value=lightNow.caus;U.lamp.value=lightNow.uLamp;U.lampCol.value.copy(lightNow.col);
   grade.uniforms.uRed.value=lightNow.red;grade.uniforms.uDark.value=lightNow.dark;
   if(snow)snow.material.uniforms.uDark.value=lightNow.dark;
   renderer.toneMappingExposure=1.0+lightNow.dark*.15;
-  const ek=.08+.92*lightNow.uLamp;if(Math.abs(ek-envK)>.01){envK=ek;scene.traverse(o=>{const m=o.material;if(m&&m.envMapIntensity!==undefined){if(m.userData.env0===undefined)m.userData.env0=m.envMapIntensity;m.envMapIntensity=m.userData.env0*ek}})}
+  const ek=.08+.92*lightNow.uLamp;if(Math.abs(ek-envK)>.03||(Math.abs(ek-envK)>.004&&Math.abs(ek-(.08+.92*L.uLamp))<.002)){envK=ek;scene.traverse(o=>{const m=o.material;if(m&&m.envMapIntensity!==undefined){if(m.userData.env0===undefined)m.userData.env0=m.envMapIntensity;m.envMapIntensity=m.userData.env0*ek}})}
 }
 
 /* =====================================================================
@@ -1699,7 +1699,7 @@ const Audio2={ctx:null,master:null,
     src.connect(lp);lp.connect(g);g.connect(this.master);src.start();
     this.noiseBuf=b;
     Voice.init();
-    setInterval(()=>{if(document.hidden||!this.ctx)return;if(Math.random()<.7)this.bubble(.02+Math.random()*.03)},180);
+    setInterval(()=>{if(document.hidden||!this.ctx||Mute.on)return;if(Math.random()<.7)this.bubble(.02+Math.random()*.03)},180);
     // iPad/iPhone dictation takes over the audio and leaves this context "interrupted": bring it back as soon as it is allowed
     c.onstatechange=()=>{if(c.state!=='running')setTimeout(()=>this.wake(),300)};
     const w=()=>this.wake();['pointerdown','touchend','keydown','input','focusin','focusout'].forEach(ev=>document.addEventListener(ev,w,true));
@@ -4105,7 +4105,7 @@ const Neiki={pool:[],t:2,
   head(){const v=new V3();const a=ISO&&ISO.ant&&ISO.ant[0]&&ISO.ant[0].root;if(ISO.head)ISO.head.getWorldPosition(v);else if(a)a.getWorldPosition(v);else v.copy(C.pos);return v},
   update(dt,time){
     if(!this.pool.length)this.init();
-    if(Life.asleep&&!Life.dead&&started){this.t-=dt;if(this.t<0){this.t=2.4+Math.random()*2.2;const n=1+(Math.random()<.5?1:0),h=this.head();
+    if((Life.asleep||Utatane.on)&&!Life.dead&&started){this.t-=dt;if(this.t<0){this.t=2.4+Math.random()*2.2;const n=1+(Math.random()<.5?1:0),h=this.head();
       for(let i=0;i<n;i++){const b=this.pool.find(x=>!x.visible);if(!b)break;b.visible=true;const d=b.userData;d.life=0;d.max=3+Math.random()*1.5;d.v=.18+Math.random()*.1;d.ph=Math.random()*6;
         const s=(.018+Math.random()*.02)*Math.max(.5,C.size*1.6);b.scale.setScalar(s);d.s=s;b.position.set(h.x+(Math.random()-.5)*.05,h.y+.04*C.size+i*.03,h.z+(Math.random()-.5)*.05)}}}
     this.pool.forEach(b=>{if(!b.visible)return;const d=b.userData;d.life+=dt;if(d.life>d.max){b.visible=false;return}
@@ -4300,6 +4300,85 @@ const Hana={next:120,
 {const f=Voice.speak;Voice.speak=function(){if(this.bus&&Audio2.ctx){const g=this.bus.gain,t=Audio2.ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(.7,t)}return f.apply(this,arguments)}}
 setInterval(()=>Hana.tick(1),1000);
 
+/* =====================================================================
+   FAVOURITE SPOT — one rock's shady side becomes "its place"; it often wanders back there to rest.
+   ===================================================================== */
+const Iebasho={
+  spot(){if(!S||!rocks||!rocks.length)return null;
+    if(!S.home){const R=rocks.slice().sort((a,b)=>Math.hypot(a.x,a.z)-Math.hypot(b.x,b.z)).slice(0,3),q=R[(S.born||0)%R.length],d=Math.hypot(q.x,q.z)||1;S.home={i:rocks.indexOf(q),ux:-q.x/d,uz:-q.z/d};save()}
+    const q=rocks[S.home.i]||rocks[0],off=q.r+1.3*C.size+.35;return new V3(clamp(q.x+S.home.ux*off,-7,7),0,clamp(q.z+S.home.uz*off,-3.6,3))},
+  near(){const p=this.spot();return !!p&&Math.hypot(C.pos.x-p.x,C.pos.z-p.z)<.5+C.size}
+};
+{const f=pickWander;pickWander=function(){if(S&&S.stage>=1&&Math.random()<.45){const p=Iebasho.spot();if(p)return p.add(new V3((Math.random()-.5)*.3,0,(Math.random()-.5)*.3))}return f.apply(this,arguments)}}
+{const f=MoodLine.text;MoodLine.text=function(){const r=f.apply(this,arguments);if(S&&S.stage>=1&&C.state==='idle'&&(r[1]==='おだやかです'||r[1]==='ごきげんです')&&Iebasho.near())return[r[0],'いつもの石の陰で休んでいます'];return r}}
+
+/* =====================================================================
+   PHOTO POSE — in photo mode it turns to you; each shutter gets a little pose (no waiting).
+   ===================================================================== */
+const Pose={
+  go(){if(!started||Life.asleep||Life.dead||Game.molting||Molt.phase||Utatane.on)return;C.face=Math.max(C.face,4);if(['walk','idle'].includes(C.state))setState('idle',{wait:10});
+    const k=Math.floor(Math.random()*3);
+    if(ISO.chara){if(k===0){C.wave=2;C.waveDur=2}else if(k===1){Expr.smileT=Math.max(Expr.smileT,2.5);Shippo.go(2)}else{Mune.go(2.2);Expr.smileT=Math.max(Expr.smileT,2)}}
+    else{if(k===0)Yobu.t=2.6;else if(k===1)Mune.go(2.2);else Shippo.go(2.2)}}
+};
+{const f=Photo.open;Photo.open=function(){const r=f.apply(this,arguments);Pose.go();return r}}
+{const f=Photo.shoot;Photo.shoot=function(){Pose.go();return f.apply(this,arguments)}}
+
+/* =====================================================================
+   PROUD — chest out (for praise, and as a photo pose).
+   ===================================================================== */
+const Mune={t:0,
+  go(d){this.t=Math.max(this.t,d||2.4)},
+  post(dt){if(this.t<=0||!ISO)return;this.t=Math.max(0,this.t-dt);const k=smooth(0,.4,this.t)*smooth(2.4,2,this.t),I=ISO;
+    if(I.chara){if(I.torso)I.torso.rotation.x-=.16*k;I.arms.forEach(A=>{A.sh.rotation.z+=A.s*.55*k;A.sh.rotation.x+=.25*k});if(I.head)I.head.rotation.x-=.12*k}
+    else{I.body.rotation.x-=.13*k;I.ant.forEach(a=>{if(a.root)a.root.rotation.x-=.4*k})}}
+};
+
+/* =====================================================================
+   WORDS → BODY — "sleepy" gets a yawn, praise gets a proud chest, "cute" a shy hide.
+   ===================================================================== */
+const Kotoba={
+  hit(text){if(Life.asleep||Life.dead||Game.molting||Molt.phase||S.stage<1)return;const t=String(text);
+    let a=null;if(/ねむ|眠い|眠た|ねむた|あくび|おやすみ/.test(t))a='yawn';else if(/かわい|可愛/.test(t))a='shy';else if(/すご(い|く)|えらい|偉い|かっこい|カッコい|立派|天才|最高/.test(t))a='proud';
+    if(!a)return;setTimeout(()=>{if(Life.asleep||Utatane.on)return;
+      if(a==='yawn'){Shigusa.k='yawn';Shigusa.t=0;Shigusa.dur=2.6}
+      else if(a==='proud'){Mune.go(2.6);Shippo.go(1.6)}
+      else{if(ISO.chara){C.curlT=.35;if(['idle','walk'].includes(C.state))setState('curl',{hold:1.4})}else{C.face=0;Shippo.go(1.6)}}},1200)}
+};
+{const f=Game.talk;Game.talk=function(text){try{Kotoba.hit(text)}catch(e){}return f.apply(this,arguments)}}
+
+/* =====================================================================
+   YOUR USUAL TIME — it learns the hour you usually come, and on such a visit says it was expecting you.
+   ===================================================================== */
+const Itsumo={
+  note(h){if(!S||h<1)return;S.visits=S.visits||[];S.visits.push(new Date().getHours());if(S.visits.length>20)S.visits.shift();save()},
+  usual(){const V=S.visits||[];if(V.length<5)return null;let best=null,bn=0;for(let h=0;h<24;h++){const n=V.filter(x=>Math.min(Math.abs(x-h),24-Math.abs(x-h))<=1).length;if(n>bn){bn=n;best=h}}return bn>=Math.max(4,V.length*.5)?best:null},
+  check(h){
+    const u=this.usual(),now=new Date().getHours();this.note(h);
+    if(u===null||h<1||S.stage<1||Life.asleep||Life.dead||Math.min(Math.abs(now-u),24-Math.abs(now-u))>1||S.itsumoD===dkey())return;
+    S.itsumoD=dkey();save();
+    if(['idle','walk'].includes(C.state))setState('walk',{target:new V3(camera.position.x*.35,0,clamp(camera.position.z*.4,-3,3))});
+    const fire=()=>{if(!$('away').hidden){setTimeout(fire,1500);return}if(Life.asleep||Life.dead)return;say(S.stage===1?'……ソロソロ、クルト、オモッテマシタ。':pickR(['そろそろいらっしゃるころだと思っていました。','……ちょうど、お待ちしていたところです。']),{emo:'happy'});Shippo.go(2)};setTimeout(fire,4200)}
+};
+{const f=Daily.greet;Daily.greet=function(h){try{Itsumo.check(h)}catch(e){}return f.apply(this,arguments)}}
+
+/* =====================================================================
+   DOZE — stroke it for a while (daytime) and it nods off for a short nap. Any care wakes it.
+   ===================================================================== */
+const Utatane={on:false,t:0,acc:0,v:0,
+  start(){this.on=true;this.t=22+Math.random()*10;this.acc=0;setState('idle',{wait:40});Nade.up&&Nade.up();
+    if(!S.napHint){S.napHint=1;save();say('（気持ちよくなって、うとうとしています）',{narr:true})}},
+  wake(){if(!this.on)return;this.on=false;this.t=0;Shigusa.k='yawn';Shigusa.t=0;Shigusa.dur=2.4},
+  pre(dt){
+    if(Nade.on&&!this.on&&!Life.asleep&&!isNight()&&S.stage>=1){this.acc+=dt;if(this.acc>8)this.start()}else if(!Nade.on)this.acc=Math.max(0,this.acc-dt*.5);
+    if(this.on){this.t-=dt;if(this.t<0||Life.asleep||Life.dead)this.wake();else{C.state='idle';C.wait=40}}
+    this.v=damp(this.v,this.on?1:0,this.on?.8:2.5,dt);if(this.v>.01)C.sleep=Math.max(C.sleep||0,this.v*.9)}
+};
+['feed','water','light','talk'].forEach(m=>{const f=Game[m];Game[m]=function(){Utatane.wake();return f.apply(this,arguments)}});
+{const f=idleChatter;idleChatter=function(){if(Utatane.on)return;return f.apply(this,arguments)}}
+{const f=onTap;onTap=function(){Utatane.wake();return f.apply(this,arguments)}}
+{const f=updateCreature;updateCreature=function(dt,time){Utatane.pre(dt);f(dt,time);Mune.post(dt)}}
+
 let started=false;
 function boot(){
   load();
@@ -4352,9 +4431,10 @@ function loop(now){
     const x=AIR.x+Math.sin(time*3+b.ph)*.06*b.y*.5,z=AIR.z+Math.cos(time*2.3+b.ph)*.06*b.y*.5;
     const s=b.r*(1+Math.sin(time*18+b.ph)*.08);dm.makeScale(s,s*.85,s).setPosition(x,AIR.y+.1+b.y,z);bubbles.setMatrixAt(i,dm)});
   bubbles.instanceMatrix.needsUpdate=true;
+  const sedLive=sedData.some(d=>d.life<d.max);if(sedLive||sedWas){sedWas=sedLive;
   const pa=sed.geometry.attributes.position,aa=sed.geometry.attributes.aA,sa=sed.geometry.attributes.aS;
   sedData.forEach((d,i)=>{if(d.life<d.max){d.life+=dt;d.v.multiplyScalar(1-dt*.9);d.v.y-=dt*.02;d.p.addScaledVector(d.v,dt);const k=d.life/d.max;aa.setX(i,Math.sin(Math.min(1,k)*Math.PI)*.9);sa.setX(i,d.s*(1+k*2.5))}else aa.setX(i,0);pa.setXYZ(i,d.p.x,d.p.y,d.p.z)});
-  pa.needsUpdate=aa.needsUpdate=sa.needsUpdate=true;
+  pa.needsUpdate=aa.needsUpdate=sa.needsUpdate=true;}
   if(started){
     acc+=dt;if(acc>5){tick(acc/60);acc=0;save()}
     Life.update(dt,time);
@@ -4370,7 +4450,7 @@ function loop(now){
 /* frame the creature in the part of the screen the console leaves free (and above the keyboard) */
 let viewDy=0,viewGoal=0,viewT=0;
 function frameView(dt){
-  if((viewT-=dt)<=0){viewT=.2;
+  if((viewT-=dt)<=0){viewT=.5;
     if(IdleTank.on||Photo.on||Cine.on||Dream.on||!(started||S.hatched))viewGoal=0;
     else{const vv=window.visualViewport,top=vv?vv.offsetTop:0,H=innerHeight;let ct=H;
       for(const el of document.querySelectorAll('.console>*')){if(el.offsetParent===null||el.hidden)continue;const r=el.getBoundingClientRect();if(r.height>0)ct=Math.min(ct,r.top);break}
@@ -4511,7 +4591,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
