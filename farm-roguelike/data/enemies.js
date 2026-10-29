@@ -5,7 +5,7 @@
    - hp：勢い（敵の体力）の範囲 [最小, 最大]。hpGrowth：戦闘を重ねるごとに増える量
    - turns：天候だけ。このターン数を耐えきると過ぎ去る（勢いを0にしても勝ち）
    - art：'enemy:ID' は assets/img/enemies/ID.png（いただいた絵）。それ以外は js/ui/art.js の名前
-   - size：絵の大きさ（1 がふつう）
+   - size：絵の大きさ（1 がふつう） / aspect：絵の横÷縦（なければ 1＝正方形。横長の絵は 2 など）
    - moves：行動。intent の種類
        attack  … 健康度に damage（hits 回）
        steal   … いちばん育った野菜か、木の実を1つ奪う（なければ・覆いがあれば damage）
@@ -124,7 +124,7 @@ FR.Enemies = {
   ,
   // ── 季節のボス（耐えても過ぎ去らない。勢いを0にすると次の季節へ）──
   lateFrostBoss: {
-    name: '大霜の夜', kind: 'boss', art: 'enemy:frost', size: 1.35,
+    name: '大霜の夜', kind: 'boss', art: 'enemy:frostNight', size: 1.35,
     hp: [62, 66], hpGrowth: 0,
     moves: {
       chill:     { name: '冷え込み', intent: 'debuff', status: 'weak', amount: 2, damage: 5 },
@@ -156,7 +156,7 @@ FR.Enemies = {
     pattern: ['gust', 'storm', 'surge', 'eye', 'gust', 'storm']
   },
   heavySnowBoss: {
-    name: '記録的な大雪', kind: 'boss', art: 'enemy:frost', size: 1.5,
+    name: '記録的な大雪', kind: 'boss', art: 'enemy:heavySnow', size: 1.6, aspect: 2,
     hp: [150, 158], hpGrowth: 0,
     moves: {
       snowfall:  { name: '積もる雪', intent: 'blight', amount: 2, damage: 9 },
