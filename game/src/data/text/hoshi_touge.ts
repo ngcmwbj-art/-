@@ -53,7 +53,8 @@ export const KS_START = `@npc_hoshi_busdriver
 県道の 西の はしから、{w=300}
 カーブへ 行けるよ。
 @npc_kanenari
-まかしとき！`;
+ほな、{w=300}
+峠まで 行こか。`;
 
 export const KS_GET = `@sys
 『さんかどの 手紙 3通』を
