@@ -172,7 +172,7 @@ const KEYS_Y = 98;
 const ISLE: { x: number; y: number; s: number }[] = [
   { x: 166, y: 80, s: 1.7 },
   { x: 50, y: 62, s: 1.3 },
-  { x: 120, y: 44, s: 1 },
+  { x: 120, y: 50, s: 1 },
 ];
 /** 県道：峠（手前 左下）→ 雲の ふち → 島 0 → 島 1 → 島 2 の 横 → 遠く。 */
 const ROAD: [number, number][] = [
@@ -372,11 +372,15 @@ export class KumoPanel implements Widget {
     if (this.phase === 'pick') {
       const c = ISLE[this.cur];
       const x = X + c.x;
-      const top = oy + c.y - Math.round(22 * c.s) - 12;
+      const top = oy + c.y - Math.round(28 * c.s) - 10;
       const b = Math.round(Math.sin(this.t / 160) * 1.5);
-      g.rect(x - 3, top + b, 7, 2, '#FFE7A3');
-      g.rect(x - 2, top + 2 + b, 5, 2, '#FFE7A3');
-      g.rect(x - 1, top + 4 + b, 3, 2, '#FFE7A3');
+      // a ring on the cloud round its foot, and a bigger arrow over it (dark-edged: it shows on the white cloud)
+      g.alpha(0.7 + 0.3 * Math.sin(this.t / 200), () => g.ring(x, oy + c.y, Math.round(16 * c.s), '#FFC860'));
+      g.rect(x - 5, top + b - 1, 11, 3, '#2A2440');
+      g.rect(x - 4, top + b, 9, 2, '#FFE7A3');
+      g.rect(x - 3, top + 2 + b, 7, 2, '#FFE7A3');
+      g.rect(x - 2, top + 4 + b, 5, 2, '#FFE7A3');
+      g.rect(x - 1, top + 6 + b, 3, 2, '#FFE7A3');
     }
     // the guardrail in front (dark, its top lit by the stars) and the tomato low at the left
     g.rect(X, oy + CH - 6, SW, 2, '#6A7088');
