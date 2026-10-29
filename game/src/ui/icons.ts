@@ -1072,6 +1072,22 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// さんかどの手紙3通（雲の 下にも、郵便受け、02_ch2_index）：白い 封筒が 3通 ずれて 重なる、宛名の 横に えんぴつの 小さな 字
+Object.assign(ITEM_ROWS, {
+  item_ks2_tegami: [
+    '..........',
+    '....WWWWWd',
+    '..WWWwwwWd',
+    'WWWwwgwwWd',
+    'WwwwwwgwWd',
+    'WwgggwwwWd',
+    'WwwwwwwkWd',
+    'WwggwwwwWd',
+    'Wwwwkwwwdd',
+    'dddddddd..',
+  ],
+});
+
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 
 let omakeFn: () => boolean = () => false;

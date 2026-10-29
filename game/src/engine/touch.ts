@@ -21,6 +21,13 @@
 // the dialog window narrows, the battle lays out its panels between them,
 // and so on — a text screen (the menu, a shop) as well (2026-10-01).
 // Brief words fade out the controls in their way (textzones.ts).
+//
+// An upright phone / tablet (改善会議 2026-10-29 の3): when the band between
+// the picture and the controls has room, the next goal (つぎの目当て, the
+// same line as the 手帳's tape: ui/menu/goal.ts gives it with setTouchGoal)
+// sits there in one line, in the buttons' ink on their paper. Only while
+// Minato walks about (not in a talk, a close-up, a battle or a menu); never
+// sideways (the 手帳 has it).
 
 import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
@@ -71,6 +78,14 @@ const CSS = `
   border:2px solid rgba(251,243,220,.55);border-radius:.4em;pointer-events:none;opacity:.9;transition:opacity .4s}
 .tc-any.on{display:block}
 .tc-any.dim{opacity:.45}
+.tc-goal{position:absolute;display:none;align-items:center;gap:.45em;max-width:calc(100% - 24px);padding:.32em .7em .26em;
+  font-family:GameFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1;letter-spacing:.04em;white-space:nowrap;overflow:hidden;
+  color:${INK};background:${PAPER};border:2px solid ${INK};border-radius:.4em;box-shadow:0 2px 0 ${INK};pointer-events:none;
+  transform:translateX(-50%);opacity:0;transition:opacity .2s}
+.tc-goal.on{display:flex}
+.tc-goal.show{opacity:1}
+.tc-goal .flag{flex:none;width:.5em;height:.95em;border-left:2px solid ${INK};position:relative}
+.tc-goal .flag::after{content:"";position:absolute;left:0;top:0;width:.45em;height:.4em;background:${SHU}}
 .tc-a.hint{outline:4px solid #FFD23F;outline-offset:2px;z-index:3}
 .tc.overlay .tc-a.hint{opacity:.9}
 @keyframes tcBeat{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.1)}}
@@ -178,6 +193,22 @@ export function setCloseupShown(fn: () => boolean, tap?: () => void): void {
   anywhereTap = tap ?? null;
 }
 
+let goalSource: () => string | null = () => null;
+/**
+ * The next goal's line for the band under the picture (an upright phone /
+ * tablet), or null when it should not be shown (a talk, a close-up, a
+ * battle, a menu, the title). Asked a few times a second.
+ */
+export function setTouchGoal(fn: () => string | null): void {
+  goalSource = fn;
+}
+
+let goalInfo: () => { slot: boolean; on: boolean; text: string; box: number[] | null } = () => ({ slot: false, on: false, text: '', box: null });
+/** QA: the goal line under the picture (is there room, is it up, its words, its box in CSS px). */
+export function touchGoalInfo(): ReturnType<typeof goalInfo> {
+  return goalInfo();
+}
+
 let anyInfo: () => { closeup: boolean; label: boolean; taps: number } = () => ({ closeup: false, label: false, taps: 0 });
 /** QA: is the 「どこでも タッチ」 mode on, its word shown, and how many touches off the picture it took. */
 export function touchAnywhereInfo(): ReturnType<typeof anyInfo> {
@@ -200,6 +231,10 @@ export function installTouch(input: Input, screen?: Screen): void {
   btnD.append('ダッシュ');
   const btnM = div('tc-btn tc-m', root, 'メニュー');
   const anyEl = div('tc-any', root, 'どこでも タッチ');
+  const goalEl = div('tc-goal', root);
+  div('flag', goalEl);
+  const goalTx = document.createElement('span');
+  goalEl.appendChild(goalTx);
   const arms = new Map<string, Element>();
   root.querySelectorAll('.arm').forEach((el) => arms.set((el as SVGElement).dataset.a ?? '', el));
 
@@ -308,11 +343,71 @@ export function installTouch(input: Input, screen?: Screen): void {
   window.setInterval(() => {
     if (!active) return;
     syncCloseup();
+    syncGoal();
     const away = !backShown();
     if (away === backAway) return;
     backAway = away;
     btnB.classList.toggle('away', away);
   }, 80);
+
+  // ---- the next goal in the band under the picture (upright) ------------------
+  /** The band's top and bottom (CSS px): the controls' top edge; set by layout, null = no band. */
+  let goalBand: { bottom: number; font: number } | null = null;
+  let goalShown = '';
+  let goalWant = '';
+  let goalTick = 0;
+  let goalSwapT = 0;
+  const goalNow = (): string => {
+    try {
+      return goalSource() ?? '';
+    } catch {
+      return '';
+    }
+  };
+  /** Room under the picture (the picture's own place, read now) for one line: [top, height] or null. */
+  const goalRoom = (): [number, number] | null => {
+    const c = canvas?.getBoundingClientRect();
+    if (!goalBand || !c || !c.height) return null;
+    const top = c.bottom + 6;
+    const h = goalBand.bottom - 6 - top;
+    return h >= goalBand.font * 1.6 + 8 ? [top, h] : null;
+  };
+  const syncGoal = (force = false) => {
+    const room = goalRoom();
+    // the words a few times a second (a new scene / a new goal swaps them)
+    if (force || ++goalTick >= 4) {
+      goalTick = 0;
+      goalWant = room && !closeup && !viewOnly.on ? goalNow() : '';
+    }
+    const want = room ? goalWant : '';
+    if (room) {
+      const st = goalEl.style;
+      const fs = goalBand!.font;
+      st.fontSize = `${fs}px`;
+      st.left = '50%';
+      st.top = `${Math.round(room[0] + (room[1] - (fs * 1.6 + 4)) / 2)}px`;
+    }
+    if (want === goalShown) return;
+    window.clearTimeout(goalSwapT);
+    if (!want) {
+      goalShown = '';
+      goalEl.classList.remove('show');
+      goalSwapT = window.setTimeout(() => goalEl.classList.remove('on'), 220);
+      return;
+    }
+    const swap = () => {
+      goalShown = want;
+      goalTx.textContent = want;
+      goalEl.classList.add('on');
+      requestAnimationFrame(() => goalEl.classList.add('show'));
+    };
+    // (one line to the next: out, then in with the new words)
+    if (goalShown && goalEl.classList.contains('show')) {
+      goalEl.classList.remove('show');
+      goalShown = want;
+      goalSwapT = window.setTimeout(swap, 200);
+    } else swap();
+  };
 
   // ---- a close-up game: the whole window is けってい ----------------------------
   // (the picture already is, below; here the black round it)
@@ -584,6 +679,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   const layout = (glide = false) => {
     if (!screen) return;
     const body = document.body;
+    goalBand = null;
     if (!active) {
       setButtonZones(null);
       screen.fixedScale = null;
@@ -727,6 +823,8 @@ export function installTouch(input: Input, screen?: Screen): void {
       const free = ctrlTop - M - gh;
       body.style.alignItems = 'flex-start';
       body.style.paddingTop = `${Math.max(0, Math.round(free * (portrait ? 0.42 : 0.5)))}px`;
+      // (upright: the band under the picture down to the controls' top, the lift included)
+      if (portrait) goalBand = { bottom: ctrlTop, font: clamp(Math.round(vw * 0.04), 14, 22) };
     } else {
       body.style.alignItems = 'center';
       body.style.paddingTop = '';
@@ -761,10 +859,21 @@ export function installTouch(input: Input, screen?: Screen): void {
     if (z.brief.length) layout(true);
     else calmT = window.setTimeout(() => layout(true), 220);
   });
+  goalInfo = () => {
+    const r = goalEl.getBoundingClientRect();
+    const on = goalEl.classList.contains('on');
+    return {
+      slot: !!goalRoom(),
+      on,
+      text: on ? (goalTx.textContent ?? '') : '',
+      box: on ? [r.left, r.top, r.width, r.height].map((v) => Math.round(v)) : null,
+    };
+  };
   anyInfo = () => ({ closeup, label: anyEl.classList.contains('on'), taps: anyTaps });
   layoutInfo = () => ({ active, sideways, scale: screen?.fixedScale ?? null, fit: sideways ? lastFit : '' });
   window.addEventListener('resize', relayout);
   window.addEventListener('resize', () => closeup && placeAny());
+  window.addEventListener('resize', () => requestAnimationFrame(() => active && syncGoal(true)));
   window.addEventListener('orientationchange', relayout);
   window.addEventListener('touchstart', activate, { once: true, passive: true });
   // iOS Safari pinch / double-tap zoom would fight the controls

@@ -8,8 +8,9 @@
 //            歩いている あいだは 相手を 変えない（止まって 0.12 秒 たったら 新しい 相手に うつる。同じ 相手なら
 //            そのまま）。会話・大写し・メニューのあいだは 出さない。「しるし：なし」で いっしょに 消える。
 //            （改善会議 2026-10-28 の1）線は 2 px、かぎは 6 px。敵のシンボル（kind 'sym'）には 出さない。
-//            真下から 上を 向いたとき（しゅんが 相手の 足もとに かさなる）は、枠を しゅんの 頭の すぐ上へ
-//            持ち上げる（しゅんの 形で くりぬかれて 消えないように）。
+//            （改善会議 2026-10-29 の2）しゅんが 枠に かさなる とき（真下から 上を 向いた とき）は、
+//            かぎを しゅんの 左右へ 寄せて 少し 小さく（高さは 相手の 足もとの まま）。頭の上へ 上げると
+//            相手の 体・顔・帽子に かかるので やめた。しゅんの 体の 所は くりぬく（HD-2D）／しゅんの 下（2D）。
 // 1〜3 は同じ形・同じ色（会議：印が2種類あると画面がうるさい）。点滅はおだやかに（明るさが 1.8 秒で
 // ゆっくり上下するだけ）。せってい「しるし：あり／なし」で まとめて消せる（ui/settings.ts marks）。
 //
@@ -252,29 +253,38 @@ function drawAim(g: Gfx, f: FieldScene, x: Aim, cx: number, cy: number): void {
   ].map(([wx, wy]) => [...fxAt(f, wx, wy, cx, cy, wy)] as [number, number]);
   const ctx = g.ctx;
   ctx.save();
+  // he stands over the frame (looking straight up at someone): the corners move out to his left
+  // and right, a little smaller, at the same height (on the ground at the other's feet), so they
+  // show beside him and never lie over the other's body, head or hat (2D and HD-2D alike)
+  const p = f.player;
+  let arm = AIM_ARM;
+  if (p.visible && x.actor !== p) {
+    const [bl, bt, br, bb] = bodyRect(f, p, cx, cy);
+    const xs = pts.map((q) => q[0]);
+    const ys = pts.map((q) => q[1]);
+    // (his middle inside the frame: standing beside it, he only covers one end, which the cut-out keeps)
+    const mid = (bl + br) / 2;
+    if (mid > Math.min(...xs) && mid < Math.max(...xs) && Math.max(...ys) > bt && Math.min(...ys) < bb) {
+      arm = AIM_ARM - 1;
+      // (the arm ends 2 px inside his rect: the rect is wider than the picture of him)
+      const gap = arm - 2;
+      const dl = Math.min(0, bl - gap - Math.min(pts[0][0], pts[3][0]));
+      const dr = Math.max(0, br + gap - Math.max(pts[1][0], pts[2][0]));
+      pts[0][0] += dl;
+      pts[3][0] += dl;
+      pts[1][0] += dr;
+      pts[2][0] += dr;
+      const my = (Math.min(...ys) + Math.max(...ys)) / 2;
+      for (const q of pts) q[1] = my + (q[1] - my) * 0.7;
+    }
+  }
   // HD-2D: the frame lies over the picture, so leave out whoever stands in front of
   // it (Minato and his partner): it reads as lying behind them, as in 2D
   if (fxElsewhere(f)) {
-    const p = f.player;
-    // looking straight up at it, he stands over the whole frame: lift it to just over his head
-    // (the same shape, the same size), so it is not cut away by him
-    let lifted = false;
-    if (p.visible && p.dir === 'up' && x.actor !== p) {
-      const [bl, bt, br] = bodyRect(f, p, cx, cy);
-      const xs = pts.map((q) => q[0]);
-      const ys = pts.map((q) => q[1]);
-      const over = Math.min(br, Math.max(...xs)) - Math.max(bl, Math.min(...xs));
-      const low = Math.max(...ys);
-      if (over > 4 && low > bt - AIM_LINE - 1) {
-        const dy = low - (bt - AIM_LINE - 1);
-        for (const q of pts) q[1] -= dy;
-        lifted = true;
-      }
-    }
     ctx.beginPath();
     ctx.rect(-50, -50, 10000, 10000);
     for (const b of [p, f.follower]) {
-      if (!b || !b.visible || b === x.actor || (lifted && b === p)) continue;
+      if (!b || !b.visible || b === x.actor) continue;
       const [l, tp, r, bm] = bodyRect(f, b, cx, cy);
       ctx.rect(l, bm, r - l, tp - bm);
     }
@@ -290,7 +300,7 @@ function drawAim(g: Gfx, f: FieldScene, x: Aim, cx: number, cy: number): void {
         for (const j of [(i + 1) % 4, (i + 3) % 4]) {
           const [bx, by] = pts[j];
           const len = Math.hypot(bx - ax, by - ay) || 1;
-          const k = Math.min(0.45, AIM_ARM / len);
+          const k = Math.min(0.45, arm / len);
           dots(g, ax, ay, ax + (bx - ax) * k, ay + (by - ay) * k, col, oy);
         }
       }

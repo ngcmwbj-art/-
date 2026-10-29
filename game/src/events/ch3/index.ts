@@ -67,6 +67,9 @@ import './tsumeta';
 // 目で、いちばん 長く（げむきか 10-27 の 案3）：段階3、回廊の 南の 壁の 戸 → ふれあいの 磯（新しい 地図。S16 の あと S20 の 前まで）。
 // 回廊に 戸と 入る ときの 台本を 足すので、aq の あとに import する
 import './fureai';
+// 荷台から 見た 村（げむきか 10-29 の 案3）：段階3、S17 の あと ジオラマの 星見台の 模型 → 大写し「模型の 寄り」で まちがい 3つ →
+// 水槽の うらの ヒロスケ（S19 の 前まで）。模型と ヒロスケ（aq・aq_ura・imo）の 台本を 包むので、imo の あとに import する
+import './diorama3';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

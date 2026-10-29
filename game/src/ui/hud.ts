@@ -334,6 +334,7 @@ const HOSHI_PLACE: Record<string, string> = {
   map_hoshi_ue_hata: '上の 畑',
   // 分校の そば畑（02_ch2_index、ちがう 花が、となりに。第1章の「学級園」と 名前を 分ける）
   map_hoshi_gakkyuen: '分校の そば畑',
+  map_hoshi_touge: '峠の カーブ',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };
@@ -409,7 +410,13 @@ function c3AreaName(tx: number, ty: number): string {
   return best;
 }
 
-export function placeNameFor(mapId: string, tx: number, ty: number, fallback = ''): string {
+/**
+ * The name of the place at a tile — the one way to name it (改善会議 2026-10-29 の4):
+ * the name plate on a scene change, the notebook's line (menu) and the save
+ * book's slots all ask here, so a place never goes by two names. A map with
+ * no entry of its own goes by its map's name.
+ */
+export function placeNameFor(mapId: string, tx: number, ty: number, fallback = getMapDef(mapId)?.name ?? ''): string {
   if (mapId === 'map_town') return areaAt(tx, ty) ?? '夕鳴町';
   if (mapId === 'map_hoshimidai') return hoshiAreaAt(tx, ty)?.name ?? '星見台';
   if (mapId === 'map_umizoi') return c3AreaName(tx, ty);
@@ -439,8 +446,8 @@ const BANNER_WAIT_MAX = 5000;
 const YORI_MS = 2000;
 const YORI_WAIT_MAX = 90000;
 const YORI_CLEAR_MS = 450;
-/** The washi tape the place name is written on (paler than the orange name tags). */
-const PLACE_TAPE = '#EFE4C8';
+/** The washi tape the place name is written on (paler than the orange name tags; also the notebook's place line, menu/place.ts). */
+export const PLACE_TAPE = '#EFE4C8';
 
 interface ItemCard {
   id: string;
@@ -731,7 +738,7 @@ class UiHud implements FieldHud {
       }
     }
     // ---- place names (after the fade-in, not during the opening)
-    let place = placeNameFor(f.map.id, f.player.tileX, f.player.tileY, f.map.def.name ?? '');
+    let place = placeNameFor(f.map.id, f.player.tileX, f.player.tileY);
     if (f.map.id === 'map_hoshimidai') {
       // arriving in the village (off the train, first thing in a session): its name;
       // out of a building: the area; the strips you cross keep the last name

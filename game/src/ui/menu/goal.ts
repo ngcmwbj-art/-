@@ -12,8 +12,15 @@
 //
 // QA（開発サーバーだけ）：__game.cmd.goal()      今の 1行と、その もとの キー
 //                         __game.cmd.goalText()  表の 全部の 行の 検査（幅・ことば・ヒントとの 対応）
+//                         __game.cmd.touchGoal() スマホ縦の 絵の 下の 1行（空きが あるか・出ているか・字・四角）
+//
+// スマホ・iPad の 縦（改善会議 2026-10-29 の3）：絵と ボタンの あいだに 空きが あれば、同じ 1行を そこにも
+// （engine/touch.ts が 置く。横・iPad 横では 出さない）。しゅんが 歩ける ときだけ（会話・大写し・戦闘・
+// メニュー・場面の 途中・タイトルでは 出さない）。
 
+import { game } from '../../engine/game';
 import type { Gfx } from '../../engine/gfx';
+import { setTouchGoal, touchGoalInfo } from '../../engine/touch';
 import { flag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { field } from '../../world/field';
@@ -304,7 +311,15 @@ export function goalText(): { pages: number; bad: string[] } {
   return { pages, bad };
 }
 
+// スマホ縦の 絵の 下の 1行：フィールドで しゅんが 歩ける ときだけ
+setTouchGoal(() => {
+  const f = field();
+  if (!f || game.top !== f || !f.controllable || game.ui.widgets.some((w) => w.closeup === true && !w.done)) return null;
+  return goalLine() || null;
+});
+
 if (import.meta.env.DEV) {
+  registerDebug('touchGoal', () => touchGoalInfo());
   registerDebug('goal', () => {
     const [key, line] = goalAt();
     return { key, line, w: textW(line) };

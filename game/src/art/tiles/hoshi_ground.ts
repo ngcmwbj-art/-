@@ -56,6 +56,8 @@ export const H_GROUNDS = [
   // 沢の上 (map_hoshi_sawa, 02 #65): a mountain stream of any width, and the still pool / the spring
   'h_sawa',
   'h_sawaike',
+  // 峠の カーブ (map_hoshi_touge, 雲の 下にも、郵便受け): the sea of cloud under the guardrail (the valley's radiation fog)
+  'h_kumo',
 ] as const;
 export type HGround = (typeof H_GROUNDS)[number];
 
@@ -965,6 +967,16 @@ const texGenkan: HTex = (x, y, v) => {
   return col;
 };
 
+/** 雲海 (峠の カーブ): soft white billows, a little grey in their hollows (no hard edges, nothing repeats). */
+const KUMO = [c('#FFFFFF'), c('#EEF1F7'), c('#D2D8E6'), c('#AEB6CC')];
+const texKumo: HTex = (x, y) => {
+  // billows: rounded humps along the rows (lit tops, grey hollows under them), drifting apart now and then
+  const n = fbm(x / 30, y / 12, 1271) * 0.65 + valueNoise(x / 9, y / 4, 1273) * 0.35;
+  const hump = Math.sin((x / 11) + fbm(x / 40, y / 40, 1275) * 6) * 0.5 + 0.5;
+  const k = n * 0.75 + hump * ((y % 9) / 9) * 0.25;
+  return k > 0.6 ? KUMO[0] : k > 0.47 ? KUMO[1] : k > 0.36 ? KUMO[2] : KUMO[3];
+};
+
 // ---------------------------------------------------------------- tables
 
 export const H_TEX: Record<HGround, HTex> = {
@@ -993,6 +1005,7 @@ export const H_TEX: Record<HGround, HTex> = {
   h_genkan: texGenkan,
   h_sawa: texSawa,
   h_sawaike: texSawaIke,
+  h_kumo: texKumo,
 };
 
 /** Per-tile variants (the no-repeat rule picks one per tile). */
@@ -1043,7 +1056,7 @@ export const H_SOFT: HGround[] = ['h_aze', 'h_kotei', 'h_houki', 'h_tilled', 'h_
 /** Green materials (get the grass lip). */
 export const H_GREEN: HGround[] = ['h_houki', 'h_hilltop', 'h_urayama'];
 /** Materials that keep a straight edge (never wander, never get wandered into). */
-export const H_HARD: HGround[] = ['h_canal', 'h_stream', 'h_sawa', 'h_sawaike', 'h_tanada', 'h_rail', 'h_platform', 'h_ishidan', 'h_trainfloor', 'h_sheet', 'h_mulch', 'h_barnfloor', 'h_sawdust', 'h_schoolwood', 'h_genkan'];
+export const H_HARD: HGround[] = ['h_kumo', 'h_canal', 'h_stream', 'h_sawa', 'h_sawaike', 'h_tanada', 'h_rail', 'h_platform', 'h_ishidan', 'h_trainfloor', 'h_sheet', 'h_mulch', 'h_barnfloor', 'h_sawdust', 'h_schoolwood', 'h_genkan'];
 
 export function isHGround(g: string): g is HGround {
   return (H_TEX as Record<string, HTex>)[g] !== undefined;

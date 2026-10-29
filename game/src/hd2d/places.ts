@@ -89,6 +89,9 @@ function umizoiStep(tx: number, ty: number, ch: string): number | undefined {
   return undefined;
 }
 
+/** 峠の カーブ：雲の 海が 道より 下に ある 深さ（units）。 */
+const KUMO_FALL = 5;
+
 /** みかん畑の 上の 段：1段の 高さ（px）。 */
 export const MIKAN_UE_DAN = 14;
 const MK_UP = 2 * MIKAN_UE_DAN;
@@ -141,6 +144,14 @@ export const PLACES: Record<string, PlaceDef> = {
   // 上の 畑（寝とる うちに、とる、02_ch2_index）：北と 東は 杉の 林が 続く、西と 南は ネットの 外の 草地
   map_hoshi_ue_hata: { outside: (tx, ty) => (ty < 1 || tx > 14 ? 'H' : ',') },
   // 分校の そば畑（ちがう 花が、となりに、02_ch2_index）：北は 杉、西と 東は 竹やぶが 続く、南は 校庭の がわの 草地
+  // 峠の カーブ（雲の 下にも、郵便受け、02_ch2_index）：ガードレールの 北は 下に 落ちて 雲の 海（雲の マス C が
+  // KUMO_FALL 下、北の 外へ 続く）。その 向こうに 夜明け前の 空と 尾根（nightSky）。西と 東は 県道が 続く
+  map_hoshi_touge: {
+    steps: { C: fallPx(KUMO_FALL) },
+    outside: (tx, ty, edge) => (ty < 9 ? 'C' : edge),
+    floor: KUMO_FALL + 1,
+    nightSky: true,
+  },
   map_hoshi_gakkyuen: { outside: (tx, ty) => (ty < 1 ? 'H' : ty > 8 ? ',' : tx < 1 || tx > 14 ? 'T' : ',') },
   // 海ぞいの町 (chapter 3, 62 8.9): the harbour and the sea lie lower than the
   // quay (8 px: the quay's and the breakwater's faces stand over the water);

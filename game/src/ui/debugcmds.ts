@@ -368,16 +368,18 @@ registerDebug('wrapCheck', () => {
   // 波に 見せる 城（03_ch3_index）srText・srBookText（開発サーバーだけ）
   // 穴は、だれかの ごちそうさま（03_ch3_index）tmText・tmBookText（開発サーバーだけ）
   // 目で、いちばん 長く（03_ch3_index）frText・frBookText（開発サーバーだけ）
+  // 荷台から 見た 村（03_ch3_index）dmText・dmBookText（開発サーバーだけ）
   // 明日の 朝の 氷（03_ch3_index）krText・krBookText（開発サーバーだけ）
   // 破れたら、つくろう（03_ch3_index）agText・agBookText（開発サーバーだけ）
   // 終わりの 音は、下がる（03_ch3_index）hsText・hsBookText（開発サーバーだけ）
   // 寝とる うちに、とる（02_ch2_index）rtText・rtBookText（開発サーバーだけ）
   // 穂は ほうき、茎は 柄（02_ch2_index）hbText・hbBookText（開発サーバーだけ）
   // ちがう 花が、となりに（02_ch2_index）sbText・sbBookText（開発サーバーだけ）
+  // 雲の 下にも、郵便受け（02_ch2_index）ksText・ksBookText（開発サーバーだけ）
   // 型ぬき 番付（01 の 変更の 記録 2026-10-13）katanukiText（台詞の 決まりも）・katanukiBookText（開発サーバーだけ）
   // つぎの目当て1行（改善会議 2026-10-23 の 4。手帳の 上の テープ・つづきからの カード）goalText（開発サーバーだけ）
   // ひらがな（改善会議 2026-10-28 の 4）：data/ の 会話を 置きかえた 文の 切り方 kanaText（開発サーバーだけ。ui/kana.ts）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'hnText', 'hnBookText', 'ywText', 'ywBookText', 'shText', 'shBookText', 'mhText', 'mhBookText', 'uzText', 'uzBookText', 'abText', 'abBookText', 'ydText', 'ydBookText', 'ojText', 'ojBookText', 'nrText', 'nrBookText', 'hmText', 'hmBookText', 'kuText', 'kuBookText', 'ssText', 'ssBookText', 'mzText', 'mzBookText', 'skText', 'skBookText', 'bmText', 'bmBookText', 'mkText', 'mkBookText', 'krText', 'krBookText', 'agText', 'agBookText', 'hsText', 'hsBookText', 'rtText', 'rtBookText', 'hbText', 'hbBookText', 'sbText', 'sbBookText', 'ngText', 'ngBookText', 'srText', 'srBookText', 'tmText', 'tmBookText', 'frText', 'frBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText', 'goalText', 'kanaText']) {
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'hnText', 'hnBookText', 'ywText', 'ywBookText', 'shText', 'shBookText', 'mhText', 'mhBookText', 'uzText', 'uzBookText', 'abText', 'abBookText', 'ydText', 'ydBookText', 'ojText', 'ojBookText', 'nrText', 'nrBookText', 'hmText', 'hmBookText', 'kuText', 'kuBookText', 'ssText', 'ssBookText', 'mzText', 'mzBookText', 'skText', 'skBookText', 'bmText', 'bmBookText', 'mkText', 'mkBookText', 'krText', 'krBookText', 'agText', 'agBookText', 'hsText', 'hsBookText', 'rtText', 'rtBookText', 'hbText', 'hbBookText', 'sbText', 'sbBookText', 'ksText', 'ksBookText', 'ngText', 'ngBookText', 'srText', 'srBookText', 'tmText', 'tmBookText', 'frText', 'frBookText', 'dmText', 'dmBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText', 'goalText', 'kanaText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

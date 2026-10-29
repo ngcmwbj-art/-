@@ -24,6 +24,7 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_rt_start: 'retasu 寝とる うちに、とる',
   flag_hb_start: 'hokihata 穂は ほうき、茎は 柄',
   flag_sb_start: 'soba ちがう 花が、となりに',
+  flag_ks2_start: 'touge 雲の 下にも、郵便受け',
   flag_mimi_start: 'mimi ふくじんづけと 耳の あいさつ',
   flag_mg_start: 'mushigomu 上へ 降る 雪',
   flag_nr_start: 'neru 前から 寝る',
@@ -48,6 +49,7 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_sk_start: 'sakana やっと、魚の 昼',
   flag_tk_start: 'tokoro つるっと、終われる',
   flag_sr_start: 'shiro 波に 見せる 城',
+  flag_dm_start: 'diorama3 荷台から 見た 村',
   flag_tm_start: 'tsumeta 穴は、だれかの ごちそうさま',
   flag_yd_start: 'yose 海の 水で 寄せる',
 };

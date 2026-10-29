@@ -32,6 +32,7 @@ import { standProp } from './hoshi_kit';
 import { registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
 import { dioramaTown, dollSpots } from './c3_aq_diorama';
+import { dmModelGlow, dmModelOver } from './dm_art';
 import { state } from '../../game/state';
 
 /** Frames cached by key. */
@@ -629,7 +630,10 @@ registerProp('prop_c3_aq_diorama', (opts) => {
     shadow: 6,
     contact: W - 4,
     contactX: W / 2,
+    // 荷台から 見た 村（events/ch3/diorama3.ts）：模型の 上の 牛・耕うん機と、灯台の 豆電球（art/props/dm_art.ts）
+    over: (g, x, y) => dmModelOver(town, g, x, y, W - 6, topH - 4),
     glow: (g, x, y, env) => {
+      dmModelGlow(town, g, x, y, W - 6, topH - 4, env.t);
       // the small lamp over the model and its light on the town
       g.rect(x + W / 2 - 2, y - 2, 4, 2, lamp, 0.9);
       screenPool(g, x + W / 2, y + topH / 2, W * 0.45, topH * 0.45, lamp, 0.22);

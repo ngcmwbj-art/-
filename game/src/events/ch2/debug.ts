@@ -79,6 +79,7 @@ import { NG_TEXTS } from '../../data/text/c3_nukegara';
 import { TK_TEXTS } from '../../data/text/c3_tokoro';
 import { SR_TEXTS } from '../../data/text/c3_shiro';
 import { TM_TEXTS } from '../../data/text/c3_tsumeta';
+import { DM_TEXTS } from '../../data/text/c3_diorama3';
 import { FR_TEXTS } from '../../data/text/c3_fureai';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
@@ -91,6 +92,7 @@ import { AN_TEXTS } from '../../data/text/hoshi_akinasu';
 import { RT_TEXTS } from '../../data/text/hoshi_retasu';
 import { HB_TEXTS } from '../../data/text/hoshi_hokihata';
 import { SB_TEXTS } from '../../data/text/hoshi_soba';
+import { KS_TEXTS } from '../../data/text/hoshi_touge';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -565,6 +567,8 @@ function collectTexts(): [string, string][] {
   walk('hokihata', HB_TEXTS);
   // げむきか10/28の案4（ちがう 花が、となりに。02_ch2_index）
   walk('soba', SB_TEXTS);
+  // げむきか10/29の案5（雲の 下にも、郵便受け。02_ch2_index）
+  walk('touge', KS_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -621,6 +625,8 @@ function collectTexts(): [string, string][] {
   walk('c3Tsumeta', TM_TEXTS);
   // げむきか10/27の案3（目で、いちばん 長く。第3章の クリア前、03_ch3_index）
   walk('c3Fureai', FR_TEXTS);
+  // げむきか10/29の案3（荷台から 見た 村。第3章の クリア前、03_ch3_index）
+  walk('c3Diorama3', DM_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());

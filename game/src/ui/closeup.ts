@@ -96,6 +96,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_ky_start: { ids: ['kyuri'], how: 'already', pages: '0' },
   flag_rt_start: { ids: ['retasu'], how: 'already', pages: '0（光る 玉を 調べると すぐ。やめた 玉は flag が 立たず、もう 一度 はじめから）' },
   flag_sb_start: { ids: ['soba'], how: 'already', pages: '0（そばを 調べると すぐ。のぞいた 花と 立てた 札は 残り、続きから）' },
+  flag_ks2_start: { ids: ['touge'], how: 'already', pages: '0（見晴らしを 調べると すぐ。きまった 行き先と 順は 残り、続きから）' },
   flag_hb_start: { ids: ['hokihata'], how: 'already', pages: '0（光る 株を 調べると すぐ。やめた 株は flag が 立たず、もう 一度 はじめから）' },
   flag_hn_start: { ids: [], how: 'none', pages: '穂を 見て 選ぶ だけ' },
   flag_hm_start: { ids: ['himo'], how: 'already', pages: '1（待って！は 1回きり）' },
@@ -125,6 +126,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_tm_start: { ids: ['ana'], how: 'already', pages: '0〜1（カイトか 見た 貝がらを 調べると すぐ。くらべた カードは 残る）' },
   flag_yd_start: { ids: ['yose'], how: 'ask', pages: '3 → 0' },
   flag_hs_start: { ids: ['housou'], how: 'ask', pages: 'チャイムの 前置き → 0（housou、10-26）' },
+  flag_dm_start: { ids: ['mokei'], how: 'already', pages: '0（星見台・海ぞいの 町の 模型を 調べると すぐ。直した 所は 残る）' },
   flag_fr_start: { ids: ['fureai'], how: 'already', pages: '0〜1（水槽を 調べると すぐ。見た 所は 残る。生き物 役は 1回きり）' },
 };
 

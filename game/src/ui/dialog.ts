@@ -40,6 +40,8 @@ import { markText } from '../engine/textzones';
 import { buttonZones, freeSpan } from '../engine/safezones';
 import { ease } from '../engine/tween';
 import { viewOnly } from '../engine/viewonly';
+import { touchControlsOn } from '../engine/touch';
+import { flag, setFlag } from '../game/state';
 import { field } from '../world/field';
 import { sfx, textBlip, textFastForward } from '../audio';
 import { allItems, getSkill } from '../data/battle';
@@ -355,6 +357,22 @@ export function dialogFrame(): { x: number; w: number } {
 /** The word left in the corner while the window is put away (改善会議 2026-10-28 の3). */
 const VIEW_WORD = 'ひょうじ';
 
+/**
+ * 窓を しまえる 知らせ（改善会議 2026-10-29 の5）：初めて 長い 会話（3ページ 以上）の 窓が 出た とき
+ * 1回だけ、窓の 上の 右の すみに 小さく（名札は 左、「ひょうじ」は 画面の 右上の すみ：どちらにも
+ * かからない）。早送り・選択肢・大写し・戦闘の あいだは 出さない（しまえる ときだけ＝canPutAway）。
+ * 数秒で 消える。見せたら セーブに 残る flag（しまって みた 人にも もう 出さない）。
+ */
+export const PUT_AWAY_HINT_FLAG = 'hint_putaway';
+const HINT_MS = 4000;
+/** Shown this long, it counts as seen (cut short before that, the next long talk shows it again). */
+const HINT_SEEN_MS = 1500;
+const HINT_PAGES = 3;
+/** The words: the menu key by this device's name (the touch pad's 札「メニュー」, the keyboard's C). */
+export function putAwayHintText(): string {
+  return kanaText(`${touchControlsOn() ? 'メニュー' : 'C'}で 窓を しまえる`);
+}
+
 class DialogBox implements Widget {
   done = false;
   viewKeep = true;
@@ -368,6 +386,10 @@ class DialogBox implements Widget {
   private putT = 0;
   /** もどる that brought the window back is not the start of a fast-forward (let go first). */
   private ffwdHold = false;
+  /** The put-away hint (改善会議 2026-10-29 の5): pages begun in this window, time shown, its fade. */
+  private boxPages = 0;
+  private hintT = 0;
+  private hintA = 0;
   queue: Request[] = [];
   cur: Request | null = null;
   /** Choice window attached to this box (stays open while it's up). */
@@ -481,6 +503,7 @@ class DialogBox implements Widget {
     this.cur = r;
     this.lastReq = r;
     this.page = 0;
+    this.boxPages++;
     this.resetPage();
     const card = r.style === 'flip' && r.o.voice === CARD_VOICE;
     const name = r.style === 'flip' ? r.o.name ?? 'ムジン販売員' : NAMELESS_VOICES.has(r.o.voice ?? '') || r.style === 'inner' ? '' : r.o.name ?? '';
@@ -530,6 +553,23 @@ class DialogBox implements Widget {
     return !!f && game.top === f;
   }
 
+  /** The put-away hint: up while the window could be put away, in a long talk, until seen. */
+  private updateHint(dt: number, input: Input): void {
+    if (this.hintT >= HINT_MS || (flag(PUT_AWAY_HINT_FLAG) && this.hintT <= 0)) {
+      this.hintA = Math.max(0, this.hintA - dt / 400);
+      return;
+    }
+    const long = this.boxPages >= HINT_PAGES || (this.cur?.pages.length ?? 0) >= HINT_PAGES;
+    const on = long && this.canPutAway(input);
+    if (on) {
+      this.hintT += dt;
+      if (this.hintT >= HINT_SEEN_MS && !flag(PUT_AWAY_HINT_FLAG)) setFlag(PUT_AWAY_HINT_FLAG);
+    }
+    // in over 0.25 s; out at once when it may not show (fast-forward, a choice…), slowly at the end
+    const fadeOut = this.hintT >= HINT_MS - 400;
+    this.hintA = on && !fadeOut ? Math.min(1, this.hintA + dt / 250) : Math.max(0, this.hintA - dt / (on ? 400 : 120));
+  }
+
   private bringBack(): void {
     if (this.putAway) viewOnly.on = false;
     this.putAway = false;
@@ -552,10 +592,13 @@ class DialogBox implements Widget {
       this.putAway = true;
       this.putT = 0;
       viewOnly.on = true;
+      this.hintA = 0;
+      if (!flag(PUT_AWAY_HINT_FLAG)) setFlag(PUT_AWAY_HINT_FLAG);
       sfx('se_page', { pitch: 0.9, vol: 0.6 });
       return;
     }
     if (this.ffwdHold && !input.down('cancel')) this.ffwdHold = false;
+    this.updateHint(dt, input);
     this.tagT += dt;
     this.styleT += dt;
     if (this.pressT >= 0) this.pressT += dt;
@@ -664,6 +707,7 @@ class DialogBox implements Widget {
     const r = this.cur!;
     if (this.page < r.pages.length - 1) {
       this.page++;
+      this.boxPages++;
       this.resetPage();
     } else {
       r.done = true;
@@ -699,6 +743,14 @@ class DialogBox implements Widget {
     if (card) drawCardboard(g, v.x, wy, v.w, v.h, alpha);
     if (st === 'inner') this.drawThought(g, v.x, wy, alpha);
     this.drawTag(g, v.x, by, v.h, alpha);
+    if (this.hintA > 0) {
+      // the put-away hint, small over the window's right corner (under a top window)
+      const hy = this.viewPos === 'top' ? by + v.h + 3 : by - 17;
+      const hx = v.x + v.w - 4;
+      const ht = putAwayHintText();
+      markText(hx - textW(ht), hy, textW(ht), 16, true);
+      drawText(g.ctx, ht, hx, hy, { color: UI.bg, outline: UI.border, align: 'right', alpha: 0.9 * this.hintA * alpha });
+    }
     if (k < 0.5) return;
     const ox = v.x + BOX.textX - BOX.x;
     const oy = wy + BOX.padY;
