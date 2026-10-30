@@ -29,6 +29,10 @@ const App = {
     document.getElementById('b-end').onclick = () => App.endTurn();
     document.getElementById('b-harvest').onclick = () => App.harvestNow();
     document.getElementById('b-menu').onclick = () => App.showMenu();
+    document.getElementById('b-floor').onclick = () => {
+      const w = App.battle && FR.Weathers[App.battle.weather];
+      if (w && App.battle.weather !== 'normal' && !App.battle.boss) FR.Screens.modal(`今日の天気：${w.name}`, `<p class="relic-text">${FR.Util.escape(w.text)}</p><p class="menu-note">天気は戦闘ごとに変わります（季節のボスでは天気はかかりません）。</p>`);
+    };
     document.getElementById('b-pile-draw').onclick = () => App.showPile('山札', App.battle.draw, true);
     document.getElementById('b-pile-discard').onclick = () => App.showPile('捨て札', App.battle.discard);
     // 敵をタップ：カードを選んでいればその敵に使う。選んでいなければ敵の説明
@@ -521,6 +525,14 @@ const App = {
     FR.Screens.show('battle');
     App.refresh();
     if (!App.data.meta.tutorialDone) setTimeout(() => FR.Tutorial.start(), 600);
+    else App.announceWeather();
+  },
+
+  // 今日の天気を知らせる（ふつうの日は出さない）。上の帯の天気を押しても見られる
+  announceWeather() {
+    const w = FR.Weathers[App.battle.weather];
+    if (!w || App.battle.weather === 'normal') return;
+    setTimeout(() => FR.Screens.toast(`今日の天気：${w.icon} ${w.name}　${w.text}`, 'note'), 900);
   },
 
   refresh() {

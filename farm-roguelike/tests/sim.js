@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 global.window = global;
 const root = path.join(__dirname, '..');
-['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/seasons.js', 'data/glossary.js', 'data/relics.js', 'data/events.js', 'data/farmers.js',
+['data/config.js', 'data/crops.js', 'data/animals.js', 'data/cards.js', 'data/statuses.js', 'data/enemies.js', 'data/encounters.js', 'data/seasons.js', 'data/glossary.js', 'data/relics.js', 'data/events.js', 'data/weathers.js', 'data/farmers.js',
  'js/core/util.js', 'js/core/state.js', 'js/core/effects.js', 'js/battle.js', 'js/reward.js', 'js/market.js', 'js/map.js', 'js/events.js', 'js/score.js']
   .forEach(f => vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }));
 
@@ -404,6 +404,28 @@ for (const farmerId of Object.keys(FR.Farmers)) {
   if (s1 === s2 || s1 !== FR.Util.dailySeed('2026-10-30')) fail('今日の農場の種が日付で決まらない');
   const a = FR.Run.create('citrus', s1, 'normal'), b = FR.Run.create('citrus', s1, 'normal');
   if (JSON.stringify(FR.Map.makeChoices(a)) !== JSON.stringify(FR.Map.makeChoices(b))) fail('同じ日の分かれ道がちがう');
+}
+
+// 天気：ボスと1年の最初の戦闘ではかからない。開き直しても同じ。農家に合わない天気は出ない
+{
+  const seen = {};
+  for (const farmerId of Object.keys(FR.Farmers)) {
+    for (let k = 1; k < 120; k++) {
+      const run = FR.Run.create(farmerId, 40 + k); run.battleIndex = k;
+      const w = FR.Battle.pickWeather(run, false);
+      if (w !== FR.Battle.pickWeather(run, false)) fail('天気が開き直しで変わる');
+      const def = FR.Weathers[w];
+      if (def.farmers && !def.farmers.includes(farmerId)) fail(`${farmerId} に合わない天気 ${w}`);
+      for (const st of Object.keys(def.statuses)) if (!FR.Statuses[st]) fail(`天気 ${w} の状態 ${st} がない`);
+      seen[w] = 1;
+    }
+    const r0 = FR.Run.create(farmerId, 3);
+    if (FR.Battle.pickWeather(r0, false) !== 'normal' || FR.Battle.pickWeather(Object.assign(r0, { battleIndex: 5 }), true) !== 'normal') fail('最初の戦闘かボスに天気がかかった');
+  }
+  if (Object.keys(seen).length !== Object.keys(FR.Weathers).length) fail('出ない天気がある');
+  const run = FR.Run.create('vegetable', 77); run.battleIndex = 3; run.node = { type: 'battle', enc: 'crow' };
+  for (let k = 3; k < 60; k++) { run.battleIndex = k; if (FR.Battle.pickWeather(run, false) === 'sunny') break; }
+  if (FR.Battle.create(run).statuses.soil !== 1) fail('晴れで地力がつかない');
 }
 
 // 長期肥育：牛は勝ったあとも畜舎に残り、次の戦闘に戻る。子豚は残らない。1年の最後は満額で出荷

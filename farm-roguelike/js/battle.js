@@ -63,10 +63,21 @@ FR.Battle = {
     FR.Battle.chooseIntents(b);
     // 休憩所でかけた状態（堆肥・消毒）
     if (run.nextBattle) for (const [k, v] of Object.entries(run.nextBattle)) b.statuses[k] = (b.statuses[k] || 0) + v;
+    // 今日の天気（ボスと1年の最初の戦闘ではかからない）
+    b.weather = FR.Battle.pickWeather(run, b.boss);
+    for (const [k, v] of Object.entries(FR.Weathers[b.weather].statuses)) b.statuses[k] = (b.statuses[k] || 0) + v;
     FR.Battle.startTurn(b);
     // 固有スキルの「戦闘開始時」は、1ターン目の始め（守りが0に戻ったあと）にかける。先にかけると守りが消える
     FR.Effects.relicHook(b, 'battleStart');
     return b;
+  },
+
+  // 天気を選ぶ（戦闘の乱数とは別の乱数。何戦目かとシードで決まるので、開き直しても同じ）
+  pickWeather(run, boss) {
+    if (boss || !run.battleIndex) return 'normal';
+    const rnd = FR.Util.rng(run.seed * 7 + run.battleIndex * 1009 + 4243);
+    const pool = Object.keys(FR.Weathers).filter(id => !FR.Weathers[id].farmers || FR.Weathers[id].farmers.includes(run.farmerId));
+    return FR.Util.weighted(rnd, pool.map(id => ({ value: id, weight: FR.Weathers[id].weight })));
   },
 
   // ── ターン ─────────────────────────────────

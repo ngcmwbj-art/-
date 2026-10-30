@@ -37,7 +37,8 @@ FR.BattleView = {
     $('b-season').textContent = b.boss ? `${se.name}・ボス` : `${se.name} ${r.step + 1}/${se.steps}`;
     $('b-hp-top').textContent = `${r.hp}/${r.maxHp}`;
     $('b-gold').textContent = r.gold;
-    $('b-floor').textContent = b.boss ? '季節の大災害' : '';
+    const wt = FR.Weathers[b.weather];
+    $('b-floor').textContent = b.boss ? '季節の大災害' : (wt && b.weather !== 'normal' ? `${wt.icon} ${wt.name}` : '');
     $('b-deck-count').textContent = r.deck.length;
     // 固有スキルの伸ばし方は並べず、固有スキルの絵に「段階」を付ける
     const lv = FR.RelicPool.skillLevel(r);
