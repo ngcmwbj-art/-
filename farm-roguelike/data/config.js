@@ -25,5 +25,7 @@ FR.Config = {
 
   // 戦闘を始めるたびに回復する健康度
   battleStartHeal: 5,
+  // ゲームの版（今日の農場は、同じ日でも版が違うと中身が変わることがある）
+  gameVersion: '2026.10.30',
   saveVersion: 2
 };

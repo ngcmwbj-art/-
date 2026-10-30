@@ -22,7 +22,8 @@ const App = {
     App.bindSound(document.getElementById('title-sound'));
 
     // タイトル
-    document.getElementById('btn-new').onclick = () => App.showSelect();
+    document.getElementById('btn-new').onclick = () => App.showSelect(false);
+    document.getElementById('btn-daily').onclick = () => App.showSelect(true);
     document.getElementById('btn-continue').onclick = () => App.resume();
     // 戦闘
     document.getElementById('b-end').onclick = () => App.endTurn();
@@ -151,13 +152,27 @@ const App = {
   showTitle() {
     const has = !!App.data.run;
     document.getElementById('btn-continue').hidden = !has;
-    document.getElementById('title-best').textContent = App.data.meta.best ? `最高の経営評価 ${App.data.meta.best}点` : '';
+    const today = FR.Util.todayJst();
+    const daily = (App.data.meta.daily || {})[today];
+    document.getElementById('title-best').textContent = [
+      App.data.meta.best ? `最高の経営評価 ${App.data.meta.best}点` : '',
+      daily ? `今日の農場 ${daily.best}点（${daily.tries}回）` : ''
+    ].filter(Boolean).join('　');
     FR.Screens.show('title');
   },
 
   // ── 農家タイプ選択 ────────────────────────────
-  showSelect() {
+  // daily：今日の農場（日本時間の日付で1年が決まる。難しさは「ふつう」で固定）
+  showSelect(daily) {
     const E = FR.Util.escape;
+    App.selectDaily = !!daily;
+    const note = document.getElementById('daily-note');
+    note.hidden = !daily;
+    if (daily) {
+      const t = FR.Util.todayJst();
+      note.innerHTML = `<b>今日の農場（${+t.slice(5, 7)}月${+t.slice(8, 10)}日）</b>今日はだれが遊んでも、同じ農家なら同じ1年になります。難しさは「ふつう」。日本時間の夜0時に変わります（版 ${E(FR.Config.gameVersion)}）`;
+    }
+    document.getElementById('difficulty-row').hidden = !!daily;
     const list = document.getElementById('farmer-list');
     list.innerHTML = Object.keys(FR.Farmers).map(id => {
       const f = FR.Farmers[id];
@@ -196,7 +211,13 @@ const App = {
   },
 
   newRun(farmerId) {
-    App.data.run = FR.Run.create(farmerId, FR.Util.newSeed(), App.data.meta.difficulty);
+    if (App.selectDaily) {
+      const date = FR.Util.todayJst();
+      App.data.run = FR.Run.create(farmerId, FR.Util.dailySeed(date), 'normal');
+      App.data.run.daily = date;
+    } else {
+      App.data.run = FR.Run.create(farmerId, FR.Util.newSeed(), App.data.meta.difficulty);
+    }
     App.data.meta.runs++;
     App.goMap();
   },
@@ -272,7 +293,7 @@ const App = {
       </button>`;
     }).join('');
     document.getElementById('map-status').textContent = `健康度 ${run.hp} / ${run.maxHp} ・ 銭 ${run.gold} ・ デッキ ${run.deck.length}枚 ・ 難しさ：${FR.Run.difficulty(run).name}`
-      + App.herdText(run);
+      + App.herdText(run) + (run.daily ? `\n今日の農場（${run.daily}）` : '');
     FR.Screens.show('map');
   },
 
@@ -926,6 +947,17 @@ const App = {
     const isBest = sc.total > App.data.meta.best;
     App.data.meta.best = Math.max(App.data.meta.best, sc.total);
     if (run.cleared) App.data.meta.clears++;
+    // 今日の農場の記録（日付ごと。古い日付は30日分だけ残す）
+    let dailyLine = '';
+    if (run.daily) {
+      const all = App.data.meta.daily = App.data.meta.daily || {};
+      const rec = all[run.daily] || { best: 0, tries: 0 };
+      const isDailyBest = sc.total > rec.best;
+      rec.tries++; rec.best = Math.max(rec.best, sc.total); rec.farmer = isDailyBest ? run.farmerId : rec.farmer;
+      all[run.daily] = rec;
+      Object.keys(all).sort().slice(0, -30).forEach(k => delete all[k]);
+      dailyLine = `　今日の農場（${run.daily}・版 ${FR.Config.gameVersion}）${isDailyBest ? '・今日の最高' : `・今日の最高 ${rec.best}点`}`;
+    }
     App.data.run = null;
     App.save();
     const E = FR.Util.escape;
@@ -940,7 +972,7 @@ const App = {
       : run.hp <= 0
         ? `${se.name}の${run.step + 1}段目で、農場は力尽きた。（${run.stats.battlesWon}度、災いを退けた）`
         : `${se.name}の途中で、この挑戦を終えた。（${run.stats.battlesWon}度、災いを退けた）`;
-    document.getElementById('result-lead').textContent += `　難しさ：${FR.Run.difficulty(run).name}`;
+    document.getElementById('result-lead').textContent += `　難しさ：${FR.Run.difficulty(run).name}` + dailyLine;
     FR.Screens.show('result');
   }
 };

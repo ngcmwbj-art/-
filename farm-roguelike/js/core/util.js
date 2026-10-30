@@ -14,6 +14,16 @@ FR.Util = {
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   },
+  // 日本時間の今日（'2026-10-30'）と、その日の種（今日の農場：同じ日ならみんな同じ1年）
+  todayJst(now) {
+    const d = new Date((now || Date.now()) + 9 * 3600 * 1000);
+    return d.toISOString().slice(0, 10);
+  },
+  dailySeed(date) {
+    let h = 2166136261;
+    for (const ch of 'farm-daily:' + date) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return h % 2 ** 31;
+  },
   newSeed() {
     return Math.floor(Math.random() * 2 ** 31);
   },

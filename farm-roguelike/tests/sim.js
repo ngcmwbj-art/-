@@ -396,6 +396,16 @@ for (const farmerId of Object.keys(FR.Farmers)) {
   if (l.block - lb !== 6) fail(`カウベル：出荷で守り +${l.block - lb}（6のはず）`);
 }
 
+// 今日の農場：日本時間の日付で種が決まり、同じ日・同じ農家なら同じ分かれ道になる
+{
+  if (FR.Util.todayJst(Date.UTC(2026, 9, 29, 15, 30)) !== '2026-10-30') fail('日本時間の日付がずれる（UTC 15:30 は翌日）');
+  if (FR.Util.todayJst(Date.UTC(2026, 9, 29, 14, 59)) !== '2026-10-29') fail('日本時間の日付がずれる（UTC 14:59 は当日）');
+  const s1 = FR.Util.dailySeed('2026-10-30'), s2 = FR.Util.dailySeed('2026-10-31');
+  if (s1 === s2 || s1 !== FR.Util.dailySeed('2026-10-30')) fail('今日の農場の種が日付で決まらない');
+  const a = FR.Run.create('citrus', s1, 'normal'), b = FR.Run.create('citrus', s1, 'normal');
+  if (JSON.stringify(FR.Map.makeChoices(a)) !== JSON.stringify(FR.Map.makeChoices(b))) fail('同じ日の分かれ道がちがう');
+}
+
 // 長期肥育：牛は勝ったあとも畜舎に残り、次の戦闘に戻る。子豚は残らない。1年の最後は満額で出荷
 {
   const run = FR.Run.create('livestock', 8);

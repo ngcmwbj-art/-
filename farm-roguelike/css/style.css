@@ -753,3 +753,9 @@ html[data-speed="fast"] .player-unit .unit-art img, html[data-speed="fast"] .ene
 .boss-preview em { font-style: normal; font-size: 12px; color: var(--panel-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .boss-moves th { white-space: nowrap; }
 .boss-moves td { text-align: left; }
+
+/* 今日の農場 */
+.daily-note { max-width: 440px; margin: -4px auto 12px; padding: 8px 12px; font-size: 13px; line-height: 1.6; color: var(--panel-text);
+  background: rgba(20, 17, 12, .88); border: 1px solid var(--gold); border-radius: 4px; }
+.daily-note b { display: block; font-family: var(--mincho); font-size: 16px; color: var(--gold); }
+.difficulty-row[hidden] { display: none; }
