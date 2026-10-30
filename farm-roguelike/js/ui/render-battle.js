@@ -153,6 +153,8 @@ FR.BattleView = {
       const cls = [];
       if (FR.HandInput.selected === inst.uid) cls.push('selected');
       if (FR.Battle.needsTarget(b, inst)) cls.push('needs-target');
+      // 今使えるカードは、ふちを光らせる（敵のターン中は光らせない）
+      if (ok && !FR.HandInput.locked) cls.push('playable');
       return FR.renderCard(v, {
         unplayable: !ok,
         extraClass: cls.join(' '),
