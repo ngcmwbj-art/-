@@ -655,6 +655,8 @@ canvas { display: block; width: 100%; height: 100%; }
       else if (k === 'mud') { sweepNoise(0.6, 0.35, 900, 150, 1, 'lowpass'); tone('sine', 220, 45, 0.5, 0.16); for (let i = 0; i < 3; i++) tone('sine', 300 + i * 40, 110, 0.09, 0.08, 0.2 + i * 0.12); }
       else if (k === 'roll') { noise(0.18, 0.16, 400); tone('sine', 140, 60, 0.15, 0.08); }
       else if (k === 'cluck') { tone('square', 820, 1100, 0.07, 0.03); tone('square', 1100, 700, 0.12, 0.03, 0.08); }   // コケッ（1回）
+      else if (k === 'meow') { tone('triangle', 640, 980, 0.09, 0.05); tone('triangle', 980, 560, 0.2, 0.05, 0.08); }      // ニャー（1回）
+      else if (k === 'hiss') { noise(0.22, 0.09, 3200, 'highpass'); tone('triangle', 900, 1300, 0.08, 0.05, 0.05); }      // ニャッ!
       else if (k === 'rumble') { noise(1.2, 0.07, 180, 'lowpass'); tone('sine', 70, 55, 1.1, 0.12); }                   // ドドド（低く）
       else if (k === 'caw') { noise(0.16, 0.05, 1400, 'bandpass'); tone('sawtooth', 620, 470, 0.16, 0.025); }   // カァ（1回だけ）
       else if (k === 'moo') { tone('triangle', 150, 112, 0.65, 0.12); tone('sine', 300, 225, 0.6, 0.03); }   // モ〜（低く1回だけ）
@@ -865,6 +867,9 @@ canvas { display: block; width: 100%; height: 100%; }
   let throws = [];               // トマト畑で農家さんが投げてくれる積み荷
   let chase = null, nextChase = 800;   // 大イノシシの追いかけ（今の状態と、次に出る距離）
   let delivered = 0;             // お得意さんに配達した回数
+  let cat = null, nextCat = 400;  // 荷台に乗ってくる猫（今の状態と、次に道ばたへ出る距離）
+  let gifts = 0;                 // お得意さんのおすそわけ（次のトマト畑まで荷台に乗っている）
+  let catEnd = false;            // やられたとき猫が乗っていたか（共有画像の一言に使う）
   const FARMER_DX = 96;          // 農家さんの立つ位置（小屋から先へ）
   let tomatoes, seasonIdx, score, scoreM, lastRefill;
   let steps = [];                // 段差：{ x: 壁の位置, h: そこから先の高さ（px） }
@@ -894,6 +899,7 @@ canvas { display: block; width: 100%; height: 100%; }
     lastFamily = 0; throws = [];
     chase = null; nextChase = 600 + Math.random() * 400;
     delivered = 0;
+    cat = null; nextCat = 350 + Math.random() * 300; gifts = 0; catEnd = false;
   }
 
   const meters = () => Math.floor(cam / PX_PER_M);
@@ -1274,6 +1280,8 @@ canvas { display: block; width: 100%; height: 100%; }
     slowT = reduceMotion ? 0 : 1;
     truck.dead = true;
     truck.deathKind = kind;
+    catEnd = catOn() > 0;
+    if (catEnd) catOff(false);
     pauseBtn.hidden = true;
     if (kind === 'boar') {
       shake = 0.5; flash = 0.25; truck.dent = 1; truck.spilled = true;
@@ -1353,7 +1361,11 @@ canvas { display: block; width: 100%; height: 100%; }
       if (react.t > 0) react.t -= dt;
       for (const th of throws) {
         th.t += dt;
-        if (th.t >= th.dur && !th.done) { th.done = true; tomatoes = Math.min(TOMATO_MAX, tomatoes + 1); shakeCargo(25); }
+        if (th.t >= th.dur && !th.done) {
+          th.done = true;
+          if (th.gift) gifts++; else tomatoes = Math.min(TOMATO_MAX, tomatoes + 1);
+          shakeCargo(25);
+        }
       }
       throws = throws.filter(th => !th.done);
       updateCargo(dt);
@@ -1383,11 +1395,13 @@ canvas { display: block; width: 100%; height: 100%; }
       recordPace();
       pickUp();
       // 配達スコア：1 m 進むごとに、積んでいるトマトの数だけ加点
-      if (m > scoreM) { score += (m - scoreM) * tomatoes; scoreM = m; }
+      // 荷台の猫・おすそわけの野菜も、1つずつ積み荷として数える
+      if (m > scoreM) { score += (m - scoreM) * (tomatoes + extraLoad()); scoreM = m; }
       // エンドレスは 500 m ごとのトマト畑で満杯に積み直す
       if (Math.floor(m / REFILL_M) > lastRefill) {
         lastRefill = Math.floor(m / REFILL_M);
         const add = TOMATO_MAX - tomatoes;
+        gifts = 0;   // おすそわけは、ここで降ろして家に持ち帰る
         // 泥だらけなら、農家さんがホースで洗ってくれる
         if ((truck.mud || 0) > 0.05) {
           truck.mud = 0;
@@ -1502,6 +1516,7 @@ canvas { display: block; width: 100%; height: 100%; }
           // 着地の衝撃が強いほど落ちやすい。石垣から飛び降りるような強い衝撃なら2個
           const hit = truck.vy;
           if (Math.random() < clamp((hit - 600) / 400, 0, 0.95)) loseTomato(hit > 900 ? 2 : 1, `ドスン! ${cargo.unit}が落ちた`);
+          catLand(hit);
           sfx('land');
           truck.squash = 1;
           shakeCargo(Math.min(260, hit * 0.2));
@@ -1575,6 +1590,7 @@ canvas { display: block; width: 100%; height: 100%; }
     updateCows(dt);
     updateCrows(dt);
     updateHens(dt);
+    updateCat(dt);
     updateDeliver();
     updateChase(dt);
 
@@ -1729,13 +1745,146 @@ canvas { display: block; width: 100%; height: 100%; }
   function updateDeliver() {
     if (state !== 'play' || truck.falling) return;
     if (meters() >= deliverAt(delivered)) {
-      const bonus = tomatoes * 40;
+      const bonus = (tomatoes + extraLoad()) * 40;
       score += bonus;
+      // お得意さんが「持ってって!」と大根とキャベツを荷台へ放ってくれる
+      const fx = deliverAt(delivered) * PX_PER_M + TRUCK_FRONT + 70;
+      ['daikon', 'cabbage'].forEach((g, i) => throws.push({ t: -0.25 - i * 0.18, dur: 0.6, fx, fy: GROUND - levelAt(fx) - 40, i: i + 2, gift: g }));
       delivered++;
       popup(bonus > 0 ? `配達完了! +${fmtM(bonus)} 点` : '配達…積み荷が空っぽ!', '#9fd8ff');
       setReact('wave', 1.2);
       sfx('dodge');
     }
+  }
+  // ---- 荷台の猫：道ばたの猫が、通りかかった軽トラの荷台にひょいと乗ってくる ----
+  // 乗っている間は積み荷1個ぶん。強く着地すると荷台の端にしがみつき、もう一度ドスンとやると怒って降りる
+  const catOn = () => cat && (cat.ph === 'ride' || cat.ph === 'cling') ? 1 : 0;
+  const extraLoad = () => catOn() + gifts;
+  function catFreeAt(wx) {
+    const m = wx / PX_PER_M, r = m % REFILL_M;
+    if (r < 40 || r > REFILL_M - 40 || Math.abs(m - deliverAt(delivered)) < 60 || chase) return false;
+    return !obs.some(o => o.x < wx + 90 && o.x + (o.w || 40) > wx - 90);
+  }
+  function updateCat(dt) {
+    if (state !== 'play' && state !== 'dying') return;
+    const m = meters();
+    if (!cat) {
+      if (state === 'play' && m >= nextCat && !truck.falling) {
+        const wx = cam + W + 40;
+        if (catFreeAt(wx)) cat = { ph: 'sit', x: wx, t: 0 };
+        else nextCat = m + 15;
+      }
+      return;
+    }
+    cat.t += dt;
+    if (cat.ph === 'sit') {
+      // 荷台の後ろが目の前に来たら跳ぶ。軽トラが宙にいたら乗りそこねて見送る
+      const rel = cat.x - cam - truckX;
+      if (state === 'play' && !cat.miss && rel < 60) {
+        if (!truck.falling && supportY() - truck.y < 30) {
+          cat.ph = 'hop'; cat.t = 0; cat.y = groundAt(cat.x);
+          sfx('meow');
+        } else if (rel < -16) cat.miss = true;
+      }
+      if (cat.x - cam < -40) { cat = null; nextCat = m + 300 + Math.random() * 300; }
+    } else if (cat.ph === 'hop') {
+      if (state !== 'play' || truck.falling) return catOff(false);
+      if (cat.t >= 0.4) { cat.ph = 'ride'; cat.t = 0; shakeCargo(18); popup('猫が乗ってきた!', '#ffd6a0'); setReact('cheer', 0.8); }
+    } else if (cat.ph === 'cling') {
+      if (cat.t > 2.2) { cat.ph = 'ride'; cat.t = 0; }   // しばらくしたら荷台へよじ登って戻る
+    } else if (cat.ph === 'off') {
+      cat.vy += 1400 * dt;
+      cat.x += cat.vx * dt; cat.y += cat.vy * dt;
+      const gy = groundAt(cat.x);
+      if (cat.y >= gy) { cat.y = gy; cat.vy = 0; cat.vx = -60; cat.ph = 'run'; cat.t = 0; }
+    } else if (cat.ph === 'run') {
+      cat.x += cat.vx * dt;   // 怒って来た道を帰っていく
+      if (cat.x - cam < -40 || cat.t > 4) { cat = null; nextCat = m + 600 + Math.random() * 500; }
+    }
+  }
+  function catLand(hit) {
+    if (!cat || hit < 850) return;   // 目いっぱい跳んだときの強い着地だけ
+    if (cat.ph === 'ride') { cat.ph = 'cling'; cat.t = 0; sfx('meow'); }
+    else if (cat.ph === 'cling') catOff(true);
+  }
+  // 荷台から降りる（怒って跳び降りる / やられた拍子に放り出される）
+  function catOff(angry) {
+    if (!cat) return;
+    cat = { ph: 'off', x: cam + truckX + 8, y: truck.y - 46, vx: -140, vy: -360, t: 0, angry: true };
+    if (angry && state === 'play') { popup('ニャッ! 猫が降りた', '#ff8f7a'); sfx('hiss'); setReact('oops', 0.6); }
+  }
+  // 猫の絵（小さく。dir=1 で右向き）
+  function drawCatSprite(x, y, pose, dir = 1, t = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir * 1.25, 1.25);
+    const fur = '#e2a24e', dark = '#a8642a', wht = '#fbf2e2';
+    ctx.fillStyle = fur;
+    if (pose === 'cling') {
+      // 荷台の後ろの縁に前足でぶら下がる
+      ctx.fillRect(-2, -3, 3, 6);  ctx.fillRect(3, -3, 3, 6);                  // 前足
+      ctx.beginPath(); ctx.ellipse(1, 8, 4.5, 7, 0.15, 0, Math.PI * 2); ctx.fill();   // 体
+      ctx.fillStyle = dark; ctx.fillRect(-2, 6, 6, 1.5); ctx.fillRect(-2, 10, 6, 1.5);
+      ctx.strokeStyle = fur; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, 14); ctx.quadraticCurveTo(-5 + Math.sin(t * 20) * 3, 19, -2, 23); ctx.stroke();
+      ctx.fillStyle = fur; ctx.beginPath(); ctx.arc(2, -6, 4.2, 0, Math.PI * 2); ctx.fill();   // 頭
+      ctx.beginPath(); ctx.moveTo(-1.5, -9); ctx.lineTo(-1, -13); ctx.lineTo(1.5, -9.5); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(3, -9.5); ctx.lineTo(5.5, -13); ctx.lineTo(6, -8.5); ctx.fill();
+      ctx.fillStyle = '#2a1d08'; ctx.fillRect(0, -7, 1.4, 1.8); ctx.fillRect(3.4, -7, 1.4, 1.8);
+      ctx.restore();
+      return;
+    }
+    const arch = pose === 'angry' ? 3 : 0;
+    const hop = pose === 'hop';
+    // しっぽ（怒るとふくらんで立つ）
+    ctx.strokeStyle = pose === 'angry' ? dark : fur; ctx.lineWidth = pose === 'angry' ? 3.4 : 2;
+    ctx.beginPath();
+    if (pose === 'angry') { ctx.moveTo(-6, -5); ctx.lineTo(-8, -15); }
+    else if (hop) { ctx.moveTo(-6, -5); ctx.quadraticCurveTo(-12, -6, -14, -3); }
+    else { ctx.moveTo(-6, -2); ctx.quadraticCurveTo(-12, -2 + Math.sin(t * 3) * 2, -11, -9); }
+    ctx.stroke();
+    // 体
+    ctx.fillStyle = fur;
+    ctx.beginPath(); ctx.ellipse(0, -5 - arch, hop ? 8 : 7, pose === 'sit' ? 5 : 4.2, hop ? -0.25 : 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = dark; ctx.fillRect(-4, -9 - arch, 1.5, 4); ctx.fillRect(-1, -9.5 - arch, 1.5, 4);
+    ctx.fillStyle = wht; ctx.beginPath(); ctx.ellipse(3, -3 - arch, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+    // 足
+    ctx.fillStyle = fur;
+    if (hop) { ctx.fillRect(4, -3, 5, 2); ctx.fillRect(-8, -3, 5, 2); }
+    else if (pose !== 'ride') { ctx.fillRect(-5, -2, 2.4, 2 + arch); ctx.fillRect(3, -2, 2.4, 2 + arch); }
+    // 頭
+    const hx = hop ? 8 : 6, hy = (pose === 'sit' ? -12 : -9) - arch;
+    ctx.beginPath(); ctx.arc(hx, hy, 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(hx - 3.6, hy - 2); ctx.lineTo(hx - 2.8, hy - 7); ctx.lineTo(hx - 0.4, hy - 3.4); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(hx + 0.6, hy - 3.6); ctx.lineTo(hx + 3, hy - 7); ctx.lineTo(hx + 4, hy - 2); ctx.fill();
+    ctx.fillStyle = '#2a1d08';
+    if (pose === 'ride') { ctx.fillRect(hx - 0.5, hy - 0.6, 2, 0.9); ctx.fillRect(hx + 2.4, hy - 0.6, 1.6, 0.9); }   // 気持ちよさそうに目を細める
+    else if (pose === 'angry') { ctx.fillRect(hx, hy - 1.5, 1.6, 1.6); ctx.fillRect(hx + 2.6, hy - 1.5, 1.6, 1.6); ctx.fillStyle = '#ff6b5a'; ctx.fillRect(hx - 6, hy - 9, 1.6, 4); ctx.fillRect(hx - 8.5, hy - 7.5, 4, 1.6); }
+    else { ctx.fillRect(hx, hy - 1.2, 1.5, 2); ctx.fillRect(hx + 2.6, hy - 1.2, 1.5, 2); }
+    ctx.restore();
+  }
+  // 道ばたで待っている猫・荷台へ跳ぶ猫・降りて帰っていく猫（荷台に乗っている間は軽トラと一緒に描く）
+  function drawCat() {
+    if (!cat) return;
+    if (cat.ph === 'sit') {
+      const sx = cat.x - cam;
+      if (sx < -40 || sx > W + 60) return;
+      // 軽トラが来ると振り向く。乗りそこねたら見送る
+      drawCatSprite(sx, groundAt(cat.x), 'sit', cat.miss || sx < truckX + 160 ? -1 : 1, clock);
+    } else if (cat.ph === 'hop') {
+      const p = clamp(cat.t / 0.4, 0, 1);
+      const x0 = cat.x - cam, y0 = cat.y, x1 = truckX + 10, y1 = truck.y - catBedY(tomatoes);
+      drawCatSprite(x0 + (x1 - x0) * p, y0 + (y1 - y0) * p - 46 * 4 * p * (1 - p), 'hop', 1);
+    } else if (cat.ph === 'off' || cat.ph === 'run') {
+      drawCatSprite(cat.x - cam, cat.y, cat.ph === 'run' && Math.floor(cat.t * 8) % 2 ? 'sit' : 'angry', -1, cat.t);
+    }
+  }
+  // 荷台の後ろ寄り、積み荷の山の上で丸くなる
+  const catBedY = n => n >= 7 ? 47 : n >= 1 ? 39 : 31;
+  // おすそわけ（荷台の前寄りに、大根とキャベツ）
+  function drawGifts(n, jg) {
+    if (n >= 1) drawItem('daikon', 50, -50 + jg * 0.5, 0);
+    if (n >= 2) drawItem('cabbage', 40, -58 + jg * 0.7, 0);
   }
   // お得意さんの家（2D の絵。3D では奥に立てる板）
   function drawCustomerHouse(sx) {
@@ -3167,6 +3316,20 @@ canvas { display: block; width: 100%; height: 100%; }
   const TOMATO_MAX = TOMATOES.length;
   // 積み荷を1つ描く（x, y が中心）
   function drawItem(kind, x, y, i) {
+    if (kind === 'daikon') {   // 大根（葉っぱつき。斜めに立てかける）
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-0.5);
+      ctx.fillStyle = '#f6f3ea'; ctx.beginPath(); ctx.ellipse(0, 3, 3.2, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d8e8c8'; ctx.fillRect(-2.6, -6, 5.2, 4);
+      ctx.fillStyle = '#4f9a32'; ctx.fillRect(-4, -14, 3, 9); ctx.fillRect(0, -16, 3, 11); ctx.fillRect(2.5, -12, 3, 7);
+      ctx.restore();
+      return;
+    }
+    if (kind === 'cabbage') {  // 大きなキャベツ
+      ctx.fillStyle = '#5ea83a'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#9bd06e'; ctx.beginPath(); ctx.arc(x - 1, y - 1, 4.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4a8a2c'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 7, -2.4, -0.6); ctx.stroke();
+      return;
+    }
     if (kind === 'veg') {
       const k = i % 3;
       if (k === 0) {          // キャベツ
@@ -3244,6 +3407,7 @@ canvas { display: block; width: 100%; height: 100%; }
       load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling && !r3.drawing, gy: state === 'title' ? GROUND : supportY(),
       driver: driverPose(),
       jig: truck.falling ? 0 : jig,
+      cat: !truck.falling && catOn() ? cat : null, gifts: truck.falling ? 0 : gifts,
     };
   }
   // 落ちている積み荷の上を通ると1個積み戻す（高く跳んでいると取れない。音は鳴らさない）
@@ -3289,7 +3453,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const p = clamp(th.t / th.dur, 0, 1);
       const x0 = th.fx - cam, y0 = th.fy, x1 = TRUCK_X + 22 + (th.i % 5) * 7, y1 = truck.y - 48;
       const x = x0 + (x1 - x0) * p, y = y0 + (y1 - y0) * p - 70 * 4 * p * (1 - p);
-      drawItem(kind, x, y, th.i);
+      drawItem(th.gift || kind, x, y, th.i);
     }
   }
   // ---- 運転手（つがお）の反応：顔は小さくて見えないので、帽子と腕の大きな動きで見せる ----
@@ -3332,6 +3496,11 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(4, -16, 90, 7);
     drawTomatoes(load, sp.jig || 0);
+    if (sp.gifts) drawGifts(sp.gifts, sp.jig || 0);
+    if (sp.cat) {
+      if (sp.cat.ph === 'cling') drawCatSprite(1, -28, 'cling', 1, clock);
+      else drawCatSprite(8, -catBedY(load) + (sp.jig || 0) * 0.6, 'ride', 1, clock);
+    }
     // 荷台
     ctx.fillStyle = '#eef0f0';
     ctx.fillRect(2, -32, 58, 17);
@@ -3768,7 +3937,7 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.scale(1.4, 1.4);
     drawItem(cargo.id === 'calf' ? 'hay' : cargo.id, 0, 0, 0);
     ctx.restore();
-    label('×' + tomatoes, tx + 12, y0 + 5, '15px ' + FONT, tomatoes <= 5 ? '#ff8f7a' : '#fffbea', 'left', 'rgba(27,34,22,.85)', 4);
+    label('×' + (tomatoes + extraLoad()), tx + 12, y0 + 5, '15px ' + FONT, tomatoes <= 5 ? '#ff8f7a' : '#fffbea', 'left', 'rgba(27,34,22,.85)', 4);
     {
       label(`スコア ${fmtM(score)}`, tx + 48, y0 + 5, '15px ' + FONT, '#f2b33d', 'left', 'rgba(27,34,22,.85)', 4);
     }
@@ -3843,6 +4012,7 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     drawBoars();
     drawChase();
+    drawCat();
     drawCrows();
     drawParts();
     drawNight();
@@ -4564,6 +4734,7 @@ canvas { display: block; width: 100%; height: 100%; }
       drawThrows();
       drawBoars();
       drawChase();
+      drawCat();
       drawCrows();
       drawParts();
       drawCallouts();
@@ -4760,7 +4931,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; },
-      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get parts() { return parts; }, get chase() { return chase; }, set nextChase(v) { nextChase = v; }, die: k => die(k), get rk() { return rk; }, get env() { return env; }, get r3() { return { ok: r3.ok, on: hdActive(), stats: r3.stats, prof: r3.prof, chunks: r3.chunks && r3.chunks.length }; }, get score() { return score; }, get steps() { return steps; },
+      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get parts() { return parts; }, get chase() { return chase; }, set nextChase(v) { nextChase = v; }, get cat() { return cat; }, set nextCat(v) { nextCat = v; }, get gifts() { return gifts; }, get delivered() { return delivered; }, die: k => die(k), get rk() { return rk; }, get env() { return env; }, get r3() { return { ok: r3.ok, on: hdActive(), stats: r3.stats, prof: r3.prof, chunks: r3.chunks && r3.chunks.length }; }, get score() { return score; }, get steps() { return steps; },
       get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep, bgm: bgmMode, pos: bgmEl ? bgmEl.currentTime : null, src: !!bgmSrc }; },
       suspendAudio() { return ac && ac.suspend(); }, get clock() { return clock; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
@@ -5035,7 +5206,7 @@ canvas { display: block; width: 100%; height: 100%; }
     g.fillStyle = '#f2b33d';
     g.fillRect(0, 920, S, 160);
     g.fillStyle = '#2a1d08';
-    fitText(g, '抜けるもんなら抜いてみて!', S / 2, 990, S - 80, 50, 900, disp);
+    fitText(g, catEnd ? '猫も乗せて爆走! 抜けるもんなら抜いてみて!' : '抜けるもんなら抜いてみて!', S / 2, 990, S - 80, 50, 900, disp);
     fitText(g, '▶ ' + SHARE_URL.replace(/^https:\/\//, ''), S / 2, 1050, S - 80, 40, 'normal', FONT);
     const n = ++share.n;
     c.toBlob(b => { if (b && n === share.n) share.blob = b; }, 'image/png');
@@ -5087,6 +5258,7 @@ canvas { display: block; width: 100%; height: 100%; }
         truck: { y: truck.y, vy: truck.vy, grounded: truck.grounded, airJumps: truck.airJumps, spilled: truck.spilled },
         obs: JSON.parse(JSON.stringify(obs)), steps: JSON.parse(JSON.stringify(steps)),
         stats: { ...stats },
+        catOn: catOn() > 0, gifts, nextCat,
       },
     };
   }
@@ -5097,6 +5269,7 @@ canvas { display: block; width: 100%; height: 100%; }
     lastMile = run.lastMile; passedBest = run.passedBest; seasonIdx = run.seasonIdx;
     Object.assign(truck, run.truck);
     obs = run.obs || []; steps = run.steps || []; stats = { ...stats, ...run.stats };
+    cat = run.catOn ? { ph: 'ride', t: 0 } : null; gifts = run.gifts || 0; nextCat = run.nextCat ?? nextCat;
     state = 'play';
     titleEl.hidden = true;
     truckX = TRUCK_X;
