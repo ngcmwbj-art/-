@@ -197,6 +197,9 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 .yuru .lt-paper{border-radius:16px;background-color:#fff4e0}
 #glowfx{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;background:radial-gradient(55% 45% at 50% 55%,rgba(255,236,180,.30),transparent 70%)}
 #glowfx.go{animation:glowfx 1.8s ease-out}
+.asobi{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.asobi li{display:flex;flex-direction:column;gap:2px;line-height:1.6;font-size:14px}
+.asobi b{color:var(--glow);font-size:13px}
 .kp{display:flex;flex-direction:column;gap:10px;margin-top:6px}
 .kp-row{display:flex;align-items:center;gap:12px;font-size:13px}
 .kp-row>svg{flex:none}
@@ -426,6 +429,7 @@ body.kbd #tutchip{display:none}
         <button type="button" id="set-voice">声（グソグソ）：オン</button>
         <button type="button" id="set-tts">日本語読み上げ：オフ</button>
         <button type="button" id="set-ai" hidden>AI会話</button>
+        <button type="button" id="set-asobi">あそびかた</button>
         <button type="button" id="set-name">名前をつける</button>
         <button type="button" id="set-backup">データの引き継ぎ</button>
         <button type="button" id="set-reset">最初からやり直す</button>
@@ -523,6 +527,12 @@ body.kbd #tutchip{display:none}
 <div class="modal" id="memorial" hidden><div class="sheet"><h3 id="mem-name">グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
 <div id="glowfx"></div>
+<div class="modal" id="asobi" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="asobi-title">
+    <header><h3 id="asobi-title">あそびかた</h3><button type="button" id="asobi-close">閉じる</button></header>
+    <ul class="asobi" id="asobi-list"></ul>
+  </div>
+</div>
 <div class="modal" id="letter" hidden>
   <div class="sheet lt-sheet" role="dialog" aria-labelledby="lt-title">
     <header><h3 id="lt-title">手紙</h3><div class="tabs"><button type="button" id="lt-prev">‹ 前</button><span id="lt-date"></span><button type="button" id="lt-next">次 ›</button><button type="button" id="lt-close">閉じる</button></div></header>
@@ -1814,9 +1824,10 @@ function speak(text,emo){
   return d;
 }
 const queue=[];let typing=null;
-function say(text,opt){opt=opt||{};if(!opt.narr)text=yuru(text);queue.push({text,emo:opt.emo||'neutral',narr:!!opt.narr,who:opt.who});if(!typing)nextLine()}
+function say(text,opt){opt=opt||{};if(!opt.narr)text=yuru(text);queue.push({text,emo:opt.emo||'neutral',narr:!!opt.narr,who:opt.who,hint:opt.hint});if(!typing)nextLine()}
 function nextLine(){
   const q=queue.shift();if(!q){typing=null;return}
+  if(q.hint)Hint.shown(q.hint);
   whoEl.textContent=q.narr?'':(q.who||gname());emoEl.textContent=q.narr?'':(EMO[q.emo]||'');
   lineEl.className='line'+(q.narr?' narr':'');
   let i=0;const txt=q.narr?nameNarr(q.text):q.text;typing={q};
@@ -1839,7 +1850,9 @@ let noSave=false;
 const DEF={dark:0,darkLv:0,lastBully:0,lastAteAt:null,fastBest:0,fastMiles:[],kind:70,bold:62,health:100,maxHealth:100,events:{},diary:{},mate:null,nextTrouble:0,wokeUntil:0,lastDream:'',morningSaid:'',v:2,born:Date.now(),last:Date.now(),hatched:false,stage:0,trust:0,mood:60,hunger:10,water:100,temp:10,light:'red',talks:0,fed:0,pokes:0,fedSinceMolt:0,lastMolt:0,
   memory:[],asked:[],pending:null,log:[],whiteMin:0,lastFood:0};
 let S;
-function load(){try{const r=JSON.parse(localStorage.getItem(SKEY)||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born;if(S.kind===50&&S.bold===50&&!S.dark){S.kind=70;S.bold=62}}
+function load(){let r=null,bad=false;try{const raw=localStorage.getItem(SKEY);r=JSON.parse(raw||'null');if(raw&&(!r||typeof r!=='object'||!r.born))bad=true}catch(e){bad=true}
+  if(bad){try{const b=JSON.parse(localStorage.getItem(SKEY+'.bak')||'null');if(b&&b.born){r=b;r._restored=1}}catch(e){}}
+  S=Object.assign({},DEF,r||{});if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born;if(S.kind===50&&S.bold===50&&!S.dark){S.kind=70;S.bold=62}}
 function save(){if(noSave)return;S.last=Date.now();try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}}
 function mem(key){const m=S.memory.find(x=>x.startsWith(key+'：'));return m?m.slice(key.length+1):null}
 function remember(fact){if(!fact)return;fact=String(fact).slice(0,60);const key=fact.split('：')[0];if(fact.includes('：'))S.memory=S.memory.filter(x=>!x.startsWith(key+'：'));if(!S.memory.includes(fact))S.memory.push(fact);if(S.memory.length>40)S.memory.shift();save()}
@@ -2277,7 +2290,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     if(this.dead||!started)return;
     // sleep by the player's own clock
     const want=isNight()&&!Molt.phase&&Date.now()>(S.wokeUntil||0)&&!Trouble.cur&&!Cine.on;
-    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on)say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソっ君は眠りについた。夜のあいだは、そっとしておこう）',{narr:true});ev('sleep')}
+    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on){if(S.stage>=1)say(S.stage===1?'……オヤスミ、ナサイ。':pickR(['……そろそろ眠ります。おやすみなさい。','今日は、このへんで。……おやすみなさい。']),{emo:'sleepy'});say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソっ君は眠りについた。夜のあいだは、そっとしておこう）',{narr:true})}ev('sleep')}
     if(!want&&this.asleep){this.asleep=false;const h=new Date().getHours();if(h>=6&&h<10&&S.morningSaid!==dkey()){S.morningSaid=dkey();this.morning()}}
     C.sleep=damp(C.sleep||0,this.asleep?1:0,1.2,dt);
     if(this.asleep){this.sleepT+=dt;C.curlT=Math.max(C.curlT,.16);
@@ -2347,6 +2360,7 @@ function lifeDiaryLocal(k){
     slime:e=>['（水がネバネバになった）','ネバネバ、デス。','ヌタウナギが粘液を出しました。最悪です。','水がネバネバになりました。あの方を驚かさないでいただきたいものです。'],
     fixed:e=>[`（${e.v}がなおった）`,`${e.v}、ナオリマシタ。`,`${n}が${e.v}をなんとかしてくれました。`,`${e.v}は${n}が片づけてくれました。手際は悪くありません。`],
     hatch:e=>['（生まれた）','','',''],
+    photo:e=>['（写真を撮られた）','シャシン、トラレマシタ。','今日は写真を撮られました。……悪くない写りです。','写真を撮られました。……悪くない写りだと思います。'],
   };
   evs.forEach(e=>{const f=V[e.c];if(f){const t=f(e)[st];if(t)lines.push(t)}});
   if((S.dark||0)>=50)lines.push(['（暗い目で、水槽の隅を見つめていた）','……キライ、デス。ミンナ。','今日も、誰も信用できませんでした。','闇の中で、殻を研いでおりました。'][st]);
@@ -3060,7 +3074,7 @@ const Backup={code:null,pend:null,
   },
   apply(){
     const p=this.pend;if(!p)return;p.s.last=Date.now();
-    try{localStorage.setItem(SKEY,JSON.stringify(p.s));localStorage.setItem(GKEY,JSON.stringify(p.g||[]))}catch(e){toast('読み込めませんでした');return}
+    try{localStorage.setItem(SKEY,JSON.stringify(p.s));localStorage.setItem(GKEY,JSON.stringify(p.g||[]));localStorage.removeItem(SKEY+'.bak');localStorage.removeItem(SKEY+'.bakd')}catch(e){toast('読み込めませんでした');return}
     noSave=true;location.reload();
   }
 };
@@ -3247,7 +3261,7 @@ const Gen={
     const o={gen:(P.gen||1)+1,col:P.col,memory:facts.concat(words),asked:(P.asked||[]).filter(k=>!String(k).startsWith('単語')),daily:P.daily,lastBackup:P.lastBackup,
       parent:{eggs,name:gname(),morph:P.morph||'std',kind:Math.round(70+((P.kind||70)-70)*.5),bold:Math.round(62+((P.bold||62)-62)*.5)}};
     if(eggs)o.morph=P.morph||'std';
-    try{localStorage.setItem(SKEY,JSON.stringify(o))}catch(e){}
+    try{localStorage.setItem(SKEY,JSON.stringify(o));localStorage.removeItem(SKEY+'.bak');localStorage.removeItem(SKEY+'.bakd')}catch(e){}
     noSave=true;location.reload();
   },
   hello(){
@@ -3492,7 +3506,7 @@ $('nb-later').addEventListener('click',()=>Name.close());
 $('nb-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();Name.set()}});
 $('set-name').addEventListener('click',()=>Name.open('名前を変えられます。',null));
 // players from before names existed get one gentle hint
-setInterval(()=>{if(!S||!started||S.gname||S.nameHint||S.tut!=='done'||Life.asleep||Daily.sess<40)return;S.nameHint=1;save();say('（設定から、'+DEFNAME+'に名前をつけられるようになりました）',{narr:true})},5000);
+setInterval(()=>{if(!S||!started||S.gname||S.nameHint||S.tut!=='done'||Life.asleep||Daily.sess<40||typing||queue.length)return;Hint.say('nameHint','（設定から、'+DEFNAME+'に名前をつけられるようになりました）')},5000);
 
 /* =====================================================================
    SOUVENIR PHOTO — when you come back, one small picture of what happened
@@ -3582,7 +3596,7 @@ const Tutor={i:-1,t:0,
   end(ok){
     document.querySelectorAll('.tut-glow').forEach(e=>e.classList.remove('tut-glow'));
     this.i=-1;S.tut='done';save();$('tutchip').hidden=true;
-    if(ok)say(S.stage===0?'（案内はここまでです。小さいうちは、お腹の栄養で育つので餌はいりません。ゆっくり見守ってあげましょう）':'（案内はここまでです。ゆっくり見守ってあげましょう）',{narr:true});
+    if(ok)say(S.stage===0?'（案内はここまでです。小さいうちは、お腹の栄養で育つので餌はいりません。ゆっくり見守ってあげましょう）':'（案内はここまでです。ゆっくり見守ってあげましょう。設定の「あそびかた」でいつでも見られます）',{narr:true});
   },
   update(){
     if(!S||!started||Cine.on)return;
@@ -3820,7 +3834,7 @@ canvas.addEventListener('pointerup',()=>Nade.up());
 canvas.addEventListener('pointercancel',()=>Nade.up());
 Daily.TASKS.nade={label:DEFNAME+'をなでる',goal:1};
 // tell people it exists, once
-setInterval(()=>{if(!S||!started||S.nadeHint||S.tut!=='done'||Life.asleep||Daily.sess<90||Tutor.i!==-1)return;S.nadeHint=1;save();say('（'+gname()+'を長押しすると、なでられます）',{narr:true})},5000);
+setInterval(()=>{if(!S||!started||S.nadeHint||S.tut!=='done'||Life.asleep||Daily.sess<90||Tutor.i!==-1||typing||queue.length)return;if(S.nade){S.nadeHint=1;save();return}Hint.say('nadeHint','（'+gname()+'を長押しすると、なでられます）')},5000);
 
 /* =====================================================================
    SOUND CUES — happy things sound high, warnings sound low.
@@ -3865,7 +3879,7 @@ const Kibun={v:0,low:0,
     if(ISO.brows){const dk=smooth(25,90,S.dark||0);ISO.brows.forEach((b,i)=>{const s=i?1:-1;
       if(dk>.05){b.rotation.z=s*.42;return}const on=bad>.3;b.visible=on;b.rotation.z=-s*.32;if(on)b.scale.set(1,Math.min(1,bad*1.2),1)})}
     if(bad>.5&&started)this.low+=dt;else this.low=0;
-    if(this.low>20&&!S.kibHint&&!Life.asleep&&Tutor.i===-1){S.kibHint=1;save();say('（'+gname()+'が背を向けて、触角を下げています。機嫌が悪いときのしぐさです。「様子」や水槽の数値を見てみましょう）',{narr:true})}
+    if(this.low>20&&!S.kibHint&&!Life.asleep&&Tutor.i===-1&&!typing&&!queue.length){this.low=0;Hint.say('kibHint','（'+gname()+'が背を向けて、触角を下げています。機嫌が悪いときのしぐさです。「様子」をタップしてみましょう）')}
   }
 };
 {const f=updateCreature;updateCreature=function(dt,time){f(dt,time);Kibun.post(dt,time)}}
@@ -3895,7 +3909,7 @@ const Onegai={
     const need=ks.filter(k=>['water','cool','warm','feed'].includes(k)),k=pickR(need.length&&Math.random()<.6?need:ks);
     S.og={d:D,k,b:{talks:S.talks||0,fed:S.fed||0,nade:S.nade&&S.nade.d===D?S.nade.n:0},w:0,done:0};save();
     const T=this.L[k];say(S.stage===1?T.a1:pickR(T.ask),{emo:'ask'});
-    if(!S.ogHint){S.ogHint=1;save();say('（'+gname()+'のおねがいです。かなえなくても困ることはありません。「今日のお世話」にも書いてあります）',{narr:true})}
+    Hint.say('ogHint','（'+gname()+'のおねがいです。かなえなくても困ることはありません。「今日のお世話」にも書いてあります）');
     Daily.render();
   },
   grant(){
@@ -3999,7 +4013,7 @@ const Keep={
     for(let n=1;n<=(S.molts||0);n++)if(!S.shells.some(x=>x.n===n))S.shells.push({n,mm:MMS[n-1],d:null});
     S.shells.sort((a,b)=>a.n-b.n);return S.shells},
   add(){const L=this.list(),n=S.molts;const x=L.find(s=>s.n===n);if(x)x.d=x.d||dkey();save();
-    if(!S.keepHint){S.keepHint=1;save();setTimeout(()=>{if(!Life.dead)say('（脱いだ殻の大きさを、図鑑の「殻」に記念として残しました）',{narr:true})},26000)}},
+    if(!S.keepHint)setTimeout(()=>{if(!Life.dead)Hint.say('keepHint','（脱いだ殻の大きさを、図鑑の「殻」に記念として残しました）',true)},26000)},
   svg(mm,max){const w=Math.round(22+96*mm/max),h=Math.round(w*.62),seg=[];for(let i=1;i<7;i++){const x=(w*(.2+i*.1)).toFixed(1);seg.push('<path d="M'+x+' '+(h*.1).toFixed(1)+'Q'+(+x+3)+' '+(h/2).toFixed(1)+' '+x+' '+(h*.9).toFixed(1)+'"/>')}
     return '<svg class="kp-s" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><ellipse cx="'+(w/2)+'" cy="'+(h/2)+'" rx="'+(w/2-1.5)+'" ry="'+(h/2-1.5)+'"/>'+seg.join('')+'</svg>'},
   render(B,sum){const L=this.list();
@@ -4156,7 +4170,7 @@ const Suna={on:false,b:0,t:0,next:150,
   pre(dt){
     if(this.on){this.t-=dt;if(this.t<0||!this.free()||C.state!=='idle'||C.talk>0)this.out()}
     else{this.next-=dt;if(this.next<0){this.next=180+Math.random()*240;if(this.free()&&C.state==='idle'&&C.talk<=0&&C.face<=0&&Kibun.v>-.5){this.on=true;this.t=22+Math.random()*18;puff(C.pos.clone(),14);
-      if(!S.sunaHint){S.sunaHint=1;save();setTimeout(()=>say('（'+gname()+'が砂にもぐって、顔だけ出しています。本物のオオグソクムシも、こうして砂にうずまって休みます）',{narr:true}),1500)}}}}
+      if(!S.sunaHint)setTimeout(()=>Hint.say('sunaHint','（'+gname()+'が砂にもぐって、顔だけ出しています。本物のオオグソクムシも、こうして砂にうずまって休みます）'),1500)}}}
     this.b=damp(this.b,this.on?1:0,this.on?.8:2.5,dt);
     if(this.b>.002){const gy=heightAt(C.pos.x,C.pos.z),sc=C.size;C.yOverride=gy-this.b*sc*(ISO.chara?(C.crawl>.5?.3:1.12):.36)}else if(this.wasOn)C.yOverride=null;this.wasOn=this.b>.002;
   },
@@ -4272,7 +4286,7 @@ const Hazukashi={t:0,cool:0,
     if(this.t<.8||this.cool>0)return;this.t=0;this.cool=25;
     if(ISO.chara){C.curlT=.4;setState('curl',{hold:1.8})}
     else{const a=new V3(C.pos.x-camera.position.x,0,C.pos.z-camera.position.z).normalize().multiplyScalar(.6*C.size+.2);setState('walk',{target:new V3(clamp(C.pos.x+a.x,-5,5),0,clamp(C.pos.z+a.z,-3,3))})}
-    if(!S.shyHint){S.shyHint=1;save();say('（近すぎて、少し恥ずかしいようです）',{narr:true})}
+    Hint.say('shyHint','（近すぎて、少し恥ずかしいようです）');
   }
 };
 {const f=updateCreature;updateCreature=function(dt,time){f(dt,time);Shippo.post(dt,time);Onaka.post(dt);Hazukashi.post(dt)}}
@@ -4295,7 +4309,7 @@ const Hana={next:120,
     mel.forEach((m,i)=>{const f=f0*Math.pow(2,m/12),d=i===mel.length-1?.6:.3;Voice.syllable(t,i%2?'s':'g',i%2?'o':'u',f,f*(i===mel.length-1?.94:1),d,.5);t+=d+.06});
     Voice.bus.gain.setValueAtTime(.7,t+.1);C.talk=Math.max(C.talk,t-t0);
     if(ISO.chara){C.wave=1.4;C.waveDur=1.4}Shippo.go(t-t0);
-    if(!S.humHint){S.humHint=1;save();setTimeout(()=>say('（'+gname()+'が、鼻歌をうたっています。ごきげんのようです）',{narr:true}),(t-t0)*1000+300)}}
+    if(!S.humHint)setTimeout(()=>Hint.say('humHint','（'+gname()+'が、鼻歌をうたっています。ごきげんのようです）'),(t-t0)*1000+300)}
 };
 {const f=Voice.speak;Voice.speak=function(){if(this.bus&&Audio2.ctx){const g=this.bus.gain,t=Audio2.ctx.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(.7,t)}return f.apply(this,arguments)}}
 setInterval(()=>Hana.tick(1),1000);
@@ -4367,7 +4381,7 @@ const Itsumo={
    ===================================================================== */
 const Utatane={on:false,t:0,acc:0,v:0,
   start(){this.on=true;this.t=22+Math.random()*10;this.acc=0;setState('idle',{wait:40});Nade.up&&Nade.up();
-    if(!S.napHint){S.napHint=1;save();say('（気持ちよくなって、うとうとしています）',{narr:true})}},
+    Hint.say('napHint','（気持ちよくなって、うとうとしています）')},
   wake(){if(!this.on)return;this.on=false;this.t=0;Shigusa.k='yawn';Shigusa.t=0;Shigusa.dur=2.4},
   pre(dt){
     if(Nade.on&&!this.on&&!Life.asleep&&!isNight()&&S.stage>=1){this.acc+=dt;if(this.acc>8)this.start()}else if(!Nade.on)this.acc=Math.max(0,this.acc-dt*.5);
@@ -4378,6 +4392,79 @@ const Utatane={on:false,t:0,acc:0,v:0,
 {const f=idleChatter;idleChatter=function(){if(Utatane.on)return;return f.apply(this,arguments)}}
 {const f=onTap;onTap=function(){Utatane.wake();return f.apply(this,arguments)}}
 {const f=updateCreature;updateCreature=function(dt,time){Utatane.pre(dt);f(dt,time);Mune.post(dt)}}
+
+/* =====================================================================
+   HINTS, IN ORDER — the one-time tips share one rule: at most two a day, five minutes apart.
+   A tip only counts as given once it has actually been shown (a scene that clears the
+   queue can no longer swallow it). Tips tied to a moment just wait for the next such moment.
+   ===================================================================== */
+const Hint={lastAt:-1e9,
+  room(){const D=dkey();if(!S.hintDay||S.hintDay.d!==D)S.hintDay={d:D,n:0};return S.hintDay.n<2&&performance.now()-this.lastAt>300000},
+  say(key,text,later){
+    if(!S||S[key])return false;
+    if(!this.room()){if(later){S.hintQ=S.hintQ||[];if(!S.hintQ.some(h=>h.k===key)){S.hintQ.push({k:key,t:text});save()}}return false}
+    this.lastAt=performance.now();S.hintDay.n++;say(text,{narr:true,hint:key});return true},
+  shown(key){if(S[key])return;S[key]=1;this.lastAt=performance.now();if(S.hintQ)S.hintQ=S.hintQ.filter(h=>h.k!==key);save()},
+  tick(){if(!S||!started||!S.hintQ||!S.hintQ.length||typing||queue.length||Life.asleep||Life.dead||Cine.on||Dream.on||Tutor.i!==-1)return;
+    const h=S.hintQ[0];if(S[h.k]){S.hintQ.shift();return}if(this.room()){this.lastAt=performance.now();S.hintDay.n++;say(h.t,{narr:true,hint:h.k})}}
+};
+setInterval(()=>Hint.tick(),5000);
+
+/* =====================================================================
+   A SPARE SAVE — once a day, the last good save is kept aside; if the save ever breaks,
+   the game comes back from it (and says so).
+   ===================================================================== */
+const Yobi={
+  keep(){try{const D=dkey();if(localStorage.getItem(SKEY+'.bakd')===D)return;const cur=localStorage.getItem(SKEY);if(!cur)return;const o=JSON.parse(cur);if(!o||!o.born)return;localStorage.setItem(SKEY+'.bak',cur);localStorage.setItem(SKEY+'.bakd',D)}catch(e){}},
+  clear(){try{localStorage.removeItem(SKEY+'.bak');localStorage.removeItem(SKEY+'.bakd')}catch(e){}}
+};
+{const f=save;save=function(){if(!noSave)Yobi.keep();return f.apply(this,arguments)}}
+$('reset-yes').addEventListener('click',()=>Yobi.clear(),true);
+setInterval(()=>{if(S&&S._restored&&started){delete S._restored;save();say('（育てたデータが読み込めなかったので、前の日の予備から戻しました）',{narr:true})}},3000);
+
+/* =====================================================================
+   THANK YOU FOR YESTERDAY — a wish you granted is remembered the next day.
+   ===================================================================== */
+{const f=Onegai.tick;Onegai.tick=function(){
+  const o=S&&S.og;
+  if(o&&o.done&&!o.thx&&o.d===dkey(Date.now()-DAY)&&started&&S.stage>=1&&!Life.dead){
+    if(Daily.sess>15&&!typing&&!queue.length&&!Life.asleep&&!Game.molting&&!Molt.phase&&!S.pending){o.thx=1;save();
+      say(S.stage===1?'……キノウ、アリガト、ゴザイマシタ。':pickR(['昨日は、ありがとうございました。……'+this.L[o.k].lb.replace(/（.*）/,'')+'の件です。','……昨日のおねがい、覚えていますよ。ありがとうございました。']),{emo:'happy'});Shippo.go(2)}
+    return}
+  return f.apply(this,arguments)}}
+
+/* =====================================================================
+   A GENTLE KNOCK — one tap on the glass makes it curious and it comes over;
+   knocking again soon after startles it, as before.
+   ===================================================================== */
+const Knock={last:0};
+{const f=Game.knock;Game.knock=function(){const now=Date.now(),gentle=now-Knock.last>20000;Knock.last=now;
+  if(gentle&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&!Molt.phase&&!Utatane.on&&['idle','walk'].includes(C.state)){
+    Audio2.tone(320,300,.12,'sine',.12);C.face=Math.max(C.face,4);Suna.out();
+    if(CAM.zoom>=.5)setState('walk',{target:new V3(camera.position.x*.35,0,clamp(camera.position.z*.4,-3,3))});
+    if(Math.random()<.5)say(S.stage===1?'……？':pickR(['……おや。どうなさいましたか。','……呼びましたか。']),{emo:'curious'});
+    return}
+  return f.apply(this,arguments)}}
+
+/* =====================================================================
+   HOW TO PLAY — one page in the settings menu, the same words as the tips.
+   ===================================================================== */
+const Asobi={
+  open(){closePops();const n=gname();$('asobi-list').innerHTML=[
+    ['話しかける','下の欄に書いて「話す」。マイクのボタンで、声でも話しかけられます。'],
+    ['なでる',n+'を長押しして、そのまま指を動かします。背中がお好きです。'],
+    ['餌をやる','「餌をやる」で餌を選ぶと箸が出ます。口もとへ運んであげてください。'],
+    ['水槽のお世話','照明・水換え・水温は下のボタンで。好きな水温は8〜12℃。白い光はまぶしがります。'],
+    ['困ったとき','左上の「様子」をタップすると、次にやることを教えてくれます。'],
+    ['その他','日記・写真・図鑑・相談所・手紙・置き水槽・同居・名前は「その他」から。'],
+    ['見回す','画面をなぞると見回せます。指で広げると近づけます（近すぎると恥ずかしがります）。ダブルタップで元の位置に。'],
+    ['音','右上のスピーカーを押すと、音がすべて消えます。'],
+    ['おねがい','1日1回、小さなおねがいをします。かなえなくても困ることはありません。'],
+    ['データ','育てたデータはこの端末に保存されます。設定の「データの引き継ぎ」でコードを控えておくと安心です。']
+  ].map(([a,b])=>'<li><b>'+a+'</b><span>'+b+'</span></li>').join('');$('asobi').hidden=false}
+};
+$('set-asobi').addEventListener('click',e=>{e.stopPropagation();Asobi.open()});
+$('asobi-close').addEventListener('click',()=>$('asobi').hidden=true);
 
 let started=false;
 function boot(){
@@ -4591,7 +4678,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
