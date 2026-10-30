@@ -22,6 +22,7 @@
     <div class="title-buttons">
       <button class="btn primary" id="btn-continue" hidden>つづきから</button>
       <button class="btn" id="btn-new">はじめから</button>
+      <button class="btn" id="btn-daily">今日の農場</button>
     </div>
     <div class="sound-row" id="title-sound"></div>
     <p class="title-best" id="title-best"></p>
@@ -33,6 +34,7 @@
 <section class="screen" id="screen-select">
   <div class="panel-page">
     <h2 class="page-title">どの農家として生きるか</h2>
+    <p class="daily-note" id="daily-note" hidden></p>
     <div class="difficulty-row" id="difficulty-row" role="radiogroup" aria-label="難しさ"></div>
     <div id="farmer-list" class="farmer-list"></div>
   </div>
@@ -101,6 +103,7 @@
   <div class="panel-page map-page">
     <p class="map-season" id="map-season"></p>
     <div class="map-progress" id="map-progress" aria-label="季節の進み具合"></div>
+    <button class="boss-preview" id="map-boss" type="button"></button>
     <p class="map-lead" id="map-lead"></p>
     <div class="map-choices" id="map-choices"></div>
     <p class="map-status" id="map-status"></p>
@@ -206,6 +209,7 @@
 <script src="data/glossary.js"></script>
 <script src="data/relics.js"></script>
 <script src="data/events.js"></script>
+<script src="data/weathers.js"></script>
 <script src="data/farmers.js"></script>
 <!-- 仕組み -->
 <script src="js/core/util.js"></script>

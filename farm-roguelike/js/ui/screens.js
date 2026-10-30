@@ -64,7 +64,7 @@ FR.Screens = {
     t.textContent = text;
     t.className = 'show ' + (kind || '');
     clearTimeout(FR.Screens._toastTimer);
-    FR.Screens._toastTimer = setTimeout(() => { t.className = ''; }, 1600);
+    FR.Screens._toastTimer = setTimeout(() => { t.className = ''; }, Math.max(1600, text.length * 90));   // 長い知らせは長めに出す
   },
 
   modal(title, html) {
