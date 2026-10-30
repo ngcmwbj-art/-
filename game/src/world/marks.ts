@@ -10,7 +10,9 @@
 //            （改善会議 2026-10-28 の1）線は 2 px、かぎは 6 px。敵のシンボル（kind 'sym'）には 出さない。
 //            （改善会議 2026-10-29 の2）しゅんが 枠に かさなる とき（真下から 上を 向いた とき）は、
 //            かぎを しゅんの 左右へ 寄せて 少し 小さく（高さは 相手の 足もとの まま）。頭の上へ 上げると
-//            相手の 体・顔・帽子に かかるので やめた。しゅんの 体の 所は くりぬく（HD-2D）／しゅんの 下（2D）。
+//            相手の 体・顔・帽子に かかるので やめた。
+//            （改善会議 2026-10-30 の2）枠は 人の 絵より 前に（最後に）描く。しゅんの 横に 立つ 仲間の 後ろに
+//            かぎが 隠れていた（くりぬき を やめた）。仲間の いない 側へ 寄せる 形は、枠の 場所が 毎回 変わるので とらない。
 // 1〜3 は同じ形・同じ色（会議：印が2種類あると画面がうるさい）。点滅はおだやかに（明るさが 1.8 秒で
 // ゆっくり上下するだけ）。せってい「しるし：あり／なし」で まとめて消せる（ui/settings.ts marks）。
 //
@@ -34,7 +36,7 @@ import { flag } from '../game/state';
 import { settings } from '../ui/settings';
 import type { Actor } from './actor';
 import type { FieldScene } from './field';
-import { fxAt, fxElsewhere, registerWorldFx } from './fx';
+import { fxAt, registerWorldFx } from './fx';
 import { fushigiActive, fushigiDone } from './fushigi';
 import type { DoorObj, ExamineObj } from './types';
 
@@ -230,7 +232,7 @@ function dots(g: Gfx, x0: number, y0: number, x1: number, y1: number, col: strin
     g.ctx.fillRect(Math.round(x0 + ((x1 - x0) * i) / n - h), Math.round(y0 + ((y1 - y0) * i) / n - h) + oy, AIM_LINE, AIM_LINE);
 }
 
-/** 人の 絵の 画面の 四角（左・上・右・下。くりぬき と 持ち上げに 使う）。 */
+/** 人の 絵の 画面の 四角（左・上・右・下。しゅんの 左右へ 寄せるのに 使う）。 */
 function bodyRect(f: FieldScene, b: Actor, cx: number, cy: number): [number, number, number, number] {
   const [fx0, fy0] = fxAt(f, b.x - 8, b.y, cx, cy, b.y);
   const [fx1, fy1] = fxAt(f, b.x + 8, b.y - (b.sprite?.h ?? 24) - 2, cx, cy, b.y);
@@ -278,18 +280,9 @@ function drawAim(g: Gfx, f: FieldScene, x: Aim, cx: number, cy: number): void {
       for (const q of pts) q[1] = my + (q[1] - my) * 0.7;
     }
   }
-  // HD-2D: the frame lies over the picture, so leave out whoever stands in front of
-  // it (Minato and his partner): it reads as lying behind them, as in 2D
-  if (fxElsewhere(f)) {
-    ctx.beginPath();
-    ctx.rect(-50, -50, 10000, 10000);
-    for (const b of [p, f.follower]) {
-      if (!b || !b.visible || b === x.actor) continue;
-      const [l, tp, r, bm] = bodyRect(f, b, cx, cy);
-      ctx.rect(l, bm, r - l, tp - bm);
-    }
-    ctx.clip('evenodd');
-  }
+  // (改善会議 2026-10-30 の2) it is drawn last, over the people: no cut-out for Minato or his
+  // partner standing beside him (the partner hid the corners). The corners still move out to his
+  // sides above, so they do not lie over his body when he stands over the frame
   g.alpha(x.a, () => {
     for (const [col, oy] of [
       ['#2A2440', 1],
@@ -432,8 +425,9 @@ registerWorldFx({
   anchored: true,
   update,
   draw(f, g, cx, cy, layer) {
-    // the frame lies on the ground (under the people in 2D)
-    if (layer === 'ground') for (const x of aims) drawAim(g, f, x, cx, cy);
+    // the frame: drawn last, over the people (改善会議 2026-10-30 の2: the partner beside him
+    // hid its corners), still placed on the ground at the other's feet
+    if (layer === 'glow') for (const x of aims) drawAim(g, f, x, cx, cy);
     if (layer !== 'glow' || showA <= 0.01) return;
     const t = performance.now();
     g.alpha(showA, () => {

@@ -25,6 +25,7 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_hb_start: 'hokihata 穂は ほうき、茎は 柄',
   flag_sb_start: 'soba ちがう 花が、となりに',
   flag_ks2_start: 'touge 雲の 下にも、郵便受け',
+  flag_nh_start: 'negi 土を 寄せるほど、白く なる',
   flag_mimi_start: 'mimi ふくじんづけと 耳の あいさつ',
   flag_mg_start: 'mushigomu 上へ 降る 雪',
   flag_nr_start: 'neru 前から 寝る',

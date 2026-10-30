@@ -38,7 +38,7 @@ import { pgOn } from '../../world/postgame';
 import { addMarkSource } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import { skipIntro, type Howto } from '../../ui/closeup';
+import { pickRows, skipIntro, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/c3_housou';
 import { HS_UI } from '../../data/text/c3_housou';
 import { SHINKAI_PA } from '../../data/text/c3_story3';
@@ -200,6 +200,20 @@ export class ChimePanel implements Widget {
   /** pause の 間に けってい を 押した。 */
   pushed = false;
   private armT = 0;
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：4つの ボタン（下の 段まで）。 */
+  touchPick: TouchPick = {
+    spots: () =>
+      this.phase === 'select' && this.seq.length < 4 && !this.auto && this.open >= 1
+        ? pickRows(4, (i) => [BX0 + i * BGAP - 2, SY + 22, BW + 4, 52])
+        : null,
+    cursor: () => this.cur,
+    moveTo: (i) => {
+      if (i === this.cur) return;
+      this.cur = i;
+      se('se_cursor', { vol: 0.5 });
+    },
+  };
 
   update(dt: number, input: Input): void {
     this.t += dt;

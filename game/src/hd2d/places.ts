@@ -153,6 +153,9 @@ export const PLACES: Record<string, PlaceDef> = {
     nightSky: true,
   },
   map_hoshi_gakkyuen: { outside: (tx, ty) => (ty < 1 ? 'H' : ty > 8 ? ',' : tx < 1 || tx > 14 ? 'T' : ',') },
+  // 裏の ネギ畑（土を 寄せるほど、白く なる、02_ch2_index）：北は 杉林、西は マサルの 家の 庭の がわの 草地、
+  // 東と 南は 低い 石垣の 下の 段の 草地（g：1段 低い）
+  map_hoshi_negi: { steps: { g: -8 }, outside: (tx, ty) => (ty < 1 ? 'H' : tx < 1 ? ',' : 'g') },
   // 海ぞいの町 (chapter 3, 62 8.9): the harbour and the sea lie lower than the
   // quay (8 px: the quay's and the breakwater's faces stand over the water);
   // the boats float on it. Past the south edge the sea goes on (the edge rows).

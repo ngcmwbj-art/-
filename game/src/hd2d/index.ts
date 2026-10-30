@@ -69,6 +69,8 @@ const MAPS = new Set([
   'map_hoshi_gakkyuen',
   // 峠の カーブ（雲の 下にも、郵便受け、02_ch2_index）
   'map_hoshi_touge',
+  // 裏の ネギ畑（土を 寄せるほど、白く なる、02_ch2_index）
+  'map_hoshi_negi',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
   // 沖の ブイの 下（海の 水で 寄せる、03_ch3_index 28）

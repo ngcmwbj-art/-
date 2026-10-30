@@ -6,8 +6,8 @@
 //   グソっ君が いなくても 進む（グソっ君の 台詞は 抜く。道の 順の まちがいは 地の文）。
 //   ・転回場の さんかど（バスの うしろ (39,41)）：今の 段階の いつもの 会話を ひととおり（h1_2・h2_2）聞いた あと、
 //     もう 1回 話すと〔kumo〕（flag_ks2_told、大事なもの『さんかどの 手紙 3通』item_ks2_tegami）。頭の 上に「！」。
-//   ・県道の 西の はし（村の (0,38–39)、trig_ch2_edge_road）：〔kumo〕の あとの 段階1〜2 だけ、ぶつかると 暗転で 峠の
-//     カーブ (22,5) へ（道の 続き。人が 絵の 中へ 歩いて 入る 形では ない）。それ以外は 今の 文の まま
+//   ・県道の 西の はし（村の (0,38–39)、trig_ch2_edge_road）：〔kumo〕の あとの 段階1〜2 だけ、歩いて 着くと すぐ 暗転で
+//     峠の カーブへ（戸 door_ks2_touge＝ほかの 道の 続きと 同じ 判定。改善 10-30 の 3）。それ以外は 今の 文の まま
 //     （第2章の 通しテストは〔kumo〕を 聞かないので、道の 判定は 変わらない）。
 //   ・峠の カーブ：入ると すぐ 2 山の 上の 海（1回）。ガードレールの 見晴らし (16–19,9) を 調べると 大写し「雲の 海」
 //     KumoPanel：雲の 海と、雲から 出た 3つの 目印（高台の お寺の 屋根・丘の 神社の 大杉・尾根の 鉄塔の 頭）、峠から
@@ -28,16 +28,18 @@ import type { Input } from '../../engine/input';
 import { measure } from '../../engine/font';
 import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
-import { addItem, flag, hasItem, removeItem, setFlag, state } from '../../game/state';
+import { addItem, flag, hasItem, onFlagRaised, removeItem, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { registerScript } from '../../world/api';
 import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
+import { getMapDef, registerMap } from '../../world/maps';
+import type { MapObj } from '../../world/types';
 import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import type { Howto } from '../../ui/closeup';
+import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/hoshi_touge';
 import { KS_MEMO, KS_UI } from '../../data/text/hoshi_touge';
 import { HOSHI_OBJ } from '../../data/text/hoshi_objects';
@@ -71,6 +73,8 @@ export const KF = {
   kyoku: 'flag_ks2_kyoku',
   ashita: 'flag_ks2_ashita',
   after: 'flag_ks2_after',
+  /** 手紙を 持った まま 章が 進んだ（大事なものから 消して、みました帳②の すみに「わたした」の 1行）。 */
+  pass: 'flag_ks2_pass',
 } as const;
 
 const VILLAGE = 'map_hoshimidai';
@@ -224,6 +228,25 @@ export class KumoPanel implements Widget {
   glow = 0;
   glowI = -1;
   private autoT = 0;
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：今 選べる 島の 絵の まわり。 */
+  touchPick: TouchPick = {
+    spots: () =>
+      this.phase === 'pick' && !this.auto && this.open >= 1
+        ? pickRows(3, (i) => {
+            if (!this.free(i)) return null;
+            const c = ISLE[i];
+            const r = Math.round(16 * c.s);
+            return [SX + c.x - r, SY + c.y - Math.round(26 * c.s), r * 2, Math.round(30 * c.s)];
+          })
+        : null,
+    cursor: () => this.cur,
+    moveTo: (i) => {
+      if (i === this.cur || !this.free(i)) return;
+      this.cur = i;
+      se('se_cursor', { vol: 0.3 });
+    },
+  };
 
   /** 島 i が 今 選べる（行き先：まだ 手紙の ない 島、順：まだ 番号の ない 島）。 */
   free(i: number): boolean {
@@ -593,20 +616,50 @@ function* kumoGame(): Co {
   yield* say(T.KS_JUN_DONE_KN);
 }
 
+// ================================================================ 用の 済んだ 手紙（改善会議 10-30 の 5）
+
+/**
+ * 手紙を 持った まま 章が 進んだ（ボス戦に 勝った・第3章が 始まった）：大事なものから 消す。だまって 消さず、
+ * みました帳②の すみに「さんかどの 手紙は、わたした」の 1行（flag_ks2_pass、ui/menu/book_touge.ts）。
+ * 消すのは この 時だけ（段階3の 夜は 持った まま：さんかどの 寄り道の 窓は 閉じるが、章は 進んでいない）。
+ */
+export function ksTegamiTidy(): boolean {
+  if (!hasItem(ITEM)) return false;
+  while (hasItem(ITEM)) removeItem(ITEM);
+  if (!flag(KF.done)) setFlag(KF.pass, 1);
+  return true;
+}
+onFlagRaised((id) => {
+  if (id === 'flag_ch2_boss_beaten' || id === 'flag_ch2_clear' || id === 'flag_ch3_started') ksTegamiTidy();
+});
+
 // ================================================================ 台本：村
 
-/** 県道の 西の はし（ぶつかる・調べる）：〔kumo〕の あとの 段階1〜2 だけ 峠の カーブへ。 */
+/** 峠の カーブへ 行ける 時（〔kumo〕の あとの 段階1〜2）。 */
+const edgeOpen = (): boolean => ksOpen() && !!flag(KF.told);
+
+// 県道の 西の はしは、ほかの 道の 続き（地図の 出入口）と 同じ 判定に：歩いて 着いたら すぐ 暗転して 峠の カーブへ
+// （改善 2026-10-30 の 3。前は ぶつかって 押し続ける 形で、数秒 かかった）。行けない 時は 戸の 条件が 合わず、今の
+// ぶつかる 文（trig_ch2_edge_road）の まま。
+{
+  const def = getMapDef(VILLAGE);
+  if (def && !def.objects.some((o) => o.t === 'door' && o.id === 'door_ks2_touge')) {
+    def.objects.push({
+      t: 'door', id: 'door_ks2_touge', x: 0, y: 38, w: 1, h: 2, to: TOUGE, tx: KS_IN_AT[0], ty: KS_IN_AT[1], dir: 'left',
+      se: 'se_step_asphalt', cond: { when: edgeOpen },
+    } as MapObj);
+    registerMap(def);
+  }
+}
+
+/** 県道の 西の はし（調べる・ぶつかる）：〔kumo〕の あとの 段階1〜2 だけ 峠の カーブへ（ふだんは 上の 戸が 先に 移す）。 */
 function* edgeRoad(): Co {
   const f = field();
   if (!f) return;
-  if (!ksOpen() || !flag(KF.told)) {
+  if (!edgeOpen()) {
     yield* runMsg(HOSHI_OBJ.obj_hoshi_edge_road as string);
     return;
   }
-  if (!flag(KF.edge)) {
-    setFlag(KF.edge, 1);
-    yield* say(T.KS_EDGE_GO);
-  } else if (flag(KF.done)) yield* say(T.KS_EDGE_AFTER);
   yield* f.warpCo(TOUGE, KS_IN_AT[0], KS_IN_AT[1], 'left', 'se_step_asphalt', VILLAGE);
 }
 registerScript('trig_ch2_edge_road', edgeRoad);
@@ -677,9 +730,20 @@ wrap(SANKADO, function* (_ctx, orig): Co {
 
 /** 2 山の 上の 海（入ると すぐ。1回）。 */
 registerScript('evt_ks2_enter', function* (): Co {
+  // すんだ あと 県道から 来た：前と 同じ 1ページ（前は 西の はしで 暗転の 前に 出した）
+  if (ksOpen() && flag(KF.done) && field()?.cameFrom === VILLAGE) {
+    yield 300;
+    yield* say(T.KS_EDGE_AFTER);
+    return;
+  }
   if (!ksOpen() || flag(KF.first)) return;
   yield 300;
   setFlag(KF.first, 1);
+  // はじめての 道（前は 西の はしで 暗転の 前に 出した 1ページ。すぐ 移る ように なったので、着いてから）
+  if (!flag(KF.edge)) {
+    setFlag(KF.edge, 1);
+    yield* say(T.KS_EDGE_GO);
+  }
   yield* say(T.KS_ENTER);
 });
 
@@ -756,10 +820,24 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'mono'    入った あと、カーブミラーの 前 (12,12) 下向き
  *   'houkoku' 並べた あと、さんかどの 前
  *   'done'    すんだ あと、県道の 西の はしの 3マス 手前
+ *   'boss'    手紙を 持った まま（行き先 1/3）、ボス戦の 柱の 前（勝つと 手紙は 消えて、みました帳②に「わたした」）
  *   miss：auto の とき、はじめに まちがえる 回数
  */
 if (import.meta.env.DEV) {
   registerDebug('touge', (step = 'san', stg = 'h1', auto = false, miss = 0) => {
+    // 'boss'：手紙を 持った まま ボス戦の 柱の 前へ（勝つと 手紙は 大事なものから 消えて、みました帳②に 1行）
+    if (step === 'boss') {
+      cmd().jump?.('ch2:boss');
+      for (const id of Object.values(KF)) setFlag(id, 0);
+      while (hasItem(ITEM)) removeItem(ITEM);
+      setFlag(KF.start, 1);
+      setFlag(KF.told, 1);
+      setFlag(KF.edge, 1);
+      setFlag(KF.first, 1);
+      setFlag(KF.ate, 1);
+      addItem(ITEM);
+      return ksState();
+    }
     const want = stg === 'h2' ? 2 : 1;
     const inCh2 = (field()?.map.id ?? '').startsWith('map_hoshi');
     if (!inCh2 || hStage() !== want || flag('flag_ch2_boss_beaten')) cmd().jump?.(want === 2 ? 'ch2:hill' : 'ch2:houki', true);
@@ -803,7 +881,11 @@ if (import.meta.env.DEV) {
     return qaAuto;
   });
 
-  registerDebug('ksState', () => {
+  registerDebug('ksState', () => ksState());
+}
+
+function ksState(): unknown {
+  {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(KF)) flags[k] = flag(id);
     const p = game.ui.widgets.find((w) => w instanceof KumoPanel) as KumoPanel | undefined;
@@ -818,7 +900,7 @@ if (import.meta.env.DEV) {
       at: f ? [f.player.tileX, f.player.tileY] : null,
       panel: p ? { mode: p.mode, letter: p.letter, cur: p.cur, phase: p.phase } : null,
     };
-  });
+  }
 }
 
 /** Every page: at most 3 lines, each at most 336 px; the chapter's banned words not in the lines; the panel's words in their room. */

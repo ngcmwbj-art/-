@@ -43,6 +43,7 @@ import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { addToMap, inCh3, say3 } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { pickRows, type TouchPick } from '../../ui/closeup';
 
 export const OF = {
   to: 'flag_oj_to',
@@ -168,6 +169,18 @@ export class HaisuiPanel implements Widget {
     this.n = n;
     this.cur = Math.min(n, 4);
   }
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：右の 段の 名前（取った 段は のぞく）。 */
+  touchPick: TouchPick = {
+    spots: () =>
+      this.active && !this.pick && !this.auto && this.open >= 1 ? pickRows(5, (i) => (i >= this.n ? [RX - 2, SY + 4 + i * 14 - 1, SX + CW - RX, 14] : null)) : null,
+    cursor: () => this.cur,
+    moveTo: (i) => {
+      if (i === this.cur || i < this.n || i > 4) return;
+      this.cur = i;
+      se('se_cursor', { vol: 0.3 });
+    },
+  };
 
   update(dt: number, input: Input): void {
     this.t += dt;

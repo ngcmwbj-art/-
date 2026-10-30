@@ -3,6 +3,8 @@
 // 向こうの 雲の 海と、雲から 出た お寺の 屋根・大杉・鉄塔、3通の 手紙が 道の 順に 並んだ 鉛筆の 絵。すみに、雲を
 // 海と まちがえて 両手を 広げる グソっ君。さんかどの 字で「道順」。手紙の 行き先 ○/3・峠の 物 ○/5。
 // ふしぎの 数（/10）には 入れない。
+// 手紙を 持った まま 章が 進んだ とき（flag_ks2_pass、改善会議 10-30 の 5）は、すまなくても 同じ 所に
+// 「さんかどの 手紙は、わたした」の 1行（右の ページの 題は passLines、さんかどの 字は なし）。
 //
 // QA：__game.cmd.ksBookText()、bookPeek('ks')
 
@@ -15,10 +17,14 @@ import { FOLD, LP, pageText, RP, SP } from './notebook';
 import { addBookPeek } from './book_yuwaka';
 
 export function hasKsPage(): boolean {
-  return flag('flag_ks2_done') > 0;
+  return flag('flag_ks2_done') > 0 || flag('flag_ks2_pass') > 0;
 }
 
 export const KS_ROW_LABEL = KS_BOOK.title;
+
+/** 手紙を 持った まま 章が 進んだ（すまずに わたした）：一覧の 1行と 右の ページの 題が「さんかどの 手紙は、わたした」。 */
+const passed = (): boolean => !flag('flag_ks2_done') && flag('flag_ks2_pass') > 0;
+export const ksRowLabel = (): string => (passed() ? KS_BOOK.pass : KS_ROW_LABEL);
 
 const TITLE_H = 17;
 const LINE_H = 16;
@@ -31,8 +37,10 @@ const nbits = (v: number, n: number) => {
 };
 
 export function drawKsPage(g: Gfx, x: number, y: number, w: number): void {
-  KS_BOOK.titleLines.forEach((l, i) => g.text(l, x, y + i * TITLE_H, { color: UI.text }));
-  const th = TITLE_H * KS_BOOK.titleLines.length;
+  const pass = passed();
+  const head = pass ? KS_BOOK.passLines : KS_BOOK.titleLines;
+  head.forEach((l, i) => g.text(l, x, y + i * TITLE_H, { color: UI.text }));
+  const th = TITLE_H * head.length;
   pencilLine(g, x, y + th + 1, w - 6, 1, UI.pencil, 151);
   const ly = y + th + 6;
   const pc = UI.pencil;
@@ -74,17 +82,20 @@ export function drawKsPage(g: Gfx, x: number, y: number, w: number): void {
     pageText(g, counts[i], x + w - 6 - textW(counts[i]), ty, { color: UI.text });
     ty += LINE_H;
   });
-  // さんかどの 字
+  // さんかどの 字（すんだ ときだけ）
+  if (pass) return;
   KS_BOOK.quote.forEach((l, i) => pageText(g, l, x + 4 + i * 12, ty + 1 + i * LINE_H, { color: '#5A6A8A' }));
 }
 
 export function ksBookCheck(): { pages: number; bad: string[] } {
   const bad: string[] = [];
   const labelW = FOLD - 4 - (LP.x + 14);
-  const row = phraseWrapInfo(KS_ROW_LABEL, labelW);
-  if (row.lines.length > 2 || row.forced) bad.push(`一覧: ${row.lines.join('／')}`);
+  for (const label of [KS_ROW_LABEL, KS_BOOK.pass]) {
+    const row = phraseWrapInfo(label, labelW);
+    if (row.lines.length > 2 || row.forced) bad.push(`一覧: ${row.lines.join('／')}`);
+  }
   const room = RP.w - 6;
-  for (const l of KS_BOOK.titleLines) if (textW(l) > room) bad.push(`${l}: ${textW(l)}px`);
+  for (const l of [...KS_BOOK.titleLines, ...KS_BOOK.passLines]) if (textW(l) > room) bad.push(`${l}: ${textW(l)}px`);
   for (const r of KS_BOOK.rows) if (2 + textW(r) + 8 + textW('5/5') > room) bad.push(`${r}: wide`);
   KS_BOOK.quote.forEach((l, i) => {
     if (4 + i * 12 + textW(l) > room) bad.push(`${l}: wide`);
@@ -92,6 +103,9 @@ export function ksBookCheck(): { pages: number; bad: string[] } {
   const y = SP.y + 28;
   const bottom = y + TITLE_H * KS_BOOK.titleLines.length + 6 + PIC_H + 4 + LINE_H * (KS_BOOK.rows.length + KS_BOOK.quote.length) + 1;
   if (bottom > SP.y + SP.h - 2) bad.push(`本文: bottom ${bottom} > ${SP.y + SP.h - 2}`);
+  // すまずに わたした ページ（題が passLines、さんかどの 字は なし）
+  const bottom2 = y + TITLE_H * KS_BOOK.passLines.length + 6 + PIC_H + 4 + LINE_H * KS_BOOK.rows.length + 1;
+  if (bottom2 > SP.y + SP.h - 2) bad.push(`本文（わたした）: bottom ${bottom2} > ${SP.y + SP.h - 2}`);
   return { pages: 1, bad };
 }
 

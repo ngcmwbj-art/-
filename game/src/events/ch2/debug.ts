@@ -93,6 +93,7 @@ import { RT_TEXTS } from '../../data/text/hoshi_retasu';
 import { HB_TEXTS } from '../../data/text/hoshi_hokihata';
 import { SB_TEXTS } from '../../data/text/hoshi_soba';
 import { KS_TEXTS } from '../../data/text/hoshi_touge';
+import { NH_TEXTS } from '../../data/text/hoshi_negi';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -569,6 +570,8 @@ function collectTexts(): [string, string][] {
   walk('soba', SB_TEXTS);
   // げむきか10/29の案5（雲の 下にも、郵便受け。02_ch2_index）
   walk('touge', KS_TEXTS);
+  // げむきか10/30の案5（土を 寄せるほど、白く なる。02_ch2_index）
+  walk('negi', NH_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）

@@ -49,6 +49,7 @@ import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
 import { addToMap, c3Stage, inCh3, kita, say3 } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { pickRows, type TouchPick } from '../../ui/closeup';
 
 export const MKF = {
   pre: 'flag_mk_pre',
@@ -272,6 +273,25 @@ export class EdaPanel implements Widget {
   private armT = 0;
 
   constructor(public k: number) {}
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：5つの 実（枝の 付け根から 実まで）。 */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (!this.active || this.picked !== null || this.cancel || this.auto || this.open < 1) return null;
+      return pickRows(5, (i) => {
+        const [x, by] = this.branchAt(i, SY);
+        const [, my] = this.miAt(i, SY);
+        const top = Math.min(by, my) - 10;
+        return [x - 18, top, 36, Math.max(by, my) + 10 - top];
+      });
+    },
+    cursor: () => this.sel,
+    moveTo: (i) => {
+      if (i === this.sel) return;
+      this.sel = i;
+      se('se_cursor', { vol: 0.5 });
+    },
+  };
 
   update(dt: number, input: Input): void {
     this.t += dt;

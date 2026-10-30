@@ -37,6 +37,8 @@ import {
   type Feature,
 } from '../data/text/hokokusho';
 import { HOWTO } from '../data/text/howto';
+// (型だけ：ui/closeup.ts は 重い ので 読み込みの 輪に しない)
+import type { TouchPick } from './closeup';
 
 const PANEL_Y = 6;
 const PANEL_H = 140;
@@ -459,6 +461,24 @@ export class FoodGame extends Panel {
     super(272);
     while (this.tried.includes(this.sel) && this.sel < HK_FOODS.length - 1) this.sel++;
   }
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：つくえの 上の 食べ物（ためした 物は のぞく）。 */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (this.t < 250 || this.out >= 0) return null;
+      const slot = Math.floor((this.w - 40) / HK_FOODS.length);
+      return HK_FOODS.map((_, i) => ({ i, x: this.x + 20 + i * slot + Math.round((slot - 40) / 2), y: PANEL_Y + 66 - 8, w: 40, h: 38 })).filter(
+        (s) => !this.tried.includes(s.i),
+      );
+    },
+    cursor: () => this.sel,
+    moveTo: (i) => {
+      if (i === this.sel) return;
+      this.sel = i;
+      this.moveT = 0;
+      sfx('se_cursor');
+    },
+  };
 
   protected tick(dt: number, input: Input): void {
     this.moveT += dt;

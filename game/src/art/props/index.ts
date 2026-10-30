@@ -68,6 +68,7 @@ import './hokihata_art';
 // ちがう 花が、となりに（02_ch2_index）：分校の そば畑の そば・道具小屋・名札の 杭・当番表・竹垣と 戸
 import './soba_art';
 import './touge_art';
+import './negi_art';
 // 波に 見せる 城（03_ch3_index）：海水浴場の バケツ・城・乾いた 砂・かざり 3つ
 import './shiro_art';
 // 穴は、だれかの ごちそうさま（03_ch3_index）：海水浴場の 貝がら・ツメタガイの 殻・砂の お茶わん（段階2）

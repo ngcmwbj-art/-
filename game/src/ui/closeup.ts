@@ -36,7 +36,7 @@ import { sfx } from '../audio';
 import { flag, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import { cinemaOff, clearKeyGuides, deviceKeys, forceBoxPos, keycap, type GuideKey } from '../events/stage';
-import { setButtonHint } from '../engine/touch';
+import { setButtonHint, setCanvasPick, touchControlsOn, type PickTapResult } from '../engine/touch';
 import { field } from '../world/field';
 import { runMsg } from '../world/msg';
 import { drawTape, drawWindow, textW, UI } from './window';
@@ -97,6 +97,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_rt_start: { ids: ['retasu'], how: 'already', pages: '0（光る 玉を 調べると すぐ。やめた 玉は flag が 立たず、もう 一度 はじめから）' },
   flag_sb_start: { ids: ['soba'], how: 'already', pages: '0（そばを 調べると すぐ。のぞいた 花と 立てた 札は 残り、続きから）' },
   flag_ks2_start: { ids: ['touge'], how: 'already', pages: '0（見晴らしを 調べると すぐ。きまった 行き先と 順は 残り、続きから）' },
+  flag_nh_start: { ids: ['negi'], how: 'already', pages: '0〜3（畝を 調べると すぐ。2本目の 前置き 3ページは 1回きり。寄せた 土の 段は 残り、続きから）' },
   flag_hb_start: { ids: ['hokihata'], how: 'already', pages: '0（光る 株を 調べると すぐ。やめた 株は flag が 立たず、もう 一度 はじめから）' },
   flag_hn_start: { ids: [], how: 'none', pages: '穂を 見て 選ぶ だけ' },
   flag_hm_start: { ids: ['himo'], how: 'already', pages: '1（待って！は 1回きり）' },
@@ -240,6 +241,12 @@ game.ui.closeupHooks = {
   },
   input(w: Widget, input: Input): boolean {
     if (quitting.has(w)) return true;
+    // (指で さわって 選ぶ: the cursor goes to what was touched, before the game's own frame)
+    if (pickPending && pickPending.w === w) {
+      const i = pickPending.i;
+      pickPending = null;
+      touchPickOf(w)?.moveTo(i);
+    }
     if (cardDue(w)) {
       shownNow.add(w.howto!.id);
       HOWTO_SEEN.set(w.howto!.id, w.howto as Howto);
@@ -334,6 +341,216 @@ function drawTag(g: Gfx): void {
   });
 }
 game.overlays.push(drawTag);
+
+// ---------------------------------------------------------------- 指で さわって 選ぶ（改善会議 2026-10-30 の 1）
+//
+// 大写しの 物を 指で さわって 選ぶ。どの 大写しでも 同じ 決め方：
+//   1回目の タッチ：カーソルが その 物へ（パネルの moveTo。音も パネルの カーソルの 音）。
+//   2回目（同じ 物）：けってい（いつもの けってい と 同じ：パネルは input.pressed('confirm') で 受ける）。
+//   物の ない 所を さわっても 何も しない（選んで いる あいだは、絵の 外の 黒い 所も けってい に しない）。
+// 十字・けってい・もどる の ボタンと キーは 今の まま。カーソルの 動く 見た目は ここが 描く 共通の
+// 四すみの かぎ（調べる枠と 同じ 形）：タッチの 端末か、指・マウスで 1度 さわった 大写しで、今の 物の
+// まわりに すべって 動く。1回目の あとは「やめる」の 札の 左に 少し「もう一度 さわると けってい」。
+//
+// パネルに 足すのは touchPick だけ（使い方は $SP/handoff/kaizenQ_progress.md の 最初にも）：
+//   touchPick: TouchPick = {
+//     spots: () => (this.active && this.open >= 1 ? pickRows(N, (i) => [x, y + i * 15, w, 15]) : null),
+//     cursor: () => this.sel,
+//     moveTo: (i) => { … this.sel = i; se('se_cursor') … },   // ←→ で 動いた ときと 同じ 事
+//   };
+// spots は 画面の px（W×H、パネルが 描く ときの 座標の まま）。null＝今は 選ぶ 時では ない（さわれば
+// 今まで どおり けってい）。1つの 物に 四角が 2つ（名前の 行と 絵）でも よい（同じ i）。座標の 変換
+// （キャンバスの 拡大・スマホ縦の 位置）は engine/touch.ts が する。QA：__game.cmd.pickInfo()・pickTap(x, y)。
+
+/** さわれる 物の 四角（画面の px）と、その 物の 番号（パネルの カーソルの 番号）。 */
+export interface PickSpot {
+  i: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+/** 指で さわって 選ぶ 大写しの 3つ（Widget に touchPick として 置く）。 */
+export interface TouchPick {
+  /** 今 さわれる 物（null＝今は 選ぶ 時では ない）。 */
+  spots(): PickSpot[] | null;
+  /** 今の カーソルの 番号。 */
+  cursor(): number;
+  /** カーソルを i へ（←→・↑↓ で 動いた ときと 同じ 音・見た目）。 */
+  moveTo(i: number): void;
+}
+
+/** n 個の 物の 四角を まとめて（f(i) = [x, y, w, h]、null は さわれない 物）。 */
+export function pickRows(n: number, f: (i: number) => [number, number, number, number] | null): PickSpot[] {
+  const out: PickSpot[] = [];
+  for (let i = 0; i < n; i++) {
+    const r = f(i);
+    if (r) out.push({ i, x: r[0], y: r[1], w: r[2], h: r[3] });
+  }
+  return out;
+}
+
+function touchPickOf(w: Widget): TouchPick | null {
+  const tp = (w as { touchPick?: TouchPick }).touchPick;
+  return tp && typeof tp.spots === 'function' ? tp : null;
+}
+
+/** 1回目に さわった 物（2回目に 同じ 物なら けってい）。at：game.time。 */
+let pickArmed: { w: Widget; i: number; at: number } | null = null;
+/** 次の フレームで カーソルを 動かす（パネルの update の 前に）。 */
+let pickPending: { w: Widget; i: number } | null = null;
+/** 指・マウスで 1度 さわった 大写し（キーボードでも かぎを 出す）。 */
+const pickUsed = new WeakSet<Widget>();
+/** QA：最後の タッチ。 */
+const pickLog: { x: number; y: number; i: number; r: PickTapResult; cls: string }[] = [];
+
+/** 今 選んで いる 大写し（いちばん 上で、会話・カードが 上に なく、選ぶ 時）。 */
+function pickNow(): { w: Widget; tp: TouchPick; spots: PickSpot[] } | null {
+  if (game.ui.hold) return null;
+  const w = topCloseup();
+  if (!w || quitting.has(w) || cardPending(w) || dialogVisible()) return null;
+  const tp = touchPickOf(w);
+  if (!tp) return null;
+  let spots: PickSpot[] | null = null;
+  try {
+    spots = tp.spots();
+  } catch {
+    return null;
+  }
+  return spots && spots.length ? { w, tp, spots } : null;
+}
+
+/** さわった 所の 物（四角の まわり 3 px まで。重なれば 小さい 方）。-1＝何も ない。 */
+function hitSpot(spots: PickSpot[], x: number, y: number): number {
+  let best = -1;
+  let bestA = Infinity;
+  for (const s of spots) {
+    const pad = 3;
+    if (x < s.x - pad || x > s.x + s.w + pad || y < s.y - pad || y > s.y + s.h + pad) continue;
+    const inside = x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h;
+    const a = s.w * s.h * (inside ? 1 : 4);
+    if (a < bestA) {
+      bestA = a;
+      best = s.i;
+    }
+  }
+  return best;
+}
+
+/** 絵の 上の タッチ（engine/touch.ts から、ゲームの px）。 */
+function pickTap(x: number, y: number): PickTapResult {
+  const p = pickNow();
+  if (!p) return 'pass';
+  const i = hitSpot(p.spots, x, y);
+  const log = (r: PickTapResult): PickTapResult => {
+    pickLog.push({ x: Math.round(x), y: Math.round(y), i, r, cls: p.w.constructor?.name ?? '?' });
+    if (pickLog.length > 12) pickLog.shift();
+    return r;
+  };
+  if (i < 0) return log('eat');
+  pickUsed.add(p.w);
+  const cur = p.tp.cursor();
+  if (pickArmed && pickArmed.w === p.w && pickArmed.i === i && cur === i) {
+    pickArmed = null;
+    return log('confirm');
+  }
+  pickArmed = { w: p.w, i, at: game.time };
+  if (i !== cur) pickPending = { w: p.w, i };
+  else sfx('se_cursor', { vol: 0.4 });
+  return log('eat');
+}
+
+setCanvasPick(pickTap, () => pickNow() !== null);
+
+// the shared cursor: four corner hooks round what is chosen, gliding from the last one
+type Box = [number, number, number, number];
+let glideFrom: Box | null = null;
+let glideTo: Box | null = null;
+let glideT = 1;
+let glideW: Widget | null = null;
+let pickK = 0;
+const PICK_GLIDE = 140;
+const PICK_AGAIN = 'もう一度 さわると けってい';
+/** その 字の 出て いる 時間（ゲームの 時間、ms）。 */
+const PICK_AGAIN_MS = 2800;
+
+function spotBox(spots: PickSpot[], i: number): Box | null {
+  const s = spots.find((q) => q.i === i);
+  return s ? [s.x, s.y, s.w, s.h] : null;
+}
+
+/** 四すみの かぎ（2 px、墨の 影の 上に クリーム。調べる枠と 同じ 形）。 */
+function drawHooks(g: Gfx, b: Box, a: number): void {
+  const [x, y, w, h] = b;
+  const l = Math.round(x - 2);
+  const t = Math.round(y - 2);
+  const r = Math.round(x + w + 2);
+  const bm = Math.round(y + h + 2);
+  const arm = Math.max(3, Math.min(7, Math.round(Math.min(w, h) / 3)));
+  g.alpha(a, () => {
+    for (const [col, oy] of [
+      ['#2A2440', 1],
+      ['#FFF6D8', 0],
+    ] as const) {
+      // top left, top right, bottom left, bottom right
+      g.rect(l, t + oy, arm, 2, col);
+      g.rect(l, t + oy, 2, arm, col);
+      g.rect(r - arm, t + oy, arm, 2, col);
+      g.rect(r - 2, t + oy, 2, arm, col);
+      g.rect(l, bm - 2 + oy, arm, 2, col);
+      g.rect(l, bm - arm + oy, 2, arm, col);
+      g.rect(r - arm, bm - 2 + oy, arm, 2, col);
+      g.rect(r - 2, bm - arm + oy, 2, arm, col);
+    }
+  });
+}
+
+function drawPick(g: Gfx): void {
+  const p = pickNow();
+  const on = !!p && (touchControlsOn() || pickUsed.has(p.w));
+  pickK = on ? Math.min(1, pickK + 0.2) : 0;
+  if (!p || !on) {
+    glideW = null;
+    return;
+  }
+  const want = spotBox(p.spots, p.tp.cursor());
+  if (!want) return;
+  if (glideW !== p.w || !glideTo) {
+    glideW = p.w;
+    glideFrom = want;
+    glideTo = want;
+    glideT = 1;
+  } else if (want.some((v, k) => v !== glideTo![k])) {
+    const k = ease.cubicOut(Math.min(1, glideT));
+    glideFrom = glideFrom!.map((v, j) => v + (glideTo![j] - v) * k) as Box;
+    glideTo = want;
+    glideT = 0;
+  }
+  glideT = Math.min(1, glideT + 1000 / 60 / PICK_GLIDE);
+  const k = ease.cubicOut(glideT);
+  const b = glideFrom!.map((v, j) => v + (glideTo![j] - v) * k) as Box;
+  // (a slow breath while it waits; brighter just after a touch)
+  const armed = pickArmed && pickArmed.w === p.w && pickArmed.i === p.tp.cursor() ? game.time - pickArmed.at : -1;
+  const pulse = 0.82 + 0.18 * Math.sin(performance.now() / 300);
+  drawHooks(g, b, pickK * (armed >= 0 && armed < PICK_AGAIN_MS ? 1 : pulse));
+  // 「もう一度 さわると けってい」 for a moment after the first touch: always the same place, on the
+  // left of the やめる tag (beside what was touched it would lie over the next one)
+  if (armed >= 0 && armed < PICK_AGAIN_MS && glideT >= 0.6) {
+    const tw = textW(PICK_AGAIN) + 8;
+    const [qx, qy, , qh] = quitTagRect(p.w);
+    const th = qh;
+    const tx = Math.max(2, qx - tw - 6);
+    const ty = qy;
+    const a = Math.min(1, armed / 120, (PICK_AGAIN_MS - armed) / 300);
+    markText(tx, ty, tw, th);
+    g.alpha(a, () => {
+      g.rect(tx, ty, tw, th, UI.bg, 0.94);
+      g.frame(tx, ty, tw, th, UI.border);
+      g.text(PICK_AGAIN, tx + 4, ty + 2, { color: UI.pencil });
+    });
+  }
+}
+game.overlays.push(drawPick);
 
 // ---------------------------------------------------------------- 絵（指・ボタン・矢印、1組だけ）
 
@@ -721,6 +938,28 @@ registerDebug('introCheck', () => {
 registerDebug('yameSet', (id?: unknown, on: unknown = 1) => {
   setFlag(yameFlag(String(id)), Number(on));
   return quitBefore(String(id));
+});
+/** QA：指で さわって 選ぶ（10-30 の 1）。今の 大写しの 物、カーソル、最後の タッチ。 */
+registerDebug('pickInfo', () => {
+  const p = pickNow();
+  return {
+    top: p ? p.w.constructor?.name : (topCloseup()?.constructor?.name ?? null),
+    spots: p ? p.spots.map((s) => [s.i, Math.round(s.x), Math.round(s.y), Math.round(s.w), Math.round(s.h)]) : null,
+    cursor: p ? p.tp.cursor() : null,
+    armed: pickArmed ? pickArmed.i : null,
+    armedMs: pickArmed ? Math.round(game.time - pickArmed.at) : null,
+    glide: [Math.round(glideT * 100) / 100, pickK, glideTo],
+    log: pickLog.slice(-6),
+  };
+});
+/** QA：絵の 上の (x, y)（ゲームの px）を 指で さわった 形に（けってい は 1 フレーム 押す）。 */
+registerDebug('pickTap', (x?: unknown, y?: unknown) => {
+  const r = pickTap(Number(x), Number(y));
+  if (r !== 'eat') {
+    game.input.setVirtual('confirm', true);
+    window.setTimeout(() => game.input.setVirtual('confirm', false), 90);
+  }
+  return r;
 });
 registerDebug('closeupQuit', () => {
   const w = topCloseup();

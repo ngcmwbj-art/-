@@ -335,6 +335,7 @@ const HOSHI_PLACE: Record<string, string> = {
   // 分校の そば畑（02_ch2_index、ちがう 花が、となりに。第1章の「学級園」と 名前を 分ける）
   map_hoshi_gakkyuen: '分校の そば畑',
   map_hoshi_touge: '峠の カーブ',
+  map_hoshi_negi: '裏の ネギ畑',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };
@@ -540,7 +541,7 @@ class UiHud implements FieldHud {
   /** flag_pg_secret as last seen (-1: not yet looked this session). */
   private pgSecretSeen = -1;
   // 寄り道の 長さの 札（改善会議 10-26 の 2）：始まりの flag で 待ち、会話の 窓が 閉じたら 上の まん中に 2秒
-  private yoriPending: { text: string; wait: number; flag: string; clear: number } | null = null;
+  private yoriPending: { text: string; wait: number; flag: string; clear: number; again?: boolean } | null = null;
   private yori: (Banner & { flag: string }) | null = null;
   private yoriLast = 0;
   /** QA: the tags put up (text, flag, game.time). */
@@ -965,7 +966,7 @@ class UiHud implements FieldHud {
   /**
    * 寄り道の 長さの 札（game.overlays：大写しの 上にも 出る）。形と 出し方は 場所の 名前と 同じ
    * （和紙テープを 左から 貼って、終わりに はがす）。場所は 画面の 上の まん中（上に 会話の 窓が
-   * あれば その 下）。会話の 窓・やりかたの カード・場所の 名前・持ち物の 付箋が ある 間は 待って、順に。
+   * あれば その 下）。会話の 窓・やりかたの カード・大写し・場所の 名前・持ち物の 付箋が ある 間は 待って、順に。
    */
   drawYori(g: Gfx): void {
     const dt = Math.max(0, Math.min(100, game.time - this.yoriLast));
@@ -977,16 +978,24 @@ class UiHud implements FieldHud {
       if (this.yoriPending && (this.yoriPending.wait += dt) > YORI_WAIT_MAX) this.yoriPending = null;
       return;
     }
+    // 大写しが 開いている 間は 待たせ、閉じた あとに 出す（改善会議 10-30 の 4：始まって すぐ 開く 大写しの 上に
+    // 重なっていた）。出ている 途中で 大写しが 開いたら、待ちに もどして 閉じた あとに 2秒（半分 すぎて いたら 終わり）。
+    const closeup = game.ui.widgets.some((w) => w.closeup && !w.done);
+    if (closeup && this.yori) {
+      const b0 = this.yori;
+      this.yori = null;
+      if (b0.t < b0.dur / 2 && !this.yoriPending) this.yoriPending = { text: b0.text, wait: 0, flag: b0.flag, clear: 0, again: true };
+    }
     const p = this.yoriPending;
     if (p && !this.yori) {
-      const clear = !dialogVisible() && !game.ui.hold && !this.banner && !this.cards.some((c) => c.t >= 0) && game.fadeAlpha < 0.05;
+      const clear = !closeup && !dialogVisible() && !game.ui.hold && !this.banner && !this.cards.some((c) => c.t >= 0) && game.fadeAlpha < 0.05;
       // (clear for a moment: not in the gap between two pages of one conversation)
       p.clear = clear ? p.clear + dt : 0;
       if (p.clear >= YORI_CLEAR_MS) {
         const w = textW(p.text) + 18;
         this.yori = { text: p.text, t: 0, dur: YORI_MS, x: Math.round((W - w) / 2), y: 8, flag: p.flag };
         this.yoriPending = null;
-        this.yoriLog.push({ text: p.text, flag: p.flag, at: Math.round(game.time) });
+        if (!p.again) this.yoriLog.push({ text: p.text, flag: p.flag, at: Math.round(game.time) });
       } else if ((p.wait += dt) > YORI_WAIT_MAX) this.yoriPending = null;
     }
     const b = this.yori;

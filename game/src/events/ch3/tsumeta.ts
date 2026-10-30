@@ -42,7 +42,7 @@ import { actorAnchor, addMarkSource } from '../../world/marks';
 import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import type { Howto } from '../../ui/closeup';
+import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/c3_tsumeta';
 import { CARD_ORDER, TM_UI, type Card } from '../../data/text/c3_tsumeta';
 import { addMp } from '../lib';
@@ -235,6 +235,22 @@ export class TsumePanel implements Widget {
     // the look at one shell is only a picture under the words (nothing to quit)
     if (mode === 'look') this.closeup = false;
   }
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：3まいの カード。 */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (!this.active || this.mode !== 'cards' || this.auto || this.open < 1) return null;
+      const total = CARD_ORDER.length * CARD_W + (CARD_ORDER.length - 1) * CARD_GAP;
+      const x0 = SX + Math.round((SW - total) / 2);
+      return pickRows(CARD_ORDER.length, (i) => [x0 + i * (CARD_W + CARD_GAP), SY + CARD_Y - 3, CARD_W, CARD_H + 3]);
+    },
+    cursor: () => this.sel,
+    moveTo: (i) => {
+      if (i === this.sel) return;
+      this.sel = i;
+      se('se_cursor', { vol: 0.4 });
+    },
+  };
 
   /** もどるで やめられるのは、カードを えらんで いる あいだ（会話の あいだは パネルの 物）。 */
   quittable(): boolean {

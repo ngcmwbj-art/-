@@ -38,7 +38,7 @@ import { pgOn } from '../../world/postgame';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import type { Howto } from '../../ui/closeup';
+import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/hoshi_soba';
 import { SB_UI } from '../../data/text/hoshi_soba';
 import { GAKKYUEN, SB_TO_AT } from '../../data/maps/hoshi_gakkyuen';
@@ -227,6 +227,18 @@ export class SobaPanel implements Widget {
   picked = -1;
   hit = false;
   private autoT = 0;
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：6つの 花（茎から 花まで）。 */
+  touchPick: TouchPick = {
+    spots: () =>
+      this.phase === 'pick' && !this.auto && this.open >= 1 ? pickRows(6, (i) => (this.free(i) ? [FX(i) - 12, SY + 26, 26, 68] : null)) : null,
+    cursor: () => this.cur,
+    moveTo: (i) => {
+      if (i === this.cur || !this.free(i)) return;
+      this.cur = i;
+      se('se_cursor', { vol: 0.3 });
+    },
+  };
 
   free(i: number): boolean {
     return i >= 0 && i < 6 && !(flag(SF.fuda) & (1 << (i >> 1)) && SB_KINDS[i] !== SB_KINDS[i ^ 1]);

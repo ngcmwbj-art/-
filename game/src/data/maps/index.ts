@@ -38,6 +38,7 @@ import './hoshi_ue_hata';
 // 分校の そば畑（ちがう 花が、となりに。02_ch2_index）
 import './hoshi_gakkyuen';
 import './hoshi_touge';
+import './hoshi_negi';
 import './hoshi_fx';
 // 第3章『海ぞいの町の いただきます』（62_ch3_level_art）：海ぞいの町と軽トラの荷台
 import './umizoi';

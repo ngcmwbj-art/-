@@ -193,6 +193,21 @@ export function setCloseupShown(fn: () => boolean, tap?: () => void): void {
   anywhereTap = tap ?? null;
 }
 
+/** A close-up's touch pick (ui/closeup.ts, 改善会議 2026-10-30 の1): game px → what the tap does. */
+export type PickTapResult = 'pass' | 'eat' | 'confirm';
+let canvasPick: ((x: number, y: number) => PickTapResult) | null = null;
+let pickBusy: () => boolean = () => false;
+/**
+ * 指で さわって 選ぶ（改善会議 2026-10-30 の1）: `tap` is asked first with a touch on the picture
+ * (game px): 'pass' = けってい as before, 'eat' = nothing more (the cursor moved), 'confirm' =
+ * けってい. `busy`: a close-up is choosing now — a touch off the picture is not けってい then
+ * (and the 「どこでも タッチ」 word steps aside). A mouse click on the picture asks `tap` too.
+ */
+export function setCanvasPick(tap: (x: number, y: number) => PickTapResult, busy: () => boolean): void {
+  canvasPick = tap;
+  pickBusy = busy;
+}
+
 let goalSource: () => string | null = () => null;
 /**
  * The next goal's line for the band under the picture (an upright phone /
@@ -416,7 +431,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   let dimT = 0;
   const closeupNow = () => {
     try {
-      return closeupShown() || !!hintBtn?.classList.contains('hint');
+      return (closeupShown() || !!hintBtn?.classList.contains('hint')) && !pickBusy();
     } catch {
       return false;
     }
@@ -510,10 +525,27 @@ export function installTouch(input: Input, screen?: Screen): void {
     on.addEventListener('pointerup', up);
     on.addEventListener('pointercancel', up);
   };
+  /** A close-up's touch pick first (改善会議 2026-10-30 の1): where on the picture, in game px. */
+  const pickTap = (e: PointerEvent): PickTapResult => {
+    const c = canvas?.getBoundingClientRect();
+    if (!canvasPick || !c || !c.width || !c.height) return 'pass';
+    try {
+      return canvasPick(((e.clientX - c.left) * W) / c.width, ((e.clientY - c.top) * H) / c.height);
+    } catch {
+      return 'pass';
+    }
+  };
   canvas?.addEventListener('pointerdown', (e) => {
-    if (!active || e.pointerType === 'mouse') return;
+    const mouse = e.pointerType === 'mouse';
+    if (mouse ? e.button !== 0 : !active) return;
+    const r = pickTap(e);
+    // (a mouse: only a click on what a close-up offers — anywhere else it does nothing, as before)
+    if (mouse) {
+      if (r === 'confirm') holdConfirm(e.pointerId, canvas);
+      return;
+    }
     capture(canvas, e.pointerId);
-    holdConfirm(e.pointerId, canvas);
+    if (r !== 'eat') holdConfirm(e.pointerId, canvas);
   });
 
   // ---- layout -----------------------------------------------------------------

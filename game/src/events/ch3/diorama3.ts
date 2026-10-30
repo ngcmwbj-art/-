@@ -45,7 +45,7 @@ import { getMapDef } from '../../world/maps';
 import { pgOn } from '../../world/postgame';
 import type { ExamineObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import type { Howto } from '../../ui/closeup';
+import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import { kakimoji } from '../../battle/art/stamps';
 import * as T from '../../data/text/c3_diorama3';
 import { DM_UI, FIX_SPOTS, SPOT_ORDER, type Spot } from '../../data/text/c3_diorama3';
@@ -215,6 +215,24 @@ export class MokeiPanel implements Widget {
   quittable(): boolean {
     return this.active;
   }
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：右の 名前の 行、左の 場面は 今の 所。 */
+  touchPick: TouchPick = {
+    spots: () =>
+      this.active && !this.auto && this.open >= 1
+        ? [
+            ...pickRows(SPOT_ORDER.length, (i) => [RX - 2, SY + ROW_SPOT + i * ROW_STEP - 1, SX + CW - RX - 2, ROW_STEP - 1]),
+            { i: this.sel, x: SX, y: SY, w: SW, h: CH - HINT_H },
+          ]
+        : null,
+    cursor: () => this.sel,
+    moveTo: (i) => {
+      if (i === this.sel) return;
+      this.sel = i;
+      this.idleT = 0;
+      se('se_cursor', { vol: 0.4 });
+    },
+  };
 
   spot(): Spot {
     return SPOT_ORDER[this.sel];

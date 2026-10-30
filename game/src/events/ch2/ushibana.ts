@@ -46,6 +46,7 @@ import { se } from './compat';
 import { hStage, lanternOn, npc } from './common';
 import { choresOn } from './barn';
 import { HOWTO } from '../../data/text/howto';
+import { pickRows, type TouchPick } from '../../ui/closeup';
 
 export const UF = {
   h0: 'flag_ub_h0',
@@ -234,6 +235,28 @@ export class UbPanel implements Widget {
     this.lx = x;
     this.ly = y;
   }
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：顔の 3か所と、右の 名前の 行。 */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (!this.active || this.pick || this.auto || this.open < 1) return null;
+      const box: [number, number, number, number][] = [
+        [-14, -12, 28, 24],
+        [-18, -10, 36, 16],
+        [-18, -8, 36, 14],
+      ];
+      return [
+        ...pickRows(3, (i) => {
+          const [x, y] = this.partAt(i as Part);
+          const [bx, by, bw, bh] = box[i];
+          return [x + bx, y + by, bw, bh];
+        }),
+        ...pickRows(3, (i) => [RX - 2, SY + 22 + i * 16 - 1, SX + CW - RX, 15]),
+      ];
+    },
+    cursor: () => this.sel,
+    moveTo: (i) => this.move(i - this.sel),
+  };
 
   /** 顔の まん中（場面の 中）。 */
   private cx(): number {

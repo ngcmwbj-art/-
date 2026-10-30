@@ -83,7 +83,9 @@ import { drawAnPage, hasAnPage, AN_ROW_LABEL } from './book_akinasu';
 import { drawRtPage, hasRtPage, RT_ROW_LABEL } from './book_retasu';
 import { drawHbPage, hasHbPage, HB_ROW_LABEL } from './book_hokihata';
 import { drawSbPage, hasSbPage, SB_ROW_LABEL } from './book_soba';
-import { drawKsPage, hasKsPage, KS_ROW_LABEL } from './book_touge';
+import { drawKsPage, hasKsPage, ksRowLabel } from './book_touge';
+// ② の すみ『土を 寄せるほど、白く なる』（02_ch2_index）
+import { drawNhPage, hasNhPage, NH_ROW_LABEL } from './book_negi';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
@@ -187,7 +189,8 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasRtPage()) r.push({ label: RT_ROW_LABEL, draw: drawRtPage });
   if (hasHbPage()) r.push({ label: HB_ROW_LABEL, draw: drawHbPage });
   if (hasSbPage()) r.push({ label: SB_ROW_LABEL, draw: drawSbPage });
-  if (hasKsPage()) r.push({ label: KS_ROW_LABEL, draw: drawKsPage });
+  if (hasKsPage()) r.push({ label: ksRowLabel(), draw: drawKsPage });
+  if (hasNhPage()) r.push({ label: NH_ROW_LABEL, draw: drawNhPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

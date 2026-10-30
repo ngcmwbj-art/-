@@ -53,6 +53,7 @@ export const YORIMICHI_LEN: Record<string, YoriLen> = {
   flag_rt_start: 'normal', // retasu 寝とる うちに、とる（読む 約69ページ＋大写し 3回＋村から ネットの 戸・上の 畑：約4分）
   flag_sb_start: 'normal', // soba ちがう 花が、となりに（読む 約45ページ＋大写し「そばの 花」1回〈6つ・3組〉＋集会所から 竹垣の 戸・そば畑・集会所：約3分）
   flag_ks2_start: 'normal', // touge 雲の 下にも、郵便受け（読む 約45ページ＋大写し「雲の 海」1回〈行き先 3・道の 順 3〉＋転回場から 県道の 西の はし・峠の カーブ・転回場：約3分）
+  flag_nh_start: 'normal', // negi 土を 寄せるほど、白く なる（読む 約45ページ＋大写し「畝の 断面」3回〈見る・寄せる・のける〉＋牛舎か ゲートから 庭の 木戸・ネギ畑：約3分半）
   flag_hb_start: 'normal', // hokihata 穂は ほうき、茎は 柄（読む 約45ページ＋大写し 3回＋集会所・東の 路地・竹ざお・集会所：約3分半）
   flag_fr_start: 'normal', // fureai 目で、いちばん 長く（読む 約45ページ＋手洗い＋大写し「ふれあい」4か所＋回廊から 1部屋：約3分）
   flag_dm_start: 'normal', // diorama3 荷台から 見た 村（読む 約30ページ＋大写し「模型の 寄り」4か所＋ジオラマの 部屋から 水槽の うら：約2分半）

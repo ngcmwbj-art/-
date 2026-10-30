@@ -43,7 +43,7 @@ import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { charSprite, poseFrame } from '../../art/chars/registry';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import type { Howto } from '../../ui/closeup';
+import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/c3_shiro';
 import { KAZARI_ORDER, SR_UI, type Kazari } from '../../data/text/c3_shiro';
 import { SR_SAND } from '../../art/props/shiro_art';
@@ -247,6 +247,20 @@ export class SunaPanel implements Widget {
     this.howto = mode === 'press' ? T.SR_HOWTO_SUNA : T.SR_HOWTO_SHIRO;
     if (mode === 'wave') this.closeup = false;
   }
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：右の「押しかためる／ひっくり返す」の 2行。 */
+  touchPick: TouchPick = {
+    spots: () =>
+      this.active && this.phase === 'menu' && !this.auto && this.open >= 1
+        ? pickRows(SR_UI.menu.length, (i) => [RX - 2, SY + 50 + i * 16 - 1, SX + CW - RX, 15])
+        : null,
+    cursor: () => this.sel,
+    moveTo: (i) => {
+      if (i === this.sel) return;
+      this.sel = i;
+      se('se_cursor', { vol: 0.4 });
+    },
+  };
 
   /** もどるで やめられるのは、自分で 動かして いる あいだ（会話・動き・波の あいだは パネルの 物）。 */
   quittable(): boolean {

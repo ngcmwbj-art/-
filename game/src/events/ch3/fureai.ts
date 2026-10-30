@@ -38,7 +38,7 @@ import { pgOn } from '../../world/postgame';
 import { addMarkSource } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
-import type { Howto } from '../../ui/closeup';
+import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/c3_fureai';
 import { FR_UI } from '../../data/text/c3_fureai';
 import { fillNames } from '../../data/text/c3_names';
@@ -283,6 +283,27 @@ export class FureaiPanel implements Widget {
   cur = 0;
   picked = -1;
   private armT = 0;
+
+  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：絵の 3か所と 指、右の 名前の 行。 */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (this.phase !== 'select' || this.auto || this.open < 1) return null;
+      const ix = SX + Math.round((RX - SX - 4 - IW) / 2);
+      const iy = SY + 2;
+      return [
+        ...pickRows(4, (i) =>
+          i < 3 ? [ix + SPOTS[i][0] - 8, iy + SPOTS[i][1] - 8, 17, 17] : [ix + YUBI_AT[0] - 9, iy + YUBI_AT[1] - 11, 18, 24],
+        ),
+        ...pickRows(4, (i) => [RX - 2, SY + 19 + i * 17 + (i === 3 ? 20 : 0) - 1, SX + CW - RX, 15]),
+      ];
+    },
+    cursor: () => this.cur,
+    moveTo: (i) => {
+      if (i === this.cur) return;
+      this.cur = i;
+      se('se_cursor', { vol: 0.5 });
+    },
+  };
 
   update(dt: number, input: Input): void {
     this.t += dt;

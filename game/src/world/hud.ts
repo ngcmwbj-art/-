@@ -218,6 +218,7 @@ export const HOSHI_MAP_NAMES: Record<string, string> = {
   // 分校の そば畑（02_ch2_index、ちがう 花が、となりに。第1章の「学級園」と 名前を 分ける）
   map_hoshi_gakkyuen: '分校の そば畑',
   map_hoshi_touge: '峠の カーブ',
+  map_hoshi_negi: '裏の ネギ畑',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };
