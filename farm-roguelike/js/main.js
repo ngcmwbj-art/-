@@ -240,8 +240,9 @@ const App = {
     // 進み具合：済んだ段・今の段・ボス
     document.getElementById('map-progress').innerHTML = Array.from({ length: se.steps }, (_, k) =>
       `<span class="dot ${k < run.step ? 'done' : k === run.step ? 'now' : ''} ${k === se.steps - 1 ? 'boss' : ''}">${k === se.steps - 1 ? '主' : k + 1}</span>`).join('');
+    App.renderBossPreview(run, boss);
     document.getElementById('map-lead').textContent = run.step === 0 ? se.text
-      : boss ? '季節の終わり。大きな災いがやってくる' : 'どこへ向かう？';
+      : boss ? '季節の終わり。大きな災いがやってくる' : 'どこへ向かう？（迷ったら戦いへ。勝つほどカードが増える）';
     document.getElementById('map-choices').innerHTML = run.choices.map((c, k) => {
       const t = FR.NodeTypes[c.type];
       let art = t.art ? FR.Art.img(t.art, '', t.name) : '';
@@ -309,6 +310,43 @@ const App = {
       App.save();
       return App.showRest();
     }
+  },
+
+  // ボスの予告：この季節のボスの絵・名前・技を、行き先の画面に1行で。押すと技の説明
+  renderBossPreview(run, isBossStep) {
+    const el = document.getElementById('map-boss');
+    if (isBossStep) { el.hidden = true; return; }
+    const id = FR.Map.bossId(run), d = FR.Enemies[id], E = FR.Util.escape;
+    const moves = [...new Set(d.pattern)].map(k => d.moves[k].name);
+    el.hidden = false;
+    el.innerHTML = `<img src="${FR.Art.url(d.art)}" alt=""><span><small>この季節のボス</small><b>${E(d.name)}</b><em>${E(moves.join('・'))}</em></span>`;
+    el.onclick = () => {
+      const fake = { uid: 0, def: d, strength: 0, intent: null };
+      const rows = d.pattern.filter((k, i, a) => a.indexOf(k) === i).map(k => {
+        fake.intent = d.moves[k];
+        const it = FR.Battle.intentLabel({ run, plots: [], barns: [], statuses: {} }, fake);
+        return `<tr><th>${E(d.moves[k].name)}</th><td>${E(App.intentText(d.moves[k], it))}</td></tr>`;
+      }).join('');
+      FR.Screens.modal(d.name, `<p class="menu-note">季節の最後（主）に戦う相手。勢い ${d.hp[0]}〜${d.hp[1]}。耐えても過ぎ去らない。</p>
+        <table class="result-parts boss-moves"><tbody>${rows}</tbody></table>
+        <p class="menu-note">技はこの順にくり返す：${E(d.pattern.map(k => d.moves[k].name).join(' → '))}</p>`);
+    };
+  },
+  // 技の中身を短い文に（ボスの予告用）
+  intentText(m, it) {
+    const dmg = m.damage ? `健康度に${it && typeof it.value === 'number' ? it.value : m.damage}の攻撃` : '';
+    const what = {
+      attack: dmg,
+      steal: `作物を奪う（なければ${dmg}）`,
+      trample: `作物を踏み荒らす（なければ${dmg}）`,
+      blight: `作物を${m.amount}段しおれさせる` + (m.damage ? `・${dmg}` : ''),
+      debuff: `${FR.Statuses[m.status] ? FR.Statuses[m.status].name : ''}${m.amount}をつける` + (m.damage ? `・${dmg}` : ''),
+      addCard: `病斑を${m.count}枚混ぜる` + (m.damage ? `・${dmg}` : ''),
+      infect: `家畜1頭を病気で倒す（消毒・ワクチンで防げる。家畜がいなければ${dmg}）`,
+      heal: `自分の勢いを${m.amount}回復`,
+      buff: `力が${m.strength}増える（攻撃が強くなる）`
+    }[m.intent];
+    return what || '';
   },
 
   // 長期肥育の牛の様子（行き先の画面に1行で）
