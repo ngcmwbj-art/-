@@ -237,7 +237,7 @@ export const MR_BOOK = {
   /** 3つの 絵の 下の 札。 */
   labels: ['上', '下', '横'],
   mie: (n: number) => `見え方 ${n}/3`,
-  mure: (n: number) => `横から 見た 群れ ${n}/3`,
+  mure: (n: number) => `見た 群れ ${n}/3`,
   /** ツリノの 字（2行） */
   tsuri: ['背は 海、', '腹は 空'],
 };

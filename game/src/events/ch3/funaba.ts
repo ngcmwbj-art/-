@@ -31,7 +31,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { addItem, flag, removeItem, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
-import { registerScript } from '../../world/api';
+import { registerScript, walk } from '../../world/api';
 import { getMapDef, registerMap } from '../../world/maps';
 import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
@@ -197,6 +197,7 @@ function wrap(id: string, fn: (ctx: ScriptCtx, orig: () => Co) => Co): void {
 addToMap(
   UMIZOI,
   [
+    { t: 'prop', prop: 'prop_fb_saka_yuka', x: SAKA[0], y: SAKA[1] } as unknown as MapObj,
     { t: 'prop', prop: 'prop_fb_saka', x: SAKA[0], y: SAKA[1] } as unknown as MapObj,
     { t: 'door', id: 'door_c3_funaba', x: SAKA[0], y: SAKA[1], to: FUNABA, tx: FB_TSUKU[0], ty: FB_TSUKU[1], dir: 'right', se: 'se_step_stone', cond: { when: fbDoor } } as unknown as MapObj,
     { t: 'obj', id: 'obj_fb_saka', x: SAKA[0], y: SAKA[1], face: 'right', script: 'obj_fb_saka' } as unknown as MapObj,
@@ -392,7 +393,7 @@ export class FunaPanel implements Widget {
         g.text(FB_UI.parts[this.sel], RX, oy + 2, { color: '#F4ECD8' });
         const st = this.sel === 3 ? FB_UI.sawaranai : flag(buF(this.sel)) ? FB_UI.tsuru : FB_UI.nokori(fbThings(this.sel).filter((x) => x.hp > 0).length);
         g.text(st, RX, oy + 20, { color: '#8A84A0' });
-        if (this.waiting) FB_UI.keys.forEach((l, i) => g.text(l, RX, oy + 70 + i * 16, { color: '#FFE7A3' }));
+        if (this.waiting) FB_UI.keys.forEach((l, i) => g.text(l, RX, oy + 56 + i * 16, { color: '#FFE7A3' }));
         markText(RX - 4, oy, SX + CW - RX + 4, CH);
       });
       const tw = g.measure(FB_UI.title) + 16;
@@ -614,6 +615,10 @@ registerScript('evt_fb_enter', function* (): Co {
   if (!f || !inCh3() || flag(FBF.scene)) return;
   if (c3Stage() === 1 && flag(FBF.start) && !flag(FBF.inn)) {
     setFlag(FBF.inn, 1);
+    // down the slope's foot a few steps, till the boat is in sight
+    const path: [number, number][] = [];
+    for (let x = f.player.tileX + 1; x <= 8; x++) path.push([x, f.player.tileY]);
+    if (path.length) yield* walk('player', path, { speed: 2.6, face: 'right' });
     yield 300;
     yield* say(T.FB_IN);
     return;
@@ -789,7 +794,7 @@ type Cmd = Record<string, (...a: unknown[]) => unknown>;
 const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cmd;
 
 /**
- * QA: __game.cmd.funaba(step = 'kid', auto = false)（auto：大写しを 自動で こする）
+ * QA: __game.cmd.funaba(step = 'kid', auto = false, nojump = false)（auto：大写しを 自動で こする。nojump：章の 読み直しを しない）
  *   'kid'    段階1、〔c1〕〔mizukiri〕の あと、空き地の 子どもの 前 (7,7) 上向き（話すと〔funa〕）
  *   'saka'   始まった あと、倉庫の 東の 路地の 坂の 前 (51,21) 右向き
  *   'in'     船揚げ場の 坂の 下 (1,4)（入った ときの 1回）
@@ -799,10 +804,11 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'hitori' 段階2、こすって いない、船揚げ場 (1,4)
  */
 if (import.meta.env.DEV) {
-  registerDebug('funaba', (step = 'kid', auto = false) => {
+  registerDebug('funaba', (step = 'kid', auto = false, nojump = false) => {
     qaAuto = !!auto;
     const s2 = step === 'nuru' || step === 'hitori';
-    cmd().jump?.(s2 ? 'ch3:trap' : 'ch3:umizoi', true);
+    // (nojump: the chapter is already loaded — the QA driver jumps once and waits for its scene)
+    if (!nojump) cmd().jump?.(s2 ? 'ch3:trap' : 'ch3:umizoi', true);
     for (const id of Object.values(FBF)) setFlag(id, 0);
     for (let k = 0; k < 3; k++) {
       setFlag(nF(k), 0);

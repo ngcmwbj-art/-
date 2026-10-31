@@ -28,7 +28,7 @@
 import type { Co } from '../../engine/co';
 import { game, type Widget } from '../../engine/game';
 import type { Gfx } from '../../engine/gfx';
-import { W } from '../../engine/screen';
+import { H, W } from '../../engine/screen';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { registerScript } from '../../world/api';
@@ -135,7 +135,9 @@ export function inkOf(ms: number): number {
 
 // ================================================================ 板の 字の 札
 
-const PLATE_Y = 32;
+/** 札の 上の はし（しゅんが 画面の 下に いる ときは 上へ、ほかは 会話の 窓の 所へ。しゅんに かぶせない）。 */
+const PLATE_TOP = 30;
+const PLATE_BOTTOM_GAP = 8;
 
 class MePlate implements Widget {
   modal = false;
@@ -143,9 +145,20 @@ class MePlate implements Widget {
   board = -1;
   vis = 0;
   private shown = -1;
+  private top = false;
   update(dt: number): void {
     const want = this.board >= 0;
-    if (want) this.shown = this.board;
+    if (want && this.shown !== this.board) {
+      this.shown = this.board;
+      // where しゅん stands on the screen (HD-2D: projected), once per board
+      const f = field();
+      if (f) {
+        const p = f.player;
+        const at = f.projected(p.x, p.y - 12, p.y);
+        const sy = at ? at[1] : p.y - 12 - f.camY;
+        this.top = sy > H * 0.55;
+      }
+    }
     this.vis = Math.max(0, Math.min(1, this.vis + (want ? dt / 200 : -dt / 160)));
     if (!want && this.vis <= 0) this.done = true;
   }
@@ -153,14 +166,15 @@ class MePlate implements Widget {
     const f = field();
     if (!f || game.top !== f || this.shown < 0 || this.vis <= 0) return;
     const i = this.shown;
-    const lines = T.ME_ITA[i];
+    // the board's first page (3 lines at most): the rest comes in the talk after
+    const lines = T.ME_ITA[i][0];
     const ms = st.prog[i];
     const ink = inkOf(ms);
     const lw = Math.max(textW(T.ME_MATSU_LINE), ...lines.map((l) => textW(l)));
     const w = lw + 24;
     const h = 22 + lines.length * 16 + 10;
     const x = Math.round((W - w) / 2);
-    const y = PLATE_Y;
+    const y = this.top ? PLATE_TOP : H - h - PLATE_BOTTOM_GAP;
     g.alpha(this.vis, () => {
       // the old board: a dim slate, its edge a little lighter
       g.rect(x, y, w, h, '#0E141E', 0.88);
@@ -434,6 +448,10 @@ if (import.meta.env.DEV) {
     // (the jump's own field: let it settle a frame)
     await new Promise((r) => setTimeout(r, 50));
     const f = field()!;
+    // (the esa room's own scene, started by the jump, would go on into the deep-sea room: stop it
+    // before its talk — a cancelled task runs no finally, so give back its lock)
+    game.scripts.clear();
+    for (let k = 0; k < 4; k++) f.unlock();
     const go = (x: number, y: number, d: 'up' | 'down' | 'left' | 'right', from?: string) =>
       f.startScript(f.warpCo(ROOM, x, y, d, undefined, from));
     if (step === 'enter' || kakushi) return go(1, 2, 'right', 'map_c3_aq_esa');

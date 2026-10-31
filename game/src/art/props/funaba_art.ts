@@ -39,27 +39,30 @@ const MO_LT = '#7AB060';
 // ---------------------------------------------------------------- 港の 坂
 
 registerProp('prop_fb_saka', () => {
-  // (anchored on the rock cell: the slope runs down east through the cut, the sign stands on its west lip)
-  const p = new PixelCanvas(16, 30);
-  // the cut's two rock cheeks
-  p.rect(0, 14, 16, 2, '#4A4946');
-  p.rect(0, 28, 16, 2, '#4A4946');
-  // the slope: the alley's stone, darker as it goes down east
-  for (let x = 0; x < 16; x++) {
-    const c = x < 5 ? '#BDB6A6' : x < 10 ? '#A8A294' : '#8E897C';
-    p.vline(x, 16, 27, c);
-  }
-  for (let x = 2; x < 16; x += 4) p.vline(x, 17, 26, '#7E7A70');
-  // the sign: a little wooden board on a post, 『船揚げ場』 as three dark marks and an arrow
-  p.vline(3, 4, 18, WOOD_DK);
-  p.rect(0, 0, 13, 8, WOOD_LT);
-  p.hline(0, 12, 0, '#D0AA7A');
-  p.hline(0, 12, 7, WOOD);
+  // the sign on the cut's north lip: a little wooden board on a post, 『船揚げ場』 as three dark marks and a red arrow
+  const p = new PixelCanvas(14, 20);
+  p.vline(3, 7, 19, WOOD_DK);
+  p.vline(4, 7, 19, WOOD);
+  p.rect(0, 0, 14, 8, WOOD_LT);
+  p.hline(0, 13, 0, '#D0AA7A');
+  p.hline(0, 13, 7, WOOD);
   for (const x of [2, 5, 8]) p.rect(x, 2, 2, 3, '#3A2A22');
-  p.line(10, 3, 12, 4, '#C23A2E');
-  p.line(10, 5, 12, 4, '#C23A2E');
+  p.line(11, 2, 13, 4, '#C23A2E');
+  p.line(11, 6, 13, 4, '#C23A2E');
+  p.hline(10, 12, 4, '#C23A2E');
   const img = p.toCanvas();
-  return { ox: 0, oy: -14, w: 16, h: 30, foot: 15, img: () => img, contact: 0 } satisfies PropArt;
+  return { ox: 1, oy: -12, w: 14, h: 20, foot: 7, img: () => img, contact: 0 } satisfies PropArt;
+});
+
+registerProp('prop_fb_saka_yuka', () => {
+  // the slope itself, lying on the ground: the alley's stone, ridged across, darker as it goes down east
+  const p = new PixelCanvas(16, 16);
+  for (let x = 0; x < 16; x++) p.vline(x, 0, 15, x < 5 ? '#B4AE9E' : x < 10 ? '#A09A8C' : '#8A8578');
+  for (let x = 2; x < 16; x += 3) p.vline(x, 1, 14, '#7A766C');
+  p.hline(0, 15, 0, '#5A5954');
+  p.hline(0, 15, 15, '#5A5954');
+  const img = p.toCanvas();
+  return { ox: 0, oy: 0, w: 16, h: 16, foot: 0, flat: true, img: () => img } satisfies PropArt;
 });
 
 // ---------------------------------------------------------------- ゴロウの 船（台車の 上）

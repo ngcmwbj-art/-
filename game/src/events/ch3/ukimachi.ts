@@ -169,7 +169,7 @@ const NUKU_MS = 4200;
 /** 押して しまった とき、ゲージが もどる 量。 */
 const BUMP = 0.45;
 /** しゅんの 体の まん中（場面の 中。oy から）。 */
-const BODY_Y = 60;
+const BODY_Y = 66;
 const GAUGE_W = 120;
 
 const SAND = '#E4D2A8';
@@ -276,7 +276,12 @@ export class UkiPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, SW, CH, () => (this.mode === 'umi' ? this.drawUmi(g, oy) : this.drawSeuki(g, oy)));
+        if (this.mode === 'umi') {
+          // the sea fills the whole picture (nothing to count or press)
+          this.drawUmi(g, oy);
+          return;
+        }
+        g.clip(SX, oy, SW, CH, () => this.drawSeuki(g, oy));
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         this.drawSide(g, oy);
         markText(RX - 4, oy, SX + CW - RX + 4, CH);
@@ -313,8 +318,8 @@ export class UkiPanel implements Widget {
       const w = Math.floor(this.t / 200) % 2;
       g.alpha(Math.min(1, strain), () => {
         for (const [x, y] of [
-          [cx - 2, cy - 34],
-          [cx - 2, cy + 30],
+          [cx - 2, cy - 28],
+          [cx - 2, cy + 26],
           [cx + 58, cy - 16],
           [cx + 58, cy + 12],
         ] as [number, number][]) {
@@ -336,15 +341,15 @@ export class UkiPanel implements Widget {
       const l = UK_UI.cue[s];
       if (now) {
         const w = bigW(l) + 8;
-        g.rect(x, oy + 3, w, 28, '#FBF6EA');
-        g.frame(x, oy + 3, w, 28, INK);
-        bigText(g, l, x + 4, oy + 5, INK);
+        g.rect(x, oy + 9, w, 28, '#FBF6EA');
+        g.frame(x, oy + 9, w, 28, INK);
+        bigText(g, l, x + 4, oy + 11, INK);
         x += w + 4;
       } else {
         const w = g.measure(l) + 6;
-        g.rect(x, oy + 7, w, 15, did ? '#FBF6EA' : '#E8DCC0');
-        g.text(l, x + 3, oy + 7, { color: did ? INK : '#9A8A70' });
-        if (did) g.ring(x + w - 1, oy + 7, 4, '#C8402E');
+        g.rect(x, oy + 15, w, 15, did ? '#FBF6EA' : '#E8DCC0');
+        g.text(l, x + 3, oy + 15, { color: did ? INK : '#9A8A70' });
+        if (did) g.ring(x + w - 1, oy + 15, 4, '#C8402E');
         x += w + 4;
       }
     });
@@ -352,15 +357,6 @@ export class UkiPanel implements Widget {
 
   /** ぬく：大きな「そのまま」と、下の 力の ゲージ。 */
   private drawNuku(g: Gfx, oy: number): void {
-    const l = UK_UI.sonomama;
-    const w = bigW(l);
-    const x = SX + SW - w - 6;
-    // a slow breath of its own (it says: don't move)
-    const a = 0.75 + 0.25 * Math.sin(this.t / 600);
-    g.alpha(a, () => {
-      g.rect(x - 3, oy + 4, w + 6, 27, '#FBF6EA');
-      bigText(g, l, x, oy + 6, '#C8402E');
-    });
     const gx = SX + Math.round((SW - GAUGE_W) / 2) + 8;
     const gy = oy + CH - 13;
     const lw = g.measure(UK_UI.gauge);
@@ -372,35 +368,38 @@ export class UkiPanel implements Widget {
     g.rect(gx, gy, fw, 8, this.bumpT > 0 ? '#E8743A' : '#D89A4A');
     // ticks every quarter (a shape to read it by, not only a colour)
     for (let i = 1; i < 4; i++) g.rect(gx + Math.round((GAUGE_W * i) / 4), gy, 1, 8, '#B8A888');
-    if (this.bumpT > 0) {
-      const yw = g.measure(UK_UI.yukkuri);
-      g.rect(gx + GAUGE_W + 4, gy - 3, yw + 4, 14, '#FBF6EA');
-      g.text(UK_UI.yukkuri, gx + GAUGE_W + 6, gy - 3, { color: '#C8402E' });
-    }
   }
 
   // ---------------------------------------------------------------- 海：あおむけで 泳ぐ グソっ君
 
   private drawUmi(g: Gfx, oy: number): void {
-    for (let y = 0; y < CH; y++) g.rect(SX, oy + y, SW, 1, y < 18 ? '#BFE4F0' : y < 60 ? '#6AB4D4' : '#4A94B8');
+    for (let y = 0; y < CH; y++) g.rect(SX, oy + y, CW, 1, y < 18 ? '#BFE4F0' : y < 60 ? '#6AB4D4' : '#4A94B8');
     // the surface: waves moving again (12:01)
-    for (let x = SX; x < SX + SW; x += 2) g.rect(x, oy + 17 + Math.round(Math.sin(x / 11 + this.t / 380) * 1.5), 2, 1, '#F4FAFC');
-    for (let i = 0; i < 14; i++) {
-      const x = SX + ((i * 53 + Math.floor(this.t / 30)) % SW);
+    for (let x = SX; x < SX + CW; x += 2) g.rect(x, oy + 17 + Math.round(Math.sin(x / 11 + this.t / 380) * 1.5), 2, 1, '#F4FAFC');
+    for (let i = 0; i < 20; i++) {
+      const x = SX + ((i * 53 + Math.floor(this.t / 30)) % CW);
       g.rect(x, oy + 30 + ((i * 37) % 70), 4, 1, '#9AD0E4');
     }
-    // グソっ君 swimming right to left, belly up: the legs on top paddling
-    const span = SW + 80;
-    const px = SX + SW + 40 - ((this.t / 22) % span);
-    const py = oy + 52 + Math.round(Math.sin(this.t / 500) * 3);
-    gusoBellyUp(g, Math.round(px), py, this.t);
+    // グソっ君 swimming right to left, belly up (twice the size): the legs on top paddling. It comes in from the
+    // right and stays in the middle a while (a slow glide), then goes on out to the left.
+    const k = (this.t % 9000) / 9000;
+    const mid = SX + Math.round(CW / 2);
+    const px = k < 0.25 ? SX + CW + 80 - ((CW / 2 + 80) * k) / 0.25 : k < 0.65 ? mid - (k - 0.25) * 60 : mid - 24 - ((CW / 2 + 100) * (k - 0.65)) / 0.35;
+    const py = oy + 60 + Math.round(Math.sin(this.t / 500) * 3);
+    gusoBellyUp(g, Math.round(px), py, this.t, 2);
   }
 
   private drawSide(g: Gfx, oy: number): void {
     if (this.mode === 'umi') return;
     g.text(UK_UI.count(ukCount()), RX, oy + 2, { color: '#F4ECD8' });
+    if (this.step === 'nuku' && !flag(stepF('nuku'))) {
+      // ぬく：大きな「そのまま」（ゆっくり 息を する ように 明るさが ゆれる。動かないで、の 合図）
+      const a = 0.8 + 0.2 * Math.sin(this.t / 600);
+      g.alpha(a, () => bigText(g, UK_UI.sonomama, RX - 1, oy + 22, '#FFE7A3', BIG_STEP_TIGHT, '#2A2236'));
+      if (this.bumpT > 0) g.text(UK_UI.yukkuri, RX, oy + 58, { color: '#FF9A6A' });
+    }
     if (!this.active) return;
-    UK_UI.keys[this.step].forEach((l, i) => g.text(l, RX, oy + 64 + i * 15, { color: i === 0 ? '#FFE7A3' : '#C8C0D8' }));
+    UK_UI.keys[this.step].forEach((l, i) => g.text(l, RX, oy + 78 + i * 15, { color: i === 0 ? '#FFE7A3' : '#C8C0D8' }));
   }
 }
 
@@ -409,17 +408,24 @@ function bigW(s: string): number {
   return measure(s) * 2;
 }
 
-/** 2倍の 字（1字ずつ 拡大して 置く。影を 1px）。 */
-function bigText(g: Gfx, s: string, x: number, y: number, color: string): void {
+/** 「そのまま」を 右の 列に 入れる ときの 字の 送り（2倍の 字を 少し 詰める）。 */
+const BIG_STEP_TIGHT = -3;
+
+/** 2倍の 字（1字ずつ 拡大して 置く。影を 1px。step で 字の 送りを 詰める）。 */
+function bigText(g: Gfx, s: string, x: number, y: number, color: string, step = 0, shadow = '#E8DCC0'): void {
   let cx = x;
   for (const ch of s) {
-    const w = measure(ch) * 2;
+    const w = measure(ch) * 2 + step;
     if (ch !== ' ' && ch !== '　') {
-      g.img(glyphImage(ch, '#E8DCC0'), cx + 1, y + 1, { scale: 2 });
+      g.img(glyphImage(ch, shadow), cx + 1, y + 1, { scale: 2 });
       g.img(glyphImage(ch, color), cx, y, { scale: 2 });
     }
     cx += w;
   }
+}
+
+function bigTightW(s: string): number {
+  return [...s].reduce((n, ch) => n + measure(ch) * 2 + BIG_STEP_TIGHT, 0) - BIG_STEP_TIGHT;
 }
 
 /**
@@ -445,7 +451,7 @@ function lying(g: Gfx, cx: number, cy: number, breath: number, chin: number, rel
   // arms out to the sides (more open as the strength goes)
   for (const s of [-1, 1]) {
     const ex = cx - 14 + Math.round(relax * 4);
-    const ey = cy + s * (24 + spread);
+    const ey = cy + s * (18 + spread);
     g.line(cx - 22, cy + s * 9, ex, ey, SKIN_D);
     g.line(cx - 21, cy + s * 9, ex + 1, ey, SKIN);
     g.line(cx - 20, cy + s * 9, ex + 2, ey, SKIN);
@@ -480,37 +486,41 @@ function lying(g: Gfx, cx: number, cy: number, breath: number, chin: number, rel
   if (chin > 0) g.alpha(chin, () => g.rect(hx + 10 - tilt, cy - 3, 1, 7, SKIN_D));
 }
 
-/** あおむけで 泳ぐ グソっ君（横から。上が おなか：うすい 色に 足が 7対、下が 背中の よろい）。左へ 進む。 */
-function gusoBellyUp(g: Gfx, x: number, y: number, t: number): void {
+/** あおむけで 泳ぐ グソっ君（横から。上が おなか：うすい 色に 足が 7対、下が 背中の よろい）。左へ 進む。k は 倍率。 */
+function gusoBellyUp(g: Gfx, x: number, y: number, t: number, k = 1): void {
   const back = '#8E8AA0';
   const backD = '#6A6680';
   const belly = '#EADCC4';
+  const R = (dx: number, dy: number, w: number, h: number, c: string) => g.rect(x + dx * k, y + dy * k, w * k, h * k, c);
+  const L = (ax: number, ay: number, bx: number, by: number, c: string) => {
+    for (let o = 0; o < k; o++) g.line(x + ax * k, y + ay * k + o, x + bx * k, y + by * k + o, c);
+  };
   // the armoured back (below) with its plates
   for (let i = 0; i < 9; i++) {
-    const px = x - 22 + i * 5;
     const h = 8 - Math.round(Math.abs(i - 4) * 0.8);
-    g.rect(px, y, 5, h, i % 2 ? back : backD);
+    R(-22 + i * 5, 0, 5, h, i % 2 ? back : backD);
+    R(-22 + i * 5, 0, 1, h, backD);
   }
-  // the belly (above), pale
-  g.rect(x - 22, y - 4, 45, 5, belly);
+  // the belly (above), pale, with its segment lines
+  R(-22, -4, 45, 5, belly);
+  for (let i = 0; i < 7; i++) R(-17 + i * 6, -4, 1, 5, '#CDBDA0');
   // the legs paddling in a wave down the body (front to back)
   for (let i = 0; i < 7; i++) {
-    const lx = x - 18 + i * 6;
+    const lx = -18 + i * 6;
     const ph = Math.sin(t / 120 - i * 0.9);
-    const ly = y - 7 - Math.round(ph * 2);
-    g.line(lx, y - 4, lx + Math.round(ph * 2), ly, backD);
+    L(lx, -4, lx + Math.round(ph * 2), -7 - Math.round(ph * 2), backD);
   }
   // head at the front (left), feelers trailing, tail fan at the back
-  g.rect(x - 27, y - 2, 6, 6, backD);
-  g.rect(x - 26, y - 1, 2, 2, '#F4F4F4');
-  g.line(x - 27, y - 2, x - 36, y - 8, backD);
-  g.line(x - 27, y - 1, x - 37, y + 2, backD);
-  g.rect(x + 23, y - 3, 5, 8, backD);
-  g.rect(x + 28, y - 2, 2, 6, back);
+  R(-27, -2, 6, 6, backD);
+  R(-26, -1, 2, 2, '#F4F4F4');
+  L(-27, -2, -36, -8, backD);
+  L(-27, -1, -37, 2, backD);
+  R(23, -3, 5, 8, backD);
+  R(28, -2, 2, 6, back);
   // a few bubbles up behind
   const b = Math.floor(t / 300) % 3;
-  g.ring(x + 30, y - 10 - b * 3, 1, '#F4FAFC');
-  g.ring(x + 34, y - 18 + b * 2, 1, '#F4FAFC');
+  g.ring(x + 31 * k, y - (10 + b * 3) * k, k, '#F4FAFC');
+  g.ring(x + 35 * k, y - (18 - b * 2) * k, k, '#F4FAFC');
 }
 
 function* openPanel(p: UkiPanel): Co {
@@ -844,13 +854,14 @@ export function ukTextCheck(): { pages: number; bad: string[] } {
   walkT('uk', T.UK_TEXTS);
   // the right column: every label fits between RX and the panel's inner edge
   const col = SX + CW - RX - 2;
-  const labels = [UK_UI.count(3), ...Object.values(UK_UI.keys).flat()];
+  const labels = [UK_UI.count(3), UK_UI.yukkuri, ...Object.values(UK_UI.keys).flat()];
+  if (bigTightW(UK_UI.sonomama) - 1 > col) bad.push(`そのまま: ${bigTightW(UK_UI.sonomama)}px > ${col}`);
   for (const l of labels) if (measure(l) > col) bad.push(`右の 列: ${measure(l)}px > ${col}: ${l}`);
-  // the cues (one big) and そのまま keep apart in the scene's top row
+  // the cues (one big) fit in the scene's top row
   const cues = Math.max(...UK_ORDER.map((s) => bigW(UK_UI.cue[s]) + 8 + UK_ORDER.filter((o) => o !== s).reduce((n, o) => n + measure(UK_UI.cue[o]) + 6, 0) + 8));
-  if (4 + cues + 10 + bigW(UK_UI.sonomama) + 6 > SW) bad.push(`合図と そのまま: 重なる ${cues} + ${bigW(UK_UI.sonomama)} > ${SW}`);
+  if (4 + cues > SW) bad.push(`合図: はみ出す ${cues} > ${SW}`);
   const gx = Math.round((SW - GAUGE_W) / 2) + 8;
-  if (gx + GAUGE_W + 6 + measure(UK_UI.yukkuri) + 4 > SW) bad.push('ゆっくり: はみ出す');
+  if (gx + GAUGE_W > SW) bad.push('ゲージ: はみ出す');
   if (gx - measure(UK_UI.gauge) - 7 < 0) bad.push('力: はみ出す');
   return { pages, bad };
 }

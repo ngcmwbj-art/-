@@ -26,7 +26,7 @@ import { BookPage, hasBook2, hasBook3 } from './book';
 import { SettingsPage } from './settingsPage';
 import { markTextScreen } from '../../engine/textzones';
 import { drawGoalTape, goalLine } from './goal';
-import { drawPlaceTape, placeLine } from './place';
+import { drawPlaceTape, pageSig, placeLine, placeTapeX } from './place';
 
 const OPEN_MS = 160;
 const CLOSE_MS = 130;
@@ -191,7 +191,11 @@ export class MenuScene implements Scene, MenuCtx {
       drawMoney(g, state.money, this.dx, a, this.purseT);
       drawGoalTape(g, this.goal, this.dx, a);
       // (the ハンコ page's caption runs down to the bottom edge)
-      if (this.pageId !== 'hanko') drawPlaceTape(g, this.place, this.dx, a);
+      // (改善会議 2026-10-31 の 7：ページの 中身が 下の ふちまで 来る ときは ずらす・出さない)
+      if (this.pageId !== 'hanko') {
+        const at = placeTapeX(this.place, pageSig(this.pageId, this.page), this.t, (pg) => this.page.draw(pg, this));
+        if (at !== null) drawPlaceTape(g, this.place, this.dx, a, at);
+      }
       // the clock plate slides in from the top while the menu is open
       const ck = Math.min(1, this.openT / 300);
       const cy = Math.round(-26 + ease.cubicOut(ck) * 30) - (this.closeT >= 0 ? Math.round(Math.min(1, this.closeT / CLOSE_MS) * 30) : 0);

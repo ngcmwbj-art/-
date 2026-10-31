@@ -345,7 +345,7 @@ export const FB_UI = {
   nokori: (n: number) => `のこり ${n}`,
   tsuru: 'つるつる',
   sawaranai: 'さわらない',
-  keys: ['←→ 場所', 'けってい こする'],
+  keys: ['←→ えらぶ', 'けってい', 'で こする'],
 };
 
 export const FB_ITEM_DESC: [string, string] = ['ゴロウの 船の 箱の 軍手。', '少し 大きい。'];

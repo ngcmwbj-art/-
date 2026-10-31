@@ -65,7 +65,7 @@ export function drawUkPage(g: Gfx, x: number, y: number, w: number): void {
   const n = ['flag_uk_suu', 'flag_uk_ago', 'flag_uk_nuku'].filter((id) => flag(id) > 0).length;
   pageText(g, UK_BOOK.count(n), x + 2, ly, { color: n >= 3 ? UI.accent : UI.text });
   ly += LINE_H + 4;
-  UK_BOOK.kaito.forEach((l, i) => pageText(g, l, x + 6 + i * 6, ly + i * LINE_H, { color: KAITO_C }));
+  UK_BOOK.kaito.forEach((l, i) => pageText(g, l, x + 6 + i * 4, ly + i * LINE_H, { color: KAITO_C }));
 }
 
 export function ukBookCheck(): { pages: number; bad: string[] } {
@@ -77,7 +77,7 @@ export function ukBookCheck(): { pages: number; bad: string[] } {
   for (const l of UK_BOOK.titleLines) if (textW(l) > room) bad.push(`${l}: ${textW(l)}px`);
   if (2 + textW(UK_BOOK.count(3)) > room) bad.push('数: wide');
   UK_BOOK.kaito.forEach((l, i) => {
-    if (6 + i * 6 + textW(l) > room) bad.push(`${l}: ${6 + i * 6 + textW(l)}px`);
+    if (6 + i * 4 + textW(l) > room) bad.push(`${l}: ${6 + i * 4 + textW(l)}px`);
   });
   if (2 + PIC_W > room) bad.push(`絵: wide ${2 + PIC_W} > ${room}`);
   const y = SP.y + 28;

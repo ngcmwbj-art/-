@@ -84,6 +84,8 @@ import { drawRtPage, hasRtPage, RT_ROW_LABEL } from './book_retasu';
 import { drawHbPage, hasHbPage, HB_ROW_LABEL } from './book_hokihata';
 import { drawSbPage, hasSbPage, SB_ROW_LABEL } from './book_soba';
 import { drawKsPage, hasKsPage, ksRowLabel } from './book_touge';
+// ② の すみの 1行「あずかった 物は、わたした」（改善会議 2026-10-31 の 5、events/keytidy.ts）：いちばん下
+import { drawKtPage, hasKtPage, KT_ROW_LABEL } from './book_keytidy';
 // ② の すみ『土を 寄せるほど、白く なる』（02_ch2_index）
 import { drawNhPage, hasNhPage, NH_ROW_LABEL } from './book_negi';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
@@ -205,6 +207,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasSbPage()) r.push({ label: SB_ROW_LABEL, draw: drawSbPage });
   if (hasKsPage()) r.push({ label: ksRowLabel(), draw: drawKsPage });
   if (hasNhPage()) r.push({ label: NH_ROW_LABEL, draw: drawNhPage });
+  if (hasKtPage()) r.push({ label: KT_ROW_LABEL, draw: drawKtPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

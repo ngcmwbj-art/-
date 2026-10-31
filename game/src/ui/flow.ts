@@ -28,6 +28,7 @@ import { makeCanvas } from '../engine/pixel';
 import { H, W } from '../engine/screen';
 import { pgOnLoad } from '../world/postgame';
 import { flag, loadGame, loadSnapshot, resetState, saveGame, saveSnapshot, setFlag, state } from '../game/state';
+import { keyTidyOnLoad } from '../events/keytidy';
 import { chapter2Adjust, chapter3Adjust, newChapter2Party, newChapter3Party, newGameParty, syncProgressSkills, type LevelUpResult } from '../data/battle';
 import { stopAllAmbient, stopBgm } from '../audio';
 import { FieldScene } from '../world/field';
@@ -171,6 +172,8 @@ class BlackScene implements Scene {
  */
 export function* continueGame(): Co {
   if (!loadGame()) return false;
+  // 大事なものの 点検（改善会議 2026-10-31 の 5）：古い セーブに 残った、窓の 閉じた 寄り道の 物を 持ち主へ
+  keyTidyOnLoad();
   const at = { map: state.map || 'map_home_2f', x: state.x, y: state.y, dir: state.dir };
   game.replaceAll(new StillScene());
   uiHud.reset();
@@ -449,7 +452,10 @@ export function* startChapter2(from: 'continue' | 'title'): Co {
   resetAutosave();
   let fromSnapshot = false;
   if (from === 'title') {
-    if (loadSnapshot(CH2_START_KEY) && flag('flag_ch2_started') && state.party.length) fromSnapshot = true;
+    if (loadSnapshot(CH2_START_KEY) && flag('flag_ch2_started') && state.party.length) {
+      fromSnapshot = true;
+      keyTidyOnLoad();
+    }
     else if (!(loadGame() && flag('flag_clear') && !flag('flag_ch2_started'))) standardChapter2Start();
   }
   lastLevelUps = [];
@@ -527,7 +533,10 @@ export function* startChapter3(from: 'continue' | 'title'): Co {
   let fromSnapshot = false;
   let standard = false;
   if (from === 'title') {
-    if (loadSnapshot(CH3_START_KEY) && flag('flag_ch3_started') && state.party.length) fromSnapshot = true;
+    if (loadSnapshot(CH3_START_KEY) && flag('flag_ch3_started') && state.party.length) {
+      fromSnapshot = true;
+      keyTidyOnLoad();
+    }
     else if (!(loadGame() && flag('flag_ch2_clear') && !flag('flag_ch3_started'))) {
       resetState();
       newChapter3Party();
