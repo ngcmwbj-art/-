@@ -1,0 +1,75 @@
+// Boot: load the pixel font, set up the canvas, unlock audio on the first
+// gesture, then hand control to the first scene.
+
+import { loadFont, warmGlyphs } from './engine/font';
+import { game } from './engine/game';
+import { sfx, unlockAudio } from './audio';
+import { installDebug, registerDebug } from './debug';
+import { installTouch, setBackShown, setCloseupShown, touchAnywhereInfo, touchLayoutInfo } from './engine/touch';
+import { commitTextZones, uiBands } from './engine/textzones';
+import { buttonZones } from './engine/safezones';
+import { field } from './world/field';
+import { firstScene } from './boot';
+import './modules';
+
+/** The HD-2D layer (src/hd2d, three.js with it), once loading has begun. */
+let hd2d: Promise<unknown> | null = null;
+
+function loadHd2d(): void {
+  hd2d ??= import('./hd2d').catch((e) => {
+    console.warn('[hd2d] not loaded, staying 2D', e);
+  });
+}
+
+/**
+ * HD-2D (02 #85, 2026-10-06: chapter 1, then chapter 2 too; 2026-10-13
+ * 依頼主の決定: always, せってい has no 表示 any more): every build carries the
+ * layer and runs its code (three.js) once the title is on screen — the first
+ * frames don't wait for it. ?hd2d=0 (a QA run in 2D, tools/playthrough.mjs)
+ * leaves it out. Where it fails to load or WebGL can't draw, the 2D pictures
+ * go on. The dev server loads it up front as before (the QA commands), the
+ * HD-2D demo page too (its 「はじめる」).
+ */
+function startHd2d(): void {
+  if (new URLSearchParams(location.search).get('hd2d') === '0') return;
+  requestAnimationFrame(() => setTimeout(loadHd2d, 30));
+}
+
+async function boot(): Promise<void> {
+  const canvas = document.getElementById('screen') as HTMLCanvasElement;
+  const fontUrl = import.meta.env.DEV
+    ? (await import('../tools/font/DotGothic16-Regular.ttf?url')).default
+    : `${import.meta.env.BASE_URL}fonts/game.woff2`;
+  await loadFont(fontUrl);
+  warmGlyphs('あいうえおアイウエオ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  game.init(canvas);
+  game.input.onFirstGesture = () => unlockAudio();
+  // the text boxes each frame drew (the touch controls keep off them)
+  game.overlays.push(commitTextZones);
+  installTouch(game.input, game.screen);
+  setBackShown(() => {
+    const f = field();
+    return !(f && game.top === f && f.controllable);
+  });
+  // a close-up game (大写し, Widget.closeup) is up: a touch off the picture is けってい too
+  setCloseupShown(
+    () => game.ui.widgets.some((w) => w.closeup === true && !w.done),
+    () => sfx('se_touch_any'),
+  );
+  canvas.focus();
+  installDebug();
+  registerDebug('textZones', () => ({ ...uiBands(), touch: touchLayoutInfo(), buttons: buttonZones() }));
+  registerDebug('touchAnywhere', () => touchAnywhereInfo());
+  if (import.meta.env.DEV || import.meta.env.VITE_HD2D_DEMO === '1') loadHd2d();
+  if (hd2d) await hd2d;
+  document.getElementById('boot')?.remove();
+  game.push(await firstScene());
+  game.start();
+  startHd2d();
+}
+
+boot().catch((e) => {
+  console.error(e);
+  const el = document.getElementById('boot');
+  if (el) el.textContent = 'ERROR: ' + (e as Error).message;
+});

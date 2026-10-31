@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(!**/.env.example)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Read(**/*.pem)",
+      "Edit(**/*.pem)",
+      "Read(**/*.key)",
+      "Edit(**/*.key)",
+      "Read(**/secrets/**)",
+      "Edit(**/secrets/**)",
+      "Read(**/.npmrc)",
+      "Edit(**/.npmrc)",
+      "Read(**/credentials*.json)",
+      "Edit(**/credentials*.json)",
+      "Read(**/client_secret*.json)",
+      "Edit(**/client_secret*.json)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check_setup.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
