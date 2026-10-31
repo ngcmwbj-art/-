@@ -180,6 +180,8 @@ export const PLACES: Record<string, PlaceDef> = {
     outside: (_tx, ty, edge) => (ty > 9 ? 'v' : ty < 0 ? 'h' : edge),
   },
   map_c3_koishi: { steps: { '~': -8 }, c3sea: true, outside: (tx, ty, edge) => (ty >= 8 ? '~' : ty < 1 ? 'H' : tx < 0 || tx > 23 ? 'K' : edge) },
+  // 船揚げ場（お昼の あとで、こする、03_ch3_index）：海は 揚げ場より 低い。南の はしの 先は 海、北は やぶ、東西は 岩
+  map_c3_funaba: { steps: { '~': -8 }, c3sea: true, outside: (tx, ty, edge) => (ty >= 11 ? '~' : ty < 1 ? 'H' : tx < 0 || tx > 27 ? 'K' : edge) },
 };
 
 export function placeOf(mapId: string): PlaceDef {

@@ -38,6 +38,7 @@ import { makeCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { markText } from '../engine/textzones';
 import { buttonZones, freeSpan } from '../engine/safezones';
+import type { PickSpot, TouchPick } from './closeup';
 import { ease } from '../engine/tween';
 import { viewOnly } from '../engine/viewonly';
 import { touchControlsOn } from '../engine/touch';
@@ -1023,6 +1024,42 @@ export class ChoiceBox implements Widget {
   private readonly gate = new ConfirmGate();
   private readonly w: number;
   private readonly h: number;
+
+  /**
+   * 指で さわって 選ぶ（改善会議 2026-10-31 の1、ui/closeup.ts の 共通の しくみ）：1回目で カーソル、
+   * 2回目に 同じ 行で けってい（いつもの 決定と 同じ：ConfirmGate を 通る）。当たりは 行ごと、
+   * 窓の 幅より 少し 広く、行の あいだに すきま なし。窓の 外（会話の 窓・絵）は さわっても 何も しない。
+   */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (this.done || this.pressT >= 0 || this.t < 100) return null;
+      const [x, y] = this.pos;
+      const n = this.options.length;
+      const out: PickSpot[] = [];
+      for (let i = 0; i < n; i++) {
+        const top = y + 4 + i * 18 - (i === 0 ? 6 : 0);
+        const bot = y + 4 + (i + 1) * 18 + (i === n - 1 ? 4 : 0);
+        out.push({ i, x: x - 12, y: top, w: this.w + 16, h: bot - top });
+      }
+      return out;
+    },
+    cursor: () => this.index,
+    moveTo: (i) => {
+      if (i === this.index || i < 0 || i >= this.options.length) return;
+      this.index = i;
+      this.moveT = 0;
+      sfx('se_cursor', { vol: 0.6 });
+    },
+    frame: (i) => {
+      const [x, y] = this.pos;
+      return [x + 4, y + 4 + i * 18, this.w - 8, 17];
+    },
+    // (over the choice window, flush right: on its left lies the speaker's name tag)
+    againAt: (tw, th) => {
+      const [x, y] = this.pos;
+      return y - th - 3 >= 2 ? [x + this.w - tw, y - th - 3] : [x - 12 - tw - 2, y + 5 + this.index * 18];
+    },
+  };
 
   constructor(private options: string[], private o: ChooseOpts = {}, private owner: DialogBox | null = null) {
     this.w = Math.max(...options.map((s) => textW(s))) + 12 + 12 + 12;

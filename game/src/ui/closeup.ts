@@ -40,7 +40,7 @@ import { setButtonHint, setCanvasPick, touchControlsOn, type PickTapResult } fro
 import { field } from '../world/field';
 import { runMsg } from '../world/msg';
 import { drawTape, drawWindow, textW, UI } from './window';
-import { dialogVisible } from './dialog';
+import { ask, ChoiceBox, dialogVisible } from './dialog';
 import { HOWTO } from '../data/text/howto';
 import { YORIMICHI_START } from '../audio/yorimichi';
 
@@ -117,6 +117,7 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_iso_start: { ids: ['iso'], how: 'already', pages: '0' },
   flag_kr_start: { ids: [], how: 'none', pages: '大写し なし' },
   flag_ag_start: { ids: ['amigoya'], how: 'already', pages: '1' },
+  flag_fb_start: { ids: ['funaba'], how: 'already', pages: '0〜1（船の 腹を 調べると すぐ。やり方の 1ページは 1回きり。こすった 所は 残り、続きから）' },
   flag_mh_start: { ids: ['mahiru'], how: 'already', pages: '2' },
   flag_mk_start: { ids: ['mikan'], how: 'already', pages: '1' },
   flag_mz_start: { ids: ['mizukiri'], how: 'already', pages: '0' },
@@ -125,10 +126,14 @@ export const INTRO_SKIP: Record<string, { ids: string[]; how: 'ask' | 'already' 
   flag_tk_start: { ids: ['tokoro'], how: 'goesOn', pages: 'やめると 残りは ナミエが 突く' },
   flag_sr_start: { ids: ['suna', 'shiro'], how: 'already', pages: '0（砂・城の 所を 調べると すぐ。積んだ 段は 残る）' },
   flag_tm_start: { ids: ['ana'], how: 'already', pages: '0〜1（カイトか 見た 貝がらを 調べると すぐ。くらべた カードは 残る）' },
+  flag_mr_start: { ids: ['mure'], how: 'already', pages: '0〜1（ふちか 群れを 調べると すぐ。見た 見え方は 残る）' },
+  flag_kz_start: { ids: [], how: 'none', pages: '大写し なし（路地を 歩いて ゆれる 物を 見る）' },
+  flag_uk_start: { ids: ['seuki'], how: 'ask', pages: '7 → 1（カイトの 1ページの あと すぐ。済んだ 段は 残る）' },
   flag_yd_start: { ids: ['yose'], how: 'ask', pages: '3 → 0' },
   flag_hs_start: { ids: ['housou'], how: 'ask', pages: 'チャイムの 前置き → 0（housou、10-26）' },
   flag_dm_start: { ids: ['mokei'], how: 'already', pages: '0（星見台・海ぞいの 町の 模型を 調べると すぐ。直した 所は 残る）' },
   flag_fr_start: { ids: ['fureai'], how: 'already', pages: '0〜1（水槽を 調べると すぐ。見た 所は 残る。生き物 役は 1回きり）' },
+  flag_me_start: { ids: [], how: 'none', pages: '大写し なし（板の 前で 待つ）' },
 };
 
 /** Was one of these close-ups quit with もどる (and not opened since)? */
@@ -348,6 +353,10 @@ game.overlays.push(drawTag);
 //   1回目の タッチ：カーソルが その 物へ（パネルの moveTo。音も パネルの カーソルの 音）。
 //   2回目（同じ 物）：けってい（いつもの けってい と 同じ：パネルは input.pressed('confirm') で 受ける）。
 //   物の ない 所を さわっても 何も しない（選んで いる あいだは、絵の 外の 黒い 所も けってい に しない）。
+// 改善会議 2026-10-31 の 1・10・2：大写しで ない 画面にも 広げた。聞く 先は「いちばん 上の 画面」＝
+// いちばん 上の モーダルの Widget（選択肢 ui/dialog.ts の ChoiceBox・大写しの パネル）、それが なければ
+// いちばん 上の 場面（タイトル ui/title.ts・戦闘の コマンド battle/menu.ts）。どれも touchPick を 置くだけ。
+// touchPick の ない 画面（会話の 送り・手帳 ほか）は 今まで どおり、絵を さわると けってい。
 // 十字・けってい・もどる の ボタンと キーは 今の まま。カーソルの 動く 見た目は ここが 描く 共通の
 // 四すみの かぎ（調べる枠と 同じ 形）：タッチの 端末か、指・マウスで 1度 さわった 大写しで、今の 物の
 // まわりに すべって 動く。1回目の あとは「やめる」の 札の 左に 少し「もう一度 さわると けってい」。
@@ -378,6 +387,13 @@ export interface TouchPick {
   cursor(): number;
   /** カーソルを i へ（←→・↑↓ で 動いた ときと 同じ 音・見た目）。 */
   moveTo(i: number): void;
+  /**
+   * 四すみの かぎ・1回目に 光る 四角（なければ さわれる 四角）。当たりを 見た目より 広げた 物
+   * （選択肢の 行・タイトルの テープ・戦闘の アイコン）は、見た目の 四角を ここで。
+   */
+  frame?(i: number): [number, number, number, number] | null;
+  /** 「もう一度 さわると けってい」の 左上（大写しで ない 画面。なければ かぎの 左）。 */
+  againAt?(tw: number, th: number): [number, number] | null;
 }
 
 /** n 個の 物の 四角を まとめて（f(i) = [x, y, w, h]、null は さわれない 物）。 */
@@ -390,25 +406,35 @@ export function pickRows(n: number, f: (i: number) => [number, number, number, n
   return out;
 }
 
-function touchPickOf(w: Widget): TouchPick | null {
-  const tp = (w as { touchPick?: TouchPick }).touchPick;
+function touchPickOf(w: object): TouchPick | null {
+  const tp = (w as { touchPick?: TouchPick | null }).touchPick;
   return tp && typeof tp.spots === 'function' ? tp : null;
 }
 
 /** 1回目に さわった 物（2回目に 同じ 物なら けってい）。at：game.time。 */
-let pickArmed: { w: Widget; i: number; at: number } | null = null;
+let pickArmed: { w: object; i: number; at: number } | null = null;
 /** 次の フレームで カーソルを 動かす（パネルの update の 前に）。 */
 let pickPending: { w: Widget; i: number } | null = null;
 /** 指・マウスで 1度 さわった 大写し（キーボードでも かぎを 出す）。 */
-const pickUsed = new WeakSet<Widget>();
+const pickUsed = new WeakSet<object>();
 /** QA：最後の タッチ。 */
 const pickLog: { x: number; y: number; i: number; r: PickTapResult; cls: string }[] = [];
 
-/** 今 選んで いる 大写し（いちばん 上で、会話・カードが 上に なく、選ぶ 時）。 */
-function pickNow(): { w: Widget; tp: TouchPick; spots: PickSpot[] } | null {
+/** いちばん 上の 画面：いちばん 上の モーダルの Widget、なければ いちばん 上の 場面（10-31）。 */
+function pickOwner(): object | null {
+  const ws = game.ui.widgets;
+  for (let i = ws.length - 1; i >= 0; i--) if (ws[i].modal && !ws[i].done) return ws[i];
+  const sc = game.scenes;
+  return sc.length ? sc[sc.length - 1] : null;
+}
+
+/** 今 選んで いる 画面（大写しは、会話・カードが 上に なく、やめて いない とき）。 */
+function pickNow(): { w: object; tp: TouchPick; spots: PickSpot[]; closeup: boolean } | null {
   if (game.ui.hold) return null;
-  const w = topCloseup();
-  if (!w || quitting.has(w) || cardPending(w) || dialogVisible()) return null;
+  const w = pickOwner();
+  if (!w) return null;
+  const closeup = !!(w as Widget).closeup;
+  if (closeup && (quitting.has(w as Widget) || cardPending(w as Widget) || dialogVisible())) return null;
   const tp = touchPickOf(w);
   if (!tp) return null;
   let spots: PickSpot[] | null = null;
@@ -417,7 +443,7 @@ function pickNow(): { w: Widget; tp: TouchPick; spots: PickSpot[] } | null {
   } catch {
     return null;
   }
-  return spots && spots.length ? { w, tp, spots } : null;
+  return spots && spots.length ? { w, tp, spots, closeup } : null;
 }
 
 /** さわった 所の 物（四角の まわり 3 px まで。重なれば 小さい 方）。-1＝何も ない。 */
@@ -455,8 +481,16 @@ function pickTap(x: number, y: number): PickTapResult {
     return log('confirm');
   }
   pickArmed = { w: p.w, i, at: game.time };
-  if (i !== cur) pickPending = { w: p.w, i };
-  else sfx('se_cursor', { vol: 0.4 });
+  if (i === cur) sfx('se_cursor', { vol: 0.4 });
+  else if (p.closeup) pickPending = { w: p.w as Widget, i };
+  else {
+    // (大写しで ない 画面：すぐ 動かす。パネルの 番が 来る 前に 動いても こまらない 物だけ）
+    try {
+      p.tp.moveTo(i);
+    } catch (e) {
+      console.warn('touchPick', e);
+    }
+  }
   return log('eat');
 }
 
@@ -467,12 +501,14 @@ type Box = [number, number, number, number];
 let glideFrom: Box | null = null;
 let glideTo: Box | null = null;
 let glideT = 1;
-let glideW: Widget | null = null;
+let glideW: object | null = null;
 let pickK = 0;
 const PICK_GLIDE = 140;
 const PICK_AGAIN = 'もう一度 さわると けってい';
 /** その 字の 出て いる 時間（ゲームの 時間、ms）。 */
 const PICK_AGAIN_MS = 2800;
+/** 1回目の タッチで 光る 時間（ms）。 */
+const PICK_FLASH_MS = 260;
 
 function spotBox(spots: PickSpot[], i: number): Box | null {
   const s = spots.find((q) => q.i === i);
@@ -513,7 +549,8 @@ function drawPick(g: Gfx): void {
     glideW = null;
     return;
   }
-  const want = spotBox(p.spots, p.tp.cursor());
+  const cur = p.tp.cursor();
+  const want = (p.tp.frame ? p.tp.frame(cur) : null) ?? spotBox(p.spots, cur);
   if (!want) return;
   if (glideW !== p.w || !glideTo) {
     glideW = p.w;
@@ -532,15 +569,35 @@ function drawPick(g: Gfx): void {
   // (a slow breath while it waits; brighter just after a touch)
   const armed = pickArmed && pickArmed.w === p.w && pickArmed.i === p.tp.cursor() ? game.time - pickArmed.at : -1;
   const pulse = 0.82 + 0.18 * Math.sin(performance.now() / 300);
+  // (1回目の タッチで 光る：さわった 物が 一瞬 白く、すぐ 消える。10-31 の 1)
+  if (armed >= 0 && armed < PICK_FLASH_MS) {
+    const fa = 0.42 * (1 - armed / PICK_FLASH_MS);
+    g.alpha(fa * pickK, () => g.rect(Math.round(b[0]), Math.round(b[1]), Math.round(b[2]), Math.round(b[3]), '#FFF6D8'));
+  }
   drawHooks(g, b, pickK * (armed >= 0 && armed < PICK_AGAIN_MS ? 1 : pulse));
   // 「もう一度 さわると けってい」 for a moment after the first touch: always the same place, on the
   // left of the やめる tag (beside what was touched it would lie over the next one)
   if (armed >= 0 && armed < PICK_AGAIN_MS && glideT >= 0.6) {
     const tw = textW(PICK_AGAIN) + 8;
-    const [qx, qy, , qh] = quitTagRect(p.w);
-    const th = qh;
-    const tx = Math.max(2, qx - tw - 6);
-    const ty = qy;
+    let tx: number;
+    let ty: number;
+    let th = 15;
+    if (p.closeup) {
+      const [qx, qy, , qh] = quitTagRect(p.w as Widget);
+      th = qh;
+      tx = Math.max(2, qx - tw - 6);
+      ty = qy;
+    } else {
+      // (大写しで ない 画面：その 画面が 言う 所、なければ 今の 物の 左〈すきまが なければ 右〉)
+      const at = p.tp.againAt?.(tw, th) ?? null;
+      if (at) [tx, ty] = at;
+      else {
+        tx = b[0] - tw - 6 >= 2 ? b[0] - tw - 6 : b[0] + b[2] + 6;
+        ty = b[1] + (b[3] - th) / 2;
+      }
+      tx = Math.round(Math.max(2, Math.min(W - tw - 2, tx)));
+      ty = Math.round(Math.max(2, Math.min(H - th - 2, ty)));
+    }
     const a = Math.min(1, armed / 120, (PICK_AGAIN_MS - armed) / 300);
     markText(tx, ty, tw, th);
     g.alpha(a, () => {
@@ -943,7 +1000,7 @@ registerDebug('yameSet', (id?: unknown, on: unknown = 1) => {
 registerDebug('pickInfo', () => {
   const p = pickNow();
   return {
-    top: p ? p.w.constructor?.name : (topCloseup()?.constructor?.name ?? null),
+    top: p ? p.w.constructor?.name : (pickOwner()?.constructor?.name ?? null),
     spots: p ? p.spots.map((s) => [s.i, Math.round(s.x), Math.round(s.y), Math.round(s.w), Math.round(s.h)]) : null,
     cursor: p ? p.tp.cursor() : null,
     armed: pickArmed ? pickArmed.i : null,
@@ -960,6 +1017,70 @@ registerDebug('pickTap', (x?: unknown, y?: unknown) => {
     window.setTimeout(() => game.input.setVirtual('confirm', false), 90);
   }
   return r;
+});
+/**
+ * テスト（改善会議 2026-10-31 の1）：「はい／いいえ」で カーソルが「はい」の とき、「いいえ」を 1回
+ * さわっただけでは 決まらない（カーソルが 動くだけ）。選択肢の 外を さわっても 何も 起きない。
+ * もう1回 さわると「いいえ」で 決まる。ok＝ぜんぶ その とおり。タッチは pickTap と 同じ 道（ゲームの px）。
+ */
+registerDebug('pickChoiceTest', () => {
+  return new Promise((done) => {
+    const out: Record<string, unknown> = {};
+    let result = -2;
+    game.scripts.run(
+      (function* (): Co {
+        result = yield* ask('（さわって 選ぶ の 点検）', ['はい', 'いいえ'], { voice: 'sys' });
+      })(),
+    );
+    const tap = (x: number, y: number): PickTapResult => {
+      const r = pickTap(x, y);
+      if (r !== 'eat') {
+        game.input.setVirtual('confirm', true);
+        window.setTimeout(() => game.input.setVirtual('confirm', false), 90);
+      }
+      return r;
+    };
+    game.scripts.run(
+      (function* (): Co {
+        // (the choice of this test: the title's tapes may be touchable until it is up)
+        let p = pickNow();
+        for (let k = 0; k < 900 && !(p && p.w instanceof ChoiceBox); k++) {
+          yield null;
+          p = pickNow();
+        }
+        if (p && !(p.w instanceof ChoiceBox)) p = null;
+        if (!p) {
+          done({ ok: false, why: 'no choice to touch' });
+          return;
+        }
+        out.owner = p.w.constructor?.name;
+        out.cursor0 = p.tp.cursor();
+        const s1 = p.spots.find((q) => q.i === 1)!;
+        // off the window (the picture's top left): nothing
+        out.outside = tap(6, 6);
+        yield 200;
+        out.afterOutside = { cursor: p.tp.cursor(), decided: result !== -2 };
+        // いいえ, once
+        out.tap1 = tap(s1.x + s1.w / 2, s1.y + s1.h / 2);
+        yield 500;
+        out.after1 = { cursor: p.tp.cursor(), decided: result !== -2 };
+        // いいえ, again
+        out.tap2 = tap(s1.x + s1.w / 2, s1.y + s1.h / 2);
+        for (let k = 0; k < 120 && result === -2; k++) yield null;
+        out.result = result;
+        out.ok =
+          out.cursor0 === 0 &&
+          out.outside === 'eat' &&
+          !(out.afterOutside as { decided: boolean }).decided &&
+          out.tap1 === 'eat' &&
+          (out.after1 as { cursor: number; decided: boolean }).cursor === 1 &&
+          !(out.after1 as { decided: boolean }).decided &&
+          out.tap2 === 'confirm' &&
+          result === 1;
+        done(out);
+      })(),
+    );
+  });
 });
 registerDebug('closeupQuit', () => {
   const w = topCloseup();

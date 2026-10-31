@@ -689,6 +689,51 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 干し網・アジの開き（日じゃ なくて、風、03_ch3_index）：つり下げる 3段の 網の かご（ひも・緑の 網・段の ふち）、
+// 紙に 包んだ 開きの 半分が のぞく
+Object.assign(ITEM_ROWS, {
+  item_kz_ami: [
+    '....kk....',
+    '....dk....',
+    '..kkkkkk..',
+    '..kmGmGk..',
+    '..kkkkkk..',
+    '..kGmGmk..',
+    '..kkkkkk..',
+    '..kmGmGk..',
+    '...kkkk...',
+    '..........',
+  ],
+  item_kz_hiraki: [
+    '..........',
+    '.kkkkk....',
+    '.kwwwwkk..',
+    '.kwwwkYyk.',
+    '.kwwkYHyk.',
+    '.kwwkyYyk.',
+    '.kwwkYyyk.',
+    '.kwwwkbk..',
+    '.kkkkkk...',
+    '..........',
+  ],
+});
+
+// 軍手（お昼の あとで、こする、03_ch3_index）：白い 軍手、手首に 青い ふち
+Object.assign(ITEM_ROWS, {
+  item_fb_gunte: [
+    '..k.k.k...',
+    '.kwkwkwk..',
+    '.kwkwkwk..',
+    '.kwwwwwkk.',
+    '.kwwwwwkwk',
+    '.kwwwwwwk.',
+    '.kwwwwwk..',
+    '.kUUUUUk..',
+    '.kUUUUUk..',
+    '..kkkkk...',
+  ],
+});
+
 // 古い網針（破れたら、つくろう、03_ch3_index）：平たい 竹の 網針（ななめ）、緑の 網糸が 巻いてある
 Object.assign(ITEM_ROWS, {
   item_c3_amibari: [

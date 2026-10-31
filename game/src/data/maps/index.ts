@@ -68,3 +68,5 @@ import './c3_amigoya';
 import './c3_housou';
 // ふれあいの 磯（目で、いちばん 長く 03_ch3_index、events/ch3/fureai.ts）
 import './c3_fureai';
+// 船揚げ場（お昼の あとで、こする 03_ch3_index、events/ch3/funaba.ts）
+import './c3_funaba';

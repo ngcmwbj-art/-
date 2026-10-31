@@ -32,6 +32,7 @@ import { syncCh2Bg } from './ch2rules';
 import { markText } from '../engine/textzones';
 import { drawHint } from './hint';
 import { buttonZones } from '../engine/safezones';
+import type { TouchPick } from '../ui/closeup';
 
 export const FRAME = 1000 / 60;
 
@@ -143,6 +144,8 @@ export class BattleScene implements Scene {
   showUi = false;
   uiAlpha = 1;
   cmd: CmdView | null = null;
+  /** 指で さわって 選ぶ（改善会議 2026-10-31 の2）：コマンドの アイコン（battle/menu.ts が 置く）。 */
+  touchPick: TouchPick | null = null;
   list: { rows: ListRow[]; index: number; scroll: number } | null = null;
   target:
     | { kind: 'enemy'; e: EnemyUnit; part?: { x: number; y: number; w: number }; aim?: { x: number; y: number; dir: 'down' | 'right' } }

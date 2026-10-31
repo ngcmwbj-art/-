@@ -69,6 +69,16 @@ const C3_AUDIO: Record<string, C3Audio> = {
     ambVol: { amb_c3_umi: { vol: 0.9 }, amb_c3_semi: { vol: 0.45 } },
     phase: 1,
   },
+  // 船揚げ場（お昼の あとで、こする、03_ch3_index）：町の 歌、海と がけの 上の 蝉（段階1〜2）
+  map_c3_funaba: {
+    space: 'minato',
+    pa: 'umi',
+    bgm: { 1: UMI, 2: UMI },
+    variant: 'outdoor',
+    amb: { 1: ['amb_c3_umi', 'amb_c3_semi'], 2: ['amb_c3_umi', 'amb_c3_semi'] },
+    ambVol: { amb_c3_umi: { vol: 0.9 }, amb_c3_semi: { vol: 0.35 } },
+    phase: 1,
+  },
   map_c3_nidai: {
     space: 'outdoor',
     pa: 'town',

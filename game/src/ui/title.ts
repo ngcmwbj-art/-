@@ -72,6 +72,7 @@ import { titleThanks } from '../data/text/c3_story4';
 import { buttonZones, freeSpan } from '../engine/safezones';
 import { continueInfo, type ContinueInfo } from './save';
 import { drawGoalFlag } from './menu/goal';
+import type { PickSpot, TouchPick } from './closeup';
 
 type MenuId = 'new' | 'continue' | 'ch2' | 'ch3' | 'settings';
 /** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
@@ -144,6 +145,50 @@ export class TitleScene implements Scene {
   /** The boot screen was shown: the town fades up from its dim state, not from black. */
   private fromPress = false;
   private readonly sky: Sky = 'sunset';
+
+  /** The tapes' column now: the top tape's y, the tapes' x, the left end (the 「第2章」 note, the cursor). */
+  private menuBox(): { top: number; mx: number; x0: number } {
+    const top = MENU_BOTTOM - 18 - (this.menu.length - 1) * MENU_STEP;
+    const mx = menuX(top);
+    const x0 = mx - (this.kind === 'ch2' && this.menu.includes('continue') ? NOTE_W - 5 : 0) - 14;
+    return { top, mx, x0 };
+  }
+
+  /**
+   * 指で さわって 選ぶ（改善会議 2026-10-31 の10、ui/closeup.ts の 共通の しくみ）：テープを 1回 さわると
+   * カーソル、もう1回で けってい。当たりは テープの 行ごと（左の カーソル・「第2章」の 付箋まで、
+   * 行の あいだに すきま なし）。テープの 外は 何も しない（「せってい」を さわって 始まる、を なくす）。
+   * 「第2章から」「第3章から」「はじめる」の たずねる 所は 選択肢（ChoiceBox）が 同じ しくみで 受ける。
+   */
+  touchPick: TouchPick = {
+    spots: () => {
+      if (this.phase !== 'intro' || this.busy || this.asking || this.menuHide > 0 || this.pickT >= 0 || this.t < MENU_AT + 200) return null;
+      const { top, mx, x0 } = this.menuBox();
+      const out: PickSpot[] = [];
+      this.menu.forEach((id, i) => {
+        if (id === 'continue' && !this.canLoad) return;
+        const y = top + i * MENU_STEP;
+        out.push({ i, x: x0 - 4, y: y - 1 - (i === 0 ? 4 : 0), w: mx + 92 - (x0 - 4), h: MENU_STEP + (i === 0 ? 4 : 0) + (i === this.menu.length - 1 ? 4 : 0) });
+      });
+      return out;
+    },
+    cursor: () => this.index,
+    moveTo: (i) => {
+      if (i === this.index || i < 0 || i >= this.menu.length) return;
+      this.index = i;
+      this.moveT = 0;
+      sfx('se_cursor', { vol: 0.6 });
+    },
+    frame: (i) => {
+      const { top, mx } = this.menuBox();
+      return [mx, top + i * MENU_STEP - (i === this.index ? 1 : 0), 88, 18];
+    },
+    // (just over the tapes, flush right with them: left of them lie the cards — つづきから's, the clear card)
+    againAt: (tw, th) => {
+      const { top, mx } = this.menuBox();
+      return [mx + 88 - tw, Math.max(97, top - th - 3)];
+    },
+  };
 
   constructor(skipPress = false) {
     if (skipPress || audioReady()) this.phase = 'intro';

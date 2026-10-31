@@ -41,6 +41,7 @@ export const YORIMICHI_LEN: Record<string, YoriLen> = {
   flag_iso_start: 'normal', // iso 読む 69＋磯・6か所：約4分半
   flag_kr_start: 'normal', // kori 読む 56＋氷の 道 3本：約5分
   flag_ag_start: 'normal', // amigoya 読む 53＋網の 目 3つ：約4分
+  flag_fb_start: 'normal', // funaba お昼の あとで、こする（読む 約40ページ＋大写し「船の 底」1回〈こする 11回〉＋路地から 船揚げ場・〔ぬる〕の 暗転：約4分）
   flag_mh_start: 'normal', // mahiru 読む 56＋のぞき 3回・7か所：約4分
   flag_mk_start: 'normal', // mikan 読む 46＋枝 3本・8か所：約4分
   flag_mz_start: 'normal', // mizukiri 読む 34＋水切り・7か所：約3分
@@ -49,6 +50,9 @@ export const YORIMICHI_LEN: Record<string, YoriLen> = {
   flag_tk_start: 'normal', // tokoro 読む 57＋天突き・3か所：約3分半
   flag_sr_start: 'normal', // shiro 波に 見せる 城（読む 約40ページ＋大写し「砂」4回＋浜の 6か所：約3分半）
   flag_tm_start: 'normal', // tsumeta 穴は、だれかの ごちそうさま（読む 約46ページ＋大写し「穴」カード 3枚＋監視台の まわり 5か所：約3分）
+  flag_mr_start: 'normal', // aji 背中は 海の 色（読む 約30ページ＋大写し「群れ」5回＋防波堤の ふち・潜って 群れ 3つ：約3分）
+  flag_kz_start: 'normal', // himono 日じゃ なくて、風（読む 約31ページ＋路地の かぎ 3つ・店先へ もどる：約2分半）
+  flag_uk_start: 'normal', // ukimachi 浮いて、待つ（読む 約34ページ＋大写し「背浮き」3つ＋海の 絵：約2分半〜3分）
   flag_yd_start: 'short', // yose 読む 34＋なべ・沖まで 5か所：約2分50秒（測った 170秒）
   flag_rt_start: 'normal', // retasu 寝とる うちに、とる（読む 約69ページ＋大写し 3回＋村から ネットの 戸・上の 畑：約4分）
   flag_sb_start: 'normal', // soba ちがう 花が、となりに（読む 約45ページ＋大写し「そばの 花」1回〈6つ・3組〉＋集会所から 竹垣の 戸・そば畑・集会所：約3分）
@@ -58,4 +62,5 @@ export const YORIMICHI_LEN: Record<string, YoriLen> = {
   flag_fr_start: 'normal', // fureai 目で、いちばん 長く（読む 約45ページ＋手洗い＋大写し「ふれあい」4か所＋回廊から 1部屋：約3分）
   flag_dm_start: 'normal', // diorama3 荷台から 見た 村（読む 約30ページ＋大写し「模型の 寄り」4か所＋ジオラマの 部屋から 水槽の うら：約2分半）
   flag_hs_start: 'normal', // housou 終わりの 音は、下がる（読む 約66ページ＋大写し 2回＋入口から 1部屋：約4分）
+  flag_me_start: 'normal', // kurayami 目が、暗さに なれるまで（読む 約25ページ＋板の 前で 待つ 3枚×3秒＋部屋の 中を 歩く 3か所：約2分半）
 };

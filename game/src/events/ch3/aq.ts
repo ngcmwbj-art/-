@@ -452,7 +452,8 @@ const guide = { map: '', goal: '' as string, field: null as Map<string, number> 
 registerWorldFx({
   map: '',
   update(f: FieldScene, dt: number) {
-    const on = f.map.id === 'map_c3_aq_shinkai' && inCh3() && !flag('flag_ch3_esa_done');
+    // (目が、暗さに なれるまで〔me〕の 間は しゅんが 先頭：グソっ君は 目を つむって うしろ。kurayami.ts)
+    const on = f.map.id === 'map_c3_aq_shinkai' && inCh3() && !flag('flag_ch3_esa_done') && !flag('flag_me_on');
     const kn = f.actorById('kanenari');
     if (!on) {
       if (guide.map && kn?.data.guide) {

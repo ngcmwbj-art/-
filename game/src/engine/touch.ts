@@ -193,7 +193,11 @@ export function setCloseupShown(fn: () => boolean, tap?: () => void): void {
   anywhereTap = tap ?? null;
 }
 
-/** A close-up's touch pick (ui/closeup.ts, 改善会議 2026-10-30 の1): game px → what the tap does. */
+/**
+ * The touch pick (ui/closeup.ts, 改善会議 2026-10-30 の1): game px → what the tap does. Since
+ * 2026-10-31 (の1・10・2) it asks the top screen, not only a close-up: a choice window, the title's
+ * tapes, the battle's commands (1st touch = the cursor, 2nd on the same = けってい; off them nothing).
+ */
 export type PickTapResult = 'pass' | 'eat' | 'confirm';
 let canvasPick: ((x: number, y: number) => PickTapResult) | null = null;
 let pickBusy: () => boolean = () => false;

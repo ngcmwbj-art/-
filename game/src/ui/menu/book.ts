@@ -112,6 +112,7 @@ import { drawMkPage, hasMkPage, MK_ROW_LABEL } from './book_mikan';
 import { drawKrPage, hasKrPage, KR_ROW_LABEL } from './book_kori';
 // ③の すみ『破れたら、つくろう』（第3章の クリア前、03_ch3_index）
 import { AG_ROW_LABEL, drawAgPage, hasAgPage } from './book_amigoya';
+import { drawFbPage, FB_ROW_LABEL, hasFbPage } from './book_funaba';
 import { drawHsPage, hasHsPage, HS_ROW_LABEL } from './book_housou';
 // ③の すみ『背中から、1回で』（第3章の クリア前、03_ch3_index）
 import { drawNgPage, hasNgPage, NG_ROW_LABEL } from './book_nukegara';
@@ -121,10 +122,18 @@ import { drawTkPage, hasTkPage, TK_ROW_LABEL } from './book_tokoro';
 import { drawSrPage, hasSrPage, SR_ROW_LABEL } from './book_shiro';
 // ③の すみ『穴は、だれかの ごちそうさま』（第3章の クリア前、03_ch3_index）
 import { drawTmPage, hasTmPage, TM_ROW_LABEL } from './book_tsumeta';
+// ③の すみ『背中は 海の 色』（第3章の クリア前、03_ch3_index）
+import { drawMrPage, hasMrPage, MR_ROW_LABEL } from './book_mure';
 // ③の すみ『目で、いちばん 長く』（第3章の クリア前、03_ch3_index）
 import { drawFrPage, FR_ROW_LABEL, hasFrPage } from './book_fureai';
 // ③の すみ『荷台から 見た 村』（第3章の クリア前、03_ch3_index）
 import { DM_ROW_LABEL, drawDmPage, hasDmPage } from './book_diorama3';
+// ③の すみ『日じゃ なくて、風』（第3章の クリア前、03_ch3_index）
+import { drawKzPage, hasKzPage, KZ_ROW_LABEL } from './book_kaze';
+// ③の すみ『浮いて、待つ』（第3章の クリア前、03_ch3_index）
+import { drawUkPage, hasUkPage, UK_ROW_LABEL } from './book_ukimachi';
+// ③の すみ『目が、暗さに なれるまで』（第3章の クリア前、03_ch3_index）
+import { drawMePage, hasMePage, ME_ROW_LABEL } from './book_kurayami';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
 import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
 import { secretSeen } from '../pg_secret';
@@ -146,13 +155,18 @@ function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasMkPage()) r.push({ label: MK_ROW_LABEL, draw: drawMkPage });
   if (hasKrPage()) r.push({ label: KR_ROW_LABEL, draw: drawKrPage });
   if (hasAgPage()) r.push({ label: AG_ROW_LABEL, draw: drawAgPage });
+  if (hasFbPage()) r.push({ label: FB_ROW_LABEL, draw: drawFbPage });
   if (hasHsPage()) r.push({ label: HS_ROW_LABEL, draw: drawHsPage });
   if (hasNgPage()) r.push({ label: NG_ROW_LABEL, draw: drawNgPage });
   if (hasTkPage()) r.push({ label: TK_ROW_LABEL, draw: drawTkPage });
   if (hasSrPage()) r.push({ label: SR_ROW_LABEL, draw: drawSrPage });
   if (hasTmPage()) r.push({ label: TM_ROW_LABEL, draw: drawTmPage });
+  if (hasMrPage()) r.push({ label: MR_ROW_LABEL, draw: drawMrPage });
   if (hasFrPage()) r.push({ label: FR_ROW_LABEL, draw: drawFrPage });
   if (hasDmPage()) r.push({ label: DM_ROW_LABEL, draw: drawDmPage });
+  if (hasKzPage()) r.push({ label: KZ_ROW_LABEL, draw: drawKzPage });
+  if (hasMePage()) r.push({ label: ME_ROW_LABEL, draw: drawMePage });
+  if (hasUkPage()) r.push({ label: UK_ROW_LABEL, draw: drawUkPage });
   if (hasAbPage()) r.push({ label: AB_ROW_LABEL, draw: drawAbPage });
   if (hasImPage()) r.push({ label: IM_ROW_LABEL, draw: drawImPage });
   if (hasIsoPage()) r.push({ label: ISO_ROW_LABEL, draw: drawIsoPage });

@@ -83,6 +83,8 @@ const MAPS = new Set([
   'map_c3_koishi',
   // みかん畑の 上の 段（落とすけえ、甘うなる。段階1〜2、03_ch3_index）
   'map_c3_mikan_ue',
+  // 船揚げ場（お昼の あとで、こする。段階1〜2、03_ch3_index）
+  'map_c3_funaba',
 ]);
 
 const params = new URLSearchParams(location.search);

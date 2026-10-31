@@ -73,6 +73,8 @@ import './negi_art';
 import './shiro_art';
 // 穴は、だれかの ごちそうさま（03_ch3_index）：海水浴場の 貝がら・ツメタガイの 殻・砂の お茶わん（段階2）
 import './tsumeta_art';
+// 背中は 海の 色（03_ch3_index）：海の 中の 港がわの 止まった 小アジの 群れ（段階1）
+import './mure_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

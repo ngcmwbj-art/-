@@ -13,6 +13,7 @@ import type { PartyUnit } from '../model';
 import { C, cursorStamp, drawBar, drawNote, tapeCanvas, tapeCorner } from './note';
 import { markText } from '../../engine/textzones';
 import { buttonsTop, buttonZones, buttonZonesVersion, freeSpan } from '../../engine/safezones';
+import { touchControlsOn } from '../../engine/touch';
 
 export const PANEL_POS: Record<string, [number, number]> = { minato: [104, 150], kanenari: [244, 150] };
 /**
@@ -388,10 +389,24 @@ export interface CmdView {
   noriThree?: boolean;
 }
 
+/**
+ * The command icons' x (16×16, y156). With the touch pad up (改善会議 2026-10-31 の2: picked with a
+ * finger, battle/menu.ts) they spread over the notebook so each has a wider column to touch; with
+ * keys they stay as they were.
+ */
+export function cmdIconXs(n: number): number[] {
+  if (touchControlsOn() && n >= 2 && n <= 5) {
+    const sp = n <= 3 ? 28 : n === 4 ? 22 : 18;
+    const x0 = 44 - Math.round((sp * (n - 1)) / 2);
+    return Array.from({ length: n }, (_, i) => x0 + i * sp);
+  }
+  return n >= 5 ? [10, 27, 44, 61, 78] : n === 4 ? [18, 35, 52, 69] : n === 1 ? [44] : [27, 44, 61].slice(0, n);
+}
+
 export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void {
   drawNote(g, 4, 150, 96, 62, {}, alpha);
   const n = v.icons.length;
-  const xs = n >= 5 ? [10, 27, 44, 61, 78] : n === 4 ? [18, 35, 52, 69] : n === 1 ? [44] : [27, 44, 61].slice(0, n);
+  const xs = cmdIconXs(n);
   g.alpha(alpha, () => {
     if (v.onTab && v.noriTab) {
       // on the ノリツッコミ tab (QA round 2: the rows stood empty): the three

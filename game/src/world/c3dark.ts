@@ -70,6 +70,13 @@ function gusokkun(f: FieldScene): Actor | null {
   return null;
 }
 
+/**
+ * 目が、暗さに なれるまで（events/ch3/kurayami.ts）：グソっ君が 目を つむって いる 間は 目の 光を 消し、
+ * しゅんの まわりに 青白い うすい 輪（目が 暗さに なれて、まわりが ぼんやり 見えて くる。`adapt` 0..1 で 広がる。
+ * 会議 10-31：明るい 所の iPad でも 見えるよう 真っ暗に しない）。
+ */
+export const c3Eyes = { shut: false, adapt: 0 };
+
 const DIR_ANGLE: Record<string, number> = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
 
 /**
@@ -90,9 +97,22 @@ export function paintC3Lights(f: FieldScene, lx: CanvasRenderingContext2D, cx: n
     lx.globalCompositeOperation = 'source-over';
     lx.globalAlpha = k;
     lx.drawImage(img, sx, sy);
+    if (c3Eyes.shut && f.map.id === 'map_c3_aq_shinkai') {
+      const r = 44 + 36 * c3Eyes.adapt;
+      const px = Math.round(p.x - cx);
+      const py = Math.round(p.y - 8 - cy);
+      const gr = lx.createRadialGradient(px, py, 4, px, py, r);
+      gr.addColorStop(0, 'rgba(150,170,200,0.55)');
+      gr.addColorStop(0.6, 'rgba(120,140,175,0.3)');
+      gr.addColorStop(1, 'rgba(120,140,175,0)');
+      lx.globalCompositeOperation = 'lighter';
+      lx.globalAlpha = k * (0.55 + 0.45 * c3Eyes.adapt);
+      lx.fillStyle = gr;
+      lx.fillRect(px - r, py - r, r * 2, r * 2);
+    }
   }
   // the eyes only in the deep-sea room (and the sea, which has no dark): forward of where he faces
-  const g = f.map.id === 'map_c3_aq_shinkai' ? gusokkun(f) : null;
+  const g = f.map.id === 'map_c3_aq_shinkai' && !c3Eyes.shut ? gusokkun(f) : null;
   if (g) {
     const ang = DIR_ANGLE[g.dir] ?? 0;
     const fan = fanImage(ang);

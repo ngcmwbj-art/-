@@ -41,6 +41,7 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_iso_start: 'iso 本日は、開館です',
   flag_kr_start: 'kori 明日の 朝の 氷',
   flag_ag_start: 'amigoya 破れたら、つくろう',
+  flag_fb_start: 'funaba お昼の あとで、こする',
   flag_hs_start: 'housou 終わりの 音は、下がる',
   flag_fr_start: 'fureai 目で、いちばん 長く',
   flag_mh_start: 'mahiru 真昼の 顔',
@@ -52,7 +53,11 @@ export const YORIMICHI_START: Record<string, string> = {
   flag_sr_start: 'shiro 波に 見せる 城',
   flag_dm_start: 'diorama3 荷台から 見た 村',
   flag_tm_start: 'tsumeta 穴は、だれかの ごちそうさま',
+  flag_mr_start: 'aji 背中は 海の 色',
+  flag_uk_start: 'ukimachi 浮いて、待つ',
+  flag_kz_start: 'himono 日じゃ なくて、風',
   flag_yd_start: 'yose 海の 水で 寄せる',
+  flag_me_start: 'kurayami 目が、暗さに なれるまで',
 };
 
 /** QA: 鳴らした 寄り道（flag と 時刻）。 */

@@ -42,6 +42,7 @@ import { drawTape, drawWindow, UI } from '../../ui/window';
 import { floatImg } from '../../art/props/seki_tsuri_art';
 import * as T from '../../data/text/c3_sakana';
 import { SK_UI } from '../../data/text/c3_sakana';
+import { MR_SK_AJI } from '../../data/text/c3_mure';
 import { addMp } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from '../ch2/compat';
@@ -553,6 +554,11 @@ function* fishing(): Co<boolean> {
       if (what === 'aji') {
         setFlag(SF.aji, 1);
         yield* say(T.SK_AJI);
+        // 背中は 海の 色（03_ch3_index）を 済ませて いれば、1ぴき目の 小アジで グソっ君の 1行（1回）
+        if (flag('flag_mr_done') && !flag('flag_mr_aji')) {
+          setFlag('flag_mr_aji', 1);
+          yield* say(MR_SK_AJI);
+        }
       } else if (what === 'fugu') {
         setFlag(SF.fugu, 1);
         yield* say(T.SK_FUGU);

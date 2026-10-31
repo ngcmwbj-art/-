@@ -20,6 +20,8 @@ import { aqKoeIcon, hiroReady } from './boss_c3aq';
 import { tgFind, tgPhase, tgWaits, yobuNext } from './boss_tsugao';
 import { musicSting } from '../audio';
 import { SYS3, YAKISOBAN_SKILLS } from '../data/battle';
+import { cmdIconXs, ROW } from './ui/panels';
+import type { PickSpot, TouchPick } from '../ui/closeup';
 
 type Icon = { id: string; name: string; sub?: string; dim?: boolean };
 
@@ -270,8 +272,64 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
   return out;
 }
 
+/** 指で さわった コマンド（つぎの 番で コマンドの ループが 受ける。icons.length＝ノリツッコミの タブ）。 */
+const touchTo = new WeakMap<BattleScene, number>();
+
+/**
+ * 指で さわって 選ぶ（改善会議 2026-10-31 の2、ui/closeup.ts の 共通の しくみ）：コマンドの 窓の
+ * アイコンを 1回 さわると カーソル、もう1回で けってい。けってい は いつもの s.takeConfirm() を
+ * 通るので、公園の レッスン（教えて いる コマンドだけ）・付箋で カーソルが 待つ 所は キーと 同じ。
+ * 当たりは 手帳の 高さ いっぱいの 列（アイコンの あいだで 区切る）。ハンコ・どうぐの 一覧と、
+ * 相手を 選ぶ 間は 今まで どおり（さわると けってい）。
+ */
+function cmdTouchPick(s: BattleScene): TouchPick {
+  const cols = (): PickSpot[] | null => {
+    const v = s.cmd;
+    if (!v || s.list || s.target || s.card || s.cmdQueue.length) return null;
+    const dx = ROW.cmdDx;
+    const dy = ROW.cmdDy;
+    const n = v.icons.length;
+    const out: PickSpot[] = [];
+    if (!v.onTab || !v.noriTab) {
+      const xs = cmdIconXs(n);
+      const top = v.noriTab ? 151 : 140;
+      for (let i = 0; i < n; i++) {
+        const l = i === 0 ? 4 : Math.round((xs[i - 1] + xs[i]) / 2) + 8;
+        const r = i === n - 1 ? 100 : Math.round((xs[i] + xs[i + 1]) / 2) + 8;
+        out.push({ i, x: l + dx, y: top + dy, w: r - l, h: 212 - top });
+      }
+    } else {
+      // (on the tab the icons are not shown: the whole notebook goes back to the icon under the cursor)
+      out.push({ i: v.index, x: 4 + dx, y: 151 + dy, w: 96, h: 61 });
+    }
+    if (v.noriTab) out.push({ i: n, x: 4 + dx, y: 130 + dy, w: 96, h: 20 });
+    return out;
+  };
+  return {
+    spots: cols,
+    cursor: () => (s.cmd ? (s.cmd.onTab && s.cmd.noriTab ? s.cmd.icons.length : s.cmd.index) : -1),
+    moveTo: (i) => touchTo.set(s, i),
+    frame: (i) => {
+      const v = s.cmd;
+      if (!v) return null;
+      const dx = ROW.cmdDx;
+      const dy = ROW.cmdDy;
+      if (i >= v.icons.length) return [4 + dx, 132 + dy, 96, 18];
+      const x = cmdIconXs(v.icons.length)[i] ?? 10;
+      return [x - 1 + dx, 153 + dy, 18, 19];
+    },
+    // (over the notebook, clear of the name tapes beside it)
+    againAt: (_tw, th) => {
+      const v = s.cmd;
+      return [4 + ROW.cmdDx, (v?.noriTab ? 130 : 136) - th - 2 + ROW.cmdDy];
+    },
+  };
+}
+
 function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: Record<string, number>): Co<PartyCmd | 'back' | 'queued'> {
   const inp = game.input;
+  if (!s.touchPick) s.touchPick = cmdTouchPick(s);
+  touchTo.delete(s);
   let index = lastIndex[u.id] ?? 0;
   let onTab = false;
   const firstTut = !s.memo.cmdTut && s.enemies[0]?.id === 'enemy_hato_kakaricho' && !flag('flag_tut_ring');
@@ -382,7 +440,21 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     yield null;
     // QA: __game.cmd.bcmd() while the command window is open
     if (s.cmdQueue.length) return 'queued';
-    if (inp.repeat('left') && icons.length > 1) {
+    // 指で さわった アイコン（キーで 動いた ときと 同じ：タブから 降りる、音）
+    const tt = touchTo.get(s);
+    touchTo.delete(s);
+    if (tt !== undefined) {
+      if (tt >= icons.length) {
+        if (nori && !onTab) {
+          onTab = true;
+          s.sfx('se_cursor', { vol: 0.6 });
+        }
+      } else if (tt !== index || onTab) {
+        index = tt;
+        onTab = false;
+        s.sfx('se_cursor', { vol: 0.6 });
+      }
+    } else if (inp.repeat('left') && icons.length > 1) {
       index = (index + icons.length - 1) % icons.length;
       onTab = false;
       s.sfx('se_cursor');

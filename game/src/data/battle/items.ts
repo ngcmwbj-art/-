@@ -16,6 +16,8 @@ import { OJ_ITEM_BALL_DESC } from '../text/c3_okujou';
 import { MK_ITEM_DESC } from '../text/c3_mikan';
 import { KR_ITEM_DESC } from '../text/c3_kori';
 import { AG_ITEM_DESC } from '../text/c3_amigoya';
+import { FB_ITEM_DESC } from '../text/c3_funaba';
+import { KZ_ITEM_AMI_DESC, KZ_ITEM_HIRAKI_DESC } from '../text/c3_kaze';
 import { TK_ITEM_DESC, TK_ITEM_TENGUSA_DESC } from '../text/c3_tokoro';
 import { HM_ITEM_HANA_DESC } from '../text/hoshi_himo';
 import { SS_ITEM_DESC, SS_SARA_DESC } from '../text/hoshi_shishito';
@@ -198,6 +200,11 @@ const items: ItemDef[] = [
   { id: 'item_c3_kachiwari', name: 'かち割り', target: 'ally', heal: 20, desc: KR_ITEM_DESC },
   // 破れたら、つくろう（03_ch3_index）：ゴロウの 古い 竹の 網針（使い道は ない）
   { id: 'item_c3_amibari', name: '古い網針', key: true, target: 'none', desc: AG_ITEM_DESC, battleText: ['網針を 見せた。\n$enemyは 糸の あとを 見ている。'] },
+  { id: 'item_fb_gunte', name: '軍手', key: true, target: 'none', desc: FB_ITEM_DESC, battleText: ['軍手を 見せた。\n$enemyは 指先を 数えている。'] },
+  // 日じゃ なくて、風（03_ch3_index）：ホシミから あずかる 干し網（路地の 角に つるすと なくなる）と、みやげの アジの 開き
+  // （エンディングまで 持っている。食べない＝大事な もの）
+  { id: 'item_kz_ami', name: '干し網', key: true, target: 'none', desc: KZ_ITEM_AMI_DESC, battleText: ['干し網を 見せた。\n$enemyは 網の 目を 数えている。'] },
+  { id: 'item_kz_hiraki', name: 'アジの開き', key: true, target: 'none', desc: KZ_ITEM_HIRAKI_DESC, battleText: ['アジの 開きを 見せた。\n$enemyは においを かいだ。'] },
   // つるっと、終われる（03_ch3_index）：港の 乾物屋の 天草（食堂かもめで 煮ると なくなる）と、ところてん（非売品、2つ。
   // 値は 青い みかんと 同じ 61 7.1 の 小さい 回復）
   { id: 'item_c3_tengusa', name: '天草', key: true, target: 'none', desc: TK_ITEM_TENGUSA_DESC, battleText: ['天草を 見せた。\n$enemyは 海の においを かいだ。'] },

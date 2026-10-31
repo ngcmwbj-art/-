@@ -74,12 +74,17 @@ import { SK_TEXTS } from '../../data/text/c3_sakana';
 import { MK_TEXTS } from '../../data/text/c3_mikan';
 import { KR_TEXTS } from '../../data/text/c3_kori';
 import { AG_TEXTS } from '../../data/text/c3_amigoya';
+import { FB_TEXTS } from '../../data/text/c3_funaba';
 import { HS_TEXTS } from '../../data/text/c3_housou';
 import { NG_TEXTS } from '../../data/text/c3_nukegara';
 import { TK_TEXTS } from '../../data/text/c3_tokoro';
 import { SR_TEXTS } from '../../data/text/c3_shiro';
 import { TM_TEXTS } from '../../data/text/c3_tsumeta';
+import { UK_TEXTS } from '../../data/text/c3_ukimachi';
+import { MR_TEXTS } from '../../data/text/c3_mure';
 import { DM_TEXTS } from '../../data/text/c3_diorama3';
+import { KZ_TEXTS } from '../../data/text/c3_kaze';
+import { ME_TEXTS } from '../../data/text/c3_kurayami';
 import { FR_TEXTS } from '../../data/text/c3_fureai';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
@@ -616,6 +621,8 @@ function collectTexts(): [string, string][] {
   walk('c3Kori', KR_TEXTS);
   // げむきか10/25の案2（破れたら、つくろう。第3章の クリア前、03_ch3_index）
   walk('c3Amigoya', AG_TEXTS);
+  // げむきか10/31の案1（お昼の あとで、こする。第3章の クリア前、03_ch3_index）
+  walk('c3Funaba', FB_TEXTS);
   // げむきか10/26の案3（終わりの 音は、下がる。第3章の クリア前、03_ch3_index）
   walk('c3Housou', HS_TEXTS);
   // げむきか10/24の案1（背中から、1回で。第3章の クリア前、03_ch3_index）
@@ -626,10 +633,18 @@ function collectTexts(): [string, string][] {
   walk('c3Shiro', SR_TEXTS);
   // げむきか10/28の案2（穴は、だれかの ごちそうさま。第3章の クリア前、03_ch3_index）
   walk('c3Tsumeta', TM_TEXTS);
+  // げむきか10/31の案4（浮いて、待つ。第3章の クリア前、03_ch3_index）
+  walk('c3Ukimachi', UK_TEXTS);
+  // げむきか10/31の案2（背中は 海の 色。第3章の クリア前、03_ch3_index）
+  walk('c3Mure', MR_TEXTS);
   // げむきか10/27の案3（目で、いちばん 長く。第3章の クリア前、03_ch3_index）
   walk('c3Fureai', FR_TEXTS);
   // げむきか10/29の案3（荷台から 見た 村。第3章の クリア前、03_ch3_index）
   walk('c3Diorama3', DM_TEXTS);
+  // げむきか10-31の案3（日じゃ なくて、風。第3章の クリア前、03_ch3_index）
+  walk('c3Kaze', KZ_TEXTS);
+  // げむきか10/31の案5（目が、暗さに なれるまで。第3章の クリア前、03_ch3_index）
+  walk('c3Kurayami', ME_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());
