@@ -1,0 +1,1 @@
+[{"name":"barn","setup":[{"eval":"__game.cmd.endcut2(2)"},{"wait":1200}],"frames":75}]
