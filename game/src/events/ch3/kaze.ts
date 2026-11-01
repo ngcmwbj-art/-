@@ -134,9 +134,10 @@ registerWorldFx({
       const [sx, sy] = fxAt(f, wx, foot - 12 - (i % 2) * 6, cx, cy, foot);
       const a = Math.sin(ph * Math.PI) * 0.75;
       if (a <= 0.05) continue;
-      const len = 9 + (i % 2) * 4;
+      const len = 14 + (i % 2) * 6;
       g.rect(Math.round(sx), Math.round(sy), len, 1, '#FFFFFF', a);
-      g.rect(Math.round(sx) + len, Math.round(sy) - 1, 3, 1, '#FFFFFF', a * 0.6);
+      g.rect(Math.round(sx) + len, Math.round(sy) - 1, 4, 1, '#FFFFFF', a * 0.6);
+      g.rect(Math.round(sx) + 4, Math.round(sy) + 3, len - 6, 1, '#FFFFFF', a * 0.45);
     }
   },
 });

@@ -58,8 +58,7 @@ export function drawKzPage(g: Gfx, x: number, y: number, w: number): void {
   g.rect(x + 74, ly + 6, 2, 2, '#4A8AC0');
   // the wind: three strokes from the harbour side
   for (let i = 0; i < 3; i++) g.line(x + 84 + i * 3, ly + 10 + i * 7, x + 96 + i * 3, ly + 10 + i * 7, '#A8A0B8');
-  // 「日」 in a square hand, 「風」 in a round one, an arrow bringing them together
-  g.frame(x + 2, ly + 2, 14, 14, '#7A5A4A');
+  // 「日」 (ホシオ's ink, brown) and 「風」 (ホシミ's, blue), an arrow bringing them together
   g.text('日', x + 3, ly + 1, { color: '#7A5A4A' });
   g.text('風', x + 3, ly + 19, { color: '#5A6A8A' });
   g.line(x + 18, ly + 9, x + 24, ly + 18, pen);

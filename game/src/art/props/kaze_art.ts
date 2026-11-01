@@ -4,7 +4,7 @@
 //   ・かぎ prop_kz_kagi（opts.k = 0..2）：木の 柱と 腕、先に かぎ。flag_kz_at が k+1 の とき 3段の 干し網が 下がる。
 //     ③（k = 2）だけ、段階2 で 風に ゆれる（下ほど 大きく、西へ かたむいて 行ったり 来たり）。①② は まっすぐ。
 //   ・物干し prop_kz_sentaku：段階1 は すそが ななめの まま 止まって いる。段階2 は 手ぬぐいと 洗濯ばさみが ゆれる。
-//   ゆれは スマホ縦（1倍）でも 見えるよう、すその 動きを 4〜5px に した（会議「ゆれは スマホでも はっきり」）。
+//   ゆれは スマホ縦（1倍）でも 見えるよう、すその 動きを 6〜8px に した（会議「ゆれは スマホでも はっきり」）。
 //   HD-2D では 1px の 板（tune.ts の SOLID に ここから 足す）：絵の 前の 面は 四角 全部なので、ゆれた 所も 切れない。
 
 import { PixelCanvas } from '../../engine/pixel';
@@ -106,7 +106,7 @@ registerProp('prop_kz_kagi', (opts) => {
     img: (env: PropEnv) => {
       const hung = env.flag('flag_kz_at') === k + 1;
       if (!hung) return kagiImg(false, 0);
-      return kagiImg(true, k === 2 && swaying(env) ? swayDx(frameOf(env)) : 0);
+      return kagiImg(true, k === 2 && swaying(env) ? swayDx(frameOf(env), 3.5) : 0);
     },
     contact: 6,
   };
@@ -114,39 +114,40 @@ registerProp('prop_kz_kagi', (opts) => {
 
 // ---------------------------------------------------------------- 物干し
 
-const SW = 30;
+const SW = 36;
 const SH = 30;
 const BAR = 5;
 
 function paintSentaku(p: PixelCanvas, dx: number): void {
   const off = (y: number) => Math.round((dx * Math.max(0, y - BAR)) / 12);
-  // 2本の 柱と 竿
-  for (const x of [1, 28]) {
+  // 2本の 柱と 竿（左は 6px あけて、西へ ゆれた すそが はみ出さないように）
+  for (const x of [7, 34]) {
     p.rect(x, BAR - 1, 1, SH - BAR, '#9AA0A8');
     p.rect(x - 1, SH - 2, 3, 2, '#6B7186');
   }
-  p.hline(0, 29, BAR - 1, '#C8CCD2');
-  p.hline(0, 29, BAR, '#9AA0A8');
+  p.hline(6, 35, BAR - 1, '#C8CCD2');
+  p.hline(6, 35, BAR, '#9AA0A8');
+  const X = 6;
   // 手ぬぐい（白に 青い すじ）
-  for (let y = BAR + 1; y <= BAR + 13; y++) {
+  for (let y = BAR + 1; y <= BAR + 15; y++) {
     const o = off(y);
-    const c = y === BAR + 4 || y === BAR + 10 ? '#4A6AB0' : '#F4F1E8';
-    p.hline(4 + o, 10 + o, y, c);
-    p.set(10 + o, y, y === BAR + 4 || y === BAR + 10 ? '#2F4A8A' : '#C8C2B4');
+    const c = y === BAR + 4 || y === BAR + 11 ? '#4A6AB0' : '#F4F1E8';
+    p.hline(X + 3 + o, X + 10 + o, y, c);
+    p.set(X + 10 + o, y, y === BAR + 4 || y === BAR + 11 ? '#2F4A8A' : '#C8C2B4');
   }
   // タオル（黄色）
   for (let y = BAR + 1; y <= BAR + 11; y++) {
     const o = off(y);
-    p.hline(13 + o, 18 + o, y, y >= BAR + 10 ? '#D9A441' : '#FFD23F');
-    p.set(18 + o, y, '#D9A441');
+    p.hline(X + 13 + o, X + 18 + o, y, y >= BAR + 10 ? '#D9A441' : '#FFD23F');
+    p.set(X + 18 + o, y, '#D9A441');
   }
   // ピンチハンガー：かぎ、四角い わく、洗濯ばさみ 3つ（赤・青・黄）と 小さい 靴下
   const ho = off(BAR + 3);
-  p.set(23, BAR + 1, '#6B7186');
-  p.set(23 + off(BAR + 2), BAR + 2, '#6B7186');
-  p.hline(20 + ho, 26 + ho, BAR + 3, '#E8E4D8');
+  p.set(X + 23, BAR + 1, '#6B7186');
+  p.set(X + 23 + off(BAR + 2), BAR + 2, '#6B7186');
+  p.hline(X + 20 + ho, X + 26 + ho, BAR + 3, '#E8E4D8');
   const clips = ['#E23B2E', '#4AA8E0', '#E23B2E'];
-  [20, 23, 26].forEach((x, i) => {
+  [X + 20, X + 23, X + 26].forEach((x, i) => {
     const co = off(BAR + 5);
     p.set(x + co, BAR + 4, clips[i]);
     p.set(x + co, BAR + 5, clips[i]);
@@ -169,13 +170,13 @@ function sentakuImg(dx: number): HTMLCanvasElement {
 }
 
 registerProp('prop_kz_sentaku', () => ({
-  ox: -7,
+  ox: -13,
   oy: 16 - SH,
   w: SW,
   h: SH,
   foot: 15,
   // 段階1：すそが ななめの まま 止まって いる。段階2：風で ゆれる（コマは かぎの ③と 少し ずらす）
-  img: (env: PropEnv) => sentakuImg(swaying(env) ? swayDx((frameOf(env) + 2) % N, 3) : -3),
+  img: (env: PropEnv) => sentakuImg(swaying(env) ? swayDx((frameOf(env) + 2) % N, 4) : -3),
   contact: 20,
 }));
 
