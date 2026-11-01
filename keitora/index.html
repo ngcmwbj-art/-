@@ -655,6 +655,10 @@ canvas { display: block; width: 100%; height: 100%; }
       else if (k === 'mud') { sweepNoise(0.6, 0.35, 900, 150, 1, 'lowpass'); tone('sine', 220, 45, 0.5, 0.16); for (let i = 0; i < 3; i++) tone('sine', 300 + i * 40, 110, 0.09, 0.08, 0.2 + i * 0.12); }
       else if (k === 'roll') { noise(0.18, 0.16, 400); tone('sine', 140, 60, 0.15, 0.08); }
       else if (k === 'cluck') { tone('square', 820, 1100, 0.07, 0.03); tone('square', 1100, 700, 0.12, 0.03, 0.08); }   // コケッ（1回）
+      else if (k === 'coin') { tone('square', 990, 990, 0.05, 0.035); tone('square', 1320, 1320, 0.09, 0.035, 0.05); }   // もちキャッチ
+      else if (k === 'kiki') { tone('square', 1150, 1500, 0.05, 0.03); tone('square', 1150, 1500, 0.05, 0.03, 0.08); }   // キキッ（猿）
+      else if (k === 'woof') { tone('square', 420, 260, 0.09, 0.05); noise(0.06, 0.05, 900); }                               // ワン
+      else if (k === 'growl') { noise(0.45, 0.1, 260, 'lowpass'); tone('sawtooth', 120, 70, 0.4, 0.06); }                 // ガオー（低く短く）
       else if (k === 'meow') { tone('triangle', 640, 980, 0.09, 0.05); tone('triangle', 980, 560, 0.2, 0.05, 0.08); }      // ニャー（1回）
       else if (k === 'hiss') { noise(0.22, 0.09, 3200, 'highpass'); tone('triangle', 900, 1300, 0.08, 0.05, 0.05); }      // ニャッ!
       else if (k === 'rumble') { noise(1.2, 0.07, 180, 'lowpass'); tone('sine', 70, 55, 1.1, 0.12); }                   // ドドド（低く）
@@ -870,6 +874,8 @@ canvas { display: block; width: 100%; height: 100%; }
   let cat = null, nextCat = 400;  // 荷台に乗ってくる猫（今の状態と、次に道ばたへ出る距離）
   let gifts = 0;                 // お得意さんのおすそわけ（次のトマト畑まで荷台に乗っている）
   let catEnd = false;            // やられたとき猫が乗っていたか（共有画像の一言に使う）
+  let apes = null, nextApe = 800; // 猿の群れ（今の状態と、次に出る距離）
+  let dog = null, dogSec = -1;   // 落とした積み荷を届けてくれる犬（トマト畑の区間ごとに1回まで）
   const FARMER_DX = 96;          // 農家さんの立つ位置（小屋から先へ）
   let tomatoes, seasonIdx, score, scoreM, lastRefill;
   let steps = [];                // 段差：{ x: 壁の位置, h: そこから先の高さ（px） }
@@ -900,6 +906,7 @@ canvas { display: block; width: 100%; height: 100%; }
     chase = null; nextChase = 600 + Math.random() * 400;
     delivered = 0;
     cat = null; nextCat = 350 + Math.random() * 300; gifts = 0; catEnd = false;
+    apes = null; nextApe = 650 + Math.random() * 400; dog = null; dogSec = -1;
   }
 
   const meters = () => Math.floor(cam / PX_PER_M);
@@ -936,7 +943,8 @@ canvas { display: block; width: 100%; height: 100%; }
       let type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
         : easy ? pick([['gap', 50], ['puddle', 30], ['bump', 15]])
-        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0], ['cow', m > 300 ? 7 : 0], ['crow', m > 400 ? 7 : 0], ['hen', m > 250 ? 6 : 0]]);
+        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0], ['cow', m > 300 ? 7 : 0], ['crow', m > 400 ? 7 : 0], ['hen', m > 250 ? 6 : 0],
+          ['mochi', m > 150 ? 4 : 0], ['bear', m > 600 ? 4 : 0], ['ice', m > 1500 && seasonAt(m).i === 4 ? 16 : 0]]);
       // 1000 m ごとの山場：最初に来る区切りで1回だけ、イノシシの親子にする
       if (!easy && Math.floor(m / 1000) > lastFamily && m > 950) { lastFamily = Math.floor(m / 1000); type = 'family'; }
       if (type === 'gap') {
@@ -965,6 +973,26 @@ canvas { display: block; width: 100%; height: 100%; }
         const hx = nextX + sp * 0.4 + 60, n = 3 + Math.floor(rng() * 3);
         obs.push({ t: 'hen', x: hx, w: 22 + n * 14, n, lv: levelAt(hx), hit: false, passed: false, ht: 0, seed: rng() * 10 });
         nextX = hx + 22 + n * 14 + spacing() + sp * 0.9;
+      } else if (type === 'mochi') {
+        // 上棟式のもちまき（秋は柿の木）：道の上の空中にもち（柿）が並ぶ。跳んでさわると点。ここは平らな道
+        const si = seasonAt(m).i, kaki = si === 2 || si === 3;
+        const mx = nextX + sp * 0.3 + 40, n = kaki ? 4 : 3 + Math.floor(rng() * 3);
+        const items = [];
+        let dx = 70;
+        for (let i = 0; i < n; i++) { items.push({ dx, h: rr(100, 165), got: false }); dx += rr(70, 100); }
+        const w = dx + 40;
+        obs.push({ t: kaki ? 'kaki' : 'mochi', x: mx, w, lv: levelAt(mx), items, got: 0, done: false });
+        nextX = mx + w + spacing() + sp * 0.3;
+      } else if (type === 'bear') {
+        // クマ：道で立ち上がる。高いので2段ジャンプでないと越えられない。手前に長めの助走、先にも余裕
+        const bx = nextX + sp * 0.9 + 120;
+        obs.push({ t: 'bear', x: bx, w: 44, lv: levelAt(bx), up: 0, roared: false, hit: false });
+        nextX = bx + 44 + spacing() + sp * 1.0;
+      } else if (type === 'ice') {
+        // 夜の凍った道：上で跳ぶとジャンプが低い。すぐ先に穴や壁を置かないよう、たっぷり空ける
+        const w = rr(140, 240);
+        obs.push({ t: 'ice', x: nextX, w, lv: levelAt(nextX), seed: rng() * 100 });
+        nextX += w + sp * 1.1 + spacing();
       } else if (type === 'cow') {
         // 牛：道の上でのそのそ足踏みしている。手前に助走、跳び越えた先にも余裕をとる（すぐ泥の穴にしない）
         const cx = nextX + sp * 0.4 + 60;
@@ -1102,6 +1130,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const k = Math.min(n, tomatoes);
     tomatoes -= k;
     stats.lost += k;
+    lostCargo();
     spillTomatoes(k, cam + TRUCK_X + 22, truck.y - 48, [-240, -80]);
     sfx('tomato');
     setReact('oops', 0.6);
@@ -1254,6 +1283,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const rankOf = m => RANKS.filter(([d]) => m >= d).pop()[1];
 
   const REASONS = {
+    bear: ['クマに激突!', '軽トラがボコボコ…'],
     fall: ['泥の斜面を転げ落ちた!', 'トマトが泥だらけ…'],
     boar: ['イノシシに激突!', '軽トラがボコボコ…'],
     flat: ['タイヤがパンクした!', 'ボコボコ道に 3 回乗り上げた'],
@@ -1261,6 +1291,7 @@ canvas { display: block; width: 100%; height: 100%; }
   };
   // 結果画面の見出し：やられ方に一言の名前。からかわない、やさしい言い方で
   const DEATH_NAMES = {
+    bear: ['クマと鉢合わせ!', 'クマに通せんぼされた!', 'クマとがっぷり四つ!'],
     fall: ['泥んこダイブ!', '田んぼで一回転半!', 'あぜ道から泥風呂へ!', 'ぬかるみに吸いこまれた!'],
     boar: ['イノシシと正面衝突!', 'イノシシに通せんぼされた!', 'イノシシとごっつんこ!'],
     family: ['イノシシ一家に通せんぼ!', 'うりぼう軍団にやられた!'],
@@ -1282,8 +1313,10 @@ canvas { display: block; width: 100%; height: 100%; }
     truck.deathKind = kind;
     catEnd = catOn() > 0;
     if (catEnd) catOff(false);
+    if (apes && apes.ph === 'ride') apesOff(false);
+    if (dog && dog.ph === 'run') dog.ph = 'bye';
     pauseBtn.hidden = true;
-    if (kind === 'boar') {
+    if (kind === 'boar' || kind === 'bear') {
       shake = 0.5; flash = 0.25; truck.dent = 1; truck.spilled = true;
       sfx('boar');
       crashSpill(cam + TRUCK_X + 28, truck.y - 50, [-80, 380]);
@@ -1452,7 +1485,12 @@ canvas { display: block; width: 100%; height: 100%; }
     const lift = GROUND - supportY();
     camY += (lift - camY) * Math.min(1, dt * 3.5);
     if (state === 'play' && jumpBuf > 0 && truck.coyote > 0 && slip <= 0) {
-      truck.vy = -JUMP_V * (find('bump', cx) ? 0.8 : 1);
+      const onIce = find('ice', cx);
+      truck.vy = -JUMP_V * (find('bump', cx) ? 0.8 : onIce ? 0.72 : 1);
+      if (onIce) {
+        // 踏ん張れずにツルッと低く跳ぶ（氷のかけらが飛ぶ）
+        emit(8, cam + TRUCK_X + 30, truck.y - 2, { vx: [-200, 120], vy: [-140, -30], life: [0.25, 0.5], r: [1.5, 3], col: 'rgba(225,245,255,.95)', g: 500 });
+      }
       truck.grounded = false;
       truck.jumped = true;
       truck.coyote = 0;
@@ -1517,6 +1555,7 @@ canvas { display: block; width: 100%; height: 100%; }
           const hit = truck.vy;
           if (Math.random() < clamp((hit - 600) / 400, 0, 0.95)) loseTomato(hit > 900 ? 2 : 1, `ドスン! ${cargo.unit}が落ちた`);
           catLand(hit);
+          apeLand(hit);
           sfx('land');
           truck.squash = 1;
           shakeCargo(Math.min(260, hit * 0.2));
@@ -1579,7 +1618,7 @@ canvas { display: block; width: 100%; height: 100%; }
     // 角度
     if (!truck.falling) {
       let target = 0;
-      if (truck.deathKind === 'boar' || truck.deathKind === 'wall') target = -0.12;
+      if (truck.deathKind === 'boar' || truck.deathKind === 'bear' || truck.deathKind === 'wall') target = -0.12;
       else if (truck.flat) target = 0.07;
       else if (!truck.grounded) target = clamp(truck.vy / 2500, -0.2, 0.3);
       truck.angle += (target - truck.angle) * Math.min(1, dt * 10);
@@ -1591,6 +1630,10 @@ canvas { display: block; width: 100%; height: 100%; }
     updateCrows(dt);
     updateHens(dt);
     updateCat(dt);
+    updateApes(dt);
+    updateDog(dt);
+    updateMochi();
+    updateBears(dt);
     updateDeliver();
     updateChase(dt);
 
@@ -1699,6 +1742,7 @@ canvas { display: block; width: 100%; height: 100%; }
             if (tomatoes > 0) {
               tomatoes--; stats.lost++;
               o.carry = true;
+              lostCargo();
               popup(`カラスに${cargo.unit}を取られた 残り ${tomatoes} 個`, '#ff8f7a');
               setReact('oops', 0.6);
             }
@@ -1756,13 +1800,339 @@ canvas { display: block; width: 100%; height: 100%; }
       sfx('dodge');
     }
   }
+  // ---- もちまき・柿：空中のもち（柿）に軽トラがさわると点 ----
+  const MOCHI_PT = 300;
+  // もちは屋根の上の人が放り投げる。弧を描いて、軽トラが真下に来たときちょうど決めた高さに来る。そのあとは落ちる
+  function mochiPos(o, it) {
+    const g = GROUND - (o.lv || 0), ix = o.x + it.dx;
+    if (o.t === 'kaki') return [ix, g - it.h];
+    const d = ix - (cam + TRUCK_X + TRUCK_W / 2);
+    if (d < 0) return [ix, Math.min(g - 7, g - it.h - d * 200 / Math.max(200, vel))];
+    const p = clamp(1 - d / 520, 0, 1), hx = o.x + o.w / 2;
+    return [hx + (ix - hx) * p, (g - 160) + (it.h - 160) * -p - 110 * 4 * p * (1 - p)];
+  }
+  function updateMochi() {
+    for (const o of obs) {
+      if ((o.t !== 'mochi' && o.t !== 'kaki') || o.done) continue;
+      if (state === 'play' && !truck.falling) {
+        for (const it of o.items) {
+          if (it.got) continue;
+          const [ix, iy] = mochiPos(o, it);
+          if (ix > cam + TRUCK_X - 6 && ix < cam + TRUCK_FRONT + 6 && iy > truck.y - 72 && iy < truck.y + 6) {
+            it.got = true; o.got++;
+            score += MOCHI_PT;
+            sfx('coin');
+            emit(8, ix, iy, { vx: [-120, 120], vy: [-180, -40], life: [0.3, 0.5], r: [1.5, 3], col: o.t === 'kaki' ? '#ffb347' : '#fffbea', g: 300 });
+          }
+        }
+      }
+      if (o.x + o.w < cam + TRUCK_X) {
+        o.done = true;
+        if (o.got && state === 'play') popup(`${o.t === 'kaki' ? '柿' : 'もち'} ${o.got} 個キャッチ! +${fmtM(o.got * MOCHI_PT)} 点`, '#f2b33d');
+      }
+    }
+  }
+  function drawMochi(o, sx) {
+    const g = GROUND;
+    const cx = sx + o.w / 2;
+    if (o.t === 'kaki') {
+      // 道ばたの柿の木。枝が道の上に張り出している
+      ctx.fillStyle = '#5a3c22';
+      ctx.fillRect(cx - 5, g - 190, 10, 190);
+      ctx.strokeStyle = '#5a3c22'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(cx, g - 170); ctx.quadraticCurveTo(sx + 40, g - 215, sx + 30, g - 190); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, g - 175); ctx.quadraticCurveTo(sx + o.w - 30, g - 220, sx + o.w - 10, g - 195); ctx.stroke();
+      ctx.fillStyle = '#7a8a3a';
+      for (let i = 0; i < 9; i++) { const lx = sx + 20 + (o.w - 40) * i / 8; ctx.beginPath(); ctx.ellipse(lx, g - 200 - (i % 3) * 8, 10, 5, (i % 2 ? 0.4 : -0.4), 0, Math.PI * 2); ctx.fill(); }
+      ctx.strokeStyle = '#4a3a20'; ctx.lineWidth = 1;
+      for (const it of o.items) {
+        if (it.got) continue;
+        const x = sx + it.dx, y = g - it.h;
+        ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x, g - 196); ctx.stroke();
+        ctx.fillStyle = '#ef7d1f'; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(x - 4, y - 4, 3, 3);
+        ctx.fillStyle = '#3f6a22'; ctx.fillRect(x - 4, y - 9, 8, 3);
+      }
+      return;
+    }
+    // 上棟式の家：木の骨組みと紅白の幕、屋根の上でもちをまく人
+    const hx = cx, hy = g - 6;
+    ctx.fillStyle = '#c9a26a';
+    for (const px of [-56, -20, 20, 56]) ctx.fillRect(hx + px - 3, hy - 120, 6, 120);
+    ctx.fillRect(hx - 62, hy - 124, 124, 6); ctx.fillRect(hx - 62, hy - 64, 124, 5);
+    ctx.fillStyle = '#b08a52';
+    ctx.beginPath(); ctx.moveTo(hx - 72, hy - 122); ctx.lineTo(hx, hy - 160); ctx.lineTo(hx + 72, hy - 122); ctx.lineTo(hx + 64, hy - 118); ctx.lineTo(hx, hy - 152); ctx.lineTo(hx - 64, hy - 118); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? '#ffffff' : '#d8342b'; ctx.fillRect(hx - 62 + i * 15.5, hy - 118, 15.5, 16); }
+    for (const [px, k] of [[-22, 0], [24, 1]]) {
+      const arm = Math.sin(clock * 6 + k * 2) > 0 ? -1 : 0;
+      ctx.fillStyle = k ? '#3a5a8a' : '#6a4a8a'; ctx.fillRect(hx + px - 4, hy - 150 + k * 4, 8, 12);
+      ctx.fillStyle = '#f0c8a0'; ctx.beginPath(); ctx.arc(hx + px, hy - 154 + k * 4, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fbf8ef'; ctx.fillRect(hx + px - 5, hy - 159 + k * 4, 10, 3);
+      ctx.fillStyle = '#f0c8a0'; ctx.fillRect(hx + px + 3, hy - 152 + k * 4 + arm * 8, 7, 3);
+    }
+    for (const it of o.items) {
+      if (it.got) continue;
+      const [wx, y] = mochiPos(o, it), x = wx - cam;
+      ctx.fillStyle = 'rgba(60,50,30,.35)'; ctx.beginPath(); ctx.arc(x + 1, y + 1.5, 8.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = it.dx % 2 > 1 ? '#f9c9d4' : '#ffffff'; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c9bfa0'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+  }
+  // ---- クマ：近づくと立ち上がる。2段ジャンプでないと越えられない高さ ----
+  const BEAR_LOW = 46, BEAR_HIGH = 124;
+  const bearH = o => BEAR_LOW + (BEAR_HIGH - BEAR_LOW) * o.up;
+  function updateBears(dt) {
+    for (const o of obs) {
+      if (o.t !== 'bear') continue;
+      const sx = o.x - cam;
+      if (sx < W - 40 || o.up > 0) {
+        if (!o.roared) { o.roared = true; if (state === 'play') { sfx('growl'); shake = Math.max(shake, 0.08); } }
+        o.up = Math.min(1, o.up + dt * 2.2);
+      }
+      if (state !== 'play' || truck.falling || o.hit) continue;
+      const top = GROUND - (o.lv || 0) - bearH(o);
+      if (cam + TRUCK_FRONT - 6 > o.x + 6 && cam + TRUCK_X + 10 < o.x + o.w - 6 && truck.y > top + 6) {
+        o.hit = true;
+        die('bear');
+      }
+    }
+  }
+  // とぼけた顔のツキノワグマ（x は体の真ん中）
+  function drawBear(x, gy, o) {
+    const h = bearH(o), up = o.up;
+    ctx.save();
+    ctx.translate(x, gy);
+    ctx.fillStyle = 'rgba(40,30,15,.25)';
+    ctx.beginPath(); ctx.ellipse(0, 1, 26, 4, 0, 0, Math.PI * 2); ctx.fill();
+    const fur = '#3b2a20';
+    ctx.fillStyle = fur;
+    // 足
+    ctx.fillRect(-16, -14, 11, 14); ctx.fillRect(5, -14, 11, 14);
+    // 体（立つほど縦長に）
+    ctx.beginPath(); ctx.ellipse(0, -h * 0.45, 22, h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    // 胸の白い三日月
+    ctx.strokeStyle = '#f4efe2'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, -h * 0.72, 11, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+    // 腕：立つと「ばんざい」
+    ctx.strokeStyle = fur; ctx.lineWidth = 9; ctx.lineCap = 'round';
+    const ay = -h * 0.7, lift = up * 34 + Math.sin(clock * 6) * 3 * up;
+    ctx.beginPath(); ctx.moveTo(-17, ay); ctx.lineTo(-30, ay - lift + 14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(17, ay); ctx.lineTo(30, ay - lift + 14); ctx.stroke();
+    ctx.lineCap = 'butt';
+    // 頭
+    const hy = -h - 6;
+    ctx.fillStyle = fur;
+    ctx.beginPath(); ctx.arc(-12, hy - 12, 6, 0, Math.PI * 2); ctx.arc(12, hy - 12, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, hy, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#a07a5a'; ctx.beginPath(); ctx.ellipse(0, hy + 5, 8, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1210'; ctx.fillRect(-7, hy - 4, 3, 3); ctx.fillRect(4, hy - 4, 3, 3);   // 点の目
+    ctx.beginPath(); ctx.arc(0, hy + 2, 2.6, 0, Math.PI * 2); ctx.fill();                       // 鼻
+    ctx.fillStyle = '#d9707a'; ctx.beginPath(); ctx.ellipse(0, hy + 8, 3, 2 + up * 1.5, 0, 0, Math.PI * 2); ctx.fill();   // 口
+    ctx.fillStyle = 'rgba(240,140,150,.5)'; ctx.fillRect(-12, hy + 1, 4, 2); ctx.fillRect(8, hy + 1, 4, 2);               // ほっぺ
+    ctx.restore();
+  }
+  // クマの看板：文字は使わず、クマの顔の絵だけ
+  function drawBearSign(x, gy) {
+    ctx.fillStyle = '#6a4b2a'; ctx.fillRect(x - 2, gy - 40, 4, 40);
+    ctx.fillStyle = '#3a2a14'; ctx.fillRect(x - 19, gy - 76, 38, 38);
+    ctx.fillStyle = DANGER.stop.bg; ctx.fillRect(x - 17, gy - 74, 34, 34);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(x - 8, gy - 66, 4.5, 0, Math.PI * 2); ctx.arc(x + 8, gy - 66, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, gy - 56, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = DANGER.stop.bg; ctx.fillRect(x - 5, gy - 60, 3, 3); ctx.fillRect(x + 2, gy - 60, 3, 3);
+    ctx.beginPath(); ctx.arc(x, gy - 53, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  // 凍った道（青白く光る）
+  function drawIce(sx, w, seed) {
+    const g = GROUND;
+    ctx.fillStyle = 'rgba(205,236,250,.92)';
+    ctx.fillRect(sx, g - 3, w, 7);
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    for (let i = 0; i < w / 22; i++) {
+      const x = sx + 6 + hash(seed + i) * (w - 14);
+      ctx.fillRect(x, g - 2, 10 + hash(seed + i * 3) * 10, 1.5);
+      if (Math.sin(clock * 4 + i * 1.9) > 0.7) { ctx.fillRect(x + 3, g - 9, 1.5, 6); ctx.fillRect(x + 0.5, g - 6.5, 6.5, 1.5); }   // キラッ
+    }
+  }
+
+  // ---- 猿の群れ：荷台に飛び乗って積み荷を食べる。強く着地すると振り落とせる（猫が乗っていると逃げる） ----
+  function updateApes(dt) {
+    if (state !== 'play' && state !== 'dying') return;
+    const m = meters();
+    if (!apes) {
+      if (state === 'play' && m >= nextApe && !truck.falling) {
+        const wx = cam + W + 40;
+        if (catFreeAt(wx) && !(cat && (cat.ph === 'sit' || cat.ph === 'hop'))) apes = { ph: 'wait', x: wx, n: 2 + (rng() < 0.5 ? 1 : 0), t: 0, bite: 1.4 };
+        else nextApe = m + 20;
+      }
+      return;
+    }
+    apes.t += dt;
+    if (apes.ph === 'wait') {
+      const rel = apes.x - cam - truckX;
+      if (state === 'play' && rel < 60 && !apes.miss) {
+        if (catOn()) {
+          // 荷台の猫が「シャーッ」。猿は逃げていく
+          apes.ph = 'flee'; apes.t = 0;
+          popup('猫がいるから猿が逃げた!', '#ffd6a0');
+          sfx('hiss');
+        } else if (!truck.falling && supportY() - truck.y < 30) {
+          apes.ph = 'hop'; apes.t = 0; apes.y = groundAt(apes.x);
+          sfx('kiki');
+        } else if (rel < -16) apes.miss = true;
+      }
+      if (apes.x - cam < -60) { apes = null; nextApe = m + 700 + Math.random() * 500; }
+    } else if (apes.ph === 'hop') {
+      if (state !== 'play' || truck.falling) return apesOff(false);
+      if (apes.t >= 0.4) {
+        apes.ph = 'ride'; apes.t = 0;
+        shakeCargo(30);
+        popup(seenTypes.has('ape') ? '猿だ!' : '猿が乗ってきた! ジャンプで振り落とせ', '#ffd6a0');
+        seenTypes.add('ape');
+        setReact('oops', 0.6);
+      }
+    } else if (apes.ph === 'ride') {
+      apes.bite -= dt;
+      if (apes.bite <= 0) {
+        apes.bite = 1.1;
+        if (tomatoes > 0) {
+          tomatoes--; stats.lost++; lostCargo();
+          shakeCargo(20);
+          emit(6, cam + truckX + 30, truck.y - 46, { vx: [-80, 80], vy: [-160, -60], life: [0.25, 0.45], r: [1.5, 3], col: '#e0392b', g: 500 });
+        }
+      }
+      if (apes.t > 6) apesOff(false);   // 食べて満足したら降りていく
+    } else if (apes.ph === 'off' || apes.ph === 'flee') {
+      for (const a of apes.list || []) {
+        a.vy += 1400 * dt; a.x += a.vx * dt; a.y += a.vy * dt;
+        const gy = groundAt(a.x);
+        if (a.y >= gy) { a.y = gy; a.vy = 0; a.vx = -90; }
+      }
+      if (apes.ph === 'flee') apes.x += 160 * dt;   // 山へ逃げる
+      if (apes.t > 3) { apes = null; nextApe = m + 700 + Math.random() * 500; }
+    }
+  }
+  function apeLand(hit) {
+    if (!apes || apes.ph !== 'ride' || hit < 600) return;
+    apesOff(true);
+  }
+  function apesOff(shook) {
+    const list = [];
+    for (let i = 0; i < apes.n; i++) list.push({ x: cam + truckX + 14 + i * 16, y: truck.y - 46, vx: -120 - i * 60 + rng() * 40, vy: -380 - rng() * 120 });
+    apes = { ph: 'off', n: apes.n, list, t: 0 };
+    if (shook && state === 'play') { popup('猿を振り落とした!', '#f2b33d'); sfx('kiki'); setReact('cheer', 0.8); }
+  }
+  // 猿（x は足もと。dir=1 で右向き）
+  function drawApe(x, y, pose, dir = 1, t = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir * 1.25, 1.25);
+    const fur = '#8a6a4a', face = '#e89a8a';
+    ctx.fillStyle = fur;
+    ctx.strokeStyle = fur; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-5, -4); ctx.quadraticCurveTo(-11, -4, -10, -11 + Math.sin(t * 8) * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, -7, 5.5, 6, 0, 0, Math.PI * 2); ctx.fill();
+    if (pose === 'eat') { ctx.fillRect(2, -9, 6, 2); ctx.fillStyle = '#e0392b'; ctx.beginPath(); ctx.arc(8, -10, 2.4, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = fur; }
+    else if (pose === 'jump') { ctx.fillRect(-6, -14, 2, 6); ctx.fillRect(4, -14, 2, 6); }
+    ctx.fillRect(-4, -2, 2.5, 2); ctx.fillRect(2, -2, 2.5, 2);
+    ctx.beginPath(); ctx.arc(1, -15, 4.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = face;
+    ctx.beginPath(); ctx.ellipse(2.4, -14.6, 3, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a1d08'; ctx.fillRect(1.4, -16, 1.2, 1.4); ctx.fillRect(3.6, -16, 1.2, 1.4);
+    ctx.restore();
+  }
+  function drawApes() {
+    if (!apes) return;
+    if (apes.ph === 'wait' || apes.ph === 'flee') {
+      for (let i = 0; i < apes.n; i++) {
+        const sx = apes.x - cam + i * 18 - (apes.ph === 'flee' ? 0 : 0);
+        if (sx < -40 || sx > W + 60) continue;
+        const hopY = apes.ph === 'flee' ? -Math.abs(Math.sin(apes.t * 10 + i)) * 10 : -Math.abs(Math.sin(clock * 3 + i * 1.3)) * 3;
+        drawApe(sx, groundAt(apes.x + i * 18) + hopY, apes.ph === 'flee' ? 'jump' : '', apes.ph === 'flee' ? 1 : -1, clock + i);
+      }
+    } else if (apes.ph === 'hop') {
+      const p = clamp(apes.t / 0.4, 0, 1);
+      for (let i = 0; i < apes.n; i++) {
+        const x0 = apes.x - cam + i * 18, y0 = apes.y, x1 = truckX + 14 + i * 16, y1 = truck.y - catBedY(tomatoes);
+        drawApe(x0 + (x1 - x0) * p, y0 + (y1 - y0) * p - 50 * 4 * p * (1 - p), 'jump', -1, clock);
+      }
+    } else if (apes.ph === 'off') {
+      for (const a of apes.list) drawApe(a.x - cam, a.y, 'jump', -1, apes.t);
+    }
+  }
+  // 荷台の上の猿（軽トラと一緒に描く）
+  function drawApesOnBed(load, jg) {
+    for (let i = 0; i < apes.n; i++) drawApe(12 + i * 17, -catBedY(load) + jg * 0.6 + Math.sin(clock * 9 + i) * 0.8, 'eat', i % 2 ? -1 : 1, clock + i);
+  }
+
+  // ---- 犬：落とした積み荷をくわえて追いかけてきて、荷台へ放り込んで返してくれる ----
+  function lostCargo() {
+    if (state !== 'play' || dog || dogSec === lastRefill || meters() < 100) return;
+    if (Math.random() > 0.7) return;
+    dogSec = lastRefill;
+    dog = { ph: 'wait', t: 0, gap: 230 };
+  }
+  function updateDog(dt) {
+    if (!dog) return;
+    dog.t += dt;
+    if (dog.ph === 'wait') {
+      if (state !== 'play') { dog = null; return; }
+      if (dog.t > 0.8) { dog.ph = 'run'; dog.t = 0; sfx('woof'); }
+    } else if (dog.ph === 'run') {
+      if (state !== 'play') { dog.ph = 'bye'; }
+      // 軽トラがいつもの速さなら少しずつ、減速するとぐんぐん追いつく
+      dog.gap -= (speed + 110 - vel) * dt;
+      dog.gap = Math.min(dog.gap, 260);
+      if (dog.gap <= 8 && !truck.falling) {
+        dog.ph = 'toss'; dog.t = 0;
+        dog.wx = cam + truckX - dog.gap;
+        throws.push({ t: 0, dur: 0.35, fx: dog.wx + 20, fy: groundAt(dog.wx) - 16, i: 3 });
+        popup('犬が届けてくれた!', '#a8e27f');
+        sfx('woof');
+        setReact('wave', 1);
+      } else if (dog.t > 8) { dog.ph = 'bye'; }
+      if (dog.ph === 'bye') dog.wx = cam + truckX - dog.gap;
+    } else {
+      // その場でしっぽを振って見送る
+      if (dog.wx - cam < -60) dog = null;
+    }
+  }
+  function drawDog() {
+    if (!dog || dog.ph === 'wait') return;
+    const run = dog.ph === 'run';
+    const sx = run ? truckX - dog.gap : dog.wx - cam;
+    if (sx < -60 || sx > W + 60) return;
+    const gy = groundAt(sx + cam);
+    const bob = run ? -Math.abs(Math.sin(clock * 16)) * 5 : 0;
+    ctx.save();
+    ctx.translate(sx, gy + bob);
+    ctx.scale(1.3, 1.3);
+    const fur = '#d9914a';
+    ctx.fillStyle = fur;
+    const leg = run ? Math.sin(clock * 32) * 3 : 0;
+    ctx.fillRect(-7 + leg, -5, 2.6, 5); ctx.fillRect(4 - leg, -5, 2.6, 5);
+    ctx.beginPath(); ctx.ellipse(0, -8, 9, 4.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fbf2e2'; ctx.beginPath(); ctx.ellipse(4, -6.5, 4, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = fur; ctx.lineWidth = 2.6;
+    const wag = run ? 0 : Math.sin(clock * 20) * 2;
+    ctx.beginPath(); ctx.arc(-9, -12 + wag * 0.3, 3.4, 0.5 * Math.PI, 2 * Math.PI); ctx.stroke();   // 巻いたしっぽ
+    ctx.fillStyle = fur;
+    ctx.beginPath(); ctx.arc(9, -13, 4.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(6.5, -21); ctx.lineTo(9, -17); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10, -17); ctx.lineTo(12, -21); ctx.lineTo(13, -15.5); ctx.fill();
+    ctx.fillStyle = '#fbf2e2'; ctx.fillRect(10, -12, 5, 3);
+    ctx.fillStyle = '#2a1d08'; ctx.fillRect(10, -15, 1.4, 1.6); ctx.fillRect(14, -11.5, 1.6, 1.4);
+    if (run) drawItem(cargo.id === 'calf' ? 'hay' : cargo.id, 15, -9, 1);   // くわえている積み荷
+    ctx.restore();
+  }
+
   // ---- 荷台の猫：道ばたの猫が、通りかかった軽トラの荷台にひょいと乗ってくる ----
   // 乗っている間は積み荷1個ぶん。強く着地すると荷台の端にしがみつき、もう一度ドスンとやると怒って降りる
   const catOn = () => cat && (cat.ph === 'ride' || cat.ph === 'cling') ? 1 : 0;
   const extraLoad = () => catOn() + gifts;
   function catFreeAt(wx) {
     const m = wx / PX_PER_M, r = m % REFILL_M;
-    if (r < 40 || r > REFILL_M - 40 || Math.abs(m - deliverAt(delivered)) < 60 || chase) return false;
+    if (r < 40 || r > REFILL_M - 40 || Math.abs(m - deliverAt(delivered)) < 60 || chase || apes) return false;
     return !obs.some(o => o.x < wx + 90 && o.x + (o.w || 40) > wx - 90);
   }
   function updateCat(dt) {
@@ -1928,7 +2298,7 @@ canvas { display: block; width: 100%; height: 100%; }
       chase.gap = Math.min(chase.gap, CHASE_GAP0 + 40);
       if (chase.gap <= 0 && !truck.falling) {
         chase.ph = 'bite'; chase.t = 0;
-        if (tomatoes > 0) { tomatoes--; stats.lost++; }
+        if (tomatoes > 0) { tomatoes--; stats.lost++; lostCargo(); }
         shake = Math.max(shake, 0.3); shakeCargo(160);
         sfx('boar');
         popup(`大イノシシに${cargo.unit}をかじられた! 残り ${tomatoes} 個`, '#ff8f7a');
@@ -3106,6 +3476,17 @@ canvas { display: block; width: 100%; height: 100%; }
           drawHen(hx, hy, (Math.sin(clock * 0.8 + o.seed + i) > 0 ? 1 : -1), clock * 10 + i, o.hit);
           ctx.restore();
         }
+      } else if (o.t === 'mochi' || o.t === 'kaki') {
+        if (sx > W + 80 || sx + o.w < -80) return;
+        drawMochi(o, sx);
+      } else if (o.t === 'bear') {
+        if (sx > W + 80 || sx < -80) return;
+        if (!o.hit && sx - 60 > -70 && sx - 60 < W + 40) drawBearSign(sx - 60, GROUND);
+        drawBear(sx + 22, GROUND, o);
+      } else if (o.t === 'ice') {
+        if (sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '凍結', 'slow');
+        if (sx > W || sx + o.w < 0) return;
+        drawIce(sx, o.w, o.seed);
       } else if (o.t === 'cow') {
         if (sx > W + 60 || sx < -80) return;
         if (!o.hit && sx - 40 > -70 && sx - 40 < W + 40) drawWarnSign(sx - 40, GROUND, '牛', 'slow');
@@ -3129,7 +3510,7 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   // 初めて出てきた障害物に吹き出しで説明を出す
-  const CALLOUTS = { cow: '牛! 跳び越えよう', gap: 'タップでジャンプ!', puddle: '水たまり 滑って減速', bump: 'ボコボコ道 3回でパンク', boar: 'イノシシ! 跳び越えろ',
+  const CALLOUTS = { mochi: 'もちまき! 跳んでキャッチ', kaki: '柿! 跳んで取れ', bear: 'クマ! 2段ジャンプで越えろ', ice: '凍った道! ジャンプが低くなる', cow: '牛! 跳び越えよう', gap: 'タップでジャンプ!', puddle: '水たまり 滑って減速', bump: 'ボコボコ道 3回でパンク', boar: 'イノシシ! 跳び越えろ',
     stepLo: '段差! ジャンプで登れ', stepHi: '石垣! 2段ジャンプで登れ' };
   function drawCallouts() {
     if (state !== 'play') return;
@@ -3408,6 +3789,7 @@ canvas { display: block; width: 100%; height: 100%; }
       driver: driverPose(),
       jig: truck.falling ? 0 : jig,
       cat: !truck.falling && catOn() ? cat : null, gifts: truck.falling ? 0 : gifts,
+      apes: !truck.falling && apes && apes.ph === 'ride',
     };
   }
   // 落ちている積み荷の上を通ると1個積み戻す（高く跳んでいると取れない。音は鳴らさない）
@@ -3497,6 +3879,7 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillRect(4, -16, 90, 7);
     drawTomatoes(load, sp.jig || 0);
     if (sp.gifts) drawGifts(sp.gifts, sp.jig || 0);
+    if (sp.apes) drawApesOnBed(load, sp.jig || 0);
     if (sp.cat) {
       if (sp.cat.ph === 'cling') drawCatSprite(1, -28, 'cling', 1, clock);
       else drawCatSprite(8, -catBedY(load) + (sp.jig || 0) * 0.6, 'ride', 1, clock);
@@ -4013,6 +4396,8 @@ canvas { display: block; width: 100%; height: 100%; }
     drawBoars();
     drawChase();
     drawCat();
+    drawApes();
+    drawDog();
     drawCrows();
     drawParts();
     drawNight();
@@ -4735,6 +5120,8 @@ canvas { display: block; width: 100%; height: 100%; }
       drawBoars();
       drawChase();
       drawCat();
+      drawApes();
+      drawDog();
       drawCrows();
       drawParts();
       drawCallouts();
@@ -4931,7 +5318,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; },
-      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get parts() { return parts; }, get chase() { return chase; }, set nextChase(v) { nextChase = v; }, get cat() { return cat; }, set nextCat(v) { nextCat = v; }, get gifts() { return gifts; }, get delivered() { return delivered; }, die: k => die(k), get rk() { return rk; }, get env() { return env; }, get r3() { return { ok: r3.ok, on: hdActive(), stats: r3.stats, prof: r3.prof, chunks: r3.chunks && r3.chunks.length }; }, get score() { return score; }, get steps() { return steps; },
+      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get parts() { return parts; }, get chase() { return chase; }, set nextChase(v) { nextChase = v; }, get cat() { return cat; }, get apes() { return apes; }, set nextApe(v) { nextApe = v; }, get dog() { return dog; }, set nextCat(v) { nextCat = v; }, get gifts() { return gifts; }, get delivered() { return delivered; }, die: k => die(k), get rk() { return rk; }, get env() { return env; }, get r3() { return { ok: r3.ok, on: hdActive(), stats: r3.stats, prof: r3.prof, chunks: r3.chunks && r3.chunks.length }; }, get score() { return score; }, get steps() { return steps; },
       get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep, bgm: bgmMode, pos: bgmEl ? bgmEl.currentTime : null, src: !!bgmSrc }; },
       suspendAudio() { return ac && ac.suspend(); }, get clock() { return clock; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
