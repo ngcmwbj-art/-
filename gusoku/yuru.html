@@ -2570,7 +2570,7 @@ function tkLearn(t){
   const clean=v=>cleanAnswer(v).replace(/^(は|が|の)/,'').replace(/[。！!？?]+$/,'').slice(0,20);
   const R=[
     [/(?:私|わたし|僕|ぼく|俺|おれ|うち|自分|わし)の?名前は(.+)/,'名前'],[/(.+?)(?:って|と)呼んで/,'呼び名'],
-    [/誕生日は(\d{1,2})月(\d{1,2})日/,'誕生日',m=>m[1]+'月'+m[2]+'日'],[/仕事は(.+)/,'仕事'],[/(.+?)(?:の仕事|をして(?:い)?る|の仕事をして)/,'仕事'],
+    [/誕生日は(\d{1,2})月(\d{1,2})日/,'誕生日',m=>m[1]+'月'+m[2]+'日'],[/誕生日は(\d{1,2})[\/／](\d{1,2})/,'誕生日',m=>m[1]+'月'+m[2]+'日'],[/仕事は(.+)/,'仕事'],[/(.+?)(?:の仕事|をして(?:い)?る|の仕事をして)/,'仕事'],
     [/趣味は(.+)/,'趣味'],[/(.+?)に住んで/,'住まい'],[/(.+?)を飼って/,'飼っている動物'],
     [/(.+?)が(?:大)?(?:好き|すき)(?:です|だよ|なんだ|なの)?[。!！]*$/,'好きなもの',null,v=>!/グソク|ぐそく|あなた|君|きみ|お前|おまえ/.test(v)],
     [/(.+?)が(?:嫌い|きらい|苦手|にがて)/,'苦手なもの'],[/(\d{1,3})(?:歳|才)(?:です|だよ|になった)?/,'年齢',m=>m[1]+'歳'],
@@ -2639,7 +2639,7 @@ function localReplyBase(text){
   // stage 0: body language only
   const bodyFor=k=>/^cmd/.test(k)?TK_BODY.cmd:TK_BODY[k]||(/^q_/.test(k)?TK_BODY.q:/^u_(sad|tired|sick)/.test(k)?TK_BODY.sad:/food|fish|feed/.test(k)?TK_BODY.food:/greet/.test(k)?TK_BODY.greet:TK_BODY.def);
   // birthday
-  const bd=mem('誕生日');if(bd&&st>=1){const d=new Date();if(bd===(d.getMonth()+1)+'月'+d.getDate()+'日'&&S.bdSaid!==dkey()){S.bdSaid=dkey();return out(st===1?'……タンジョウビ、オメデトウ、ゴザイマス。':'……今日は{n}のお誕生日でしょう。覚えておりましたよ。おめでとうございます。','happy',{trust:2,wave:1})}}
+  const bd=mem('誕生日');if(bd&&st>=1){const d=new Date();if(Tanjo.today()&&S.bdSaid!==dkey()){S.bdSaid=dkey();return out(st===1?'……タンジョウビ、オメデトウ、ゴザイマス。':'……今日は{n}のお誕生日でしょう。覚えておりましたよ。おめでとうございます。','happy',{trust:2,wave:1})}}
   // learning facts
   const f=tkLearn(t);if(f)return st===0?out(TK_BODY.def,'curious'):out(tkLearnReply(f,st),'curious',{trust:.8});
   const rc=tkRecall(t);if(rc)return st===0?out(TK_BODY.q,'curious'):out(st===1?'……オボエテマス。':rc,'curious');
@@ -4466,6 +4466,94 @@ const Asobi={
 $('set-asobi').addEventListener('click',e=>{e.stopPropagation();Asobi.open()});
 $('asobi-close').addEventListener('click',()=>$('asobi').hidden=true);
 
+/* =====================================================================
+   HOLIDAY HATS — on Halloween, Christmas and New Year the creature itself wears a little hat
+   (the tank ornament stays as it is).
+   ===================================================================== */
+const Boushi={g:null,k:null,
+  HAT:{halloween:'pumpkin',xmas:'santa',shogatsu:'kagami'},
+  make(k){if(k==='santa'){const g=new THREE.Group(),c=new THREE.Mesh(new THREE.ConeGeometry(.22,.42,18),wMat(0xd8282f));c.position.y=.24;c.rotation.z=.25;
+      const brim=new THREE.Mesh(new THREE.TorusGeometry(.2,.055,10,24),wMat(0xf7f5ee));brim.rotation.x=Math.PI/2;brim.position.y=.04;
+      const pom=new THREE.Mesh(new THREE.SphereGeometry(.06,12,10),wMat(0xf7f5ee));pom.position.set(-.1,.45,0);g.add(c,brim,pom);return g}
+    return Season.MODEL[k]?Season.MODEL[k]():null},
+  want(){const ev=Season.today().find(e=>this.HAT[e.k]);return ev?this.HAT[ev.k]:null},
+  sync(){
+    const k=(S&&S.hatched&&S.stage>=1&&ISO)?this.want():null;if(k===this.k&&(!this.g||this.g.parent))return;this.k=k;
+    if(this.g){this.g.parent&&this.g.parent.remove(this.g);disposeTree(this.g);this.g=null}if(!k)return;
+    const g=this.make(k);if(!g)return;g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.userData.keep=true}});
+    if(ISO.chara&&ISO.head){g.scale.setScalar(k==='santa'?1.25:.62);g.position.set(.05,.43,-.02);g.rotation.z=-.18;ISO.head.add(g)}
+    else{const j=ISO.joints[0];j.updateWorldMatrix(true,true);const b=new THREE.Box3().setFromObject(j),w=Math.max(.05,(b.max.x-b.min.x+b.max.z-b.min.z)/2)/ISO.root.scale.x,
+      top=j.worldToLocal(new V3((b.min.x+b.max.x)/2,b.max.y,(b.min.z+b.max.z)/2));g.scale.setScalar(w*.55);g.position.copy(top).add(new V3(0,-.03*w,0));j.add(g)}
+    this.g=g}
+};
+setInterval(()=>{try{Boushi.sync()}catch(e){}},4000);
+
+/* =====================================================================
+   SPARKLE — finishing all of today's care makes a few seconds of glittering lights in the tank.
+   ===================================================================== */
+const Kira={pts:null,t:0,
+  go(){if(!this.pts){const n=70,g=new THREE.BufferGeometry(),p=new Float32Array(n*3),ph=new Float32Array(n);for(let i=0;i<n;i++)ph[i]=Math.random()*6.28;
+      g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('ph',new THREE.BufferAttribute(ph,1));
+      this.mat=new THREE.PointsMaterial({color:new THREE.Color(1.6,1.35,.7),size:.07,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+      this.pts=new THREE.Points(g,this.mat);this.pts.frustumCulled=false;scene.add(this.pts)}
+    const P=this.pts.geometry.attributes.position,c=C.pos;for(let i=0;i<P.count;i++)P.setXYZ(i,c.x+(Math.random()-.5)*4,Math.random()*2.6,c.z+(Math.random()-.5)*3);P.needsUpdate=true;this.t=4.5;Sfx.glow()},
+  update(dt,time){if(!this.pts||this.t<=0)return;this.t-=dt;const P=this.pts.geometry.attributes.position;for(let i=0;i<P.count;i++)P.setY(i,P.getY(i)+dt*.12);P.needsUpdate=true;
+    this.mat.opacity=Math.max(0,Math.min(1,this.t))*(.65+.35*Math.sin(time*9));this.mat.size=.05+.03*Math.sin(time*5)}
+};
+{const f=Daily.full;Daily.full=function(){const r=f.apply(this,arguments);setTimeout(()=>Kira.go(),900);return r}}
+{const f=World.update;World.update=function(dt,time){f.apply(this,arguments);Kira.update(dt,time)}}
+
+/* =====================================================================
+   SLEEPING POSES — each night it sleeps a little differently: curled up, at its favourite rock,
+   half buried in the sand, or lying on its side.
+   ===================================================================== */
+const Nezou={b:0,was:false,
+  kind(){const D=dkey(Date.now()-6*3600e3);if(!S.nezou||S.nezou.d!==D){let h=0;for(const ch of D)h=(h*31+ch.charCodeAt(0))%9973;S.nezou={d:D,k:['curl','home','suna','side'][h%4]}}return S.nezou.k},
+  pre(dt){
+    const k=S&&S.hatched&&S.stage>=1?this.kind():'curl',on=Life.asleep&&!Life.dead&&!Game.molting;
+    this.b=damp(this.b,on&&(k==='suna'||k==='side')?1:0,on?.6:2.5,dt);
+    if(on&&k==='suna'&&this.b>.002){C.yOverride=heightAt(C.pos.x,C.pos.z)-this.b*C.size*(ISO.chara?(C.crawl>.5?.25:.8):.3);this.was=true}
+    else if(this.was){this.was=false;if(!Suna.on)C.yOverride=null}
+  },
+  post(){if(this.b<=.002||!ISO||!S.nezou)return;if(S.nezou.k==='side'){ISO.root.rotation.z=.55*this.b*(ISO.chara?.7:1)}else ISO.root.rotation.z=0}
+};
+{const f=pickWander;pickWander=function(){const h=new Date().getHours();if(S&&S.stage>=1&&(h>=21||h<5)&&Nezou.kind()==='home'){const p=Iebasho.spot();if(p)return p}return f.apply(this,arguments)}}
+
+/* =====================================================================
+   THIS DAY BACK THEN — on a month / half-year / year anniversary of a moult it remembers it.
+   ===================================================================== */
+const Omoide={
+  find(){const L=(S.shells||[]).filter(x=>x.d),now=new Date(dkey()+'T00:00:00');
+    for(const x of L){const d=Math.round((now-new Date(x.d+'T00:00:00'))/DAY),lb={30:'1か月',60:'2か月',90:'3か月',180:'半年',365:'1年'}[d];if(lb)return{x,lb}}return null},
+  check(){if(!S||S.stage<2||S.omoideD===dkey())return;const o=this.find();if(!o)return;S.omoideD=dkey();save();
+    const fire=()=>{if(!$('away').hidden){setTimeout(fire,1500);return}if(Life.asleep||Life.dead)return;say('ちょうど'+o.lb+'前の今日、'+o.x.n+'回目の脱皮をしましたね。あの頃は、まだ'+o.x.mm+'mmでした。',{emo:'happy'})};setTimeout(fire,9000)}
+};
+
+/* =====================================================================
+   BIRTHDAY, PROPERLY — your birthday (any of 3月5日 / 3/5) is celebrated as soon as you arrive.
+   ===================================================================== */
+const Tanjo={
+  md(s){const m=String(s||'').match(/(\d{1,2})\D+(\d{1,2})/);return m?[+m[1],+m[2]]:null},
+  today(){const b=this.md(mem('誕生日'));if(!b)return false;const d=new Date();return b[0]===d.getMonth()+1&&b[1]===d.getDate()},
+  check(){if(!S||S.stage<1||!this.today()||S.bdSaid===dkey())return;S.bdSaid=dkey();save();
+    const fire=()=>{if(!$('away').hidden){setTimeout(fire,1500);return}if(Life.asleep||Life.dead)return;
+      say(S.stage===1?'……タンジョウビ、オメデトウ、ゴザイマス。':'……今日は{n}のお誕生日でしょう。覚えておりましたよ。おめでとうございます。'.replace('{n}',san(tkName())||'あなた'),{emo:'happy'});Sfx.joy();Shippo.go(3);if(ISO.chara){C.wave=2.6;C.waveDur=2.6}};setTimeout(fire,3500)}
+};
+{const f=Daily.greet;Daily.greet=function(h){try{Tanjo.check();Omoide.check()}catch(e){}return f.apply(this,arguments)}}
+
+/* =====================================================================
+   OOPS (グソっ君 only) — once every few days it trips while walking, and gets up a bit embarrassed.
+   ===================================================================== */
+const Korobu={t:0,
+  maybe(){if(VARIANT!=='yuru'||!S||S.molts<4||this.t>0||Life.asleep||Life.dead||Game.molting||Molt.phase||!started)return;
+    const last=S.koroAt||0;if(Date.now()-last<2*DAY||Math.random()>.12)return;S.koroAt=Date.now();save();
+    setTimeout(()=>{if(!['walk','idle'].includes(C.state)||Life.asleep||Game.molting||Utatane.on||Suna.on)return;this.t=2.8;setState('idle',{wait:5});Audio2.noise(.18,300,.25,1);puff(C.pos.clone(),10);
+      setTimeout(()=>{if(Life.asleep||Life.dead)return;Expr.smileT=3;say(pickR(['……あっ。……転んでしまいました。','……見ませんでしたよね。今の。']),{emo:'happy'})},1500)},700+Math.random()*1500)},
+  post(dt){if(this.t<=0||!ISO)return;this.t=Math.max(0,this.t-dt);const u=2.8-this.t,k=u<.35?smooth(0,.35,u):smooth(2.8,1.4,u);ISO.root.rotation.x=1.15*k}
+};
+{const f=setState;setState=function(s){const r=f.apply(this,arguments);if(s==='walk')Korobu.maybe();return r}}
+{const f=updateCreature;updateCreature=function(dt,time){Nezou.pre(dt);f(dt,time);Nezou.post();Korobu.post(dt)}}
+
 let started=false;
 function boot(){
   load();
@@ -4678,7 +4766,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Boushi,Kira,Nezou,Omoide,Tanjo,Korobu,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
