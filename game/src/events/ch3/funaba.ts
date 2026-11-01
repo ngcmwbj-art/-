@@ -612,7 +612,7 @@ registerScript('obj_fb_saka', function* (): Co {
 /** 2 船揚げ場（入る たび）。 */
 registerScript('evt_fb_enter', function* (): Co {
   const f = field();
-  if (!f || !inCh3() || flag(FBF.scene)) return;
+  if (!f || !inCh3() || flag(FBF.scene) || nuruGoing) return;
   if (c3Stage() === 1 && flag(FBF.start) && !flag(FBF.inn)) {
     setFlag(FBF.inn, 1);
     // down the slope's foot a few steps, till the boat is in sight
@@ -762,13 +762,22 @@ wrap(GORO, function* (_ctx, orig): Co {
   yield* orig();
 });
 
+/** 〔ぬる〕で 船揚げ場へ 移る あいだ（入った ときの 地の文を 出さない）。 */
+let nuruGoing = false;
+
 /** 5〔ぬる〕：食堂の 前 → 暗転で 船揚げ場 → ゴロウが 塗る → ごほうび。 */
 function* nuruScene(): Co {
   const f = field();
   if (!f) return;
   yield* say3(T.FB_NURU_A);
+  // (the scene flag goes up only on the boat yard: the town's fx clears it every frame)
+  nuruGoing = true;
+  try {
+    yield* f.warpCo(FUNABA, GORO_AT[0] + 2, GORO_AT[1], 'up', undefined, UMIZOI);
+  } finally {
+    nuruGoing = false;
+  }
   setFlag(FBF.scene, 1);
-  yield* f.warpCo(FUNABA, GORO_AT[0] + 2, GORO_AT[1], 'up', undefined, UMIZOI);
   f.refreshPresence();
   yield 400;
   yield* say3(T.FB_NURU);
