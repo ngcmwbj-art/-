@@ -300,7 +300,7 @@ function updateCamera(dt) {
   game.camYaw = camState.yaw;
   let pitch = camState.pitch, dist = 3.3;
   if (info.underTable) { pitch = Math.min(pitch, 0.2); dist = 2.4; }
-  else if (info.underRow) { pitch = Math.min(pitch, 0.26); dist = 2.7; }
+  else if (info.underRow) { pitch = Math.min(pitch, 0.24); dist = 1.7; }
   if (info.flying) { dist = 4.5; pitch = 0.25; }
   if (game.state === 'over') { camState.yaw += dt * 0.25; dist = 5; pitch = 0.5; }
   camState.dist = damp(camState.dist, dist, 5, dt);
