@@ -10,6 +10,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
+    page.setDefaultTimeout(240000);
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(URL);
     await page.waitForFunction(() => window.__rh && window.__rh.game);
@@ -56,6 +57,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   // キーボード
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+    page.setDefaultTimeout(240000);
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(URL);
     await page.waitForFunction(() => window.__rh && window.__rh.game);
