@@ -171,8 +171,8 @@ function buildGround(g) {
   conc.receiveShadow = true;
   g.add(conc);
   // 水たまり（朝日を映す）
-  const puddleMat = new THREE.MeshStandardMaterial({ color: 0x1d1a16, roughness: 0.05, metalness: 0.0, transparent: true, opacity: 0.75 });
-  for (const [x, z, s] of [[8.2, -4.6, 1.2], [16.5, 2.6, 0.9], [-19.6, 4, 1.1], [6.5, 8.6, 0.8]]) {
+  const puddleMat = new THREE.MeshStandardMaterial({ color: 0x3a3229, roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.32, depthWrite: false });
+  for (const [x, z, s] of [[-19.6, 4, 1.1], [-19.4, -6, 0.8], [4.2, 2.5, 0.7]]) {
     const p = new THREE.Mesh(new THREE.CircleGeometry(1, 28), puddleMat);
     p.rotation.x = -Math.PI / 2;
     p.scale.set(s * 1.4, s, 1);
@@ -399,7 +399,7 @@ function buildHouse(g) {
       g.add(p);
     }
     // 横の梁（タイバー）
-    const tie = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 28, 6), steel);
+    const tie = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2 * 14 * Math.cos(Math.asin((8.6 - WALL_H) / RISE)), 6), steel);
     tie.rotation.x = Math.PI / 2;
     tie.position.set(x, 8.6, 0);
     tie.castShadow = true;
@@ -638,7 +638,7 @@ function buildOutside(g) {
   g.add(road);
   // 遠くの林
   const treeGeo = new THREE.IcosahedronGeometry(0.5, 1);
-  const trees = new THREE.InstancedMesh(treeGeo, new THREE.MeshStandardMaterial({ color: 0x2c4a2a, roughness: 1 }), 140);
+  const trees = new THREE.InstancedMesh(treeGeo, new THREE.MeshStandardMaterial({ color: 0x1f3a22, roughness: 1, flatShading: true }), 140);
   const d = new THREE.Object3D();
   for (let i = 0; i < 140; i++) {
     const a = (i / 140) * Math.PI * 2 + rand() * 0.04;
