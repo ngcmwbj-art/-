@@ -1,7 +1,7 @@
 // 起動して数十秒うごかし、エラーが出ないか・画面が描けるかを確かめる
 const { chromium } = require('playwright');
 (async () => {
-const URL = process.env.URL || 'http://localhost:8765/index.html';
+const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
 const out = process.argv[2] || '.';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });

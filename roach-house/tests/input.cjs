@@ -1,6 +1,6 @@
 // 本物の入力（タッチのスティック・ボタン、キーボード、一時停止）で動くか
 const { chromium } = require('playwright');
-const URL = process.env.URL || 'http://localhost:8765/index.html';
+const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const out = [];
@@ -67,12 +67,12 @@ const URL = process.env.URL || 'http://localhost:8765/index.html';
     await page.waitForTimeout(1500);
     await page.keyboard.up('Space');
     check('スペース長押しで食べる', await page.evaluate(() => window.__c.hp < 100));
-    await page.keyboard.press('Digit2'); await page.waitForTimeout(250);
+    await page.keyboard.press('Digit2'); await page.waitForFunction(() => window.__rh.game.mode === 'decoy', null, { timeout: 15000 }).catch(() => {});
     check('2キーで囮', await page.evaluate(() => window.__rh.game.mode === 'decoy') && await page.evaluate(() => document.getElementById('cmd-decoy').classList.contains('on')));
-    await page.keyboard.press('Escape'); await page.waitForTimeout(250);
-    check('Escで一時停止', await page.isVisible('#pause'));
-    await page.keyboard.press('Escape'); await page.waitForTimeout(250);
-    check('Escで再開', !(await page.isVisible('#pause')));
+    await page.keyboard.press('Escape');
+    check('Escで一時停止', await page.waitForSelector('#pause', { state: 'visible', timeout: 15000 }).then(() => true, () => false));
+    await page.keyboard.press('Escape');
+    check('Escで再開', await page.waitForSelector('#pause', { state: 'hidden', timeout: 15000 }).then(() => true, () => false));
     await page.click('#c', { position: { x: 600, y: 300 } });
     await page.keyboard.press('KeyR'); await page.waitForTimeout(250);
     check('栄養不足で産卵しない', await page.evaluate(() => window.__rh.game.eggs.length === 0));

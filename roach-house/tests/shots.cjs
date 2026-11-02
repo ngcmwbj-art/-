@@ -1,6 +1,6 @@
 // 見た目の確認用スクリーンショット（PC横・スマホ縦）
 const { chromium } = require('playwright');
-const URL = process.env.URL || 'http://localhost:8765/index.html';
+const URL = process.env.URL || ('http://localhost:8765/index.html?q=' + (process.env.Q || 'high'));
 const out = process.argv[2] || '.';
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });

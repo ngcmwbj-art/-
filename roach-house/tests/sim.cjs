@@ -1,6 +1,6 @@
 // 自動プレイ：ボットで最後まで遊び、異常（例外・NaN・場外）がないか、勝ち負けの釣り合いを見る
 const { chromium } = require('playwright');
-const URL = process.env.URL || 'http://localhost:8765/index.html';
+const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 800, height: 500 } });

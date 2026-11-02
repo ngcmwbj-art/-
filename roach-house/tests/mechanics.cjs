@@ -1,6 +1,6 @@
 // 一つずつの仕組みが正しく動くかを確かめる
 const { chromium } = require('playwright');
-const URL = process.env.URL || 'http://localhost:8765/index.html';
+const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 800, height: 500 } });
@@ -125,6 +125,43 @@ const URL = process.env.URL || 'http://localhost:8765/index.html';
       if (Math.hypot(end.x - c.x, end.z - c.z) > 2.9) bad++;
     }
     check('どのコンテナにも手が届く', bad === 0, `bad=${bad}`);
+    // 13. 台のふちで産んだ卵も、生まれた仲間も台の上にいる
+    g.start('normal', 21); freezeFarmer();
+    Object.assign(g.player, { x: 13, z: -6.85, surface: 0, y: 2.2, h: Math.PI, st: 'move' });
+    g.nutrition = 100; inp.press('egg');
+    RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    const egg = g.eggs[0];
+    check('台のふちの卵が台の上にある', egg && egg.z <= -6.8 - 0.1 && egg.z >= -9.2, egg && egg.z.toFixed(2));
+    g.hatch(egg);
+    check('生まれた仲間も台の上', g.nymphs.every((r) => r.z <= -6.8 && r.z >= -9.2 && r.x >= 8.5 && r.x <= 17.5));
+    // 14. やり直しをくり返してもメモリが増え続けない
+    const mem = () => RH.renderer.info.memory.geometries;
+    g.start('normal', 22); RH.sim(2, 1 / 30, idle);
+    RH.renderer.render(RH.scene, RH.camera);
+    const m0 = mem();
+    for (let k = 0; k < 4; k++) { g.start('normal', 23 + k); for (let j = 0; j < 4; j++) { g.startAct('spray', 0, 0, 0); g.farmer.act.t = 9; g.updateAct(0.01); } RH.sim(2, 1 / 30, idle); RH.renderer.render(RH.scene, RH.camera); }
+    const m1 = mem();
+    check('やり直しでメモリが増え続けない', m1 - m0 < 30, `${m0}->${m1}`);
+    // 15. 落としたコンテナは畝・台・わなの上に置かれない
+    let badDrop = 0;
+    for (const [fx, fz] of [[0, 0], [-10, 2.5], [13, -4.5], [21, 13], [-21, -13]]) {
+      g.start('normal', 30);
+      const cc2 = g.crates[0];
+      g.farmer.x = fx; g.farmer.z = fz; g.farmer.carry = cc2; cc2.carried = true; g.farmer.model.root.attach(cc2.model.group);
+      g.dropCarry();
+      const W = window.__rh;
+      if (cc2.x < -21 || cc2.x > 21 || cc2.z < -13 || cc2.z > 13) badDrop++;
+      if (g.traps.some((t) => Math.hypot(t.x - cc2.x, t.z - cc2.z) < 1)) badDrop++;
+    }
+    check('落としたコンテナの置き場所', badDrop === 0, `bad=${badDrop}`);
+    // 16. 殺虫剤で卵がやられる
+    g.start('normal', 31); freezeFarmer();
+    g.nutrition = 100; g.player.x = -10; g.player.z = 0; inp.press('egg');
+    RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    g.player.x = -5;
+    g.spawnCloud(g.eggs[0].x, 0, g.eggs[0].z);
+    RH.sim(2.5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    check('殺虫剤で卵がやられる', !g.eggs[0].alive);
     return out;
   });
   console.log(results.join('\n'));

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
-<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
 </head>
 <body>
 <div id="app">
@@ -74,6 +74,9 @@
       <div class="opts">
         <label><input type="checkbox" id="optHints" checked> ヒントを出す</label>
         <label><input type="checkbox" id="optSound" checked> 音を鳴らす</label>
+        <label>画質 <select id="optQuality">
+          <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
+        </select></label>
       </div>
       <details class="howto" id="howto">
         <summary>遊びかた</summary>

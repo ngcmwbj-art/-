@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js';
 
 const esbuild = process.env.ESBUILD || 'npx --yes esbuild@0.24.0';
-let js = execSync(`${esbuild} js/main.js --bundle --format=esm --external:three --minify --charset=utf8`, { cwd: root, maxBuffer: 1 << 26 }).toString();
+let js = execSync(`${esbuild} js/main.js --bundle --format=esm --external:three --alias:three/addons=./vendor/addons --minify --charset=utf8`, { cwd: root, maxBuffer: 1 << 26 }).toString();
 js = js.replace(/from\s*"three"/g, `from"${THREE_URL}"`);
 if (/from\s*"three"/.test(js) || !js.includes(THREE_URL)) throw new Error('three の読み込み先を置きかえられませんでした');
 

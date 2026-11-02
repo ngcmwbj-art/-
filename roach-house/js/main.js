@@ -1,10 +1,12 @@
 // 起動・描画・画面の表示
 import * as THREE from 'three';
-import { buildWorld, ROWS, TABLES, DOOR } from './world.js';
+import { buildWorld, ROWS, TABLES, DOOR, rowAt } from './world.js';
 import { Game, DIFFS, MAX_NYMPHS } from './game.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
-import { clamp, damp, dampAngle, inRect } from './util.js';
+import { clamp, damp, inRect } from './util.js';
+import { FX, AutoQuality, LEVELS } from './fx.js';
+import { setTextureSize } from './textures.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,7 +26,13 @@ const store = {
 };
 
 const isTouchDevice = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
-const Q = { shadow: isTouchDevice ? 1024 : 2048, dpr: Math.min(window.devicePixelRatio || 1, isTouchDevice ? 1.5 : 2) };
+// 画質：自動（PC=高・スマホ=中から始めて、重ければ下げる）／高／中／低
+// テスト用：?q=high|medium|low で画質を固定（保存はしない）
+const urlQ = (() => { try { return new URLSearchParams(location.search).get('q'); } catch (_) { return null; } })();
+let qualityPref = ['high', 'medium', 'low'].includes(urlQ) ? urlQ : store.get('quality', 'auto');
+if (!['auto', 'high', 'medium', 'low'].includes(qualityPref)) qualityPref = 'auto';
+const startLevel = qualityPref === 'auto' ? (isTouchDevice ? 'medium' : 'high') : qualityPref;
+setTextureSize(LEVELS[startLevel].tex);
 
 // ---------- three.js ----------
 const canvas = $('c');
@@ -35,16 +43,33 @@ try {
   showError('この端末では 3D 表示（WebGL）が使えません。');
   throw e;
 }
-renderer.setPixelRatio(Q.dpr);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, 1, 0.03, 300);
-buildWorld(scene, Q);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.03, 400);
+const L0 = LEVELS[startLevel];
+const world = buildWorld(scene, renderer, { shadow: L0.shadow, dust: L0.dust, shafts: L0.shafts });
+const fx = new FX(renderer, scene, camera);
+fx.setLevel(startLevel);
+const autoQ = new AutoQuality(fx, (lvl, fps) => {
+  world.setShadow(LEVELS[lvl].shadow);
+  ui.toast(`動きをなめらかにするため画質を「${LEVELS[lvl].label}」にしました（${Math.round(fps)}fps）`, 'info');
+});
+autoQ.auto = qualityPref === 'auto';
+function applyQuality(pref) {
+  qualityPref = pref;
+  store.set('quality', pref);
+  autoQ.auto = pref === 'auto';
+  const lvl = pref === 'auto' ? (isTouchDevice ? 'medium' : 'high') : pref;
+  fx.setLevel(lvl);
+  world.setShadow(LEVELS[lvl].shadow);
+}
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h, false);
+  fx.setSize(w, h);
   camera.aspect = w / Math.max(1, h);
   camera.fov = w < h ? 72 : 60;
   camera.updateProjectionMatrix();
@@ -78,7 +103,7 @@ const ui = {
 };
 
 const game = new Game({ scene, sfx, ui });
-window.__rh = { game, input, THREE, scene, camera, renderer };
+window.__rh = { game, input, THREE, scene, camera, renderer, fx, world };
 
 // ---------- 画面切りかえ ----------
 let screen = 'title';
@@ -115,8 +140,14 @@ function startGame(diff) {
   updateCmdButtons();
 }
 
+function calmScreen() {
+  ui.hurtLevel = 0;
+  $('dmg').style.opacity = '0';
+  sfx.setTension(0);
+}
 function pauseGame() {
   if (screen !== 'play') return;
+  calmScreen();
   setScreen('pause');
   $('pauseTip').textContent = pick(TIPS);
 }
@@ -126,6 +157,7 @@ function resumeGame() {
   setScreen('play');
 }
 function toTitle() {
+  calmScreen();
   game.state = 'title';
   setScreen('title');
   renderBest();
@@ -151,6 +183,8 @@ $('btnAgain').addEventListener('click', () => startGame(lastDiff));
 $('btnTitle2').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pauseGame);
 $('optSound').addEventListener('change', (e) => { soundOn = e.target.checked; store.set('sound', soundOn); sfx.setMuted(!soundOn); });
+$('optQuality').value = qualityPref;
+$('optQuality').addEventListener('change', (e) => applyQuality(e.target.value));
 $('optHints').addEventListener('change', (e) => { hintsOn = e.target.checked; store.set('hints', hintsOn); });
 document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', (e) => {
   e.preventDefault();
@@ -184,6 +218,7 @@ const REASONS = {
 };
 function showResult(res) {
   if (game.state !== 'over' || game.result !== res) return;
+  calmScreen();
   $('rTitle').textContent = res.win ? '作戦成功！' : '作戦失敗…';
   $('rTitle').className = `rtitle ${res.win ? 'win' : 'lose'}`;
   $('rReason').textContent = REASONS[res.reason] || '';
@@ -248,6 +283,7 @@ hints.reset();
 
 // ---------- カメラ ----------
 const camState = { yaw: 0, pitch: 0.36, dist: 3.3, pos: new THREE.Vector3(), look: new THREE.Vector3(), init: true };
+window.__rh.cam = camState;
 function updateCamera(dt) {
   if (game.state === 'title' || !game.player) {
     const t = performance.now() / 1000;
@@ -274,6 +310,17 @@ function updateCamera(dt) {
   let cx = info.x - fx * Math.cos(pitch) * d;
   let cz = info.z - fz * Math.cos(pitch) * d;
   let cy = ty + Math.sin(pitch) * d;
+  // 株の中にカメラが入らないよう、近づけるか葉の下まで下げる
+  if (!info.underRow) {
+    let dd = d;
+    while (dd > 0.9 && rowAt(cx, cz, 0.35) && cy > 0.9) {
+      dd -= 0.15;
+      cx = info.x - fx * Math.cos(pitch) * dd;
+      cz = info.z - fz * Math.cos(pitch) * dd;
+      cy = ty + Math.sin(pitch) * dd;
+    }
+    if (rowAt(cx, cz, 0.35) && cy > 0.9) cy = 0.85;
+  }
   cx = clamp(cx, -21.75, 21.75);
   cz = clamp(cz, -13.75, 13.75);
   // 台の板にめりこまない
@@ -461,7 +508,8 @@ function drawMinimap(dt) {
   for (const c of g.clouds) { mctx.fillStyle = 'rgba(220,245,200,0.5)'; mctx.beginPath(); mctx.arc(mx(c.x), mz(c.z), c.r * sx, 0, 6.29); mctx.fill(); }
   const f = g.farmer;
   const fx = mx(f.x), fy = mz(f.z);
-  const a = Math.atan2(Math.cos(f.h), Math.sin(f.h));
+  const fv = f.view !== undefined ? f.view : f.h;
+  const a = Math.atan2(Math.cos(fv), Math.sin(fv));
   if (f.state !== 'PANIC') {
     mctx.fillStyle = f.state === 'CHASE' ? 'rgba(255,75,58,0.35)' : f.state === 'INVESTIGATE' ? 'rgba(255,190,60,0.3)' : 'rgba(255,255,255,0.18)';
     mctx.beginPath(); mctx.moveTo(fx, fy); mctx.arc(fx, fy, f.coneRange * sx, a - 0.78, a + 0.78); mctx.closePath(); mctx.fill();
@@ -519,7 +567,12 @@ function frame(now) {
     updateCamera(dt);
     if (screen !== 'title') { updateHud(dt); drawMinimap(dt); }
     updateLabels();
-    renderer.render(scene, camera);
+    const tNow = now / 1000;
+    world.update(tNow, camera);
+    let focusD = 24;
+    if (game.player && game.state !== 'title') focusD = camera.position.distanceTo(new THREE.Vector3(game.player.x, game.player.y + 0.15, game.player.z));
+    fx.render(dt, focusD, tNow);
+    autoQ.sample(dt, screen === 'play');
   } catch (e) {
     showError(e && e.stack ? e.stack : String(e));
     throw e;

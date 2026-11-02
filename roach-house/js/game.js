@@ -6,7 +6,7 @@ import {
 } from './world.js';
 import {
   makeRoach, animateRoach, makeFarmer, makeCrate, setCrateRot, animateFlies, makeTrap, makeEgg,
-  makeCloud, makeRing, makeCone,
+  makeCloud, makeRing, makeCone, disposeObject,
 } from './models.js';
 import { Grid } from './pathfind.js';
 import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectDist, inRect, setSeed } from './util.js';
@@ -44,7 +44,11 @@ export class Game {
   // ---------------- 開始 ----------------
   start(diffKey, seed) {
     if (seed !== undefined) setSeed(seed);
-    if (this.root) this.scene.remove(this.root);
+    if (this.root) {
+      if (this.farmerModel) { this.farmerModel.root.removeFromParent(); this.farmerCone.removeFromParent(); }
+      this.scene.remove(this.root);
+      disposeObject(this.root);
+    }
     this.root = new THREE.Group();
     this.scene.add(this.root);
     const D = (this.diff = DIFFS[diffKey] || DIFFS.normal);
@@ -72,6 +76,7 @@ export class Game {
         i, x: s.x, z: s.z, table: s.table, baseY: s.table >= 0 ? TABLE_TOP : 0,
         hp: 100, rotten: false, shipped: false, carried: false, discovered: false, model: m, lastBite: -9, rect: null,
       };
+      m.group.userData.isCrate = true;
       this.placeCrate(c);
       this.root.add(m.group);
       return c;
@@ -85,9 +90,10 @@ export class Game {
     this.marker = makeRing(0xffe14d, 0.3, 0.38, 0.85);
     this.root.add(this.marker);
 
-    const fm = makeFarmer();
+    if (!this.farmerModel) { this.farmerModel = makeFarmer(); this.farmerCone = makeCone(1, 0.78); }
+    const fm = this.farmerModel, cone = this.farmerCone;
+    for (const ch of [...fm.root.children]) if (ch.userData.isCrate) fm.root.remove(ch);
     this.root.add(fm.root);
-    const cone = makeCone(1, 0.78);
     this.root.add(cone);
     this.farmer = {
       x: FARMER_START.x, z: FARMER_START.z, h: -Math.PI / 2, model: fm, cone,
@@ -191,6 +197,7 @@ export class Game {
       if (inp.consume('action')) { p.struggle += 15; this.sfx.click(); }
       p.struggle = Math.max(0, p.struggle - 9 * dt);
       this.damage(p, 3 * dt, 'trap');
+      if (!p.alive) return;
       if (p.struggle >= 100) this.freeFromTrap(p);
       p.greed = Math.max(0, p.greed - 60 * dt);
       return;
@@ -297,8 +304,13 @@ export class Game {
     if (p.st !== 'move') return;
     this.nutrition = 0;
     const m = makeEgg();
-    const bx = p.x - Math.sin(p.h) * 0.35, bz = p.z - Math.cos(p.h) * 0.35;
-    const e = { kind: 'egg', x: bx, y: this.surfY(p), z: bz, surface: p.surface, t: 0, alive: true, model: m };
+    let bx = p.x - Math.sin(p.h) * 0.35, bz = p.z - Math.cos(p.h) * 0.35;
+    if (p.surface >= 0) {
+      const T = TABLES[p.surface];
+      bx = clamp(bx, T.minX + 0.2, T.maxX - 0.2);
+      bz = clamp(bz, T.minZ + 0.2, T.maxZ - 0.2);
+    }
+    const e = { kind: 'egg', x: bx, y: this.surfY(p), z: bz, surface: p.surface, t: 0, alive: true, model: m, sprayT: 0 };
     m.position.set(e.x, e.y, e.z);
     m.rotation.y = p.h;
     this.root.add(m);
@@ -718,7 +730,13 @@ export class Game {
     const n = Math.min(3, MAX_NYMPHS - this.nymphs.length);
     for (let i = 0; i < n; i++) {
       const a = (i / 3) * Math.PI * 2;
-      const r = this.spawnRoach(e.x + Math.cos(a) * 0.3, e.z + Math.sin(a) * 0.3, true, e.y, e.surface);
+      let x = e.x + Math.cos(a) * 0.3, z = e.z + Math.sin(a) * 0.3;
+      if (e.surface >= 0) {
+        const T = TABLES[e.surface];
+        x = clamp(x, T.minX + 0.12, T.maxX - 0.12);
+        z = clamp(z, T.minZ + 0.12, T.maxZ - 0.12);
+      }
+      const r = this.spawnRoach(x, z, true, e.y, e.surface);
       this.collide(r);
       this.stats.born++;
     }
@@ -932,7 +950,7 @@ export class Game {
   farmerPanic() {
     const f = this.farmer;
     this.dropCarry();
-    if (f.act && f.act.marker) this.root.remove(f.act.marker);
+    if (f.act && f.act.marker) { this.root.remove(f.act.marker); disposeObject(f.act.marker); }
     f.act = null;
     f.state = 'PANIC';
     f.timer = 5.5;
@@ -954,16 +972,21 @@ export class Game {
     c.carried = false;
     c.table = -1;
     c.baseY = 0;
+    const okAt = (x, z) => x > BOUNDS.minX + 1 && x < BOUNDS.maxX - 1 && z > BOUNDS.minZ + 0.8 && z < BOUNDS.maxZ - 0.8 &&
+      !rowAt(x, z, 0.8) && tableAt(x, z, 0.9) < 0 &&
+      !this.traps.some((t) => Math.hypot(t.x - x, t.z - z) < 1.4) &&
+      !this.crates.some((o) => o !== c && !o.shipped && !o.carried && o.baseY === 0 && Math.abs(o.x - x) < CRATE.w + 0.1 && Math.abs(o.z - z) < CRATE.d + 0.1);
     let x = f.x + Math.sin(f.h) * 1.2, z = f.z + Math.cos(f.h) * 1.2;
-    for (let k = 0; k < 20; k++) {
-      x = clamp(x, BOUNDS.minX + 1, BOUNDS.maxX - 1);
-      z = clamp(z, BOUNDS.minZ + 0.8, BOUNDS.maxZ - 0.8);
-      const ok = !this.crates.some((o) => o !== c && !o.shipped && !o.carried && o.baseY === 0 && Math.abs(o.x - x) < CRATE.w + 0.1 && Math.abs(o.z - z) < CRATE.d + 0.1);
-      if (ok) break;
-      const a = rand() * 6.28;
-      x = f.x + Math.cos(a) * (1.2 + k * 0.15);
-      z = f.z + Math.sin(a) * (1.2 + k * 0.15);
+    let found = okAt(x, z);
+    for (let k = 0; k < 60 && !found; k++) {
+      const a = rand() * 6.28, d = 1.2 + k * 0.12;
+      x = f.x + Math.cos(a) * d;
+      z = f.z + Math.sin(a) * d;
+      found = okAt(x, z);
     }
+    if (!found) { const p = this.grid.nearestFree(f.x, f.z); x = p.x; z = p.z; }
+    x = clamp(x, BOUNDS.minX + 1, BOUNDS.maxX - 1);
+    z = clamp(z, BOUNDS.minZ + 0.8, BOUNDS.maxZ - 0.8);
     c.x = x; c.z = z;
     this.root.attach(c.model.group);
     this.placeCrate(c);
@@ -1138,7 +1161,7 @@ export class Game {
     const f = this.farmer, t = f.target;
     if (!t || !t.alive) {
       f.state = 'INVESTIGATE';
-      f.inv = { x: f.lastSeen ? f.lastSeen.x : f.x, y: 0, z: f.lastSeen ? f.lastSeen.z : f.z, look: 0.001, spray: false };
+      f.inv = { x: f.lastSeen ? f.lastSeen.x : f.x, y: f.lastSeen ? f.lastSeen.y || 0 : 0, z: f.lastSeen ? f.lastSeen.z : f.z, look: 0.001, spray: false };
       f.baseH = f.h;
       f.susp = 50;
       if (t && t.kind !== 'egg') this.say('やったか…？');
@@ -1200,6 +1223,7 @@ export class Game {
         f.whackCD = 1.3;
       }
       this.root.remove(A.marker);
+      disposeObject(A.marker);
     }
     if (A.t >= A.wind + 0.45) f.act = null;
   }
@@ -1249,11 +1273,20 @@ export class Game {
             this.damage(r, this.diff.sprayDmg * dt * (r.nymph ? 1.3 : 1), 'spray');
           }
         }
+        for (const e of this.eggs) {
+          if (!e.alive || Math.hypot(e.x - c.x, e.z - c.z) > c.r || Math.abs(e.y - c.y) > 1.5) continue;
+          e.sprayT += dt;
+          if (e.sprayT > 1.5) {
+            e.alive = false;
+            this.root.remove(e.model);
+            this.toast('卵が殺虫剤でやられた…', 'bad');
+          }
+        }
       }
     }
     const keep = [];
     for (const c of this.clouds) {
-      if (c.t >= c.life) this.root.remove(c.model.group);
+      if (c.t >= c.life) { this.root.remove(c.model.group); disposeObject(c.model.group); }
       else keep.push(c);
     }
     this.clouds = keep;
@@ -1309,6 +1342,7 @@ export class Game {
       }
       if (r.st === 'fall') m.body.rotation.x = 0.4;
       m.wings.visible = r.st === 'fly';
+      m.shadow.visible = r.st !== 'fly' && r.st !== 'fall';
       if (r.st === 'fly') {
         m.wings.children.forEach((w) => { w.rotation.z = w.userData.s * (0.5 + Math.sin(t * 60) * 0.5); });
         m.body.rotation.x = r.fly.phase === 1 ? -1.4 : -0.3;
