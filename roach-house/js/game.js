@@ -15,9 +15,9 @@ import { Grid } from './pathfind.js';
 import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectDist, inRect, setSeed } from './util.js';
 
 export const DIFFS = {
-  easy: { key: 'easy', label: 'やさしい', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 6, traps: 2, hatch: 8, sprayDmg: 20 },
+  easy: { key: 'easy', label: 'やさしい', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20 },
   normal: { key: 'normal', label: 'ふつう', target: 8, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 4, traps: 3, hatch: 10, sprayDmg: 26 },
-  hard: { key: 'hard', label: 'むずかしい', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [2, 4], patrolP: 0.5, loadT: 3.5, traps: 5, hatch: 12, sprayDmg: 32 },
+  hard: { key: 'hard', label: 'むずかしい', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [3, 5], patrolP: 0.6, loadT: 9, traps: 5, hatch: 12, sprayDmg: 32 },
 };
 
 export const MAX_NYMPHS = 9;
@@ -1101,9 +1101,14 @@ export class Game {
       case 'PANIC':
         f.timer -= dt;
         if (f.timer <= 0) {
-          this.startInvestigate(this.player, true);
-          f.susp = 70;
-          this.say('くそったれ…どこ行きやがった！');
+          if ((f.panicCount || 0) >= 3) {
+            f.state = 'WORK'; f.phase = 'choose'; f.susp = 0; f.focusT = 10;
+            this.say(pick(['もう慣れたぞ！ そんな手が何度も効くか！', 'いいかげんにしろ！ 出荷が先だ！']));
+          } else {
+            this.startInvestigate(this.player, true);
+            f.susp = 70;
+            this.say('くそったれ…どこ行きやがった！');
+          }
         }
         break;
       default: f.state = 'WORK'; f.phase = 'choose';
@@ -1214,7 +1219,9 @@ export class Game {
     if (f.act && f.act.marker) { this.root.remove(f.act.marker); disposeObject(f.act.marker); }
     f.act = null;
     f.state = 'PANIC';
-    f.timer = 5.5;
+    // 何度も飛びつかれると慣れてくる（パニックが短くなる）
+    f.panicCount = (f.panicCount || 0) + 1;
+    f.timer = Math.max(1.8, 5.5 - (f.panicCount - 1) * 1.0);
     f.target = null;
     f.susp = 0;
     f.anger = Math.min(3, f.anger + 1);
