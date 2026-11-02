@@ -6,7 +6,7 @@
     "pagesRef": "origin/claude/kei-truck-runner-game-ngc2ni",
     "pagesNote": "GitHub Pages の公開元ブランチ（farm-roguelike/CLAUDE.md の記録による）"
   },
-  "builtAt": "2026/11/02 15:33",
+  "builtAt": "2026/11/02 15:39",
   "springs": {
     "frame": {
       "duration": 859,
@@ -38,8 +38,9 @@
       "status": "公開中",
       "howToPlay": "ブロックを盤面に置いて列をそろえ、たまった水と肥料で畑の野菜を育てる。",
       "platform": [
+        "PC",
         "スマホ",
-        "PC"
+        "タブレット"
       ],
       "source": {
         "ref": "origin/claude/instagram-homepage-yxf44f",
@@ -95,8 +96,9 @@
       "status": "公開中",
       "howToPlay": "カードで畑や家畜を育てながら、害獣や大災害から春〜冬の1年を守り抜く。",
       "platform": [
+        "PC",
         "スマホ",
-        "PC"
+        "タブレット"
       ],
       "source": {
         "ref": "origin/claude/kei-truck-runner-game-ngc2ni",
@@ -152,8 +154,9 @@
       "status": "公開中",
       "howToPlay": "タップ（クリック／Space）でジャンプ。荷台のトマトを落とさず田んぼ道を走る。",
       "platform": [
+        "PC",
         "スマホ",
-        "PC"
+        "タブレット"
       ],
       "source": {
         "ref": "origin/claude/kei-truck-runner-game-ngc2ni",
@@ -209,8 +212,9 @@
       "status": "公開中",
       "howToPlay": "話しかけ、餌をやり、水温と水質を守って、オオグソクムシを成体まで育てる。",
       "platform": [
+        "PC",
         "スマホ",
-        "PC"
+        "タブレット"
       ],
       "source": {
         "ref": "origin/claude/gusoku-game",
@@ -269,8 +273,9 @@
       "status": "公開中",
       "howToPlay": "グソクのゆるキャラ版。話しかけてごはんをあげ、小さなグソっ君を大きく育てる。",
       "platform": [
+        "PC",
         "スマホ",
-        "PC"
+        "タブレット"
       ],
       "source": {
         "ref": "origin/claude/gusoku-game",
@@ -322,7 +327,7 @@
         "タワーディフェンス",
         "アクション",
         "3D",
-        "PC向け"
+        "スマホ対応"
       ],
       "url": "https://claude.ai/artifact/ESZcPVFyVEhNrpHzXasSbV",
       "themeColor": "#f3d08a",
@@ -330,7 +335,8 @@
       "howToPlay": "WASDで走り、ギターの音波とタワーで、迫る台風からキャベツ畑を守る。",
       "platform": [
         "PC",
-        "スマホ（横向き）"
+        "スマホ（横向き）",
+        "タブレット"
       ],
       "source": {
         "ref": "origin/claude/compassionate-ritchie-vctp47",
@@ -389,6 +395,7 @@
       "platform": [
         "PC",
         "スマホ",
+        "タブレット",
         "ゲームパッド"
       ],
       "source": {
