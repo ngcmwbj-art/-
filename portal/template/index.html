@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{SITE_TITLE}}</title>
+<meta name="description" content="{{LEAD}}">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="portal.css">
+</head>
+<body>
+<!-- このページは portal/scripts/build.mjs が games.json から作ります。直接書き換えず games.json を直してください -->
+<main class="gp-page">
+  <header class="gp-head">
+    <p class="gp-eyebrow">GAMES · {{COUNT}}本</p>
+    <h1 class="gp-title">{{SITE_TITLE}}</h1>
+    <p class="gp-lead">{{LEAD}}</p>
+  </header>
+{{PORTAL}}
+  <footer class="gp-foot">
+    <p>プレビューはゲームを実際に動かして録画したものです（{{BUILT_AT}} 生成）。</p>
+  </footer>
+</main>
+<script src="portal.js" defer></script>
+</body>
+</html>

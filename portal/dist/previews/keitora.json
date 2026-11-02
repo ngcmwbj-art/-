@@ -1,0 +1,28 @@
+{
+  "id": "keitora",
+  "capturedAt": "2026-11-02T03:27:59.980Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 70,
+  "seconds": 5.6,
+  "webm": "previews/keitora.webm",
+  "mp4": "previews/keitora.mp4",
+  "poster": "previews/keitora.jpg",
+  "bytes": {
+    "webm": 579541,
+    "mp4": 837278,
+    "poster": 57931
+  },
+  "deterministic": {
+    "frames": 70,
+    "identical": 57,
+    "nearIdentical": 70,
+    "ratio": 1,
+    "minPsnr": 53.28,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "6792c7e",
+  "recipe": "recipes/keitora.mjs"
+}

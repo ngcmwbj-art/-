@@ -1,0 +1,16 @@
+{
+  "name": "game-portal",
+  "private": true,
+  "type": "module",
+  "description": "games.json からゲーム一覧ポータルを作る仕組み",
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "prepare-sources": "node scripts/prepare.mjs",
+    "capture": "node scripts/capture.mjs",
+    "build": "node scripts/build.mjs",
+    "review": "node scripts/review.mjs",
+    "qc": "node scripts/qc.mjs",
+    "motion": "node scripts/motion-check.mjs",
+    "all": "node scripts/validate.mjs && node scripts/prepare.mjs && node scripts/capture.mjs && node scripts/build.mjs && node scripts/review.mjs && node scripts/qc.mjs"
+  }
+}

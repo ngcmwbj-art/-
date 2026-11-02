@@ -1,0 +1,28 @@
+{
+  "id": "farm-puzzle",
+  "capturedAt": "2026-11-02T03:14:21.923Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 95,
+  "seconds": 7.6,
+  "webm": "previews/farm-puzzle.webm",
+  "mp4": "previews/farm-puzzle.mp4",
+  "poster": "previews/farm-puzzle.jpg",
+  "bytes": {
+    "webm": 31135,
+    "mp4": 38435,
+    "poster": 10174
+  },
+  "deterministic": {
+    "frames": 95,
+    "identical": 85,
+    "nearIdentical": 95,
+    "ratio": 1,
+    "minPsnr": 85.13,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "1b82d35",
+  "recipe": "recipes/farm-puzzle.mjs"
+}

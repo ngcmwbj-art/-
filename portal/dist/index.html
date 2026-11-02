@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ゲームあそび場</title>
+<meta name="description" content="ブラウザですぐ遊べる、自作ゲームの一覧です。">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="portal.css">
+</head>
+<body>
+<!-- このページは portal/scripts/build.mjs が games.json から作ります。直接書き換えず games.json を直してください -->
+<main class="gp-page">
+  <header class="gp-head">
+    <p class="gp-eyebrow">GAMES · 7本</p>
+    <h1 class="gp-title">ゲームあそび場</h1>
+    <p class="gp-lead">ブラウザですぐ遊べる、自作ゲームの一覧です。</p>
+  </header>
+
+  <section class="gp-portal" data-game-portal aria-label="ゲーム一覧">
+    <div class="gp-tools">
+      <label class="gp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" placeholder="ゲーム名・タグで探す" aria-label="ゲーム名・タグで探す" autocomplete="off" enterkeyhint="search">
+      </label>
+      <fieldset class="gp-chips" aria-label="ジャンルで絞り込む">
+        <button class="gp-chip" type="button" data-genre="all" aria-pressed="true">すべて <small>7</small></button>
+        <button class="gp-chip" type="button" data-genre="パズル" aria-pressed="false">パズル <small>1</small></button>
+        <button class="gp-chip" type="button" data-genre="ローグライク" aria-pressed="false">ローグライク <small>1</small></button>
+        <button class="gp-chip" type="button" data-genre="アクション" aria-pressed="false">アクション <small>1</small></button>
+        <button class="gp-chip" type="button" data-genre="育成" aria-pressed="false">育成 <small>2</small></button>
+        <button class="gp-chip" type="button" data-genre="タワーディフェンス" aria-pressed="false">タワーディフェンス <small>1</small></button>
+        <button class="gp-chip" type="button" data-genre="RPG" aria-pressed="false">RPG <small>1</small></button>
+      </fieldset>
+    </div>
+    <p class="gp-count" aria-live="polite">7本を表示中</p>
+    <ul class="gp-grid">
+    <li class="gp-card is-live" id="game-farm-puzzle" data-id="farm-puzzle" data-genre="パズル" data-status="公開中" data-search="はたけパズル パズルで覚える家庭菜園 パズル パズル 農業 学べる スマホ向け ブロックを盤面に置いて列をそろえ、たまった水と肥料で畑の野菜を育てる。 公開中" style="--tc:#7fb77e;--tc-ink:#1d1a15">
+      <div class="gp-media">
+        <img src="previews/farm-puzzle.jpg" alt="はたけパズルのプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/farm-puzzle.webm" data-mp4="previews/farm-puzzle.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">パズル</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">はたけパズル</h2>
+        <p class="gp-tagline">パズルで覚える家庭菜園</p>
+        <p class="gp-how">ブロックを盤面に置いて列をそろえ、たまった水と肥料で畑の野菜を育てる。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>パズル</li><li>農業</li><li>学べる</li><li>スマホ向け</li></ul>
+        <p class="gp-meta">対応：スマホ・PC</p>
+        <a class="gp-cta" href="https://claude.ai/artifact/NV5Lz6BQWdB41STHP2Zypi" target="_blank" rel="noopener">あそぶ <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </li>
+    <li class="gp-card is-live" id="game-farm-roguelike" data-id="farm-roguelike" data-genre="ローグライク" data-status="公開中" data-search="追い返せ！ボクらの防農作戦！ 農業×デッキ構築で1年を守る ローグライク カードゲーム ローグライク 農業 スマホ対応 カードで畑や家畜を育てながら、害獣や大災害から春〜冬の1年を守り抜く。 公開中" style="--tc:#1c1a16;--tc-ink:#ffffff">
+      <div class="gp-media">
+        <img src="previews/farm-roguelike.jpg" alt="追い返せ！ボクらの防農作戦！のプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/farm-roguelike.webm" data-mp4="previews/farm-roguelike.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">ローグライク</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">追い返せ！ボクらの防農作戦！</h2>
+        <p class="gp-tagline">農業×デッキ構築で1年を守る</p>
+        <p class="gp-how">カードで畑や家畜を育てながら、害獣や大災害から春〜冬の1年を守り抜く。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>カードゲーム</li><li>ローグライク</li><li>農業</li><li>スマホ対応</li></ul>
+        <p class="gp-meta">対応：スマホ・PC</p>
+        <a class="gp-cta" href="https://ngcmwbj-art.github.io/-/farm-roguelike/" target="_blank" rel="noopener">あそぶ <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </li>
+    <li class="gp-card is-live" id="game-keitora" data-id="keitora" data-genre="アクション" data-status="公開中" data-search="爆走！つがおのビバベジ便！ トマト満載の軽トラで爆走 アクション アクション ランゲーム ワンタップ スマホ対応 タップ（クリック／Space）でジャンプ。荷台のトマトを落とさず田んぼ道を走る。 公開中" style="--tc:#1b2216;--tc-ink:#ffffff">
+      <div class="gp-media">
+        <img src="previews/keitora.jpg" alt="爆走！つがおのビバベジ便！のプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/keitora.webm" data-mp4="previews/keitora.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">アクション</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">爆走！つがおのビバベジ便！</h2>
+        <p class="gp-tagline">トマト満載の軽トラで爆走</p>
+        <p class="gp-how">タップ（クリック／Space）でジャンプ。荷台のトマトを落とさず田んぼ道を走る。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>アクション</li><li>ランゲーム</li><li>ワンタップ</li><li>スマホ対応</li></ul>
+        <p class="gp-meta">対応：スマホ・PC</p>
+        <a class="gp-cta" href="https://ngcmwbj-art.github.io/-/keitora/" target="_blank" rel="noopener">あそぶ <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </li>
+    <li class="gp-card is-live" id="game-gusoku" data-id="gusoku" data-genre="育成" data-status="公開中" data-search="グソク 深海のグソクを産まれた日から育てる 育成 育成 深海生物 3D 会話 話しかけ、餌をやり、水温と水質を守って、オオグソクムシを成体まで育てる。 公開中" style="--tc:#02080d;--tc-ink:#ffffff">
+      <div class="gp-media">
+        <img src="previews/gusoku.jpg" alt="グソクのプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/gusoku.webm" data-mp4="previews/gusoku.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">育成</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">グソク</h2>
+        <p class="gp-tagline">深海のグソクを産まれた日から育てる</p>
+        <p class="gp-how">話しかけ、餌をやり、水温と水質を守って、オオグソクムシを成体まで育てる。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>育成</li><li>深海生物</li><li>3D</li><li>会話</li></ul>
+        <p class="gp-meta">対応：スマホ・PC</p>
+        <a class="gp-cta" href="https://claude.ai/artifact/H5MhEW3xZ716piW946Gv2J" target="_blank" rel="noopener">あそぶ <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </li>
+    <li class="gp-card is-live" id="game-gusoku-yuru" data-id="gusoku-yuru" data-genre="育成" data-status="公開中" data-search="グソっ君 ハチマキのグソっ君を育てよう 育成 育成 深海生物 3D 会話 グソクのゆるキャラ版。話しかけてごはんをあげ、小さなグソっ君を大きく育てる。 公開中" style="--tc:#02080d;--tc-ink:#ffffff">
+      <div class="gp-media">
+        <img src="previews/gusoku-yuru.jpg" alt="グソっ君のプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/gusoku-yuru.webm" data-mp4="previews/gusoku-yuru.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">育成</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">グソっ君</h2>
+        <p class="gp-tagline">ハチマキのグソっ君を育てよう</p>
+        <p class="gp-how">グソクのゆるキャラ版。話しかけてごはんをあげ、小さなグソっ君を大きく育てる。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>育成</li><li>深海生物</li><li>3D</li><li>会話</li></ul>
+        <p class="gp-meta">対応：スマホ・PC</p>
+        <a class="gp-cta" href="https://claude.ai/artifact/1SywA5xmvNzjcbKU9BvYEW" target="_blank" rel="noopener">あそぶ <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </li>
+    <li class="gp-card is-dev" id="game-masato" data-id="masato" data-genre="タワーディフェンス" data-status="開発中" data-search="がんばれマサトくん！ 量子力学とギターで台風を撃退 タワーディフェンス タワーディフェンス アクション 3D PC向け WASDで走り、ギターの音波とタワーで、迫る台風からキャベツ畑を守る。 開発中" style="--tc:#f3d08a;--tc-ink:#1d1a15">
+      <div class="gp-media">
+        <img src="previews/masato.jpg" alt="がんばれマサトくん！のプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/masato.webm" data-mp4="previews/masato.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">タワーディフェンス</span><span class="gp-status">開発中</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">がんばれマサトくん！</h2>
+        <p class="gp-tagline">量子力学とギターで台風を撃退</p>
+        <p class="gp-how">WASDで走り、ギターの音波とタワーで、迫る台風からキャベツ畑を守る。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>タワーディフェンス</li><li>アクション</li><li>3D</li><li>PC向け</li></ul>
+        <p class="gp-meta">対応：PC・スマホ（横向き）</p>
+        <span class="gp-cta" role="link" aria-disabled="true">開発中のため、まだ遊べません</span>
+      </div>
+    </li>
+    <li class="gp-card is-live" id="game-shun" data-id="shun" data-genre="RPG" data-status="公開中" data-search="しゅんの夕暮れあぜ道戦記 ツッコミとハンコで町を救うRPG RPG RPG ドット絵 ストーリー スマホ対応 止まった夕暮れの町を歩き、だれも倒さないツッコミとハンコの戦闘で争いを終わらせる。 公開中" style="--tc:#2b1e1a;--tc-ink:#ffffff">
+      <div class="gp-media">
+        <img src="previews/shun.jpg" alt="しゅんの夕暮れあぜ道戦記のプレイ画面" loading="lazy" decoding="async" width="640" height="400">
+        <video muted loop playsinline preload="none" aria-hidden="true" tabindex="-1" data-webm="previews/shun.webm" data-mp4="previews/shun.mp4"></video>
+        <button class="gp-play-toggle" type="button" aria-pressed="false" aria-label="プレビューを再生"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg></button>
+        <div class="gp-badges"><span class="gp-genre">RPG</span></div>
+      </div>
+      <div class="gp-body">
+        <h2 class="gp-name">しゅんの夕暮れあぜ道戦記</h2>
+        <p class="gp-tagline">ツッコミとハンコで町を救うRPG</p>
+        <p class="gp-how">止まった夕暮れの町を歩き、だれも倒さないツッコミとハンコの戦闘で争いを終わらせる。</p>
+        <ul class="gp-tags" aria-label="タグ"><li>RPG</li><li>ドット絵</li><li>ストーリー</li><li>スマホ対応</li></ul>
+        <p class="gp-meta">対応：PC・スマホ・ゲームパッド</p>
+        <a class="gp-cta" href="https://claude.ai/artifact/XzD85uj7q8xGhLvjs6HCTd" target="_blank" rel="noopener">あそぶ <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </li>
+    </ul>
+    <div class="gp-empty" hidden><p>条件に合うゲームがありません。</p><button class="gp-chip gp-reset" type="button">条件をクリア</button></div>
+  </section>
+  <footer class="gp-foot">
+    <p>プレビューはゲームを実際に動かして録画したものです（2026/11/02 13:48 生成）。</p>
+  </footer>
+</main>
+<script src="portal.js" defer></script>
+</body>
+</html>

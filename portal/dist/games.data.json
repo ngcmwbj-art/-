@@ -1,0 +1,437 @@
+{
+  "site": {
+    "title": "ゲームあそび場",
+    "lead": "ブラウザですぐ遊べる、自作ゲームの一覧です。",
+    "pagesBase": "https://ngcmwbj-art.github.io/-/",
+    "pagesRef": "origin/claude/kei-truck-runner-game-ngc2ni",
+    "pagesNote": "GitHub Pages の公開元ブランチ（farm-roguelike/CLAUDE.md の記録による）"
+  },
+  "builtAt": "2026/11/02 13:48",
+  "springs": {
+    "frame": {
+      "duration": 859,
+      "easing": "linear(0.0002, 0.0325, 0.1076, 0.2102, 0.3276, 0.4427, 0.5619, 0.6727, 0.7714, 0.8561, 0.9259, 0.9812, 1.0228, 1.0507, 1.07, 1.0805, 1.0839, 1.0819, 1.0761, 1.0678, 1.0581, 1.0485, 1.0384, 1.029, 1.0205, 1.0132, 1.0071, 1.0023, 0.9986, 0.9961, 0.9943, 0.9933, 0.993, 0.9931, 0.9935, 0.9942, 0.995, 0.9958, 0.9966, 0.9974, 0.9982, 0.9988, 0.9993, 0.9997, 1.0001, 1.0003, 1.0005, 1.0005, 1)",
+      "fallback": "cubic-bezier(.34, 1.42, .52, 1)",
+      "overshoot": 8.4
+    },
+    "content": {
+      "duration": 817,
+      "easing": "linear(0.0001, 0.0215, 0.0708, 0.1388, 0.2177, 0.3019, 0.3868, 0.4695, 0.5475, 0.6196, 0.6848, 0.7429, 0.7937, 0.8375, 0.8748, 0.9061, 0.9319, 0.9529, 0.9697, 0.9829, 0.993, 1.0005, 1.0059, 1.0096, 1.012, 1.0132, 1.0137, 1.0136, 1.013, 1.0121, 1.0111, 1.0099, 1.0088, 1.0076, 1.0065, 1.0055, 1.0046, 1.0038, 1.003, 1.0024, 1.0019, 1.0014, 1.001, 1.0007, 1.0005, 1.0003, 1.0001, 1, 1)",
+      "fallback": "cubic-bezier(.34, 1.42, .52, 1)",
+      "overshoot": 1.4
+    }
+  },
+  "games": [
+    {
+      "id": "farm-puzzle",
+      "title": "はたけパズル",
+      "tagline": "パズルで覚える家庭菜園",
+      "genre": "パズル",
+      "tags": [
+        "パズル",
+        "農業",
+        "学べる",
+        "スマホ向け"
+      ],
+      "url": "https://claude.ai/artifact/NV5Lz6BQWdB41STHP2Zypi",
+      "themeColor": "#7fb77e",
+      "status": "公開中",
+      "howToPlay": "ブロックを盤面に置いて列をそろえ、たまった水と肥料で畑の野菜を育てる。",
+      "platform": [
+        "スマホ",
+        "PC"
+      ],
+      "source": {
+        "ref": "origin/claude/instagram-homepage-yxf44f",
+        "path": "farm-puzzle",
+        "serve": ".",
+        "entry": "index.html"
+      },
+      "preview": {
+        "id": "farm-puzzle",
+        "capturedAt": "2026-11-02T03:14:21.923Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 95,
+        "seconds": 7.6,
+        "webm": "previews/farm-puzzle.webm",
+        "mp4": "previews/farm-puzzle.mp4",
+        "poster": "previews/farm-puzzle.jpg",
+        "bytes": {
+          "webm": 31135,
+          "mp4": 38435,
+          "poster": 10174
+        },
+        "deterministic": {
+          "frames": 95,
+          "identical": 85,
+          "nearIdentical": 95,
+          "ratio": 1,
+          "minPsnr": 85.13,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "1b82d35",
+        "recipe": "recipes/farm-puzzle.mjs"
+      },
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
+      ]
+    },
+    {
+      "id": "farm-roguelike",
+      "title": "追い返せ！ボクらの防農作戦！",
+      "tagline": "農業×デッキ構築で1年を守る",
+      "genre": "ローグライク",
+      "tags": [
+        "カードゲーム",
+        "ローグライク",
+        "農業",
+        "スマホ対応"
+      ],
+      "url": "https://ngcmwbj-art.github.io/-/farm-roguelike/",
+      "themeColor": "#1c1a16",
+      "status": "公開中",
+      "howToPlay": "カードで畑や家畜を育てながら、害獣や大災害から春〜冬の1年を守り抜く。",
+      "platform": [
+        "スマホ",
+        "PC"
+      ],
+      "source": {
+        "ref": "origin/claude/kei-truck-runner-game-ngc2ni",
+        "path": "farm-roguelike",
+        "serve": ".",
+        "entry": "index.html"
+      },
+      "preview": {
+        "id": "farm-roguelike",
+        "capturedAt": "2026-11-02T03:30:25.368Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 82,
+        "seconds": 6.56,
+        "webm": "previews/farm-roguelike.webm",
+        "mp4": "previews/farm-roguelike.mp4",
+        "poster": "previews/farm-roguelike.jpg",
+        "bytes": {
+          "webm": 190188,
+          "mp4": 196168,
+          "poster": 69070
+        },
+        "deterministic": {
+          "frames": 82,
+          "identical": 36,
+          "nearIdentical": 45,
+          "ratio": 0.549,
+          "minPsnr": 23.29,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "6792c7e",
+        "recipe": "recipes/farm-roguelike.mjs"
+      },
+      "unverified": [
+        "公開URLへの到達（この作業環境から github.io に接続できないため。公開元ブランチにファイルがあることは確認済み）"
+      ]
+    },
+    {
+      "id": "keitora",
+      "title": "爆走！つがおのビバベジ便！",
+      "tagline": "トマト満載の軽トラで爆走",
+      "genre": "アクション",
+      "tags": [
+        "アクション",
+        "ランゲーム",
+        "ワンタップ",
+        "スマホ対応"
+      ],
+      "url": "https://ngcmwbj-art.github.io/-/keitora/",
+      "themeColor": "#1b2216",
+      "status": "公開中",
+      "howToPlay": "タップ（クリック／Space）でジャンプ。荷台のトマトを落とさず田んぼ道を走る。",
+      "platform": [
+        "スマホ",
+        "PC"
+      ],
+      "source": {
+        "ref": "origin/claude/kei-truck-runner-game-ngc2ni",
+        "path": "keitora",
+        "serve": ".",
+        "entry": "index.html"
+      },
+      "preview": {
+        "id": "keitora",
+        "capturedAt": "2026-11-02T03:27:59.980Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 70,
+        "seconds": 5.6,
+        "webm": "previews/keitora.webm",
+        "mp4": "previews/keitora.mp4",
+        "poster": "previews/keitora.jpg",
+        "bytes": {
+          "webm": 579541,
+          "mp4": 837278,
+          "poster": 57931
+        },
+        "deterministic": {
+          "frames": 70,
+          "identical": 57,
+          "nearIdentical": 70,
+          "ratio": 1,
+          "minPsnr": 53.28,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "6792c7e",
+        "recipe": "recipes/keitora.mjs"
+      },
+      "unverified": [
+        "公開URLへの到達（この作業環境から github.io に接続できないため。公開元ブランチにファイルがあることは確認済み）"
+      ]
+    },
+    {
+      "id": "gusoku",
+      "title": "グソク",
+      "tagline": "深海のグソクを産まれた日から育てる",
+      "genre": "育成",
+      "tags": [
+        "育成",
+        "深海生物",
+        "3D",
+        "会話"
+      ],
+      "url": "https://claude.ai/artifact/H5MhEW3xZ716piW946Gv2J",
+      "themeColor": "#02080d",
+      "status": "公開中",
+      "howToPlay": "話しかけ、餌をやり、水温と水質を守って、オオグソクムシを成体まで育てる。",
+      "platform": [
+        "スマホ",
+        "PC"
+      ],
+      "source": {
+        "ref": "origin/claude/gusoku-game",
+        "path": "gusoku",
+        "build": [
+          "python3 build/site.py site"
+        ],
+        "serve": "site",
+        "entry": "real.html"
+      },
+      "preview": {
+        "id": "gusoku",
+        "capturedAt": "2026-11-02T03:33:30.832Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 80,
+        "seconds": 6.4,
+        "webm": "previews/gusoku.webm",
+        "mp4": "previews/gusoku.mp4",
+        "poster": "previews/gusoku.jpg",
+        "bytes": {
+          "webm": 162658,
+          "mp4": 160319,
+          "poster": 22901
+        },
+        "deterministic": {
+          "frames": 80,
+          "identical": 0,
+          "nearIdentical": 4,
+          "ratio": 0.05,
+          "minPsnr": 38.5,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "2b97820",
+        "recipe": "recipes/gusoku.mjs"
+      },
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
+      ]
+    },
+    {
+      "id": "gusoku-yuru",
+      "title": "グソっ君",
+      "tagline": "ハチマキのグソっ君を育てよう",
+      "genre": "育成",
+      "tags": [
+        "育成",
+        "深海生物",
+        "3D",
+        "会話"
+      ],
+      "url": "https://claude.ai/artifact/1SywA5xmvNzjcbKU9BvYEW",
+      "themeColor": "#02080d",
+      "status": "公開中",
+      "howToPlay": "グソクのゆるキャラ版。話しかけてごはんをあげ、小さなグソっ君を大きく育てる。",
+      "platform": [
+        "スマホ",
+        "PC"
+      ],
+      "source": {
+        "ref": "origin/claude/gusoku-game",
+        "path": "gusoku",
+        "build": [
+          "python3 build/site.py site"
+        ],
+        "serve": "site",
+        "entry": "yuru.html"
+      },
+      "preview": {
+        "id": "gusoku-yuru",
+        "capturedAt": "2026-11-02T03:39:15.353Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 80,
+        "seconds": 6.4,
+        "webm": "previews/gusoku-yuru.webm",
+        "mp4": "previews/gusoku-yuru.mp4",
+        "poster": "previews/gusoku-yuru.jpg",
+        "bytes": {
+          "webm": 170521,
+          "mp4": 160251,
+          "poster": 26345
+        },
+        "deterministic": {
+          "frames": 80,
+          "identical": 0,
+          "nearIdentical": 3,
+          "ratio": 0.037,
+          "minPsnr": 38.45,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "2b97820",
+        "recipe": "recipes/gusoku-yuru.mjs"
+      },
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
+      ]
+    },
+    {
+      "id": "masato",
+      "title": "がんばれマサトくん！",
+      "tagline": "量子力学とギターで台風を撃退",
+      "genre": "タワーディフェンス",
+      "tags": [
+        "タワーディフェンス",
+        "アクション",
+        "3D",
+        "PC向け"
+      ],
+      "url": "https://claude.ai/artifact/ESZcPVFyVEhNrpHzXasSbV",
+      "themeColor": "#f3d08a",
+      "status": "開発中",
+      "howToPlay": "WASDで走り、ギターの音波とタワーで、迫る台風からキャベツ畑を守る。",
+      "platform": [
+        "PC",
+        "スマホ（横向き）"
+      ],
+      "source": {
+        "ref": "origin/claude/compassionate-ritchie-vctp47",
+        "path": "game",
+        "serve": ".",
+        "entry": "index.html"
+      },
+      "preview": {
+        "id": "masato",
+        "capturedAt": "2026-11-02T04:48:16.783Z",
+        "mode": "play",
+        "fps": 10,
+        "frames": 47,
+        "seconds": 4.7,
+        "webm": "previews/masato.webm",
+        "mp4": "previews/masato.mp4",
+        "poster": "previews/masato.jpg",
+        "bytes": {
+          "webm": 316553,
+          "mp4": 251132,
+          "poster": 38455
+        },
+        "deterministic": {
+          "frames": 47,
+          "identical": 5,
+          "nearIdentical": 32,
+          "ratio": 0.681,
+          "minPsnr": 34.62,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "0afa6e7",
+        "recipe": "recipes/masato.mjs"
+      },
+      "statusNote": "README で「ブラウザ版プロトタイプ」と書かれているため開発中としています",
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
+      ]
+    },
+    {
+      "id": "shun",
+      "title": "しゅんの夕暮れあぜ道戦記",
+      "tagline": "ツッコミとハンコで町を救うRPG",
+      "genre": "RPG",
+      "tags": [
+        "RPG",
+        "ドット絵",
+        "ストーリー",
+        "スマホ対応"
+      ],
+      "url": "https://claude.ai/artifact/XzD85uj7q8xGhLvjs6HCTd",
+      "themeColor": "#2b1e1a",
+      "status": "公開中",
+      "howToPlay": "止まった夕暮れの町を歩き、だれも倒さないツッコミとハンコの戦闘で争いを終わらせる。",
+      "platform": [
+        "PC",
+        "スマホ",
+        "ゲームパッド"
+      ],
+      "source": {
+        "ref": "origin/claude/mother2-style-rpg-demo-3xqcx8",
+        "path": "game",
+        "build": [
+          "npm ci --no-audit --no-fund",
+          "npm run build"
+        ],
+        "serve": "dist",
+        "entry": "index.html"
+      },
+      "preview": {
+        "id": "shun",
+        "capturedAt": "2026-11-02T03:28:57.366Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 81,
+        "seconds": 6.48,
+        "webm": "previews/shun.webm",
+        "mp4": "previews/shun.mp4",
+        "poster": "previews/shun.jpg",
+        "bytes": {
+          "webm": 458323,
+          "mp4": 382996,
+          "poster": 79665
+        },
+        "deterministic": {
+          "frames": 81,
+          "identical": 81,
+          "nearIdentical": 81,
+          "ratio": 1,
+          "minPsnr": null,
+          "sameCount": true
+        },
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "d210676",
+        "recipe": "recipes/shun.mjs"
+      },
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
+      ]
+    }
+  ]
+}
