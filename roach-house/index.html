@@ -19,7 +19,7 @@
 
   <div id="hud" hidden>
     <div class="hud-tl">
-      <div class="card timer" id="timerCard"><small>トラック出発まで</small><span id="timer">5:00</span></div>
+      <div class="card timer" id="timerCard"><small>あと何箱出荷されたら負け</small><span id="timer">あと9箱</span></div>
       <div class="card">
         <div class="score-row"><span>ダメにした</span><b id="ruined">0</b><span>/ <span id="target">8</span> 箱</span></div>
         <div class="pips" id="pips"></div>
@@ -45,7 +45,12 @@
       <button class="cmd on" data-cmd="follow" id="cmd-follow"><kbd>3</kbd>集合</button>
     </div>
     <div id="prompt" hidden></div>
-    <div id="greed" hidden><div>がっつきゲージ</div><div class="gbar"><i></i></div><div class="crate-left" id="crateLeft"></div></div>
+    <div id="greed" hidden><div>がっつきゲージ（緑の帯で離すと「ナイス！」）</div><div class="gbar"><span class="nice-band"></span><i></i></div><div class="crate-left" id="crateLeft"></div></div>
+    <div id="nicePop" hidden>ナイス！</div>
+    <div id="tutor" hidden><p id="tutorText"></p><button class="tskip" id="btnSkipTutor">練習をとばす</button></div>
+    <div id="farmerArrow" class="edge-ind" hidden><span class="ea-tri"></span><span class="ea-lbl">農場主</span></div>
+    <div id="guideArrow" class="edge-ind guide" hidden><span class="ea-tri"></span><span class="ea-lbl">ここ</span></div>
+    <div id="orderMini" class="card order-mini" hidden></div>
     <div id="struggle" hidden>ホイホイから脱出！<div class="bar"><i></i></div></div>
     <div id="hint" hidden></div>
     <div id="toasts"></div>
@@ -65,29 +70,34 @@
   <section id="title" class="screen">
     <div class="sheet">
       <h1 class="logo"><span class="k1">ゴキブリ大作戦</span><span class="k2">パプリカハウス</span></h1>
-      <p class="lead">夜明けまでに、収穫したパプリカのコンテナをかじってダメにしろ。農場主は殺虫剤とホイホイで待ちかまえている。食べて、卵を産んで、仲間と出荷トラックが出る前に勝負をつけよう。</p>
+      <p class="lead">夜明けのパプリカハウス。収穫したパプリカのコンテナをかじってダメにしろ。農場主は殺虫剤とホイホイ、毒エサで待ちかまえている。食べて、卵を産んで、仲間と力を合わせ、出荷が終わる前に勝負をつけよう。</p>
+      <div class="card order-card" id="orderCard"></div>
       <div class="diffs">
-        <button class="diff" data-diff="easy"><b>やさしい</b><span>6箱・5分30秒</span><em id="best-easy"></em></button>
-        <button class="diff main" data-diff="normal"><b>ふつう</b><span>8箱・5分</span><em id="best-normal"></em></button>
-        <button class="diff" data-diff="hard"><b>むずかしい</b><span>10箱・4分30秒</span><em id="best-hard"></em></button>
+        <button class="diff" data-diff="easy"><b>やさしい</b><span>6箱ダメにする</span><em id="best-easy"></em></button>
+        <button class="diff main" data-diff="normal"><b>ふつう</b><span>8箱ダメにする</span><em id="best-normal"></em></button>
+        <button class="diff" data-diff="hard"><b>むずかしい</b><span>10箱ダメにする</span><em id="best-hard"></em></button>
       </div>
       <div class="opts">
+        <label><input type="checkbox" id="optTutor"> 練習から始める</label>
         <label><input type="checkbox" id="optHints" checked> ヒントを出す</label>
         <label><input type="checkbox" id="optSound" checked> 音を鳴らす</label>
         <label>画質 <select id="optQuality">
           <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
         </select></label>
       </div>
+      <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button></div>
       <details class="howto" id="howto">
         <summary>遊びかた</summary>
         <div class="body">
           <div><h3>勝ち負け</h3><ul>
-            <li>目標の数のコンテナをかじりつくしたら勝ち。</li>
-            <li>トラックが出るか、出荷されすぎて目標に届かなくなったら負け。</li>
+            <li>目標の数のコンテナをかじりつくしたら勝ち。時間制限はない。</li>
+            <li>農場主は1箱ずつ出荷していく。出荷されすぎて目標に届かなくなったら負け（左上に「あと何箱」）。</li>
           </ul></div>
           <div><h3>こっそり食べる</h3><ul>
             <li>食べるボタンを長く押すほど早く食べられる。でも「がっつきゲージ」が赤までいくとバリッと音が出てバレる。押す・離すをくり返そう。</li>
-            <li>地面の扇形が農場主の視界。畝の葉の下や台の下に入ってじっとしていれば見つかりにくい。</li>
+            <li>がっつきゲージが緑の帯のときに離すと「ナイス！」で少し多く食べられる。</li>
+            <li>地面の扇形が農場主の視界。株の列（葉の壁）の向こうは見えない。白い栽培槽の下や台の下でじっとしていれば見つかりにくい。</li>
+            <li>農場主は腰のラジオを鳴らしている。ラジオと長靴の足音の大きさ・左右で居場所が分かる。画面の外にいるときは端に矢印が出る。</li>
           </ul></div>
           <div><h3>仲間をふやす</h3><ul>
             <li>栄養が満タンで産卵。卵は少したつと3匹の仲間になる。目立つ所の卵は踏みつぶされる。</li>
@@ -98,11 +108,17 @@
             <li>農場主の足もとで「突撃」すると顔に飛びつき、しばらくパニックにできる。運んでいたコンテナも落とす。そのかわり怒ってわなが増える。</li>
             <li>ホイホイにくっついたら食べるボタンを連打。捕まった仲間は近くで押すと助けられる。</li>
           </ul></div>
+          <div><h3>ハウスのしかけ</h3><ul>
+            <li>栽培槽に登ると、株になっている実もかじれる。栄養たっぷりだが、落ちるとドスンと音がする。</li>
+            <li>通路の入口の渦で「風に乗る」と、循環扇の風で通路の先まで一気に飛べる。</li>
+            <li>黒い丸い容器は毒エサ。食べると栄養が満タンになるが、毒で体力が減り続ける。</li>
+            <li>農場主が本気で怒ると燻煙剤をたく。煙がハウスに広がる前に、緑の輪（出入り口・換気口）へ逃げろ。</li>
+          </ul></div>
           <div class="keys kb-only">
             <kbd>W A S D</kbd><span>移動（矢印キーでも）</span>
             <kbd>Shift</kbd><span>ダッシュ（足音で気づかれやすい）</span>
             <kbd>マウスドラッグ / Q E</kbd><span>視点をまわす</span>
-            <kbd>Space</kbd><span>食べる（長押し）・台に登る・脱出</span>
+            <kbd>Space</kbd><span>食べる（長押し）・登る・風に乗る・脱出</span>
             <kbd>F</kbd><span>突撃</span>
             <kbd>R</kbd><span>産卵</span>
             <kbd>1 2 3</kbd><span>仲間に指示（探索・囮・集合）</span>
@@ -127,11 +143,25 @@
     </div>
   </section>
 
+  <section id="book" class="screen" hidden>
+    <div class="sheet">
+      <h2 class="rtitle">図鑑・称号・着せかえ</h2>
+      <div class="book-sec"><h3>羽の色</h3><div class="wings" id="bookWings"></div></div>
+      <div class="book-sec"><h3>称号</h3><ul class="titles" id="bookTitles"></ul></div>
+      <div class="book-sec"><h3>図鑑</h3><ul class="ency" id="bookEncy"></ul></div>
+      <div class="book-sec"><h3>これまでの記録</h3><dl class="rstats" id="bookRec"></dl></div>
+      <div class="row"><button class="btn primary" id="btnBookBack">もどる</button></div>
+    </div>
+  </section>
+
   <section id="result" class="screen" hidden>
     <div class="sheet">
       <h2 class="rtitle" id="rTitle"></h2>
       <p class="lead" id="rReason"></p>
       <div class="rank"><div class="r" id="rRank">A</div><div class="s">スコア<br><b id="rScore">0</b><br><span id="rBest"></span></div></div>
+      <blockquote class="grumble" id="rGrumble"></blockquote>
+      <div class="highlights" id="rHigh"></div>
+      <div class="r-orders" id="rOrders"></div>
       <dl class="rstats" id="rStats"></dl>
       <p class="tip" id="rTip"></p>
       <div class="row">

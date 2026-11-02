@@ -1,12 +1,17 @@
 // 起動・描画・画面の表示
 import * as THREE from 'three';
-import { buildWorld, ROWS, TABLES, DOOR, rowAt } from './world.js';
+import { buildWorld, ROWS, TABLES, DOOR, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
+import * as FEATURES from './features.js';
 import { Game, DIFFS, MAX_NYMPHS } from './game.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
 import { clamp, damp, inRect } from './util.js';
 import { FX, AutoQuality, LEVELS } from './fx.js';
 import { setTextureSize } from './textures.js';
+import { WING_COLORS } from './models.js';
+import {
+  todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings,
+} from './features.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -112,6 +117,7 @@ function setScreen(s) {
   $('title').hidden = s !== 'title';
   $('pause').hidden = s !== 'pause';
   $('result').hidden = s !== 'result';
+  $('book').hidden = s !== 'book';
   $('hud').hidden = !(s === 'play' || s === 'pause' || s === 'over');
   updateTouchVisibility();
 }
@@ -121,12 +127,34 @@ function updateTouchVisibility() {
   $('touch').hidden = !(touch && screen === 'play');
 }
 
+// ---------- 記録・今日の注文 ----------
+let records = normalizeRecords(store.get('records', null));
+let dayKey = todayKey();
+let orders = todaysOrders(dayKey);
+function refreshDay() {
+  const k = todayKey();
+  if (k !== dayKey) { dayKey = k; orders = todaysOrders(dayKey); }
+}
+function renderOrders() {
+  refreshDay();
+  const done = records.ordersDone[dayKey] || [];
+  $('orderCard').innerHTML = `<h3>今日の注文（${todayLabel()}）</h3><ul>${orders.map((o) => `<li class="${done.includes(o.id) ? 'done' : ''}">${done.includes(o.id) ? '✓ ' : ''}${o.text}</li>`).join('')}</ul>`;
+}
+renderOrders();
+$('optTutor').checked = !store.get('tutorialDone', false);
+
 let lastDiff = 'normal';
 function startGame(diff) {
   sfx.unlock();
   sfx.startAmbience();
+  sfx.startRadio();
   lastDiff = diff;
-  game.start(diff);
+  refreshDay();
+  const tutorial = $('optTutor').checked;
+  game.start(diff, undefined, { tutorial, wing: records.wing, layoutSeed: dailySeed(dayKey) });
+  $('optTutor').checked = false;
+  $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}`;
+  $('orderMini').hidden = false;
   hints.reset();
   camState.yaw = game.camYaw;
   camState.pitch = 0.36;
@@ -158,10 +186,45 @@ function resumeGame() {
 }
 function toTitle() {
   calmScreen();
+  sfx.stopRadio();
   game.state = 'title';
   setScreen('title');
   renderBest();
+  renderOrders();
 }
+
+// ---------- 図鑑・称号・着せかえ ----------
+function renderBook() {
+  const unlocked = unlockedWings(records);
+  $('bookWings').innerHTML = Object.entries(WING_COLORS).map(([k, w]) => {
+    const ok = unlocked.includes(k);
+    const hex = '#' + w.color.toString(16).padStart(6, '0');
+    const sw = k === 'normal' ? 'linear-gradient(135deg,#7a4018,#3a1a08)' : `linear-gradient(135deg,${hex},#2a1206)`;
+    return `<button class="wing ${records.wing === k ? 'on' : ''}" data-wing="${k}" ${ok ? '' : 'disabled'}><span class="sw" style="background:${sw}"></span>${w.label}${ok ? '' : `<small>${WING_UNLOCK[k].desc}</small>`}</button>`;
+  }).join('');
+  $('bookWings').querySelectorAll('[data-wing]').forEach((b) => b.addEventListener('click', () => {
+    records.wing = b.dataset.wing;
+    store.set('records', records);
+    sfx.click();
+    renderBook();
+  }));
+  $('bookTitles').innerHTML = TITLES.map((t) => {
+    const ok = records.titles.includes(t.id);
+    return `<li class="${ok ? '' : 'locked'}"><b>${ok ? '★ ' : '☆ '}${t.name}</b><small>${t.desc}</small></li>`;
+  }).join('');
+  $('bookEncy').innerHTML = ENCYCLOPEDIA.map((e) => {
+    const ok = records.seen.includes(e.id);
+    return `<li class="${ok ? '' : 'locked'}"><b>${ok ? e.name : '？？？'}</b><small>${ok ? e.text : 'まだ出会っていない'}</small></li>`;
+  }).join('');
+  const r = records;
+  const rows = [['遊んだ回数', `${r.games} 回`], ['勝った回数', `${r.wins} 回`], ['ダメにした箱', `${r.ruined} 箱`], ['産んだ卵', `${r.eggs} 個`],
+    ['パニックにした', `${r.attacks} 回`], ['ホイホイ脱出', `${r.escapes} 回`], ['ナイス！', `${r.nice} 回`], ['風に乗った', `${r.winds} 回`],
+    ['落とした実', `${r.fruits} 個`], ['こなした注文', `${r.orders} 個`]];
+  $('bookRec').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+}
+$('btnBook').addEventListener('click', () => { renderBook(); setScreen('book'); });
+$('btnBookBack').addEventListener('click', () => { setScreen('title'); renderOrders(); });
+$('btnSkipTutor').addEventListener('click', (e) => { e.preventDefault(); game.endTutorial(false); store.set('tutorialDone', true); e.currentTarget.blur(); });
 
 const TIPS = [
   '台の下でじっとしていれば、農場主からはほとんど見えません。',
@@ -212,8 +275,7 @@ renderBest();
 // ---------- 結果 ----------
 const REASONS = {
   ruined: '目標の数のコンテナをダメにした。今日の出荷はめちゃくちゃだ！',
-  time: 'トラックが出発してしまった。パプリカは無事に市場へ…',
-  shipped: '出荷が進みすぎて、もう目標に届かない。',
+  shipped: '出荷が進みすぎて、もう目標に届かない。今日のパプリカは無事に市場へ…',
   dead: '仲間も卵もいなくなってしまった…',
 };
 function showResult(res) {
@@ -233,11 +295,26 @@ function showResult(res) {
   } else $('rBest').textContent = `自己ベスト ${prev.score}`;
   const s = res.stats;
   const mm = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  // 農場主のぼやき
+  $('rGrumble').innerHTML = res.grumble.map((g) => `<p>「${escapeHtml(g)}」</p>`).join('') + '<cite>―― 農場主</cite>';
+  // 名場面
+  const hl = (res.highlights || []).filter((h) => h.img);
+  $('rHigh').innerHTML = hl.length ? hl.map((h) => `<figure><img src="${h.img}" alt=""><figcaption>${mm(h.t)}　${escapeHtml(h.text)}</figcaption></figure>`).join('') : '';
+  $('rHigh').hidden = !hl.length;
+  // 今日の注文・称号・羽の色
+  const out = applyResult(records, res, s, orders, dayKey);
+  records = out.rec;
+  store.set('records', records);
+  const ol = orders.map((o) => (out.cleared.includes(o.id) ? `<span class="ok">✓ ${o.text}</span>` : `<span class="ng">・${o.text}</span>`));
+  const news = [...out.newTitles.map((t) => `<span class="new">★ 称号「${t.name}」を手に入れた！</span>`),
+    ...out.newWings.map((k) => `<span class="new">羽の色「${WING_COLORS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`)];
+  $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}${news.length ? '<br>' + news.join('<br>') : ''}`;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
-    ['残り時間', mm(res.time)], ['産んだ卵', `${s.eggs} 個`],
+    ['かかった時間', mm(res.elapsed)], ['産んだ卵', `${s.eggs} 個`],
     ['生まれた仲間', `${s.born} 匹`], ['生き残った仲間', `${res.alive} 匹`],
     ['突撃した回数', `${s.attacks} 回`], ['見つかった回数', `${s.chased} 回`],
+    ['ナイス！', `${s.nice} 回`], ['落とした実', `${s.fruits} 個`],
   ];
   $('rStats').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
   $('rTip').textContent = res.win ? (res.rank === 'S' ? '完璧な作戦でした。むずかしいにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`) : `ヒント：${pick(TIPS)}`;
@@ -247,10 +324,13 @@ function showResult(res) {
 // ---------- ヒント ----------
 const hints = {
   list: [
-    { id: 'move', kb: 'WASDで移動、マウスをドラッグ（またはQ/E）で視点を回せます。まずは右の方にある野菜コンテナを目指そう', tc: '左下をなぞって移動、右側をなぞって視点を回せます。まずは野菜コンテナを目指そう', until: (g) => g.elapsed > 9 },
+    { id: 'move', kb: 'WASDで移動、マウスをドラッグ（またはQ/E）で視点を回せます。野菜コンテナを目指そう', tc: '左下をなぞって移動、右側をなぞって視点を回せます。野菜コンテナを目指そう', until: (g) => g.elapsed > 9 },
     { id: 'map', kb: '右上の地図の緑の四角がまだ食べられるコンテナ。赤い点が農場主、扇形が視界です', tc: '右上の地図の緑の四角がコンテナ。赤い点が農場主、扇形が視界です', until: (g) => g.elapsed > 18 },
     { id: 'eat', kb: 'コンテナのそばでスペースを長押しすると食べる。がっつきゲージが赤になる前に離そう！', tc: 'コンテナのそばで「食べる」を長押し。がっつきゲージが赤になる前に離そう！', when: (g) => !!(g.context() && g.context().crate), until: (_, ev) => ev.has('ruin') || ev.has('egg'), max: 12 },
-    { id: 'climb', kb: '台の上のコンテナへは、台のふちでスペースを押すと登れます', tc: '台の上のコンテナへは、台のふちで「登る」を押すと登れます', when: (g) => { const c = g.context(); return c && c.text === '台に登る'; }, until: (_, ev) => ev.has('climb'), max: 9 },
+    { id: 'climb', kb: '台や栽培槽のふちでスペースを押すと登れます。栽培槽の上では株の実もかじれる', tc: '台や栽培槽のふちで「登る」を押すと登れます。栽培槽の上では株の実もかじれる', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 9 },
+    { id: 'wind', kb: '通路の入口の渦！ スペースで風に乗ると、通路の先まで一気に飛べる', tc: '通路の入口の渦！「風に乗る」で通路の先まで一気に飛べる', when: (g) => { const c = g.context(); return c && c.text === '風に乗る'; }, until: (_, ev) => ev.has('wind'), max: 8 },
+    { id: 'bait', kb: '黒い丸い容器は毒エサ。食べると栄養は満タンだが、毒で体力が減り続ける。食べるかどうかはあなたしだい', tc: '黒い丸い容器は毒エサ。食べると栄養は満タンだが、毒で体力が減り続ける', when: (g) => { const c = g.context(); return c && c.bait; }, max: 8 },
+    { id: 'smoke', kb: '燻煙剤だ！ 緑の輪（出入り口・西の換気口）へ逃げこめ！ 右上の地図の緑の丸が逃げ場', tc: '燻煙剤だ！ 緑の輪（出入り口・換気口）へ逃げこめ！ 地図の緑の丸が逃げ場', when: (_, ev) => ev.has('fumigate'), max: 12 },
     { id: 'egg', kb: '栄養が満タン！ Rで卵を産もう。葉の下や台の下なら見つかりにくい', tc: '栄養が満タン！「産卵」で卵を産もう。葉の下や台の下なら見つかりにくい', when: (g) => g.nutrition >= 100, until: (_, ev) => ev.has('egg'), max: 12 },
     { id: 'cmd', kb: '仲間が生まれた！ 1：探索　2：囮　3：集合 で指示を出せます', tc: '仲間が生まれた！ 右の「探索・囮・集合」で指示を出せます', when: (_, ev) => ev.has('hatch'), max: 10 },
     { id: 'hide', kb: '見つかった！ 葉の下や台の下に逃げこんで、じっとしていよう', tc: '見つかった！ 葉の下や台の下に逃げこんで、じっとしていよう', when: (_, ev) => ev.has('spotted'), max: 7 },
@@ -261,7 +341,7 @@ const hints = {
     for (const e of g.events) this.seenEvents.add(e);
     const ev = this.seenEvents;
     const el = $('hint');
-    if (!hintsOn) { el.hidden = true; return; }
+    if (!hintsOn || g.tutorial) { el.hidden = true; return; }
     if (this.cur) {
       this.t += dt;
       const h = this.cur;
@@ -302,6 +382,7 @@ function updateCamera(dt) {
   game.camYaw = camState.yaw;
   let pitch = camState.pitch, dist = 3.3;
   if (info.underTable) { pitch = Math.min(pitch, 0.2); dist = 2.4; }
+  else if (info.onTrough) { dist = 2.4; }
   else if (info.underRow) { pitch = Math.min(pitch, 0.24); dist = 1.7; }
   if (info.flying) { dist = 4.5; pitch = 0.25; }
   if (game.state === 'over') { camState.yaw += dt * 0.25; dist = 5; pitch = 0.5; }
@@ -313,7 +394,7 @@ function updateCamera(dt) {
   let cz = info.z - fz * Math.cos(pitch) * d;
   let cy = ty + Math.sin(pitch) * d;
   // 株の中にカメラが入らないよう、近づけるか葉の下まで下げる
-  if (!info.underRow) {
+  if (!info.underRow && !info.onTrough) {
     let dd = d;
     while (dd > 0.9 && rowAt(cx, cz, 0.35) && cy > 0.75) {
       dd -= 0.15;
@@ -346,16 +427,29 @@ function updateCamera(dt) {
 
 // ---------- HUD ----------
 const fmt = (t) => { t = Math.max(0, Math.ceil(t)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const F_TEXT = { WORK: ['…', '作業中'], INVESTIGATE: ['?', 'あやしんでいる'], CHASE: ['!', '追いかけてくる！'], PANIC: ['@', 'パニック中'] };
+const F_TEXT = { WORK: ['…', '作業中'], INVESTIGATE: ['?', 'あやしんでいる'], CHASE: ['!', '追いかけてくる！'], PANIC: ['@', 'パニック中'], FUMIGATE: ['煙', '燻煙剤をたいている！'] };
 const cache = {};
 function setText(id, v) { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } }
 function setW(el, k) { const v = `${Math.round(clamp(k, 0, 1) * 1000) / 10}%`; if (el.style.width !== v) el.style.width = v; }
 
+let niceShown = false;
 function updateHud(dt) {
   const g = game;
   if (!g.player) return;
-  setText('timer', fmt(g.time));
-  $('timerCard').classList.toggle('low', g.time < 60);
+  const left = g.shipLeft();
+  setText('timer', `あと${left}箱`);
+  $('timerCard').classList.toggle('low', left <= 2);
+  // 練習の案内
+  const tt = g.tutorialText(document.body.classList.contains('touch'));
+  $('tutor').hidden = !tt || screen !== 'play';
+  if (tt) setText('tutorText', tt);
+  $('orderMini').hidden = !!tt || screen !== 'play';
+  // ナイス！
+  if (g.niceT > 0.85 && !niceShown) {
+    const el = $('nicePop');
+    el.hidden = true; void el.offsetWidth; el.hidden = false;
+    niceShown = true;
+  } else if (g.niceT <= 0) { niceShown = false; $('nicePop').hidden = true; }
   setText('ruined', String(g.ruined));
   setText('shipped', String(g.shipped));
   const pips = $('pips').children;
@@ -457,8 +551,42 @@ function updateLabels() {
       const s3 = project(r.x, r.y + 0.6, r.z);
       if (s3 && s3.on) place(label('help', 'たすけて！'), s3);
     }
+    edgeArrow($('farmerArrow'), f.hidden || screen !== 'play' ? null : { x: f.x, y: 3, z: f.z }, f.state, Math.hypot(f.x - p.x, f.z - p.z));
+    const gt = g.guideTarget();
+    edgeArrow($('guideArrow'), screen === 'play' ? gt : null, 'guide', 0, true);
+  } else {
+    $('farmerArrow').hidden = true;
+    $('guideArrow').hidden = true;
   }
   for (let i = used; i < pool.length; i++) if (pool[i].style.display !== 'none') pool[i].style.display = 'none';
+}
+// 画面の外にある物の向きを、画面の端の矢印で出す（always=画面内でも頭上に出す）
+const v3b = new THREE.Vector3();
+function edgeArrow(el, pos, state, dist, always = false) {
+  if (!pos) { el.hidden = true; return; }
+  v3b.set(pos.x, pos.y, pos.z).applyMatrix4(camera.matrixWorldInverse);
+  const behind = v3b.z > 0;
+  v3b.applyMatrix4(camera.projectionMatrix);
+  let nx = v3b.x, ny = v3b.y;
+  if (behind) { nx = -nx; ny = -ny; }
+  const W = window.innerWidth, H = window.innerHeight;
+  const inside = !behind && Math.abs(nx) < 0.92 && Math.abs(ny) < 0.85;
+  if (inside && !always) { el.hidden = true; return; }
+  el.hidden = false;
+  if (el.dataset.s !== state) el.dataset.s = state;
+  let x, y, ang;
+  if (inside) {
+    x = (nx * 0.5 + 0.5) * W; y = (-ny * 0.5 + 0.5) * H - 30; ang = Math.PI;
+  } else {
+    const k = 1 / Math.max(Math.abs(nx) / 0.9, Math.abs(ny) / 0.8, 1e-3);
+    nx *= k; ny *= k;
+    x = (nx * 0.5 + 0.5) * W; y = (-ny * 0.5 + 0.5) * H;
+    ang = Math.atan2(nx, ny);
+  }
+  const sc = dist ? Math.max(0.7, Math.min(1.4, 14 / Math.max(4, dist))) : 1;
+  el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -50%) rotate(${ang.toFixed(2)}rad) scale(${sc.toFixed(2)})`;
+  const lbl = el.querySelector('.ea-lbl');
+  if (lbl) lbl.style.transform = `rotate(${(-ang).toFixed(2)}rad)`;
 }
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -507,6 +635,11 @@ function drawMinimap(dt) {
     const x = mx(t.x), y = mz(t.z);
     mctx.beginPath(); mctx.moveTo(x - 4, y - 4); mctx.lineTo(x + 4, y + 4); mctx.moveTo(x + 4, y - 4); mctx.lineTo(x - 4, y + 4); mctx.stroke();
   }
+  for (const b of g.baits) { if (!b.alive) continue; mctx.fillStyle = '#111'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 4, 0, 6.29); mctx.fill(); mctx.fillStyle = '#f2c31b'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 1.6, 0, 6.29); mctx.fill(); }
+  mctx.strokeStyle = 'rgba(190,232,255,0.9)'; mctx.lineWidth = 1.5;
+  for (const L of WIND_LANES) { mctx.beginPath(); mctx.arc(mx(L.x0), mz(L.z), 4, 0, 6.29); mctx.stroke(); mctx.beginPath(); mctx.setLineDash([3, 3]); mctx.moveTo(mx(L.x0) + 4, mz(L.z)); mctx.lineTo(mx(L.x1), mz(L.z)); mctx.stroke(); mctx.setLineDash([]); }
+  if (g.fog && !g.fog.cleared) { mctx.fillStyle = 'rgba(200,200,190,0.45)'; mctx.beginPath(); mctx.arc(mx(g.fog.x), mz(g.fog.z), g.fog.r * sx, 0, 6.29); mctx.fill(); }
+  if (g.safeRings && g.safeRings.length) { mctx.strokeStyle = '#6dff7a'; mctx.lineWidth = 2.5; for (const sp of SAFE_SPOTS) { mctx.beginPath(); mctx.arc(mx(sp.x), mz(sp.z), 7, 0, 6.29); mctx.stroke(); } }
   for (const c of g.clouds) { mctx.fillStyle = 'rgba(220,245,200,0.5)'; mctx.beginPath(); mctx.arc(mx(c.x), mz(c.z), c.r * sx, 0, 6.29); mctx.fill(); }
   const f = g.farmer;
   const fx = mx(f.x), fy = mz(f.z);
@@ -573,7 +706,25 @@ function frame(now) {
     world.update(tNow, camera);
     let focusD = 24;
     if (game.player && game.state !== 'title') focusD = camera.position.distanceTo(new THREE.Vector3(game.player.x, game.player.y + 0.15, game.player.z));
+    // 燻煙剤の煙でかすむ
+    scene.fog.density = 0.0055 + (screen !== 'title' ? (game.fogLevel || 0) * 0.05 : 0);
+    // 農場主のラジオ：近いほど大きく、左右で方向が分かる
+    if (screen === 'play' && game.farmer && game.player) {
+      const f = game.farmer, p = game.player;
+      const d = Math.hypot(f.x - p.x, f.z - p.z);
+      const vol = (f.hidden ? 0.15 : 1) / (1 + Math.pow(d / 7, 2));
+      sfx.updateRadio(vol, game.panOf(f.x, f.z));
+    } else sfx.updateRadio(0, 0);
     fx.render(dt, focusD, tNow);
+    // 名場面の写真（描いた直後に小さく撮る）
+    if (game.snapRequests && game.snapRequests.length) {
+      for (const req of game.snapRequests.splice(0)) {
+        const img = snapCanvas();
+        const i = game.highlights.findIndex((h) => h.type === req.type);
+        const h = { ...req, img };
+        if (i >= 0) game.highlights[i] = h; else if (game.highlights.length < 4) game.highlights.push(h);
+      }
+    }
     autoQ.sample(dt, screen === 'play');
   } catch (e) {
     showError(e && e.stack ? e.stack : String(e));
@@ -581,6 +732,17 @@ function frame(now) {
   } finally {
     input.endFrame();
   }
+}
+const snapC = document.createElement('canvas');
+snapC.width = 320; snapC.height = 200;
+function snapCanvas() {
+  try {
+    const x = snapC.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const sh = Math.min(H, W * 200 / 320), sw = sh * 320 / 200;
+    x.drawImage(canvas, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, 320, 200);
+    return snapC.toDataURL('image/jpeg', 0.75);
+  } catch (_) { return ''; }
 }
 setScreen('title');
 requestAnimationFrame(frame);
@@ -598,5 +760,6 @@ window.__rh.sim = (seconds, step = 1 / 30, bot) => {
   return game.sanity();
 };
 window.__rh.startGame = startGame;
+Object.assign(window.__rh, { plantFruits: PLANT_FRUITS, rows: ROWS, windLanes: WIND_LANES, safeSpots: SAFE_SPOTS, features: FEATURES });
 window.__rh.MAX_NYMPHS = MAX_NYMPHS;
 window.__rh.DOOR = DOOR;

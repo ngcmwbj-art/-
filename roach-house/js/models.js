@@ -43,7 +43,25 @@ const G = {};
 function geoOnce(k, fn) { if (!G[k]) G[k] = fn(); return G[k]; }
 
 // ---------------- ゴキブリ ----------------
-export function makeRoach(nymph = false) {
+// 羽の色の着せかえ（自分のゴキブリだけ）
+export const WING_COLORS = {
+  normal: { label: 'ノーマル', color: 0xffffff },
+  black: { label: '黒光り', color: 0x3a3a40 },
+  gold: { label: 'こがね', color: 0xffd36a },
+  paprika: { label: 'パプリカ赤', color: 0xff5a45 },
+  leaf: { label: '若葉', color: 0x9cff8a },
+};
+const wingCache = {};
+function wingMat(key) {
+  const M = roachMats();
+  if (!key || key === 'normal' || !WING_COLORS[key]) return M.wing;
+  if (!wingCache[key]) {
+    wingCache[key] = M.wing.clone();
+    wingCache[key].color.setHex(WING_COLORS[key].color);
+  }
+  return wingCache[key];
+}
+export function makeRoach(nymph = false, wingKey = 'normal') {
   const M = roachMats();
   const root = new THREE.Group();
   const body = new THREE.Group();
@@ -63,7 +81,7 @@ export function makeRoach(nymph = false) {
   // 前の翅（成虫だけ）：左右2枚が背中をおおう
   if (!nymph) {
     for (const s of [-1, 1]) {
-      const w = mesh(SPH_Z, M.wing);
+      const w = mesh(SPH_Z, wingMat(wingKey));
       w.scale.set(0.088, 0.03, 0.285);
       w.position.set(s * 0.043, 0.148, -0.085);
       w.rotation.set(0.04, s * 0.03, s * -0.12);
@@ -431,7 +449,8 @@ export function makeFarmer() {
 }
 
 // ---------------- 収穫コンテナ ----------------
-const VEG_COLORS = [PAPRIKA_COLORS.red, PAPRIKA_COLORS.yellow, PAPRIKA_COLORS.orange];
+export const VEG_COLORS = [PAPRIKA_COLORS.red, PAPRIKA_COLORS.yellow, PAPRIKA_COLORS.orange];
+export const VEG_COLOR_NAMES = ['赤', '黄', '橙'];
 const ROT = new THREE.Color(0x4b3a1c);
 const CRATE_COLORS = [0xe46a1f, 0x2f8a46, 0x2f63b8];
 let CM = null;
@@ -458,7 +477,7 @@ function crateMats() {
 const flyGeo = new THREE.SphereGeometry(0.03, 6, 5);
 const flyWGeo = new THREE.PlaneGeometry(0.06, 0.03);
 
-export function makeCrate(i) {
+export function makeCrate(i, colorIndex = i) {
   const M = crateMats();
   const g = new THREE.Group();
   const ci = i % 3;
@@ -494,7 +513,7 @@ export function makeCrate(i) {
   const mats = new Map();
   const variants = paprikaVariants();
   const stemGeo = paprikaStem();
-  const hex = VEG_COLORS[i % VEG_COLORS.length];
+  const hex = VEG_COLORS[colorIndex % VEG_COLORS.length];
   mats.set(hex, { mat: paprikaMaterial(hex), base: new THREE.Color(hex) });
   const spots = [];
   for (let ix = 0; ix < 4; ix++) for (let iz = 0; iz < 2; iz++) spots.push([-0.52 + ix * 0.35, h - 0.2, -0.22 + iz * 0.44]);
@@ -609,6 +628,55 @@ export function makeTrap() {
 
 // ---------------- 卵（卵鞘） ----------------
 let EM = null;
+// ---------------- 毒エサ（黒い丸い容器） ----------------
+let BM = null;
+export function makeBait() {
+  if (!BM) {
+    BM = {
+      body: new THREE.MeshPhysicalMaterial({ color: 0x1b1b1d, roughness: 0.35, clearcoat: 0.6 }),
+      label: new THREE.MeshStandardMaterial({ color: 0xf2c31b, roughness: 0.5 }),
+      hole: new THREE.MeshBasicMaterial({ color: 0x000000 }),
+      paste: new THREE.MeshStandardMaterial({ color: 0xd9c08a, roughness: 0.8 }),
+      bodyGeo: new THREE.CylinderGeometry(0.36, 0.4, 0.1, 28),
+      labelGeo: new THREE.CylinderGeometry(0.16, 0.16, 0.012, 20),
+      holeGeo: new THREE.BoxGeometry(0.14, 0.07, 0.03),
+    };
+  }
+  const g = new THREE.Group();
+  const b = mesh(BM.bodyGeo, BM.body);
+  b.position.y = 0.05;
+  b.receiveShadow = true;
+  const l = mesh(BM.labelGeo, BM.label, false);
+  l.position.y = 0.106;
+  g.add(b, l);
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2;
+    const h = mesh(BM.holeGeo, BM.hole, false);
+    h.position.set(Math.cos(a) * 0.39, 0.04, Math.sin(a) * 0.39);
+    h.rotation.y = -a;
+    const p = mesh(BM.holeGeo, BM.paste, false);
+    p.scale.set(0.6, 0.6, 0.5);
+    p.position.set(Math.cos(a) * 0.37, 0.03, Math.sin(a) * 0.37);
+    p.rotation.y = -a;
+    g.add(h, p);
+  }
+  return g;
+}
+
+// ---------------- 燻煙剤の缶 ----------------
+export function makeFogger() {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.8, 20), new THREE.MeshPhysicalMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.5, clearcoat: 0.8 }));
+  body.position.y = 0.4;
+  const band = mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.3, 20), new THREE.MeshStandardMaterial({ color: 0xc8312b, roughness: 0.5 }), false);
+  band.position.y = 0.45;
+  const cap = mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.12, 20), new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.8, roughness: 0.3 }));
+  cap.position.y = 0.86;
+  g.add(body, band, cap);
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
 export function makeEgg() {
   if (!EM) {
     const geo = new THREE.CapsuleGeometry(0.06, 0.16, 6, 14);

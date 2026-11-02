@@ -61,20 +61,30 @@ export const SUN_DIR = new THREE.Vector3(0.74, 0.34, -0.58).normalize();
 
 // 葉がそよぐ時間（シェーダーと共有）
 const windUniform = { value: 0 };
-function addWind(mat, amount) {
+// 株の素材に「そよぎ」と「カメラに近い所を細かく抜いて透かす」を足す
+function patchPlantMat(mat, amount = 0, fade = true) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = windUniform;
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying float vNearDist;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
           vec4 ip = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
           float sw = sin(uTime * 1.5 + ip.x * 0.7 + ip.z * 0.5) * 0.6 + sin(uTime * 3.3 + ip.x * 2.3 + ip.y) * 0.25;
           transformed.y += sw * ${amount.toFixed(3)} * max(position.x, 0.0);
           transformed.z += sw * ${(amount * 0.5).toFixed(3)} * max(position.x, 0.0);
-        #endif`);
+        #endif`)
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  vNearDist = -mvPosition.z;');
+    if (fade) {
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vNearDist;')
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+          float nf = smoothstep(0.55, 2.1, vNearDist);
+          float hh = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+          if (hh > nf) discard;`);
+    }
   };
-  mat.customProgramCacheKey = () => `wind${amount}`;
+  mat.customProgramCacheKey = () => `plant${amount}${fade}`;
 }
 
 // ---------- 世界を組み立てる ----------
@@ -136,6 +146,8 @@ export function buildWorld(scene, renderer, q) {
   buildOutside(g);
   const shafts = q.shafts ? buildShafts(g) : null;
   const dust = buildDust(g, q.dust);
+  const wind = buildWindLanes(g);
+  buildVents(g);
 
   return {
     group: g, sun,
@@ -148,6 +160,7 @@ export function buildWorld(scene, renderer, q) {
       windUniform.value = t;
       if (shafts) shafts.forEach((s, i) => { s.material.opacity = s.userData.base * (0.75 + 0.25 * Math.sin(t * 0.4 + i * 1.7)); });
       if (dust) dust.update(t, cam);
+      wind.update(t);
     },
   };
 }
@@ -156,6 +169,46 @@ export function buildWorld(scene, renderer, q) {
 // 本物のパプリカハウス：白い防草シートの床、腰の高さの白い栽培槽（下はすき間）、
 // 通路には温水の暖房パイプ。作業場はコンクリート
 export const TROUGH = { top: 1.4, bottom: 0.9, w: 1.1 };
+// 歩ける高い面：作業台（0〜2）と、栽培槽の上（3〜7）
+export const TROUGH_TOP = 1.48;
+export const SURFACES = [
+  ...TABLES,
+  ...ROWS.map((r) => ({ x: (r.x0 + r.x1) / 2, z: r.z, top: TROUGH_TOP, trough: true, minX: r.x0 - 0.2, maxX: r.x1 + 0.2, minZ: r.z - 0.55, maxZ: r.z + 0.55 })),
+];
+// 株になっている実（かじると落ちる）
+export const PLANT_FRUITS = [];
+// 新しいゲームの始めに、落ちた実を株に戻す
+export function resetPlantFruits() {
+  const touched = new Set();
+  for (const f of PLANT_FRUITS) {
+    f.hp = 25;
+    if (f.alive) continue;
+    f.alive = true;
+    f.mesh.setMatrixAt(f.idx, f.m0);
+    if (f.stemMesh && f.sm0) f.stemMesh.setMatrixAt(f.stemIdx, f.sm0);
+    touched.add(f.mesh); if (f.stemMesh) touched.add(f.stemMesh);
+  }
+  for (const m of touched) m.instanceMatrix.needsUpdate = true;
+}
+export function dropPlantFruit(f) {
+  const m = new THREE.Matrix4().makeScale(0, 0, 0);
+  f.alive = false;
+  f.mesh.setMatrixAt(f.idx, m);
+  f.mesh.instanceMatrix.needsUpdate = true;
+  if (f.stemMesh) { f.stemMesh.setMatrixAt(f.stemIdx, m); f.stemMesh.instanceMatrix.needsUpdate = true; }
+}
+// 循環扇の風の道（入口の渦に入って「風に乗る」→ 出口まで飛ぶ）
+export const WIND_LANES = [
+  { x0: -15, x1: 3.6, z: -2.5 },
+  { x0: -7, x1: 8.6, z: 2.5 },
+  { x0: -15, x1: 3.6, z: 7.5 },
+];
+// 燻煙剤の煙から逃げられる場所（出入り口と、西の壁の換気口）
+export const SAFE_SPOTS = [
+  { x: 21.1, z: 11, r: 1.7, label: '出入り口' },
+  { x: -21.1, z: -2.5, r: 1.3, label: '換気口' },
+  { x: -21.1, z: 7.5, r: 1.3, label: '換気口' },
+];
 export const EAVE = 6.5;
 const SPAN_RISE = 1.9;
 // 4連棟。谷（柱の列）は z = -7, 0, 7。株の列の中には柱を立てない
@@ -271,7 +324,9 @@ function buildPlants(g, q) {
   const up = new THREE.Vector3(0, 1, 0);
   const stemGeo = new THREE.CylinderGeometry(0.016, 0.03, 1, 5);
   stemGeo.translate(0, 0.5, 0);
-  const stemMesh = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x35571c, roughness: 0.7 }), stems.length);
+  const stemMat = new THREE.MeshStandardMaterial({ color: 0x35571c, roughness: 0.7 });
+  patchPlantMat(stemMat, 0);
+  const stemMesh = new THREE.InstancedMesh(stemGeo, stemMat, stems.length);
   const strGeo = new THREE.CylinderGeometry(0.011, 0.011, 1, 3);
   strGeo.translate(0, 0.5, 0);
   const strMesh = new THREE.InstancedMesh(strGeo, new THREE.MeshBasicMaterial({ color: 0xf2efe4 }), stems.length);
@@ -293,7 +348,7 @@ function buildPlants(g, q) {
   // 葉
   const L = TX.leaf();
   const leafMat = new THREE.MeshStandardMaterial({ map: L.map, normalMap: L.normal, side: THREE.DoubleSide, roughness: 0.55, color: 0xffffff });
-  addWind(leafMat, 0.05);
+  patchPlantMat(leafMat, 0.05);
   const PER = q.leaves || 14;
   const leaves = new THREE.InstancedMesh(leafGeometry(), leafMat, stems.length * PER);
   let k = 0;
@@ -336,6 +391,7 @@ function buildPlants(g, q) {
   const palette = [PC.green, PC.green, PC.green, PC.green, PC.red, PC.red, PC.orange, PC.yellow, PC.turning, PC.yellow];
   const variants = paprikaVariants(20);
   const fruitMat = paprikaMaterial();
+  patchPlantMat(fruitMat, 0);
   const pStemGeo = paprikaStem();
   const fStems = new THREE.InstancedMesh(pStemGeo, paprikaStemMaterial(), fruitList.length);
   let fi = 0;
@@ -351,9 +407,13 @@ function buildPlants(g, q) {
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
       im.setMatrixAt(i, dummy.matrix);
-      im.setColorAt(i, col.setHex(palette[Math.floor(rand() * palette.length)]));
+      const m0 = dummy.matrix.clone();
+      const hex = palette[Math.floor(rand() * palette.length)];
+      im.setColorAt(i, col.setHex(hex));
+      PLANT_FRUITS.push({ x: f.x, y: f.y, z: f.z, s, mesh: im, idx: i, stemMesh: fStems, stemIdx: fi, hex, geo, alive: true, hp: 25, m0 });
       dummy.translateY(geo.userData.stemOffset * s);
       dummy.updateMatrix();
+      PLANT_FRUITS[PLANT_FRUITS.length - 1].sm0 = dummy.matrix.clone();
       fStems.setMatrixAt(fi++, dummy.matrix);
     });
     im.castShadow = true;
@@ -361,6 +421,7 @@ function buildPlants(g, q) {
     g.add(im);
   });
   fStems.count = fi;
+  for (const f of PLANT_FRUITS) if (f.stemMesh === undefined) f.stemMesh = fStems;
   fStems.castShadow = true;
   g.add(fStems);
 
@@ -484,7 +545,7 @@ function buildHouse(g) {
     g.add(cu);
   }
   // 循環扇（梁からつり下げ）
-  for (const [x, z] of [[-14, -2.5], [-6, 2.5], [2, -7.5], [-14, 7.5], [-6, -12.5], [10, 2.5]]) {
+  for (const [x, z] of [[-16.2, -2.5], [-8.2, 2.5], [-16.2, 7.5], [2, -7.5], [-6, -12.5], [10, -2.5]]) {
     const f = new THREE.Group();
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: 0xdfe3e6, metalness: 0.5, roughness: 0.4 }));
     ring.rotation.y = Math.PI / 2;
@@ -796,6 +857,66 @@ function buildDust(g, n) {
       geo.attributes.position.needsUpdate = true;
     },
   };
+}
+
+// 風の道：入口に渦、道に沿って流れる風の筋
+function buildWindLanes(g) {
+  const swirlMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  const streakMat = new THREE.MeshBasicMaterial({ map: TX.softBeam(), color: 0xd8f1ff, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const swirls = [], streaks = [];
+  for (const L of WIND_LANES) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 32), swirlMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(L.x0, 0.03, L.z);
+    g.add(ring);
+    for (let k = 0; k < 3; k++) {
+      const sp = new THREE.Mesh(new THREE.TorusGeometry(0.35 + k * 0.12, 0.012, 4, 24, Math.PI * 1.3), swirlMat);
+      sp.rotation.x = Math.PI / 2;
+      sp.position.set(L.x0, 0.3 + k * 0.45, L.z);
+      sp.userData.k = k;
+      g.add(sp);
+      swirls.push(sp);
+    }
+    for (let k = 0; k < 4; k++) {
+      const st = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.25), streakMat);
+      st.rotation.set(0, 0, Math.PI / 2);
+      st.rotateY(Math.PI / 2);
+      st.userData = { L, off: k / 4, y: 2.8 + (k % 2) * 0.6 };
+      g.add(st);
+      streaks.push(st);
+    }
+  }
+  return {
+    update(t) {
+      for (const sp of swirls) sp.rotation.z = t * (2.5 + sp.userData.k);
+      for (const st of streaks) {
+        const { L, off, y } = st.userData;
+        const k = (t * 0.25 + off) % 1;
+        st.position.set(L.x0 + (L.x1 - L.x0) * k, y + Math.sin(t + off * 6) * 0.15, L.z);
+        st.material.opacity = 0.22;
+      }
+    },
+  };
+}
+
+// 西の壁の換気口（燻煙剤のときの逃げ場）
+function buildVents(g) {
+  const frame = new THREE.MeshStandardMaterial({ color: 0x8c949a, metalness: 0.6, roughness: 0.4 });
+  const slat = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.6 });
+  for (const s of SAFE_SPOTS) {
+    if (s.x > 0) continue;
+    const v = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 1.2), frame);
+    v.add(box);
+    for (let i = 0; i < 4; i++) {
+      const sl = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 1.05), slat);
+      sl.position.y = -0.24 + i * 0.16;
+      sl.rotation.z = 0.5;
+      v.add(sl);
+    }
+    v.position.set(-21.95, 0.4, s.z);
+    g.add(v);
+  }
 }
 
 // 出荷済みコンテナを荷台に積む位置
