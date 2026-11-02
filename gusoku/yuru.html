@@ -193,6 +193,8 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 .lt-sheet{background:#0b1a24}
 .lt-sheet .tabs span{font-size:12px;color:var(--dim);align-self:center;padding:0 4px}
 .lt-paper{margin-top:12px;background:#efe6d2;color:#3a2a1c;border-radius:4px;padding:16px 22px 26px;background-position:0 16px;background-image:repeating-linear-gradient(transparent 0 31px,rgba(120,90,60,.18) 31px 32px);box-shadow:inset 0 0 30px rgba(120,90,50,.18)}
+.lt-sketch{display:flex;justify-content:flex-end;align-items:flex-end;gap:6px;margin-top:6px;color:#7a5a3c;font-size:12px}
+.lt-sketch:empty{display:none}
 .lt-paper p{margin:0;white-space:pre-wrap;font-family:var(--f-display);font-size:16px;line-height:32px}
 .yuru .lt-paper{border-radius:16px;background-color:#fff4e0}
 #glowfx{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;background:radial-gradient(55% 45% at 50% 55%,rgba(255,236,180,.30),transparent 70%)}
@@ -536,7 +538,7 @@ body.kbd #tutchip{display:none}
 <div class="modal" id="letter" hidden>
   <div class="sheet lt-sheet" role="dialog" aria-labelledby="lt-title">
     <header><h3 id="lt-title">手紙</h3><div class="tabs"><button type="button" id="lt-prev">‹ 前</button><span id="lt-date"></span><button type="button" id="lt-next">次 ›</button><button type="button" id="lt-close">閉じる</button></div></header>
-    <div class="lt-paper"><p id="lt-text"></p></div>
+    <div class="lt-paper"><p id="lt-text"></p><div class="lt-sketch" id="lt-sketch"></div></div>
   </div>
 </div>
 <div id="fade"></div>
@@ -2290,7 +2292,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     if(this.dead||!started)return;
     // sleep by the player's own clock
     const want=isNight()&&!Molt.phase&&Date.now()>(S.wokeUntil||0)&&!Trouble.cur&&!Cine.on;
-    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on){if(S.stage>=1)say(S.stage===1?'……オヤスミ、ナサイ。':pickR(['……そろそろ眠ります。おやすみなさい。','今日は、このへんで。……おやすみなさい。']),{emo:'sleepy'});say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソっ君は眠りについた。夜のあいだは、そっとしておこう）',{narr:true})}ev('sleep')}
+    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on){if(S.stage>=1){const u=S.stage>=2&&Ureshii.line();say(S.stage===1?'……オヤスミ、ナサイ。':u?u+'……おやすみなさい。':pickR(['……そろそろ眠ります。おやすみなさい。','今日は、このへんで。……おやすみなさい。']),{emo:'sleepy'})}say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソっ君は眠りについた。夜のあいだは、そっとしておこう）',{narr:true})}ev('sleep')}
     if(!want&&this.asleep){this.asleep=false;const h=new Date().getHours();if(h>=6&&h<10&&S.morningSaid!==dkey()){S.morningSaid=dkey();this.morning()}}
     C.sleep=damp(C.sleep||0,this.asleep?1:0,1.2,dt);
     if(this.asleep){this.sleepT+=dt;C.curlT=Math.max(C.curlT,.16);
@@ -2900,7 +2902,7 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
       Mukae.go(h);
       const st=S.stage,n=mem('名前'),w=mem('仕事')||'',hr=new Date().getHours(),cow=/牛|肥育|畜産|牧場|酪農/.test(w);
       if(st>=2){
-        let line=h>=20?`……${h>=48?Math.round(h/24)+'日':h+'時間'}ぶりですね。忘れられたかと思いましたよ。`:h>=1?`……お戻りでしたか${n?'、'+n:''}${n?'さん':''}。${h}時間ぶりですね。`:'……まだいらしたのですか。';
+        let line=h>=20?`……${h>=48?Math.round(h/24)+'日':h+'時間'}ぶりですね。お忙しかったのですね。お待ちしていました。`:h>=1?`……お戻りでしたか${n?'、'+n:''}${n?'さん':''}。${h}時間ぶりですね。`:'……まだいらしたのですか。';
         if(h>=1){if(hr>=5&&hr<10)line+=cow?'朝の牛のお世話は済みましたか。':'朝は、陸の生き物もお忙しいようですね。';else if(hr>=17&&hr<22&&cow)line+='今日も牛は、よく食べましたか。'}
         say(line,{emo:'curious'});
       }else if(st===1)say(h>=20?'……キマシタ。……ズット、マッテマシタ。':'……キマシタ。',{emo:'curious'});
@@ -3940,7 +3942,7 @@ const Letter={i:0,
     return [hd,''].concat(L.map(l=>this.YU(l)),['',me+'より']).join('\n');
   },
   add(x){
-    if(S.stage<1)return;S.letters=S.letters||[];S.letters.push({d:dkey(),t:this.write(x)});if(S.letters.length>30)S.letters.shift();S.letterNew=1;save();
+    if(S.stage<1)return;S.letters=S.letters||[];S.letters.push({d:dkey(),t:this.write(x),mm:x.b.mm});if(S.letters.length>30)S.letters.shift();S.letterNew=1;save();
     if(started)setTimeout(()=>this.arrive(),9000);
   },
   arrive(){if(!S.letterNew||Life.dead)return;Sfx.letter();this.sync();say('（'+gname()+'から、手紙が届きました）',{narr:true})},
@@ -4388,7 +4390,7 @@ const Utatane={on:false,t:0,acc:0,v:0,
     if(this.on){this.t-=dt;if(this.t<0||Life.asleep||Life.dead)this.wake();else{C.state='idle';C.wait=40}}
     this.v=damp(this.v,this.on?1:0,this.on?.8:2.5,dt);if(this.v>.01)C.sleep=Math.max(C.sleep||0,this.v*.9)}
 };
-['feed','water','light','talk'].forEach(m=>{const f=Game[m];Game[m]=function(){Utatane.wake();return f.apply(this,arguments)}});
+['feed','water','light','talk'].forEach(m=>{const f=Game[m];Game[m]=function(){Utatane.wake();idleT=0;return f.apply(this,arguments)}});
 {const f=idleChatter;idleChatter=function(){if(Utatane.on)return;return f.apply(this,arguments)}}
 {const f=onTap;onTap=function(){Utatane.wake();return f.apply(this,arguments)}}
 {const f=updateCreature;updateCreature=function(dt,time){Utatane.pre(dt);f(dt,time);Mune.post(dt)}}
@@ -4554,10 +4556,51 @@ const Korobu={t:0,
 {const f=setState;setState=function(s){const r=f.apply(this,arguments);if(s==='walk')Korobu.maybe();return r}}
 {const f=updateCreature;updateCreature=function(dt,time){Nezou.pre(dt);f(dt,time);Nezou.post();Korobu.post(dt)}}
 
+/* =====================================================================
+   WELCOME BACK GENTLY — after three days or more away, today's care is just "talk to it".
+   ===================================================================== */
+const Hisashi={mins:0};
+{const f=Daily.gen;Daily.gen=function(){const r=f.apply(this,arguments);if(Hisashi.mins>=3*1440&&S.daily){S.daily.list=[{k:'talk',n:0}];S.daily.easy=1;save()}return r}}
+
+/* =====================================================================
+   COMING TO LOOK — opening the food menu brings it over to the glass to see what's coming.
+   ===================================================================== */
+$('btn-feed').addEventListener('click',()=>{
+  if(!started||!S||S.stage<1||Life.asleep||Life.dead||Game.molting||Molt.phase||Hashi.on||Nade.on||Utatane.on||foods.length||!['idle','walk'].includes(C.state))return;
+  Suna.out();C.face=Math.max(C.face,4);setState('walk',{target:new V3(camera.position.x*.35,0,clamp(camera.position.z*.4,-3,3))});
+  if(Math.random()<.5&&!typing&&!queue.length)say(S.stage===1?'……ゴハン、デスカ？':pickR(['……何をくださるのですか。','……おや。ごはんですか。']),{emo:'curious'})});
+
+/* =====================================================================
+   THE BEST PART OF TODAY — at bedtime it names what made it happy today, then says good night.
+   ===================================================================== */
+const Ureshii={
+  line(){const D=dkey(),ev=(S.events&&S.events[D])||[],has=c=>ev.find(e=>e.c===c),n=san(tkName())||'あなた';
+    const fav=Suki.fav&&Suki.fav(),fed=has('fed');
+    if(fed)return (fav&&Suki.N[fav]===fed.v?'今日は好物の':'今日は')+fed.v+'をいただけて、うれしかったです。';
+    if(S.og&&S.og.d===D&&S.og.done)return '今日は、おねがいを聞いていただけて、うれしかったです。';
+    if(S.nade&&S.nade.d===D&&S.nade.n>0)return '今日は、なでていただけて、うれしかったです。';
+    if(has('molt'))return '今日は、殻を脱げて、すっきりしました。';
+    const t=has('talk');if(t&&(t.n||1)>=3)return '今日は、'+n+'とたくさんお話しできて、うれしかったです。';
+    if(t)return '今日も、'+n+'とお話しできました。';
+    return null}
+};
+
+/* =====================================================================
+   A SMALL SKETCH IN THE LETTER — the corner of each weekly letter shows the size it was that week.
+   ===================================================================== */
+const Sashie={
+  svg(mm){const s=mm/128,w=Math.round(40+80*s);
+    if(VARIANT==='yuru'){const h=Math.round(w*1.15);return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 100 115" aria-hidden="true"><g fill="none" stroke="#7a4a26" stroke-width="3" stroke-linecap="round"><ellipse cx="50" cy="66" rx="32" ry="38" fill="#e9c08f"/><circle cx="50" cy="30" r="24" fill="#e9c08f"/><path d="M27 24q23-10 46 0" stroke="#fff" stroke-width="7"/><path d="M27 24q23-10 46 0"/><circle cx="42" cy="32" r="3" fill="#3a2a1c"/><circle cx="58" cy="32" r="3" fill="#3a2a1c"/><path d="M30 60q20 6 40 0M30 75q20 6 40 0M32 90q18 5 36 0"/><path d="M38 104v8M62 104v8"/></g></svg>'}
+    const h=Math.round(w*.6),seg=[];for(let i=1;i<7;i++){const x=(w*(.2+i*.1)).toFixed(1);seg.push('<path d="M'+x+' '+(h*.12).toFixed(1)+'Q'+(+x+3)+' '+(h/2).toFixed(1)+' '+x+' '+(h*.88).toFixed(1)+'"/>')}
+    return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" aria-hidden="true"><g fill="rgba(122,90,60,.12)" stroke="#7a5a3c" stroke-width="1.6" stroke-linecap="round"><ellipse cx="'+(w/2)+'" cy="'+(h/2)+'" rx="'+(w/2-2)+'" ry="'+(h/2-2)+'"/>'+seg.join('')+'<path d="M2 '+(h*.4)+'l-1 -8M2 '+(h*.6)+'l-1 8" fill="none"/></g></svg>'},
+  show(x){const el=$('lt-sketch');if(!x||!x.mm){el.innerHTML='';return}el.innerHTML=this.svg(x.mm)+'<span>'+x.mm+'mm</span>'}
+};
+{const f=Letter.render;Letter.render=function(){const r=f.apply(this,arguments);try{Sashie.show((S.letters||[])[this.i])}catch(e){}return r}}
+
 let started=false;
 function boot(){
   load();
-  const away=(Date.now()-S.last)/60000;Daily.pre(away);if(S.hatched)Offline.run(away);
+  const away=(Date.now()-S.last)/60000;Daily.pre(away);Hisashi.mins=away;if(S.hatched)Offline.run(away);
   buildTextures();
   scene.environment=makeEnv();
   buildTerrain();buildRocks();buildPebbles();buildShafts();buildBubbles();buildSediment();buildSurface();
@@ -4578,7 +4621,7 @@ function boot(){
   if(!S.hatched){ISO.root.visible=false;ISO.contact.visible=false}
   requestAnimationFrame(loop);
 }
-let last=performance.now(),acc=0,hudT=0,idleT=0,nextIdle=45;
+let last=performance.now(),acc=0,hudT=0,idleT=0,nextIdle=90;
 let lastDraw=0;
 function loop(now){
   requestAnimationFrame(loop);
@@ -4615,7 +4658,7 @@ function loop(now){
     Life.update(dt,time);
     hudT+=dt;if(hudT>1){hudT=0;refreshHUD()}
     idleT+=dt;
-    if(idleT>nextIdle&&!window.__cmQuiet&&!typing&&!aiBusy&&!Life.asleep&&!Life.dead&&!Dream.on&&!Photo.on){idleT=0;nextIdle=50+Math.random()*70;idleChatter()}
+    if(idleT>nextIdle&&!window.__cmQuiet&&!typing&&!aiBusy&&!Life.asleep&&!Life.dead&&!Dream.on&&!Photo.on){idleT=0;nextIdle=150+Math.random()*150;idleChatter()}
   }
   World.update(dt,time);
   frameView(dt);
@@ -4766,7 +4809,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Boushi,Kira,Nezou,Omoide,Tanjo,Korobu,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Boushi,Kira,Nezou,Omoide,Tanjo,Korobu,Hisashi,Ureshii,Sashie,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
