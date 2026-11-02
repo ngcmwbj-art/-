@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>ゴキブリ大作戦 パプリカハウス</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="c" aria-label="ゲーム画面"></canvas>
+  <div id="labels"></div>
+  <div id="dmg"></div>
+
+  <div id="hud" hidden>
+    <div class="hud-tl">
+      <div class="card timer" id="timerCard"><small>トラック出発まで</small><span id="timer">5:00</span></div>
+      <div class="card">
+        <div class="score-row"><span>ダメにした</span><b id="ruined">0</b><span>/ <span id="target">8</span> 箱</span></div>
+        <div class="pips" id="pips"></div>
+        <div class="score-row ship"><span>出荷された</span><b id="shipped">0</b><span>箱</span></div>
+      </div>
+    </div>
+    <div class="hud-tr">
+      <div class="card farmer-card">
+        <div class="f-state" id="fstate" data-s="WORK"><span class="f-icon" id="ficon">…</span><span id="ftext">作業中</span></div>
+        <div class="bar"><i id="susp"></i></div>
+        <div class="anger">怒り <b id="anger"></b></div>
+      </div>
+      <canvas id="minimap" width="352" height="224" aria-label="ハウスの地図"></canvas>
+    </div>
+    <div class="hud-bl card">
+      <div class="stat"><span>体力</span><div class="bar" id="hpBar"><i></i></div></div>
+      <div class="stat"><span>栄養</span><div class="bar" id="nutBar"><i></i></div></div>
+      <div class="allies">仲間 <b id="allies">0</b> 匹<span id="eggsTxt"></span>　<span class="kb-only">突撃 <span id="atkTxt">OK</span></span></div>
+    </div>
+    <div class="cmds">
+      <button class="cmd" data-cmd="search" id="cmd-search"><kbd>1</kbd>探索</button>
+      <button class="cmd" data-cmd="decoy" id="cmd-decoy"><kbd>2</kbd>囮</button>
+      <button class="cmd on" data-cmd="follow" id="cmd-follow"><kbd>3</kbd>集合</button>
+    </div>
+    <div id="prompt" hidden></div>
+    <div id="greed" hidden><div>がっつきゲージ</div><div class="gbar"><i></i></div><div class="crate-left" id="crateLeft"></div></div>
+    <div id="struggle" hidden>ホイホイから脱出！<div class="bar"><i></i></div></div>
+    <div id="hint" hidden></div>
+    <div id="toasts"></div>
+    <button id="pauseBtn" aria-label="一時停止">II</button>
+  </div>
+
+  <div id="touch" hidden>
+    <div class="joy-zone"><div class="joy-base"><div class="joy-knob"></div></div></div>
+    <div class="tbtns">
+      <button class="tbtn t-dash" data-act="dashhint" tabindex="-1">端まで<br>倒すと<br>ダッシュ</button>
+      <button class="tbtn t-egg" data-act="egg" tabindex="-1">産卵</button>
+      <button class="tbtn t-attack" data-act="attack" tabindex="-1">突撃</button>
+      <button class="tbtn big" data-act="action" id="tAction" tabindex="-1">食べる</button>
+    </div>
+  </div>
+
+  <section id="title" class="screen">
+    <div class="sheet">
+      <h1 class="logo"><span class="k1">ゴキブリ大作戦</span><span class="k2">パプリカハウス</span></h1>
+      <p class="lead">夜明けまでに、収穫したパプリカのコンテナをかじってダメにしろ。農場主は殺虫剤とホイホイで待ちかまえている。食べて、卵を産んで、仲間と出荷トラックが出る前に勝負をつけよう。</p>
+      <div class="diffs">
+        <button class="diff" data-diff="easy"><b>やさしい</b><span>6箱・5分30秒</span><em id="best-easy"></em></button>
+        <button class="diff main" data-diff="normal"><b>ふつう</b><span>8箱・5分</span><em id="best-normal"></em></button>
+        <button class="diff" data-diff="hard"><b>むずかしい</b><span>10箱・4分30秒</span><em id="best-hard"></em></button>
+      </div>
+      <div class="opts">
+        <label><input type="checkbox" id="optHints" checked> ヒントを出す</label>
+        <label><input type="checkbox" id="optSound" checked> 音を鳴らす</label>
+      </div>
+      <details class="howto" id="howto">
+        <summary>遊びかた</summary>
+        <div class="body">
+          <div><h3>勝ち負け</h3><ul>
+            <li>目標の数のコンテナをかじりつくしたら勝ち。</li>
+            <li>トラックが出るか、出荷されすぎて目標に届かなくなったら負け。</li>
+          </ul></div>
+          <div><h3>こっそり食べる</h3><ul>
+            <li>食べるボタンを長く押すほど早く食べられる。でも「がっつきゲージ」が赤までいくとバリッと音が出てバレる。押す・離すをくり返そう。</li>
+            <li>地面の扇形が農場主の視界。畝の葉の下や台の下に入ってじっとしていれば見つかりにくい。</li>
+          </ul></div>
+          <div><h3>仲間をふやす</h3><ul>
+            <li>栄養が満タンで産卵。卵は少したつと3匹の仲間になる。目立つ所の卵は踏みつぶされる。</li>
+            <li>「探索」は自分でエサを探して食べる。「囮」は農場主の前をうろついて気を引く。「集合」は後ろについてくる。</li>
+            <li>自分がやられても、仲間がいればその1匹に乗りかわって続けられる。</li>
+          </ul></div>
+          <div><h3>反撃</h3><ul>
+            <li>農場主の足もとで「突撃」すると顔に飛びつき、しばらくパニックにできる。運んでいたコンテナも落とす。そのかわり怒ってわなが増える。</li>
+            <li>ホイホイにくっついたら食べるボタンを連打。捕まった仲間は近くで押すと助けられる。</li>
+          </ul></div>
+          <div class="keys kb-only">
+            <kbd>W A S D</kbd><span>移動（矢印キーでも）</span>
+            <kbd>Shift</kbd><span>ダッシュ（足音で気づかれやすい）</span>
+            <kbd>マウスドラッグ / Q E</kbd><span>視点をまわす</span>
+            <kbd>Space</kbd><span>食べる（長押し）・台に登る・脱出</span>
+            <kbd>F</kbd><span>突撃</span>
+            <kbd>R</kbd><span>産卵</span>
+            <kbd>1 2 3</kbd><span>仲間に指示（探索・囮・集合）</span>
+            <kbd>Esc / P</kbd><span>一時停止</span>
+          </div>
+          <p class="touch-only">左下を指でなぞって移動（端まで倒すとダッシュ）、右側をなぞって視点を回します。</p>
+        </div>
+      </details>
+      <p class="credit">3D描画：three.js（MIT License）</p>
+    </div>
+  </section>
+
+  <section id="pause" class="screen" hidden>
+    <div class="sheet">
+      <h2 class="rtitle">一時停止中</h2>
+      <div class="row">
+        <button class="btn primary" id="btnResume">続ける</button>
+        <button class="btn" id="btnRetry">最初から</button>
+        <button class="btn" id="btnTitle">タイトルへ</button>
+      </div>
+      <p class="tip" id="pauseTip"></p>
+    </div>
+  </section>
+
+  <section id="result" class="screen" hidden>
+    <div class="sheet">
+      <h2 class="rtitle" id="rTitle"></h2>
+      <p class="lead" id="rReason"></p>
+      <div class="rank"><div class="r" id="rRank">A</div><div class="s">スコア<br><b id="rScore">0</b><br><span id="rBest"></span></div></div>
+      <dl class="rstats" id="rStats"></dl>
+      <p class="tip" id="rTip"></p>
+      <div class="row">
+        <button class="btn primary" id="btnAgain">もう一度</button>
+        <button class="btn" id="btnTitle2">タイトルへ</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="err" hidden></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
