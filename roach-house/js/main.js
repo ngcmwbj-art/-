@@ -50,7 +50,7 @@ renderer.toneMappingExposure = 0.95;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, 1, 0.03, 400);
 const L0 = LEVELS[startLevel];
-const world = buildWorld(scene, renderer, { shadow: L0.shadow, dust: L0.dust, shafts: L0.shafts });
+const world = buildWorld(scene, renderer, { shadow: L0.shadow, dust: L0.dust, shafts: L0.shafts, leaves: L0.leaves });
 const fx = new FX(renderer, scene, camera);
 fx.setLevel(startLevel);
 const autoQ = new AutoQuality(fx, (lvl, fps) => {
@@ -286,10 +286,12 @@ const camState = { yaw: 0, pitch: 0.36, dist: 3.3, pos: new THREE.Vector3(), loo
 window.__rh.cam = camState;
 function updateCamera(dt) {
   if (game.state === 'title' || !game.player) {
+    // タイトル：人の目の高さで通路をゆっくり進む（写真のような眺め）
     const t = performance.now() / 1000;
-    const a = t * 0.06;
-    camera.position.set(Math.cos(a) * 30, 15, Math.sin(a) * 22);
-    camera.lookAt(2, 1.5, 0);
+    const k = (t * 0.035) % 1;
+    const x = 4.5 - k * 20;
+    camera.position.set(x, 4.3 + Math.sin(t * 0.3) * 0.15, -2.5 + Math.sin(t * 0.17) * 0.3);
+    camera.lookAt(x - 8, 3.4, -2.5 + Math.sin(t * 0.11) * 0.6);
     return;
   }
   const info = game.camInfo();

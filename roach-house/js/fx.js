@@ -10,9 +10,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // 画質ごとの設定
 export const LEVELS = {
-  high: { label: '高', dpr: 1.75, shadow: 4096, ao: true, dof: true, bloom: true, grade: true, samples: 4, tex: 512, dust: 700, shafts: true },
-  medium: { label: '中', dpr: 1.35, shadow: 2048, ao: false, dof: false, bloom: true, grade: true, samples: 2, tex: 512, dust: 350, shafts: true },
-  low: { label: '低', dpr: 1.0, shadow: 1024, ao: false, dof: false, bloom: false, grade: false, samples: 0, tex: 256, dust: 120, shafts: false },
+  high: { label: '高', dpr: 1.75, shadow: 4096, ao: true, dof: true, bloom: true, grade: true, samples: 4, tex: 512, dust: 700, shafts: true, leaves: 26 },
+  medium: { label: '中', dpr: 1.35, shadow: 2048, ao: false, dof: false, bloom: true, grade: true, samples: 2, tex: 512, dust: 350, shafts: true, leaves: 18 },
+  low: { label: '低', dpr: 1.0, shadow: 1024, ao: false, dof: false, bloom: false, grade: false, samples: 0, tex: 256, dust: 120, shafts: false, leaves: 10 },
 };
 export const ORDER = ['low', 'medium', 'high'];
 
@@ -24,7 +24,7 @@ const GradeShader = {
     uRes: { value: new THREE.Vector2(1, 1) },
     uVignette: { value: 0.32 },
     uGrain: { value: 0.02 },
-    uCA: { value: 0.0008 },
+    uCA: { value: 0.0004 },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;

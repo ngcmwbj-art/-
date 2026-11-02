@@ -269,10 +269,10 @@ function buildPlants(g, q) {
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
   const up = new THREE.Vector3(0, 1, 0);
-  const stemGeo = new THREE.CylinderGeometry(0.03, 0.055, 1, 5);
+  const stemGeo = new THREE.CylinderGeometry(0.016, 0.03, 1, 5);
   stemGeo.translate(0, 0.5, 0);
-  const stemMesh = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x3f6a22, roughness: 0.7 }), stems.length);
-  const strGeo = new THREE.CylinderGeometry(0.008, 0.008, 1, 3);
+  const stemMesh = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x35571c, roughness: 0.7 }), stems.length);
+  const strGeo = new THREE.CylinderGeometry(0.011, 0.011, 1, 3);
   strGeo.translate(0, 0.5, 0);
   const strMesh = new THREE.InstancedMesh(strGeo, new THREE.MeshBasicMaterial({ color: 0xf2efe4 }), stems.length);
   const place = (mesh, i, a, b, r = 1) => {
@@ -303,13 +303,16 @@ function buildPlants(g, q) {
       const pos = s.base.clone().lerp(s.top, t);
       dummy.position.copy(pos);
       dummy.quaternion.identity();
-      dummy.rotation.set(0, j * 2.39 + rand() * 0.7, 0);
-      dummy.rotateZ(randRange(-0.1, 0.5));
-      const sc = randRange(0.8, 1.35) * (1.05 - t * 0.35);
+      dummy.position.x += randRange(-0.12, 0.12);
+      dummy.position.z += randRange(-0.12, 0.12);
+      dummy.rotation.set(0, j * 2.39 + rand() * 1.2, 0);
+      dummy.rotateZ(randRange(-0.45, 0.75));
+      dummy.rotateX(randRange(-0.5, 0.5));
+      const sc = randRange(0.5, 0.85) * (1.05 - t * 0.3);
       dummy.scale.setScalar(sc);
       dummy.updateMatrix();
       leaves.setMatrixAt(k, dummy.matrix);
-      col.setHSL(0.27 + rand() * 0.04, 0.5 + rand() * 0.15, 0.2 + rand() * 0.12);
+      col.setHSL(0.26 + rand() * 0.05, 0.48 + rand() * 0.2, 0.26 + rand() * 0.16);
       leaves.setColorAt(k, col);
       k++;
     }
