@@ -14,6 +14,7 @@ const path = require('path');
   await page.route('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js', (r) => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(root, 'vendor/three.module.min.js')) }));
   await page.route('https://artifact.test/', (r) => r.fulfill({ contentType: 'text/html', body: page0 }));
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await page.addInitScript(() => { try { localStorage.setItem('roachhouse.quality', '"low"'); } catch (_) {} });
   await page.goto('https://artifact.test/');
   await page.waitForFunction(() => window.__rh && window.__rh.game, null, { timeout: 15000 });
   await page.click('[data-diff="normal"]');
