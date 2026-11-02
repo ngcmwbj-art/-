@@ -184,7 +184,7 @@ function buildGround(g) {
   // 黒マルチ（しわのあるビニール）と点滴チューブ
   const M = TX.mulch();
   M.normal.repeat.set(28, 3);
-  const mulchMat = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.32, metalness: 0.05, normalMap: M.normal, normalScale: new THREE.Vector2(0.3, 0.3) });
+  const mulchMat = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.55, envMapIntensity: 0.5, metalness: 0.05, normalMap: M.normal, normalScale: new THREE.Vector2(0.3, 0.3) });
   const tubeMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.25 });
   for (const r of ROWS) {
     const len = r.x1 - r.x0 + 0.6;

@@ -21,7 +21,7 @@ function roachMats() {
   if (RM) return RM;
   const A = TX.roachAbdomen(), Wg = TX.roachWing();
   const chitin = (color, extra = {}) => new THREE.MeshPhysicalMaterial({
-    color, roughness: 0.42, metalness: 0, clearcoat: 0.75, clearcoatRoughness: 0.16, envMapIntensity: 0.6, ...extra,
+    color, roughness: 0.45, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.12, envMapIntensity: 0.3, ...extra,
   });
   RM = {
     abd: chitin(0xffffff, { map: A.map, normalMap: A.normal, normalScale: new THREE.Vector2(0.8, 0.8) }),
