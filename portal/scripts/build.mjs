@@ -99,10 +99,10 @@ const portal = `
       <label class="gp-search">${icon.search}
         <input type="search" placeholder="ゲーム名・タグで探す" aria-label="ゲーム名・タグで探す" autocomplete="off" enterkeyhint="search">
       </label>
-      <fieldset class="gp-chips" aria-label="ジャンルで絞り込む">
+      <div class="gp-chips" role="group" aria-label="ジャンルで絞り込む">
         <button class="gp-chip" type="button" data-genre="all" aria-pressed="true">すべて <small>${games.length}</small></button>
         ${genres.map((ge) => `<button class="gp-chip" type="button" data-genre="${esc(ge)}" aria-pressed="false">${esc(ge)} <small>${games.filter((g) => g.genre === ge).length}</small></button>`).join('\n        ')}
-      </fieldset>
+      </div>
     </div>
     <p class="gp-count" aria-live="polite">${games.length}本を表示中</p>
     <ul class="gp-grid">${games.map(card).join('')}

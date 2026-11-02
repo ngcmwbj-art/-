@@ -6,7 +6,7 @@
       <label class="gp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input type="search" placeholder="ゲーム名・タグで探す" aria-label="ゲーム名・タグで探す" autocomplete="off" enterkeyhint="search">
       </label>
-      <fieldset class="gp-chips" aria-label="ジャンルで絞り込む">
+      <div class="gp-chips" role="group" aria-label="ジャンルで絞り込む">
         <button class="gp-chip" type="button" data-genre="all" aria-pressed="true">すべて <small>7</small></button>
         <button class="gp-chip" type="button" data-genre="パズル" aria-pressed="false">パズル <small>1</small></button>
         <button class="gp-chip" type="button" data-genre="ローグライク" aria-pressed="false">ローグライク <small>1</small></button>
@@ -14,7 +14,7 @@
         <button class="gp-chip" type="button" data-genre="育成" aria-pressed="false">育成 <small>2</small></button>
         <button class="gp-chip" type="button" data-genre="タワーディフェンス" aria-pressed="false">タワーディフェンス <small>1</small></button>
         <button class="gp-chip" type="button" data-genre="RPG" aria-pressed="false">RPG <small>1</small></button>
-      </fieldset>
+      </div>
     </div>
     <p class="gp-count" aria-live="polite">7本を表示中</p>
     <ul class="gp-grid">

@@ -13,6 +13,8 @@ const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gestur
 const VIEWS = [
   { name: 'pc', viewport: { width: 1280, height: 860 } },
   { name: 'tab', viewport: { width: 820, height: 1100 }, isMobile: true, hasTouch: true },
+  { name: 'ipad-mini', viewport: { width: 744, height: 1133 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  { name: 'ipad-768', viewport: { width: 768, height: 1024 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'sp', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'sp-narrow', viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'sp-landscape', viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
