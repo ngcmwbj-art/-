@@ -400,3 +400,41 @@ export const grass = () => once('grass', () => {
   });
   return tex(c);
 });
+
+// 青い粘着シート（アザミウマ用）
+export const stickyCardBlue = () => once('stickyBlue', () => {
+  const c = canvas(64, 128);
+  const x = c.getContext('2d');
+  x.fillStyle = '#1f6fd1'; x.fillRect(0, 0, 64, 128);
+  x.strokeStyle = 'rgba(255,255,255,0.25)';
+  for (let i = 0; i < 128; i += 12) { x.beginPath(); x.moveTo(0, i); x.lineTo(64, i); x.stroke(); }
+  x.fillStyle = '#111';
+  for (let i = 0; i < 18; i++) { x.beginPath(); x.arc(Math.random() * 64, Math.random() * 128, 0.7 + Math.random() * 1.2, 0, 6.3); x.fill(); }
+  return tex(c, true, false);
+});
+// 白い防草シート（織り目・少しのよごれ）
+export const groundSheet = () => once('sheet', () => {
+  const w = S, h = S;
+  const H = new Float32Array(w * h);
+  const c = fromField(w, h, (u, v, i, j) => {
+    const weave = ((i >> 1) % 2) ^ ((j >> 1) % 2) ? 1 : 0;
+    const dirt = clamp01((fbm(u * 5, v * 5, 5, 5) - 0.45) * 2.2);
+    const n = noise(u * 70, v * 70, 70);
+    H[j * w + i] = weave * 0.5 + n * 0.3;
+    const l = (0.88 + weave * 0.06 + n * 0.05) * (1 - dirt * 0.28);
+    return [236 * l, 234 * l, 226 * l * (1 - dirt * 0.08)];
+  });
+  return { map: tex(c), normal: normalFromHeight(H, w, h, 1.2) };
+});
+// 栽培槽の白い発泡（細かな粒）
+export const foam = () => once('foam', () => {
+  const w = 256, h = 128;
+  const H = new Float32Array(w * h);
+  const c = fromField(w, h, (u, v, i, j) => {
+    const n = noise(u * 90, v * 45, 90), d = clamp01((fbm(u * 4, v * 2, 4, 4) - 0.5) * 2);
+    H[j * w + i] = n;
+    const l = (0.9 + n * 0.1) * (1 - d * 0.18);
+    return [238 * l, 238 * l, 232 * l];
+  });
+  return { map: tex(c), normal: normalFromHeight(H, w, h, 1.5) };
+});

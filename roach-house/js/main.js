@@ -313,13 +313,13 @@ function updateCamera(dt) {
   // 株の中にカメラが入らないよう、近づけるか葉の下まで下げる
   if (!info.underRow) {
     let dd = d;
-    while (dd > 0.9 && rowAt(cx, cz, 0.35) && cy > 0.9) {
+    while (dd > 0.9 && rowAt(cx, cz, 0.35) && cy > 0.75) {
       dd -= 0.15;
       cx = info.x - fx * Math.cos(pitch) * dd;
       cz = info.z - fz * Math.cos(pitch) * dd;
       cy = ty + Math.sin(pitch) * dd;
     }
-    if (rowAt(cx, cz, 0.35) && cy > 0.9) cy = 0.85;
+    if (rowAt(cx, cz, 0.35) && cy > 0.75) cy = 0.7;
   }
   cx = clamp(cx, -21.75, 21.75);
   cz = clamp(cz, -13.75, 13.75);

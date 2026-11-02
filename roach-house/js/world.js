@@ -128,7 +128,7 @@ export function buildWorld(scene, renderer, q) {
   scene.add(bounce);
 
   buildGround(g);
-  buildPlants(g);
+  buildPlants(g, q);
   buildHouse(g);
   buildTables(g);
   buildProps(g);
@@ -152,130 +152,162 @@ export function buildWorld(scene, renderer, q) {
   };
 }
 
+// ---------- 床・栽培槽・暖房パイプ ----------
+// 本物のパプリカハウス：白い防草シートの床、腰の高さの白い栽培槽（下はすき間）、
+// 通路には温水の暖房パイプ。作業場はコンクリート
+export const TROUGH = { top: 1.4, bottom: 0.9, w: 1.1 };
+export const EAVE = 6.5;
+const SPAN_RISE = 2.2;
+const SPANS = [-28 / 3, 0, 28 / 3];
+const SPAN_HALF = 14 / 3;
+
 function buildGround(g) {
-  const D = TX.dirt();
-  for (const k of ['map', 'normal', 'rough']) D[k].repeat.set(11, 7);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(44, 28), new THREE.MeshStandardMaterial({
-    map: D.map, normalMap: D.normal, roughnessMap: D.rough, roughness: 1, normalScale: new THREE.Vector2(0.6, 0.6),
+  const GS = TX.groundSheet();
+  GS.map.repeat.set(9, 10); GS.normal.repeat.set(9, 10);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(26, 28), new THREE.MeshStandardMaterial({
+    map: GS.map, normalMap: GS.normal, roughness: 0.85, normalScale: new THREE.Vector2(0.4, 0.4),
   }));
   floor.rotation.x = -Math.PI / 2;
+  floor.position.set(-9, 0, 0);
   floor.receiveShadow = true;
   g.add(floor);
 
   const C = TX.concrete();
   C.map.repeat.set(3, 5); C.normal.repeat.set(3, 5);
-  const conc = new THREE.Mesh(new THREE.PlaneGeometry(17, 28), new THREE.MeshStandardMaterial({
-    map: C.map, normalMap: C.normal, roughness: 0.82, normalScale: new THREE.Vector2(0.6, 0.6),
+  const conc = new THREE.Mesh(new THREE.PlaneGeometry(18, 28), new THREE.MeshStandardMaterial({
+    map: C.map, normalMap: C.normal, roughness: 0.82, normalScale: new THREE.Vector2(0.5, 0.5),
   }));
   conc.rotation.x = -Math.PI / 2;
-  conc.position.set(13.5, 0.006, 0);
+  conc.position.set(13, 0.006, 0);
   conc.receiveShadow = true;
   g.add(conc);
-  // 水たまり（朝日を映す）
-  const puddleMat = new THREE.MeshStandardMaterial({ color: 0x3a3229, roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.32, depthWrite: false });
-  for (const [x, z, s] of [[-19.6, 4, 1.1], [-19.4, -6, 0.8], [4.2, 2.5, 0.7]]) {
-    const p = new THREE.Mesh(new THREE.CircleGeometry(1, 28), puddleMat);
-    p.rotation.x = -Math.PI / 2;
-    p.scale.set(s * 1.4, s, 1);
-    p.position.set(x, 0.012, z);
-    p.receiveShadow = true;
-    g.add(p);
-  }
+  const puddle = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshStandardMaterial({ color: 0x3a3229, roughness: 0.04, transparent: true, opacity: 0.3, depthWrite: false }));
+  puddle.rotation.x = -Math.PI / 2;
+  puddle.scale.set(1.3, 0.8, 1);
+  puddle.position.set(5.2, 0.013, 2.5);
+  g.add(puddle);
 
-  // 黒マルチ（しわのあるビニール）と点滴チューブ
-  const M = TX.mulch();
-  M.normal.repeat.set(28, 3);
-  const mulchMat = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.55, envMapIntensity: 0.5, metalness: 0.05, normalMap: M.normal, normalScale: new THREE.Vector2(0.3, 0.3) });
-  const tubeMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.25 });
+  // 栽培槽（白い発泡の箱を脚で持ち上げる。上に培地と点滴チューブ）
+  const F = TX.foam();
+  F.map.repeat.set(12, 1); F.normal.repeat.set(12, 1);
+  const foamMat = new THREE.MeshStandardMaterial({ map: F.map, normalMap: F.normal, roughness: 0.8 });
+  const slabMat = new THREE.MeshStandardMaterial({ color: 0xe9e6dc, roughness: 0.55 });
+  const tubeMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.3 });
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x5b6066, metalness: 0.7, roughness: 0.45 });
+  const legGeo = new THREE.CylinderGeometry(0.035, 0.035, TROUGH.bottom, 6);
+  const legPos = [];
   for (const r of ROWS) {
-    const len = r.x1 - r.x0 + 0.6;
-    const ridge = new THREE.Mesh(new THREE.BoxGeometry(len, 0.16, r.hw * 2 + 0.3, 1, 1, 1), mulchMat);
-    ridge.position.set((r.x0 + r.x1) / 2, 0.08, r.z);
-    ridge.receiveShadow = true;
-    g.add(ridge);
-    for (const dz of [-0.35, 0.35]) {
-      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 8), tubeMat);
+    const len = r.x1 - r.x0 + 0.6, cx = (r.x0 + r.x1) / 2;
+    const h = TROUGH.top - TROUGH.bottom;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(len, h, TROUGH.w), foamMat);
+    box.position.set(cx, TROUGH.bottom + h / 2, r.z);
+    box.castShadow = true; box.receiveShadow = true;
+    g.add(box);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(len - 0.2, 0.08, TROUGH.w - 0.3), slabMat);
+    slab.position.set(cx, TROUGH.top + 0.04, r.z);
+    slab.receiveShadow = true;
+    g.add(slab);
+    for (const dz of [-0.3, 0.3]) {
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, len, 6), tubeMat);
       tube.rotation.z = Math.PI / 2;
-      tube.position.set((r.x0 + r.x1) / 2, 0.19, r.z + dz);
-      tube.castShadow = true;
+      tube.position.set(cx, TROUGH.top + 0.1, r.z + dz);
       g.add(tube);
     }
+    for (let x = r.x0 - 0.1; x <= r.x1 + 0.2; x += 1.8) for (const dz of [-0.45, 0.45]) legPos.push([x, r.z + dz]);
+  }
+  const legs = new THREE.InstancedMesh(legGeo, legMat, legPos.length);
+  const d = new THREE.Object3D();
+  legPos.forEach(([x, z], i) => { d.position.set(x, TROUGH.bottom / 2, z); d.updateMatrix(); legs.setMatrixAt(i, d.matrix); });
+  legs.castShadow = true;
+  g.add(legs);
+
+  // 暖房パイプ（通路の床ぎわに2本ずつ）
+  const pipeMat = new THREE.MeshStandardMaterial({ color: 0xd7dadc, metalness: 0.9, roughness: 0.3 });
+  const aisles = [-12.6, -7.5, -2.5, 2.5, 7.5, 12.6];
+  for (const z of aisles) for (const dz of [-0.4, 0.4]) {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 21.6, 10), pipeMat);
+    p.rotation.z = Math.PI / 2;
+    p.position.set(-7.5, 0.16, z + dz);
+    p.castShadow = true;
+    g.add(p);
   }
 }
 
 function leafGeometry() {
-  const geo = new THREE.PlaneGeometry(1, 0.46, 8, 4);
+  const geo = new THREE.PlaneGeometry(1, 0.5, 5, 2);
   geo.translate(0.5, 0, 0);
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i);
     const wf = Math.pow(Math.sin(Math.PI * Math.pow(x, 0.75)), 0.9) * (x < 0.06 ? x / 0.06 : 1);
     const ny = y * wf;
-    const z = -Math.abs(ny) * 0.55 - x * x * 0.22;
-    p.setXYZ(i, x, ny, z);
+    p.setXYZ(i, x, ny, -Math.abs(ny) * 0.45 - x * x * 0.3);
   }
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
   return geo;
 }
 
-function buildPlants(g) {
-  const plants = [];
+// ---------- パプリカの株（人の背より高く、葉が壁のように茂る） ----------
+function buildPlants(g, q) {
+  const dense = q.plants || 1;
+  const stems = [];
   for (const r of ROWS) {
-    for (let x = r.x0 + 0.6; x <= r.x1 - 0.4; x += 1.3) {
-      plants.push({ x: x + randRange(-0.12, 0.12), z: r.z + randRange(-0.15, 0.15) });
+    for (const side of [-1, 1]) {
+      for (let x = r.x0 + 0.3; x <= r.x1 - 0.2; x += 0.65 / dense) {
+        // V字仕立て：株ごとに2本の茎を、それぞれのひもに沿わせて外側へ少し傾ける
+        for (const k of [-1, 1]) {
+          const bx = x + k * 0.1 + randRange(-0.05, 0.05), bz = r.z + side * 0.3;
+          const top = new THREE.Vector3(bx + k * 0.15, randRange(5.6, 6.1), bz + side * randRange(0.25, 0.55));
+          stems.push({ base: new THREE.Vector3(bx, TROUGH.top + 0.05, bz), top, side });
+        }
+      }
     }
   }
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
-  // 茎：1株を2本仕立てにして、それぞれひもで吊る
-  const stemGeo = new THREE.CylinderGeometry(0.035, 0.07, 1, 6);
+  const up = new THREE.Vector3(0, 1, 0);
+  const stemGeo = new THREE.CylinderGeometry(0.03, 0.055, 1, 5);
   stemGeo.translate(0, 0.5, 0);
-  const stems = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x4d7a2c, roughness: 0.7 }), plants.length * 3);
-  const strGeo = new THREE.CylinderGeometry(0.01, 0.01, 1, 3);
+  const stemMesh = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x3f6a22, roughness: 0.7 }), stems.length);
+  const strGeo = new THREE.CylinderGeometry(0.008, 0.008, 1, 3);
   strGeo.translate(0, 0.5, 0);
-  const strings = new THREE.InstancedMesh(strGeo, new THREE.MeshStandardMaterial({ color: 0xe9e4d4, roughness: 0.9 }), plants.length * 2);
-  const tips = [];
-  let si = 0, ti = 0;
-  for (const p of plants) {
-    dummy.position.set(p.x, 0.16, p.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1.2, 1); dummy.updateMatrix();
-    stems.setMatrixAt(si++, dummy.matrix);
-    for (const s of [-1, 1]) {
-      const tilt = 0.13 * s;
-      dummy.position.set(p.x, 1.3, p.z);
-      dummy.rotation.set(tilt, 0, randRange(-0.05, 0.05));
-      dummy.scale.set(0.85, 3.4, 0.85);
-      dummy.updateMatrix();
-      stems.setMatrixAt(si++, dummy.matrix);
-      const tip = new THREE.Vector3(0, 3.4, 0).applyEuler(dummy.rotation).add(dummy.position);
-      tips.push({ base: dummy.position.clone(), tip, s, p });
-      dummy.position.copy(tip); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 7.6 - tip.y, 1); dummy.updateMatrix();
-      strings.setMatrixAt(ti++, dummy.matrix);
-    }
-  }
-  stems.castShadow = true;
-  g.add(stems, strings);
+  const strMesh = new THREE.InstancedMesh(strGeo, new THREE.MeshBasicMaterial({ color: 0xf2efe4 }), stems.length);
+  const place = (mesh, i, a, b, r = 1) => {
+    const dir = b.clone().sub(a);
+    dummy.position.copy(a);
+    dummy.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+    dummy.scale.set(r, dir.length(), r);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+  };
+  stems.forEach((s, i) => {
+    place(stemMesh, i, s.base, s.top);
+    place(strMesh, i, s.base.clone().add(new THREE.Vector3(0.03, 0, 0)), new THREE.Vector3(s.top.x + 0.03, 6.3, s.top.z));
+  });
+  stemMesh.castShadow = true;
+  g.add(stemMesh, strMesh);
 
   // 葉
   const L = TX.leaf();
-  const leafMat = new THREE.MeshStandardMaterial({ map: L.map, normalMap: L.normal, side: THREE.DoubleSide, roughness: 0.62, color: 0xffffff });
-  addWind(leafMat, 0.06);
-  const PER = 13;
-  const leaves = new THREE.InstancedMesh(leafGeometry(), leafMat, tips.length * PER);
+  const leafMat = new THREE.MeshStandardMaterial({ map: L.map, normalMap: L.normal, side: THREE.DoubleSide, roughness: 0.55, color: 0xffffff });
+  addWind(leafMat, 0.05);
+  const PER = q.leaves || 14;
+  const leaves = new THREE.InstancedMesh(leafGeometry(), leafMat, stems.length * PER);
   let k = 0;
-  for (const st of tips) {
+  for (const s of stems) {
     for (let j = 0; j < PER; j++) {
-      const t = 0.1 + (j / PER) * 0.95;
-      const pos = st.base.clone().lerp(st.tip, t);
-      const a = j * 2.4 + rand() * 0.8 + st.s;
+      const t = 0.04 + (j / PER) * 0.98;
+      const pos = s.base.clone().lerp(s.top, t);
       dummy.position.copy(pos);
-      dummy.rotation.set(0, a, 0);
-      dummy.rotateZ(randRange(0.05, 0.55));
-      const s = randRange(0.9, 1.45) * (1.1 - t * 0.35);
-      dummy.scale.set(s, s, s);
+      dummy.quaternion.identity();
+      dummy.rotation.set(0, j * 2.39 + rand() * 0.7, 0);
+      dummy.rotateZ(randRange(-0.1, 0.5));
+      const sc = randRange(0.8, 1.35) * (1.05 - t * 0.35);
+      dummy.scale.setScalar(sc);
       dummy.updateMatrix();
       leaves.setMatrixAt(k, dummy.matrix);
-      col.setHSL(0.27 + rand() * 0.05, 0.45 + rand() * 0.2, 0.42 + rand() * 0.16);
+      col.setHSL(0.27 + rand() * 0.04, 0.5 + rand() * 0.15, 0.2 + rand() * 0.12);
       leaves.setColorAt(k, col);
       k++;
     }
@@ -284,141 +316,194 @@ function buildPlants(g) {
   leaves.receiveShadow = true;
   g.add(leaves);
 
-  // 実：茎の節からぶら下がる。熟した赤・黄・橙のほか、未熟な緑と色づき途中も混ぜる
+  // 実：茎の下〜中ほどにぶら下がる。多くはまだ緑で、ところどころ赤・橙・黄
   const fruitList = [];
-  for (const st of tips) {
-    const n = rand() < 0.6 ? 2 : 1;
+  for (const s of stems) {
+    const n = rand() < 0.55 ? 1 : rand() < 0.5 ? 2 : 0;
     for (let j = 0; j < n; j++) {
-      const t = randRange(0.12, 0.55);
-      const pos = st.base.clone().lerp(st.tip, t);
+      const t = randRange(0.04, 0.5);
+      const pos = s.base.clone().lerp(s.top, t);
       const a = rand() * Math.PI * 2;
-      fruitList.push({ x: pos.x + Math.cos(a) * 0.24, y: pos.y - 0.3, z: pos.z + Math.sin(a) * 0.24, v: Math.floor(rand() * 4) });
+      fruitList.push({ x: pos.x + Math.cos(a) * 0.2, y: pos.y - 0.22, z: pos.z + Math.sin(a) * 0.2, v: Math.floor(rand() * 4) });
     }
   }
   const PC = PAPRIKA_COLORS;
-  const palette = [PC.red, PC.red, PC.yellow, PC.orange, PC.green, PC.green, PC.turning];
-  const variants = paprikaVariants();
+  const palette = [PC.green, PC.green, PC.green, PC.green, PC.red, PC.red, PC.orange, PC.yellow, PC.turning, PC.yellow];
+  const variants = paprikaVariants(20);
   const fruitMat = paprikaMaterial();
   const pStemGeo = paprikaStem();
-  const stems2 = new THREE.InstancedMesh(pStemGeo, paprikaStemMaterial(), fruitList.length);
+  const fStems = new THREE.InstancedMesh(pStemGeo, paprikaStemMaterial(), fruitList.length);
+  let fi = 0;
   variants.forEach((geo, vi) => {
     const list = fruitList.filter((f) => f.v === vi);
     if (!list.length) return;
     const im = new THREE.InstancedMesh(geo, fruitMat, list.length);
     list.forEach((f, i) => {
-      const s = randRange(0.2, 0.26);
+      const s = randRange(0.19, 0.25);
       dummy.position.set(f.x, f.y, f.z);
-      dummy.rotation.set(randRange(-0.18, 0.18), rand() * 6.28, randRange(-0.18, 0.18));
+      dummy.quaternion.identity();
+      dummy.rotation.set(randRange(-0.2, 0.2), rand() * 6.28, randRange(-0.2, 0.2));
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
       im.setMatrixAt(i, dummy.matrix);
       im.setColorAt(i, col.setHex(palette[Math.floor(rand() * palette.length)]));
       dummy.translateY(geo.userData.stemOffset * s);
       dummy.updateMatrix();
-      stems2.setMatrixAt(f.si = fruitList.indexOf(f), dummy.matrix);
+      fStems.setMatrixAt(fi++, dummy.matrix);
     });
     im.castShadow = true;
     im.receiveShadow = true;
     g.add(im);
   });
-  stems2.castShadow = true;
-  g.add(stems2);
+  fStems.count = fi;
+  fStems.castShadow = true;
+  g.add(fStems);
 
-  // 上の誘引ワイヤーと黄色い粘着シート（本物の温室にある虫取り）
+  // 誘引ワイヤーと、葉の上に並ぶ黄色・青の粘着シート
   const wireMat = new THREE.MeshStandardMaterial({ color: 0xaab0b5, metalness: 0.8, roughness: 0.4 });
-  const cardMat = new THREE.MeshStandardMaterial({ map: TX.stickyCard(), side: THREE.DoubleSide, roughness: 0.4 });
+  const cards = { y: [], b: [] };
   for (const r of ROWS) {
-    for (const dz of [-0.45, 0.45]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, r.x1 - r.x0 + 2, 4), wireMat);
+    for (const side of [-1, 1]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, r.x1 - r.x0 + 1, 4), wireMat);
       w.rotation.z = Math.PI / 2;
-      w.position.set((r.x0 + r.x1) / 2, 7.6, r.z + dz);
+      w.position.set((r.x0 + r.x1) / 2, 6.3, r.z + side * 0.5);
       g.add(w);
     }
-    for (let i = 0; i < 3; i++) {
-      const x = r.x0 + 3 + i * 7 + rand() * 2;
-      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.75), cardMat);
-      card.position.set(x, 4.3, r.z + 0.05);
-      card.rotation.y = randRange(-0.4, 0.4);
-      card.castShadow = true;
-      g.add(card);
-      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 3.0, 3), wireMat);
-      s.position.set(x, 6.1, r.z + 0.05);
-      g.add(s);
-    }
+    let n = 0;
+    for (let x = r.x0 + 0.8; x < r.x1; x += 1.6) cards[n++ % 3 === 2 ? 'b' : 'y'].push([x + randRange(-0.2, 0.2), randRange(5.5, 6.0), r.z + randRange(-0.15, 0.15), randRange(-0.5, 0.5)]);
+  }
+  const cardGeo = new THREE.PlaneGeometry(0.4, 0.62);
+  for (const [key, tx] of [['y', TX.stickyCard()], ['b', TX.stickyCardBlue()]]) {
+    const im = new THREE.InstancedMesh(cardGeo, new THREE.MeshStandardMaterial({ map: tx, side: THREE.DoubleSide, roughness: 0.4 }), cards[key].length);
+    cards[key].forEach(([x, y, z, ry], i) => { dummy.position.set(x, y, z); dummy.quaternion.identity(); dummy.rotation.set(0, ry, 0); dummy.scale.setScalar(1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); });
+    im.castShadow = true;
+    g.add(im);
   }
 }
 
+// ---------- 連棟ハウス（白い鉄骨のトラス・カーテン・循環扇） ----------
 function buildHouse(g) {
   const film = new THREE.MeshPhysicalMaterial({
     color: 0xf4fbff, transparent: true, opacity: 0.1, roughness: 0.08, metalness: 0,
-    side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6, alphaMap: TX.condensation(),
+    side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.4, alphaMap: TX.condensation(),
   });
   film.alphaMap.repeat.set(10, 3);
-  const steel = new THREE.MeshStandardMaterial({ color: 0xc7ccd1, metalness: 0.85, roughness: 0.32 });
-  const WALL_H = 5, RISE = 6;
+  const steel = new THREE.MeshStandardMaterial({ color: 0xeef0f0, metalness: 0.55, roughness: 0.35 });
 
+  // 横の壁と、巻き上げ換気
   for (const z of [-14, 14]) {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(44, WALL_H), film);
-    w.position.set(0, WALL_H / 2, z);
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(44, EAVE), film);
+    w.position.set(0, EAVE / 2, z);
     g.add(w);
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(44, 0.12, 0.12), steel);
-    rail.position.set(0, WALL_H, z);
-    g.add(rail);
-    // 巻き上げ式の換気（まるめたビニール）
     const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 44, 12), new THREE.MeshStandardMaterial({ color: 0xe8f0f0, roughness: 0.3, transparent: true, opacity: 0.85 }));
     roll.rotation.z = Math.PI / 2;
-    roll.position.set(0, 1.7, z * 0.995);
+    roll.position.set(0, 1.8, z * 0.995);
     roll.castShadow = true;
     g.add(roll);
     const sill = new THREE.Mesh(new THREE.BoxGeometry(44, 0.35, 0.18), new THREE.MeshStandardMaterial({ color: 0x8a8f94, roughness: 0.8 }));
     sill.position.set(0, 0.17, z);
     g.add(sill);
   }
-  g.add(makeArchRoof(film, WALL_H, RISE));
+  // 3連のアーチ屋根
+  for (const zc of SPANS) g.add(makeArchRoof(film, zc, SPAN_HALF));
 
-  const hoopPts = [];
-  for (let i = 0; i <= 24; i++) {
-    const a = (i / 24) * Math.PI;
-    hoopPts.push(new THREE.Vector3(0, WALL_H + Math.sin(a) * RISE, -Math.cos(a) * 14));
+  // 柱（外壁と、棟と棟の間の谷）
+  const colGeo = new THREE.BoxGeometry(0.14, EAVE, 0.14);
+  const colZ = [-14, -SPAN_HALF, SPAN_HALF, 14];
+  const colPos = [];
+  for (let x = -22; x <= 22; x += 4) for (const z of colZ) colPos.push([x, z]);
+  const cols = new THREE.InstancedMesh(colGeo, steel, colPos.length);
+  const d = new THREE.Object3D();
+  colPos.forEach(([x, z], i) => { d.position.set(x, EAVE / 2, z); d.quaternion.identity(); d.scale.setScalar(1); d.updateMatrix(); cols.setMatrixAt(i, d.matrix); });
+  cols.castShadow = true;
+  g.add(cols);
+  // 谷の雨どい
+  for (const z of [-SPAN_HALF, SPAN_HALF]) {
+    const gut = new THREE.Mesh(new THREE.BoxGeometry(44, 0.22, 0.36), steel);
+    gut.position.set(0, EAVE + 0.05, z);
+    gut.castShadow = true;
+    g.add(gut);
   }
-  const hoopGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hoopPts), 40, 0.07, 6, false);
-  const postGeo = new THREE.CylinderGeometry(0.08, 0.08, WALL_H, 8);
+  // トラス（上下の弦材と、ジグザグの斜材）＋アーチの骨
+  const chord = new THREE.BoxGeometry(0.08, 0.08, 28);
+  const webs = [];
+  const arches = [];
   for (let x = -22; x <= 22; x += 4) {
-    const h = new THREE.Mesh(hoopGeo, steel);
-    h.position.x = x;
-    h.castShadow = true;
-    g.add(h);
-    for (const z of [-14, 14]) {
-      const p = new THREE.Mesh(postGeo, steel);
-      p.position.set(x, WALL_H / 2, z);
-      p.castShadow = true;
-      g.add(p);
+    for (const y of [EAVE, EAVE - 0.7]) {
+      const c = new THREE.Mesh(chord, steel);
+      c.position.set(x, y, 0);
+      c.castShadow = true;
+      g.add(c);
     }
-    // 横の梁（タイバー）
-    const tie = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2 * 14 * Math.cos(Math.asin((8.6 - WALL_H) / RISE)), 6), steel);
-    tie.rotation.x = Math.PI / 2;
-    tie.position.set(x, 8.6, 0);
-    tie.castShadow = true;
-    g.add(tie);
+    for (let z = -14; z < 14 - 0.01; z += 0.7) webs.push([x, z]);
+    for (const zc of SPANS) arches.push([x, zc]);
   }
-  for (const z of [0, -7, 7]) {
-    const purlin = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 44, 6), steel);
-    purlin.rotation.z = Math.PI / 2;
-    const a = Math.acos(z / -14 || 0);
-    purlin.position.set(0, WALL_H + Math.sin(Math.acos(-z / 14)) * RISE, z);
-    purlin.castShadow = true;
-    g.add(purlin);
-    void a;
+  const webGeo = new THREE.BoxGeometry(0.04, 0.99, 0.04);
+  const webMesh = new THREE.InstancedMesh(webGeo, steel, webs.length);
+  webs.forEach(([x, z], i) => {
+    d.position.set(x, EAVE - 0.35, z + 0.35);
+    d.quaternion.identity();
+    d.rotation.set((Math.round((z + 14) / 0.7) % 2 ? 1 : -1) * 0.785, 0, 0);
+    d.scale.setScalar(1);
+    d.updateMatrix();
+    webMesh.setMatrixAt(i, d.matrix);
+  });
+  g.add(webMesh);
+  const hoopPts = [];
+  for (let i = 0; i <= 16; i++) {
+    const a = (i / 16) * Math.PI;
+    hoopPts.push(new THREE.Vector3(0, EAVE + Math.sin(a) * SPAN_RISE, -Math.cos(a) * SPAN_HALF));
+  }
+  const hoopGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hoopPts), 24, 0.05, 5, false);
+  const hoops = new THREE.InstancedMesh(hoopGeo, steel, arches.length * 2);
+  let hi = 0;
+  for (const [x, zc] of arches) for (const dx of [0, 2]) { d.position.set(x + dx, 0, zc); d.rotation.set(0, 0, 0); d.updateMatrix(); if (x + dx <= 22) hoops.setMatrixAt(hi++, d.matrix); }
+  hoops.count = hi;
+  hoops.castShadow = true;
+  g.add(hoops);
+  // 棟と母屋（長手方向の細い材）
+  for (const zc of SPANS) for (const [dz, dy] of [[0, SPAN_RISE], [-2.4, SPAN_RISE * 0.85], [2.4, SPAN_RISE * 0.85]]) {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 44, 6), steel);
+    p.rotation.z = Math.PI / 2;
+    p.position.set(0, EAVE + dy, zc + dz);
+    g.add(p);
+  }
+  // 保温カーテン（たたまれた白い布が梁にそって並ぶ）
+  const curtainMat = new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.9, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
+  for (const zc of SPANS) for (const dz of [-2.2, 0, 2.2]) {
+    const cu = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 44, 10), curtainMat);
+    cu.rotation.z = Math.PI / 2;
+    cu.scale.set(1, 1, 0.55);
+    cu.position.set(0, EAVE - 0.05, zc + dz);
+    cu.castShadow = true;
+    g.add(cu);
+  }
+  // 循環扇（梁からつり下げ）
+  for (const [x, z] of [[-14, -2.4], [-6, 2.4], [2, -7.2], [-14, 7.2], [-6, -11.5], [10, 2.4]]) {
+    const f = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: 0xdfe3e6, metalness: 0.5, roughness: 0.4 }));
+    ring.rotation.y = Math.PI / 2;
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.6, roughness: 0.4 }));
+    hub.rotation.z = Math.PI / 2;
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4), steel);
+    rod.position.y = 0.6;
+    f.add(ring, hub, rod);
+    f.position.set(x, EAVE - 1.3, z);
+    f.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    g.add(f);
   }
 
+  // 妻面（東西の壁）。3つのアーチ形。東側には出入口
   for (const side of [-1, 1]) {
     const s = new THREE.Shape();
-    s.moveTo(-14, 0); s.lineTo(14, 0); s.lineTo(14, WALL_H);
-    for (let i = 1; i < 20; i++) {
-      const a = (i / 20) * Math.PI;
-      s.lineTo(Math.cos(a) * 14, WALL_H + Math.sin(a) * RISE);
+    s.moveTo(-14, 0); s.lineTo(14, 0); s.lineTo(14, EAVE);
+    for (const zc of SPANS) {
+      for (let i = 1; i <= 16; i++) {
+        const a = (i / 16) * Math.PI;
+        s.lineTo(-zc + Math.cos(a) * SPAN_HALF, EAVE + Math.sin(a) * SPAN_RISE);
+      }
     }
-    s.lineTo(-14, WALL_H); s.lineTo(-14, 0);
+    s.lineTo(-14, 0);
     if (side === 1) {
       const hole = new THREE.Path();
       hole.moveTo(-13, 0.01); hole.lineTo(-9, 0.01); hole.lineTo(-9, 4.6); hole.lineTo(-13, 4.6); hole.lineTo(-13, 0.01);
@@ -437,12 +522,7 @@ function buildHouse(g) {
   const top = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 4.2), steel);
   top.position.set(22, 4.7, 11);
   g.add(top);
-  // 引き戸のレール
-  const railD = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 9), steel);
-  railD.position.set(22.1, 4.8, 9);
-  g.add(railD);
-
-  // 換気扇
+  // 換気扇（西の壁）
   const fanG = new THREE.Group();
   const housing = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.45, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x9aa3a8, metalness: 0.7, roughness: 0.4, side: THREE.DoubleSide }));
   housing.rotation.z = Math.PI / 2;
@@ -450,24 +530,16 @@ function buildHouse(g) {
   const grill = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.03, 6, 24), steel);
   grill.rotation.y = Math.PI / 2;
   fanG.add(grill);
-  for (let i = 0; i < 4; i++) {
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.9, 0.28), steel);
-    blade.position.y = 0.45;
-    const b = new THREE.Group();
-    b.rotation.x = (i / 4) * Math.PI * 2;
-    b.add(blade);
-    fanG.add(b);
-  }
-  fanG.position.set(-21.85, 3.2, -6);
+  fanG.position.set(-21.85, 3.6, -2.4);
   g.add(fanG);
 }
 
-function makeArchRoof(mat, wallH, rise) {
-  const segs = 28;
+function makeArchRoof(mat, zc, half) {
+  const segs = 20;
   const pos = [], uv = [], idx = [];
   for (let i = 0; i <= segs; i++) {
     const a = (i / segs) * Math.PI;
-    const y = wallH + Math.sin(a) * rise, z = -Math.cos(a) * 14;
+    const y = EAVE + Math.sin(a) * SPAN_RISE, z = zc - Math.cos(a) * half;
     pos.push(-22, y, z, 22, y, z);
     uv.push(0, i / segs, 1, i / segs);
   }

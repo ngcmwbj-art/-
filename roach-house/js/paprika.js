@@ -98,16 +98,16 @@ export function paprikaBody({ lobes = 4, seg = 32, tall = 1.08, seed = 1 } = {})
 }
 
 // 形のちがう実を何種類か（4室・3室・縦長・ずんぐり）
-let VARIANTS = null;
-export function paprikaVariants() {
-  if (VARIANTS) return VARIANTS;
-  VARIANTS = [
-    paprikaBody({ lobes: 4, tall: 1.06, seed: 1 }),
-    paprikaBody({ lobes: 4, tall: 1.18, seed: 2 }),
-    paprikaBody({ lobes: 3, tall: 1.1, seed: 3 }),
-    paprikaBody({ lobes: 4, tall: 0.96, seed: 4 }),
+const VARIANTS = {};
+export function paprikaVariants(seg = 32) {
+  if (VARIANTS[seg]) return VARIANTS[seg];
+  VARIANTS[seg] = [
+    paprikaBody({ lobes: 4, tall: 1.06, seed: 1, seg }),
+    paprikaBody({ lobes: 4, tall: 1.18, seed: 2, seg }),
+    paprikaBody({ lobes: 3, tall: 1.1, seed: 3, seg }),
+    paprikaBody({ lobes: 4, tall: 0.96, seed: 4, seg }),
   ];
-  return VARIANTS;
+  return VARIANTS[seg];
 }
 
 // へた（がく）と軸。頂点の色で、軸・がく・切り口を塗り分ける

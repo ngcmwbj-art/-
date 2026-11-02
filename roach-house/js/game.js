@@ -802,11 +802,25 @@ export class Game {
     return v;
   }
 
+  // 株の列（葉の壁）が間にあると見えない
+  plantsBetween(ax, az, bx, bz) {
+    const ra = rowAt(ax, az, 0.3), rb = rowAt(bx, bz, 0.3);
+    const d = Math.hypot(bx - ax, bz - az);
+    const n = Math.ceil(d / 0.4);
+    for (let k = 1; k < n; k++) {
+      const t = k / n;
+      const r = rowAt(ax + (bx - ax) * t, az + (bz - az) * t, -0.2);
+      if (r && r !== ra && r !== rb) return true;
+    }
+    return false;
+  }
+
   sight(t) {
     const f = this.farmer;
     const dx = t.x - f.x, dz = t.z - f.z, d = Math.hypot(dx, dz);
     const range = f.coneRange;
     if (d > range) return 0;
+    if (t.y < 4.5 && this.plantsBetween(f.x, f.z, t.x, t.z)) return 0;
     const dot = d > 0.01 ? (dx * Math.sin(f.view) + dz * Math.cos(f.view)) / d : 1;
     if (d > 2.2 && dot < 0.71) return 0;
     if (d <= 2.2 && dot < -0.3) return 0;
@@ -1168,7 +1182,7 @@ export class Game {
       return;
     }
     const dx = t.x - f.x, dz = t.z - f.z, d = Math.hypot(dx, dz);
-    const seen = d < 16 && (this.visibility(t) * (1 - (d / 16) * 0.5) > 0.14 || d < 1.3);
+    const seen = d < 16 && (d < 1.3 || (this.visibility(t) * (1 - (d / 16) * 0.5) > 0.14 && !this.plantsBetween(f.x, f.z, t.x, t.z)));
     if (seen) { f.lostT = 0; f.lastSeen = { x: t.x, y: t.y, z: t.z }; }
     else {
       f.lostT += dt;
