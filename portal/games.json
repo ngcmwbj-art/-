@@ -249,6 +249,40 @@
       "unverified": [
         "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
       ]
+    },
+    {
+      "id": "roach-house",
+      "title": "ゴキブリ大作戦 パプリカハウス",
+      "tagline": "ゴキブリ目線で出荷前の野菜を狙え",
+      "genre": "アクション",
+      "tags": [
+        "3D",
+        "潜入",
+        "農業",
+        "スマホ対応"
+      ],
+      "url": "https://claude.ai/artifact/5zoMKr8ykKjw3MpqCzi3rq",
+      "themeColor": "#e0412b",
+      "status": "公開中",
+      "howToPlay": "農場主の目を盗んで収穫コンテナをかじり、卵を産んで仲間をふやし、出荷トラックが出る前に目標の箱数をダメにする。",
+      "platform": [
+        "PC",
+        "スマホ",
+        "タブレット"
+      ],
+      "source": {
+        "ref": "origin/claude/roach-paprika-house",
+        "path": "roach-house",
+        "serve": ".",
+        "entry": "index.html"
+      },
+      "preview": {
+        "recipe": "recipes/roach-house.mjs"
+      },
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "実機（スマホ・タブレット）での滑らかさ（この作業環境はソフトウェア描画のみ。タッチ操作はスマホの画面をまねた自動テストで確認済み）"
+      ]
     }
   ]
 }
