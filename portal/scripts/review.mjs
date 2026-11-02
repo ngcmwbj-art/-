@@ -38,13 +38,18 @@ for (const v of VIEWS) {
     if (v.name === 'pc' || v.name === 'sp') await card.screenshot({ path: path.join(OUT, `cards-${v.name}-${i + 1}.png`) });
   }
   await page.waitForTimeout(500);
+  await page.evaluate(() => document.documentElement.classList.add('gp-static'));
   await page.screenshot({ path: path.join(OUT, `${v.name}.png`), fullPage: true });
+  await page.evaluate(() => document.documentElement.classList.remove('gp-static'));
 
   // 機械でのはみ出し検査
   const r = await page.evaluate(() => {
     const out = [];
     const de = document.documentElement;
     if (de.scrollWidth > de.clientWidth + 1) out.push(`ページが横にはみ出しています（${de.scrollWidth} > ${de.clientWidth}）`);
+    const sc = document.querySelector('.gp-scroll');
+    if (sc && sc.scrollWidth > sc.clientWidth + 1) out.push(`ページの箱が横にはみ出しています（${sc.scrollWidth} > ${sc.clientWidth}）`);
+    if (sc && de.scrollHeight > de.clientHeight + 1) out.push(`固定した箱の外でページが伸びています（${de.scrollHeight} > ${de.clientHeight}）`);
     for (const el of document.querySelectorAll('.gp-portal *')) {
       const cs = getComputedStyle(el);
       if (cs.display === 'none' || el.closest('[hidden]') || el.tagName === 'svg' || el.closest('svg')) continue;

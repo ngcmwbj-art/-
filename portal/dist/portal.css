@@ -37,6 +37,16 @@
 /* ── 単体ページ ── */
 html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
 body { margin: 0; background: var(--gp-bg); color: var(--gp-ink); font-family: var(--gp-font); }
+/* ページ全体を画面に固定した箱の中でスクロールさせる。
+   iPad / iPhone（Safari・Chrome とも）では、埋め込まれたページの枠が中身の大きさに合わせて伸び、
+   右が切れたり下が白く残ったりする。固定した箱の中身は枠の大きさに影響しないので、それを防げる */
+.gp-scroll {
+  position: fixed; inset: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: var(--gp-bg);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box;
+}
+/* レビューで全体を撮るときは、ふつうのページに戻す */
+.gp-static .gp-scroll { position: static; overflow: visible; }
 .gp-page { max-width: 1180px; margin: 0 auto; padding-block: clamp(28px, 6vw, 64px) 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); box-sizing: border-box; }
 .gp-head { margin-bottom: 28px; }
 .gp-eyebrow { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .18em; color: var(--gp-ink-3); }
