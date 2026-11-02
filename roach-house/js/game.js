@@ -15,9 +15,9 @@ import { Grid } from './pathfind.js';
 import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectDist, inRect, setSeed } from './util.js';
 
 export const DIFFS = {
-  easy: { key: 'easy', label: 'やさしい', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, traps: 2, hatch: 8, sprayDmg: 20 },
-  normal: { key: 'normal', label: 'ふつう', target: 8, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.5, traps: 3, hatch: 10, sprayDmg: 26 },
-  hard: { key: 'hard', label: 'むずかしい', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [2, 4], patrolP: 0.35, traps: 5, hatch: 12, sprayDmg: 32 },
+  easy: { key: 'easy', label: 'やさしい', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 6, traps: 2, hatch: 8, sprayDmg: 20 },
+  normal: { key: 'normal', label: 'ふつう', target: 8, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 4, traps: 3, hatch: 10, sprayDmg: 26 },
+  hard: { key: 'hard', label: 'むずかしい', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [2, 4], patrolP: 0.5, loadT: 3.5, traps: 5, hatch: 12, sprayDmg: 32 },
 };
 
 export const MAX_NYMPHS = 9;
@@ -1123,7 +1123,9 @@ export class Game {
       const s = this.sight(e);
       if (s > bs) { bs = s; best = e; }
     }
-    const mul = this.diff.susp * (1 + 0.3 * f.anger);
+    // 出荷に集中しているあいだは気づきにくい
+    f.focusT = Math.max(0, (f.focusT || 0) - dt);
+    const mul = this.diff.susp * (1 + 0.3 * f.anger) * (f.focusT > 0 ? 0.35 : 1);
     if (best && bs > 0.04) {
       f.susp = Math.min(100, f.susp + 58 * bs * mul * dt);
       if (f.state !== 'CHASE') {
@@ -1201,6 +1203,7 @@ export class Game {
     f.target = t;
     f.susp = 100;
     f.lostT = 0;
+    f.chaseT = 0;
     f.repath = 0;
     f.lastSeen = { x: t.x, y: t.y, z: t.z };
   }
@@ -1283,9 +1286,9 @@ export class Game {
         const c = f.crate;
         if (!c || c.rotten || c.shipped || c.carried) { f.phase = 'choose'; break; }
         const d = Math.hypot(c.x - f.x, c.z - f.z);
-        if (d < 2.9) { f.phase = 'pack'; f.timer = 2.2; f.path = []; break; }
+        if (d < 2.9) { f.phase = 'pack'; f.timer = 1.6; f.path = []; break; }
         if (this.walk(dt, this.farmerSpeed('work'))) {
-          if (d < 3.6) { f.phase = 'pack'; f.timer = 2.2; }
+          if (d < 3.6) { f.phase = 'pack'; f.timer = 1.6; }
           else { c.skipUntil = this.clock + 15; f.phase = 'choose'; }
         }
         break;
@@ -1327,8 +1330,16 @@ export class Game {
           this.stats.shipped = this.shipped;
           this.sfx.ship();
           this.say(pick(['よし、一箱出荷だ', 'まず一箱。邪魔すんなよ', 'よいしょっと…次だ次']));
-          this.toast(`1箱出荷されてしまった（出荷 ${this.shipped} 箱）`, 'warn');
+          this.toast(`1箱出荷されてしまった（あと ${this.shipLeft()} 箱出荷されたら負け）`, 'warn');
           this.events.push('ship');
+          // トラックに積みこんで、ひもをかける
+          f.phase = 'loading'; f.timer = this.diff.loadT; f.baseH = f.h;
+        }
+        break;
+      case 'loading':
+        f.timer -= dt;
+        f.h = dampAngle(f.h, Math.PI / 2, 4, dt);
+        if (f.timer <= 0) {
           if (rand() < this.diff.patrolP) this.startPatrol();
           else { f.phase = 'idle'; f.timer = 1.2; f.baseH = f.h; }
         }
@@ -1421,6 +1432,14 @@ export class Game {
   }
 
   farmerChase(dt) {
+    // 追いかけっこは長くは続けない。出荷が先だ
+    this.farmer.chaseT = (this.farmer.chaseT || 0) + dt;
+    if (this.farmer.chaseT > 18 && !this.farmer.act) {
+      const f0 = this.farmer;
+      f0.state = 'WORK'; f0.phase = 'choose'; f0.target = null; f0.susp = 0; f0.focusT = 14;
+      this.say(pick(['チッ、キリがねえ。出荷が先だ', 'くそっ、相手してる暇はねえ！', '覚えてろよ…今は出荷だ']));
+      return;
+    }
     const f = this.farmer, t = f.target;
     if (!t || !t.alive) {
       f.state = 'INVESTIGATE';

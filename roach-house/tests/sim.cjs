@@ -88,13 +88,16 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
         inp.dash = d > 4 && g.farmer.state !== 'WORK';
       };
       let guard = 0;
+      const stateTime = {};
       while (g.state === 'play' && guard++ < 900) {
+        const k = g.farmer.state + (g.farmer.state === 'WORK' ? ':' + g.farmer.phase : '');
+        stateTime[k] = (stateTime[k] || 0) + 1;
         const bad = RH.sim(1, 1 / 30, bot);
         bad.forEach((b) => issues.add(b));
       }
       const f = g.farmer;
       return { diff, seed, res: g.result && { win: g.result.win, reason: g.result.reason, rank: g.result.rank, time: Math.round(g.result.elapsed) },
-        ruined: g.ruined, shipped: g.shipped, traps: g.traps.length, anger: f.anger, nymphs: g.nymphs.length, stats: g.stats, issues: [...issues], log };
+        ruined: g.ruined, shipped: g.shipped, traps: g.traps.length, anger: f.anger, nymphs: g.nymphs.length, stats: g.stats, issues: [...issues], log, stateTime };
     }, { diff, seed, style });
     console.log(JSON.stringify(r));
   }
