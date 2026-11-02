@@ -19,6 +19,8 @@ button { font: inherit; cursor: pointer; }
 }
 #title.hide { opacity: 0; pointer-events: none; }
 .title-inner { text-align: center; padding: 16px; }
+/* 横長の画面：右側をマサトの出迎えに空ける */
+@media (min-aspect-ratio: 6/5) { .title-inner { margin-right: 24vw; max-width: 74vw; } }
 .tag { letter-spacing: .4em; font-weight: 700; font-size: clamp(13px, 1.6vw, 20px); text-shadow: 0 2px 10px #000; margin: 0 0 12px; }
 #title h1 {
   font-family: 'Yuji Syuku', serif; font-weight: 400; margin: 0; line-height: 1;
@@ -213,6 +215,8 @@ body.touch #toasts { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 #banner { position: absolute; left: 0; right: 0; top: 30%; text-align: center; opacity: 0; pointer-events: none; }
 #banner.show { animation: banner 3.6s ease-out forwards; }
 #banner h2 { margin: 0; font-family: 'Yuji Syuku', serif; font-weight: 400; font-size: clamp(40px, 7vw, 86px); color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.8), 0 0 40px rgba(255,200,120,.5); }
+#banner .hl-line { display: block; margin-top: 6px; font-size: .88em; color: #ffe6a8; }
+#banner .hl-line b { color: #fff; font-size: 1.15em; }
 #banner p { margin: 8px auto 0; font-weight: 900; font-size: clamp(14px, 2vw, 20px); text-shadow: 0 2px 8px #000; background: rgba(0,0,0,.35); display: inline-block; padding: 6px 16px; border-radius: 4px; }
 @keyframes banner { 0% { opacity: 0; transform: scale(1.4); } 10% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
 
@@ -459,3 +463,14 @@ body.lefty #stick-hint { left: auto; right: 14%; margin: -60px -60px; }
 .skill.off { opacity: .4; }
 #arrows .arrow.minion { color: #c8f05a; }
 #arrows .arrow.minion span { font-size: 14px; }
+
+/* 片手モード：ギターと観測を指 2 本分に大きく。ほかは上に小さく並べる（ケースで隠れないよう端から少し離す） */
+body.onehand .tbtns { width: 270px; height: 200px; right: calc(28px + env(safe-area-inset-right, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
+body.onehand.lefty .tbtns { right: auto; left: calc(28px + env(safe-area-inset-left, 0px)); }
+body.onehand #tb-guitar.big { width: 128px; height: 128px; font-size: 20px; }
+body.onehand #tb-observe { right: 138px; bottom: 0; width: 112px; height: 112px; font-size: 18px; }
+body.onehand #tb-teleport, body.onehand #tb-kekkai, body.onehand #tb-solo, body.onehand #tb-jump { width: 46px !important; height: 46px !important; bottom: 146px; font-size: 11px !important; }
+body.onehand #tb-teleport { right: 0; }
+body.onehand #tb-kekkai { right: 54px; }
+body.onehand #tb-solo { right: 108px; }
+body.onehand #tb-jump { right: 162px; }

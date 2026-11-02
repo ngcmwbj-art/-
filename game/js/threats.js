@@ -155,7 +155,9 @@ class Tornado {
     }
     this.hit = Math.max(0, this.hit - dt * 4);
     // 観測で正体を見抜いた直後：無防備の間は白く脈打つ（文字は出さない）
-    const vuln = this.group.vulnUntil > sys.game.time ? 0.3 + 0.3 * Math.sin(t * 12) : 0;
+    // 台風の目の晴れ間：本物だけがゆっくり金色っぽく光る
+    const vuln = this.group.vulnUntil > sys.game.time ? 0.3 + 0.3 * Math.sin(t * 12)
+      : this.group.eyeWeak && this.real ? 0.45 + 0.25 * Math.sin(t * 5) : 0;
     for (const m of this.mats) {
       const u = m.uniforms;
       u.uTime.value = t;
@@ -460,6 +462,7 @@ export class Threats {
   // weak：弱点を突いたタワーの色（「弱点！」と表示し、その色で光らせる）
   hitEnemy(e, dmg, viaThread = false, weak = null) {
     if (e.group && e.group.vulnUntil > this.game.time) dmg *= 1.5; // 見抜いた直後の無防備
+    if (e.group && e.group.eyeWeak && e.real) dmg *= 2; // 台風の目の晴れ間
     const p = e.pos.clone().add(new THREE.Vector3(0, e.type ? 1.5 : 8 * (e.baseScale || 1), 0));
     if (weak) {
       this.hud.floater(`弱点！ -${Math.round(dmg)}`, p, this.game.camera, weak);

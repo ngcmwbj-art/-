@@ -516,7 +516,7 @@ export function createMasato() {
   let walk = 0, strum = 0, strumSide = 1, solo = 0;
   // 派手な演奏アクション：small / windmill（腕を一回転）/ jump（跳び弾き）/ raise（ギターを掲げる）
   const act = { type: null, t: 0, dur: 0.4 };
-  const DUR = { small: 0.3, windmill: 0.42, jump: 0.55, raise: 0.9 };
+  const DUR = { small: 0.3, windmill: 0.42, jump: 0.55, raise: 0.9, wave: 1.8 };
   const base = { gpos: guitar.position.clone(), grot: guitar.rotation.clone() };
   const ease = (x) => 1 - Math.pow(1 - x, 3);
   return {
@@ -582,6 +582,13 @@ export function createMasato() {
           armR.el.rotation.set(-0.2, 0, 0);
           guitar.rotation.z += up * 0.5;
           guitar.position.y += up * 0.08;
+        } else if (act.type === 'wave') {
+          // 右手を高く上げて、左右に大きく手を振る（タイトルの出迎え）
+          const h = ease(Math.min(1, k * 4)) * (k < 0.85 ? 1 : (1 - k) / 0.15);
+          armR.sh.rotation.set(-0.4 - h * 2.5, 0, -0.3 - h * 0.5);
+          armR.el.rotation.set(-0.3 - h * 0.4, 0, Math.sin(act.t * 11) * 0.7 * h);
+          head.rotation.z += Math.sin(act.t * 5.5) * 0.12 * h;
+          torso.rotation.z += Math.sin(act.t * 5.5) * 0.04 * h;
         } else if (act.type === 'raise') {
           // ギターを頭上に高々と掲げ、体を反らせる
           const h = ease(Math.min(1, k * 2.2)) * (k < 0.8 ? 1 : (1 - k) / 0.2);

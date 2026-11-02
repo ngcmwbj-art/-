@@ -13,6 +13,8 @@ export const TOWER_TYPES = [
     desc: '範囲に落ちる雷を吸い取って Qビットに変える。つむじ風は近づくと一瞬で消える（弱点）。大きな竜巻はトンネル効果で東の沖へ飛ばす' },
   { id: 'box', key: '4', name: 'シュレディンガーの箱', short: '開けるまで中身は重ね合わせ', cost: 30, radius: 3, color: '#c9b8ff',
     desc: '台風が過ぎたら自動で開く。半分の確率で黄金キャベツ（+120Q）、半分は空っぽ。開けるまで中身は決まらない' },
+  { id: 'fan', key: '5', name: '送風機', short: '竜巻・つむじ風を押し返す', cost: 45, radius: 20, color: '#8fe8c4',
+    desc: '牛舎の換気扇。範囲に入った竜巻とつむじ風を、来た方向へ押し返す（1 つにつき 4 秒まで。そのあと 6 秒は押せない）' },
 ];
 
 const MAT = {
@@ -99,7 +101,31 @@ function buildRod(def) {
   return g;
 }
 
-const BUILDERS = { observer: buildObserver, amp: buildAmp, rod: buildRod, box: () => buildBox() };
+// 牛舎の換気扇：四角い枠と大きな羽根が 4 枚。羽根がゆっくり回るだけ（風の粒は出さない）
+function buildFan(def) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, 1.8), MAT.dark);
+  base.position.y = 0.25; g.add(base);
+  for (const x of [-1.1, 1.1]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3.2, 0.25), MAT.steel);
+    leg.position.set(x, 1.8, 0); g.add(leg);
+  }
+  const frame = new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.22, 8, 4).rotateZ(Math.PI / 4), MAT.steel);
+  frame.position.y = 5.2; g.add(frame);
+  const blades = new THREE.Group(); blades.position.set(0, 5.2, 0.1); g.add(blades);
+  const bm = new THREE.MeshStandardMaterial({ color: '#9aa3a8', metalness: 0.6, roughness: 0.4, side: THREE.DoubleSide });
+  for (let i = 0; i < 4; i++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.9, 0.06), bm);
+    b.position.y = 1.0; b.rotation.y = 0.35;
+    const arm = new THREE.Group(); arm.rotation.z = i * Math.PI / 2; arm.add(b); blades.add(arm);
+  }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.4, 12).rotateX(Math.PI / 2), glow(def.color, 2));
+  hub.position.set(0, 5.2, 0.2); g.add(hub);
+  g.userData = { blades, hub };
+  return g;
+}
+
+const BUILDERS = { observer: buildObserver, amp: buildAmp, rod: buildRod, box: () => buildBox(), fan: buildFan };
 
 export class Towers {
   constructor(game) {
@@ -232,6 +258,29 @@ export class Towers {
         ud.glow.emissiveIntensity = 0.6 + tw.pulse * 6;
       } else if (tw.id === 'box') {
         for (const m of ud.ghosts) m.material.opacity = 0.35 + Math.sin(t * 3 + tw.pos.x) * 0.25;
+      } else if (tw.id === 'fan') {
+        let busy = false;
+        if (tw.age > 1) {
+          // 竜巻とつむじ風を、狙っているキャベツと反対の向き（来た方向）へ押し返す
+          const r2 = tw.def.radius * tw.def.radius, cab = this.game.cabbages;
+          for (const tor of th.tornados) {
+            if (!tor.alive || (tor.fanCd || 0) > t) continue;
+            if ((tor.pos.x - tw.pos.x) ** 2 + (tor.pos.z - tw.pos.z) ** 2 > r2) continue;
+            tor.fanT = (tor.fanT || 0) + dt;
+            if (tor.fanT > 4) { tor.fanT = 0; tor.fanCd = t + 6; continue; }
+            const c = tor.target >= 0 ? cab.list[tor.target] : null;
+            let dx = c ? tor.pos.x - c.x : tor.pos.x - tw.pos.x, dz = c ? tor.pos.z - c.z : tor.pos.z - tw.pos.z;
+            const d = Math.hypot(dx, dz) || 1;
+            const push = (tor.group.mini ? 16 : tor.group.boss ? 6 : 11) * dt;
+            tor.pos.x += dx / d * push; tor.pos.z += dz / d * push;
+            busy = true;
+            if (Math.random() < dt * 3) this.game.fx.burst(tor.pos.clone().setY(tor.pos.y + 3), tw.def.color, 6, 5, 0.4, 0.3, 1);
+            if (!this.game.fanTold) { this.game.fanTold = true; this.game.hud.toast('送風機：竜巻を来た方向へ押し返している（4 秒まで）', 'tip'); }
+          }
+        }
+        tw.spin = (tw.spin || 0) + dt * (busy ? 9 : 2.2);
+        ud.blades.rotation.z = tw.spin;
+        ud.hub.material.emissiveIntensity = busy ? 4 : 1.5;
       } else if (tw.id === 'rod') {
         ud.rings.forEach((r, i) => { r.rotation.x = t * (1 + i * 0.6); r.rotation.y = t * (1.4 - i * 0.3); r.position.y = 4 + i * 3.5 + Math.sin(t * 2 + i) * 0.4; });
         ud.tip.material.emissiveIntensity = 3 + Math.sin(t * 8) * 1.5;

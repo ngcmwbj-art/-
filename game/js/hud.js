@@ -212,6 +212,7 @@ export class HUD {
     if (nw.className === 'show' && this._newsArgs) { this.newsQ = this._newsArgs; nw.className = ''; }
     b.innerHTML = `<h2>${title}</h2><p>${sub || ''}</p>`;
     b.className = '';
+    b.style.animationDuration = ms + 'ms';
     void b.offsetWidth;
     b.className = 'show';
     clearTimeout(this._bt);

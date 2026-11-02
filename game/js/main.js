@@ -177,7 +177,7 @@ class Game {
         case 'KeyG': this.doKekkai(); break;
         case 'KeyE': this.doBuild(); break;
         case 'KeyX': this.buildSel = null; this.towers.hidePreview(); break;
-        case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': {
+        case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': {
           this.selectTower(TOWER_TYPES[+e.code.slice(-1) - 1].id);
           break;
         }
@@ -676,6 +676,7 @@ class Game {
     this.outage = this.wave > 0 && Math.random() < 0.7 ? { at: rand(18, 34), state: 'wait' } : null;
     this.eye = this.wave > 0 ? { state: 'wait' } : null;
     this.threats.minionKills = 0;
+    this.stormBest = 0; this.stormLost0 = this.threats.stats.lost; // 台風ごとのハイライト用
     const a = this.plan.angle; // 予報どおり東の海から
     this.stormAngle = a;
     this.threats.landZ = this.plan.z0;
@@ -726,7 +727,9 @@ class Game {
     this.addQ(bonus);
     this.say('ふぅ…守り切ったぜ', true);
     if (this.eyeSeen) { this.eyeSeen = false; this.memo('eye'); }
-    this.hud.banner('台風一過！', `台風${this.typhoonName()}から キャベツ ${this.cabbages.alive.toLocaleString()} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q`);
+    const lost = Math.max(0, this.threats.stats.lost - (this.stormLost0 || 0));
+    const hl = [`最大 <b>${this.stormBest || 0}</b> 連続撃破`, `雑魚 <b>${this.threats.minionKills || 0}</b> 匹`, lost ? `畑の被害 <b>${lost}</b> 玉` : '<b>畑の被害ゼロ！</b>'];
+    this.hud.banner('台風一過！', `台風${this.typhoonName()}から キャベツ ${this.cabbages.alive.toLocaleString()} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q<span class="hl-line">今回のハイライト：${hl.join('　')}</span>`, 4600);
     // 見渡しカメラ：2 秒だけ空へ上がって、育った畑全体を見渡す（タップで飛ばせる）
     this.overview = { t: 0, dur: 2.4 };
     this.audio.fanfare();
@@ -923,9 +926,11 @@ class Game {
     if (e.state === 'wait') {
       if (this.phaseT - sp.bossAt < 22 || sp.phase2T > 0) return;
       e.state = 'calm'; e.left = 10; e.speed = b.speed; b.speed *= 0.5;
+      b.eyeWeak = true; // 晴れ間の 10 秒だけ、本物が光ってダメージ 2 倍
       this.weather.setStorm(w.peak * 0.18);
-      this.say('静かになった…いや、目に入っただけだ', true);
-      this.hud.toast('台風の目に入った：風がやんだ。まだ終わっていない！ 吹き返しに注意', 'tip');
+      this.say('雲が切れた…本物が丸見えだ！ 今のうちに叩け！', true);
+      this.hud.toast('台風の目：晴れ間の 10 秒だけ、光る本物にダメージ 2 倍！ そのあと吹き返しが来る', 'good');
+      this.audio.cue('good');
       return;
     }
     if (e.state === 'calm') {
@@ -933,7 +938,7 @@ class Game {
       if (e.left > 0) return;
       // 吹き返し
       e.state = 'done';
-      b.speed = e.speed;
+      b.speed = e.speed; b.eyeWeak = false;
       this.weather.setStorm(Math.min(1, w.peak * 1.15));
       this.weather.windDir.multiplyScalar(-1);
       const wd = this.weather.windDir;
@@ -951,7 +956,7 @@ class Game {
   }
   eyeText() {
     const e = this.eye;
-    return e && e.state === 'calm' ? `台風の目に入った ― まだ終わっていない！ 吹き返しまで <b>${Math.ceil(e.left)}</b> 秒` : '';
+    return e && e.state === 'calm' ? `台風の目 ― 光る本物に<b>ダメージ2倍</b>！ 吹き返しまで <b>${Math.ceil(e.left)}</b> 秒` : '';
   }
 
   // 大ボスの第2形態：体力が半分になると、量子トンネルで反対側（西の山すそ）へ回り込む
@@ -1091,6 +1096,7 @@ class Game {
     this.killStreak = this.time - this.lastKillAt < 2.2 ? this.killStreak + 1 : 1;
     this.lastKillAt = this.time;
     const n = this.killStreak;
+    if (this.phase === 'storm') this.stormBest = Math.max(this.stormBest || 0, n);
     if (n === 3 || n === 5 || n === 8 || n === 12 || n === 20 || (n > 20 && n % 10 === 0)) {
       this.hud.streak(n);
       if (n >= 5) this.say(n >= 12 ? 'まだまだァ！！' : 'まだまだァ！');
@@ -1484,13 +1490,26 @@ class Game {
     else this.composer.render();
   }
 
+  // タイトル：マサトが画面の右側で出迎える（ギターを掲げ、手を振る）。カメラはゆっくり寄って少し揺れる
   titleCamera(t) {
-    const a = t * 0.05 - 0.6;
-    const r = 70;
-    this.camera.position.set(Math.cos(a) * r + 10, 32, Math.sin(a) * r - 20);
-    this.camera.lookAt(10, 14, -10);
-    this.player.model.update(0.016, t, 0, false, false, false);
-    this.player.model.root.position.copy(this.player.pos);
+    if (this.titleT0 === undefined) this.titleT0 = t;
+    const k = t - this.titleT0;
+    const m = this.player.model, pos = this.player.pos;
+    m.root.position.copy(pos);
+    const yaw = m.root.rotation.y;
+    const fx = Math.sin(yaw), fz = Math.cos(yaw), sx = Math.cos(yaw), sz = -Math.sin(yaw);
+    const dist = 4.6 + 2.5 * Math.exp(-k * 0.8), sway = Math.sin(t * 0.25) * 0.4;
+    this.camera.position.set(pos.x + fx * dist + sx * sway, pos.y + 1.5 + Math.sin(t * 0.3) * 0.1, pos.z + fz * dist + sz * sway);
+    // 横長の画面では、マサトが右端に来るよう左を見る（タイトルの文字は左寄せにしてある）
+    const off = this.camera.aspect > 1.2 ? dist * 0.62 : 0;
+    this.camera.lookAt(pos.x - sx * off, pos.y + 1.45, pos.z - sz * off);
+    // 出迎えの動き：0.8 秒で掲げる → 手を振る → 以後 7 秒ごとに手を振る・掲げるを交互に
+    const step = k < 0.8 ? -1 : k < 2.4 ? 0 : 1 + Math.floor((k - 2.4) / 7);
+    if (step !== this.titleStep) {
+      this.titleStep = step;
+      if (step >= 0) m.strum(step === 0 ? 'raise' : step % 2 ? 'wave' : 'raise');
+    }
+    m.update(0.016, t, 0, false, false, false);
   }
 }
 

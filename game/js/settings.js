@@ -1,6 +1,6 @@
 // アシスト設定：照準アシスト・やさしいモード・左利き配置・ボタンの大きさ（localStorage に保存）
 const KEY = 'masato-settings-v1';
-const DEFAULT = { aim: true, left: false, size: 1, bgm: true, vol: 0.8, diff: 1 };
+const DEFAULT = { aim: true, left: false, size: 1, bgm: true, vol: 0.8, diff: 1, onehand: false };
 
 export function loadSettings() {
   try {
@@ -15,6 +15,7 @@ export function saveSettings(s) {
 }
 export function applySettingsCss(s) {
   document.body.classList.toggle('lefty', !!s.left);
+  document.body.classList.toggle('onehand', !!s.onehand);
   document.documentElement.style.setProperty('--btn-scale', s.size);
 }
 

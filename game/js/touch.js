@@ -73,6 +73,15 @@ export function setupTouch(game) {
     el.addEventListener('click', () => { if (!game.paused) fn(); });
   };
   bind('tb-guitar', () => game.doChord());
+  // ギターは押しっぱなしで連続で弾ける（片手・手袋でも楽に）
+  {
+    const g = document.getElementById('tb-guitar');
+    let hold = null;
+    const stop = () => { clearInterval(hold); hold = null; };
+    g.addEventListener('touchstart', () => { stop(); hold = setInterval(() => { if (!game.paused) game.doChord(); }, 300); });
+    g.addEventListener('touchend', stop);
+    g.addEventListener('touchcancel', stop);
+  }
   bind('tb-observe', () => game.doObserve());
   bind('tb-teleport', () => game.doTeleport());
   bind('tb-solo', () => game.doSolo());
