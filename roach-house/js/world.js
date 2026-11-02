@@ -157,9 +157,11 @@ export function buildWorld(scene, renderer, q) {
 // 通路には温水の暖房パイプ。作業場はコンクリート
 export const TROUGH = { top: 1.4, bottom: 0.9, w: 1.1 };
 export const EAVE = 6.5;
-const SPAN_RISE = 2.2;
-const SPANS = [-28 / 3, 0, 28 / 3];
-const SPAN_HALF = 14 / 3;
+const SPAN_RISE = 1.9;
+// 4連棟。谷（柱の列）は z = -7, 0, 7。株の列の中には柱を立てない
+const SPANS = [-10.5, -3.5, 3.5, 10.5];
+const SPAN_HALF = 3.5;
+const GUTTERS = [-7, 0, 7];
 
 function buildGround(g) {
   const GS = TX.groundSheet();
@@ -409,16 +411,16 @@ function buildHouse(g) {
 
   // 柱（外壁と、棟と棟の間の谷）
   const colGeo = new THREE.BoxGeometry(0.14, EAVE, 0.14);
-  const colZ = [-14, -SPAN_HALF, SPAN_HALF, 14];
+  const colZ = [-14, ...GUTTERS, 14];
   const colPos = [];
-  for (let x = -22; x <= 22; x += 4) for (const z of colZ) colPos.push([x, z]);
+  for (let x = -22; x <= 22; x += 4) for (const z of colZ) if (!rowAt(x, z, 0.8) && tableAt(x, z, 0.4) < 0) colPos.push([x, z]);
   const cols = new THREE.InstancedMesh(colGeo, steel, colPos.length);
   const d = new THREE.Object3D();
   colPos.forEach(([x, z], i) => { d.position.set(x, EAVE / 2, z); d.quaternion.identity(); d.scale.setScalar(1); d.updateMatrix(); cols.setMatrixAt(i, d.matrix); });
   cols.castShadow = true;
   g.add(cols);
   // 谷の雨どい
-  for (const z of [-SPAN_HALF, SPAN_HALF]) {
+  for (const z of GUTTERS) {
     const gut = new THREE.Mesh(new THREE.BoxGeometry(44, 0.22, 0.36), steel);
     gut.position.set(0, EAVE + 0.05, z);
     gut.castShadow = true;
@@ -462,7 +464,7 @@ function buildHouse(g) {
   hoops.castShadow = true;
   g.add(hoops);
   // 棟と母屋（長手方向の細い材）
-  for (const zc of SPANS) for (const [dz, dy] of [[0, SPAN_RISE], [-2.4, SPAN_RISE * 0.85], [2.4, SPAN_RISE * 0.85]]) {
+  for (const zc of SPANS) for (const [dz, dy] of [[0, SPAN_RISE], [-1.8, SPAN_RISE * 0.86], [1.8, SPAN_RISE * 0.86]]) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 44, 6), steel);
     p.rotation.z = Math.PI / 2;
     p.position.set(0, EAVE + dy, zc + dz);
@@ -470,7 +472,7 @@ function buildHouse(g) {
   }
   // 保温カーテン（たたまれた白い布が梁にそって並ぶ）
   const curtainMat = new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.9, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
-  for (const zc of SPANS) for (const dz of [-2.2, 0, 2.2]) {
+  for (const zc of SPANS) for (const dz of [-1.4, 1.4]) {
     const cu = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 44, 10), curtainMat);
     cu.rotation.z = Math.PI / 2;
     cu.scale.set(1, 1, 0.55);
@@ -479,7 +481,7 @@ function buildHouse(g) {
     g.add(cu);
   }
   // 循環扇（梁からつり下げ）
-  for (const [x, z] of [[-14, -2.4], [-6, 2.4], [2, -7.2], [-14, 7.2], [-6, -11.5], [10, 2.4]]) {
+  for (const [x, z] of [[-14, -2.5], [-6, 2.5], [2, -7.5], [-14, 7.5], [-6, -12.5], [10, 2.5]]) {
     const f = new THREE.Group();
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: 0xdfe3e6, metalness: 0.5, roughness: 0.4 }));
     ring.rotation.y = Math.PI / 2;

@@ -379,7 +379,8 @@ export function makeFarmer() {
   }
   const hairBack = mesh(SPH, M.hair);
   hairBack.scale.set(0.48, 0.32, 0.46);
-  hairBack.position.set(0, 0.8, -0.1);
+  hairBack.position.set(0, 0.82, -0.2);
+  hairBack.scale.z = 0.4;
   headG.add(hairBack);
   const face = new THREE.Group();
   face.position.set(0, 0.62, 0.44);
