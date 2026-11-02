@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>パプリカの形の確認</title>
+<style>html,body{margin:0;height:100%;background:#2a2622}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js", "three/addons/": "../vendor/addons/" } }</script>
+</head><body>
+<script type="module">
+// パプリカの形・へた・ツヤを並べて確かめる（ゲームには関係しない確認用ページ）
+import * as THREE from 'three';
+import { RoomEnvironment } from './room-env.js';
+import { paprikaVariants, paprikaStem, paprikaMaterial, paprikaStemMaterial, PAPRIKA_COLORS } from '../js/paprika.js';
+const r = new THREE.WebGLRenderer({ antialias: true });
+r.setSize(innerWidth, innerHeight); r.toneMapping = THREE.ACESFilmicToneMapping; document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2622);
+const pm = new THREE.PMREMGenerator(r); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100); cam.position.set(0, 2.6, 9.5); cam.lookAt(0, 0.2, 0);
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(3, 5, 4); scene.add(sun);
+const cols = [PAPRIKA_COLORS.red, PAPRIKA_COLORS.yellow, PAPRIKA_COLORS.orange, PAPRIKA_COLORS.green];
+paprikaVariants().forEach((geo, i) => {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(geo, paprikaMaterial(cols[i])));
+  const st = new THREE.Mesh(paprikaStem(), paprikaStemMaterial()); st.position.y = geo.userData.stemOffset; g.add(st);
+  g.position.x = -3.6 + i * 2.4; g.rotation.y = 0.5 + i; scene.add(g);
+  const top = g.clone(); top.position.set(-3.6 + i * 2.4, -2.1, 0); top.rotation.set(-1.1, 0.3, 0); scene.add(top);
+});
+cam.position.set(0, 1.2, 11); cam.lookAt(0, -0.6, 0);
+r.render(scene, cam); window.done = true;
+</script></body></html>

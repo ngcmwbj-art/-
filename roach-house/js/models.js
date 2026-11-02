@@ -1,6 +1,7 @@
 // キャラクターと小物の見た目（基本形状と、その場で描いた質感で組み立て）
 import * as THREE from 'three';
-import { CRATE, paprikaGeometry } from './world.js';
+import { CRATE } from './world.js';
+import { paprikaVariants, paprikaStem, paprikaMaterial, paprikaStemMaterial, PAPRIKA_COLORS } from './paprika.js';
 import { rand } from './util.js';
 import * as TX from './textures.js';
 
@@ -429,7 +430,7 @@ export function makeFarmer() {
 }
 
 // ---------------- 収穫コンテナ ----------------
-const VEG_COLORS = [0xc81d12, 0xf0b90f, 0xe9670f, 0xc81d12, 0x3c7a22];
+const VEG_COLORS = [PAPRIKA_COLORS.red, PAPRIKA_COLORS.yellow, PAPRIKA_COLORS.orange];
 const ROT = new THREE.Color(0x4b3a1c);
 const CRATE_COLORS = [0xe46a1f, 0x2f8a46, 0x2f63b8];
 let CM = null;
@@ -453,9 +454,6 @@ function crateMats() {
   };
   return CM;
 }
-const vegGeo = (() => { const g = paprikaGeometry(16); g.scale(0.2, 0.2, 0.2); return g; })();
-const stemGeo = new THREE.CylinderGeometry(0.025, 0.04, 0.12, 6);
-const calyxGeo = new THREE.CylinderGeometry(0.03, 0.09, 0.05, 6);
 const flyGeo = new THREE.SphereGeometry(0.03, 6, 5);
 const flyWGeo = new THREE.PlaneGeometry(0.06, 0.03);
 
@@ -490,22 +488,31 @@ export function makeCrate(i) {
   label.position.set(-0.4, h * 0.42, d / 2 + 0.004);
   g.add(label);
 
+  // 中身：1箱に1色（出荷用は色をそろえる）。下に8個、上に3個を重ねて、向きはばらばら
   const vegs = [];
   const mats = new Map();
-  for (let ix = 0; ix < 4; ix++) for (let iz = 0; iz < 2; iz++) {
-    const hex = VEG_COLORS[Math.floor(rand() * VEG_COLORS.length)];
-    if (!mats.has(hex)) mats.set(hex, { mat: new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.32, clearcoat: 0.8, clearcoatRoughness: 0.14, envMapIntensity: 0.6 }), base: new THREE.Color(hex) });
+  const variants = paprikaVariants();
+  const stemGeo = paprikaStem();
+  const hex = VEG_COLORS[i % VEG_COLORS.length];
+  mats.set(hex, { mat: paprikaMaterial(hex), base: new THREE.Color(hex) });
+  const spots = [];
+  for (let ix = 0; ix < 4; ix++) for (let iz = 0; iz < 2; iz++) spots.push([-0.52 + ix * 0.35, h - 0.2, -0.22 + iz * 0.44]);
+  for (const x of [-0.35, 0, 0.35]) spots.push([x, h - 0.05, (rand() - 0.5) * 0.2]);
+  for (const [x, y, z] of spots) {
+    const geo = variants[Math.floor(rand() * variants.length)];
     const v = new THREE.Group();
-    const m = mesh(vegGeo, mats.get(hex).mat);
+    const m = mesh(geo, mats.get(hex).mat);
     m.userData.ownMaterial = true;
-    const st = mesh(stemGeo, M.stem, false);
-    st.position.y = 0.24;
-    st.rotation.z = 0.3;
-    const cx = mesh(calyxGeo, M.stem, false);
-    cx.position.y = 0.19;
-    v.add(m, st, cx);
-    v.position.set(-0.52 + ix * 0.35 + (rand() - 0.5) * 0.06, h - 0.14 + rand() * 0.06, -0.22 + iz * 0.44);
-    v.rotation.set(rand() * 0.6 - 0.3, rand() * 6, rand() * 0.6 - 0.3);
+    const st = mesh(stemGeo, paprikaStemMaterial(), false);
+    st.position.y = geo.userData.stemOffset;
+    v.add(m, st);
+    v.scale.setScalar(0.19 + rand() * 0.025);
+    v.position.set(x + (rand() - 0.5) * 0.05, y + rand() * 0.04, z);
+    // 立っている物・横に倒れている物・逆さの物
+    const pose = rand();
+    if (pose < 0.45) v.rotation.set(rand() * 0.4 - 0.2, rand() * 6.28, rand() * 0.4 - 0.2);
+    else if (pose < 0.85) v.rotation.set(Math.PI / 2 + rand() * 0.5 - 0.25, rand() * 6.28, 0, 'YXZ');
+    else v.rotation.set(Math.PI - 0.3 + rand() * 0.6, rand() * 6.28, 0, 'YXZ');
     g.add(v);
     vegs.push(v);
   }
@@ -529,10 +536,14 @@ export function makeCrate(i) {
 export function setCrateRot(m, k) {
   for (const v of m.mats) {
     v.mat.color.copy(v.base).lerp(ROT, k);
-    v.mat.roughness = 0.3 + k * 0.6;
-    v.mat.clearcoat = 1 - k;
+    v.mat.roughness = 0.22 + k * 0.6;
+    v.mat.clearcoat = 1 - k * 0.9;
   }
-  for (const v of m.vegs) v.scale.set(1 - k * 0.25, 1 - k * 0.45, 1 - k * 0.25);
+  for (const v of m.vegs) {
+    if (v.userData.s0 === undefined) v.userData.s0 = v.scale.x;
+    const b = v.userData.s0;
+    v.scale.set(b * (1 - k * 0.2), b * (1 - k * 0.35), b * (1 - k * 0.2));
+  }
 }
 
 export function animateFlies(m, t) {

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { rand, randRange, inRect } from './util.js';
 import * as TX from './textures.js';
+import { paprikaVariants, paprikaStem, paprikaMaterial, paprikaStemMaterial, PAPRIKA_COLORS } from './paprika.js';
 
 // ハウスの中で動ける範囲（壁の内側）
 export const BOUNDS = { minX: -21.6, maxX: 21.6, minZ: -13.6, maxZ: 13.6 };
@@ -202,25 +203,6 @@ function buildGround(g) {
   }
 }
 
-// パプリカの実の形（4つのでこぼこ・上下のくぼみ）
-export function paprikaGeometry(seg = 20) {
-  const geo = new THREE.SphereGeometry(1, seg, Math.round(seg * 0.8));
-  const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    const rxz = Math.hypot(x, z);
-    const th = Math.atan2(z, x);
-    const lobe = 1 + 0.1 * Math.cos(4 * th) * (1 - Math.abs(y) * 0.4);
-    x *= lobe; z *= lobe;
-    y *= 1.12;
-    if (y > 0.75) y -= 0.32 * (1 - rxz);
-    if (y < -0.8) y += 0.22 * (1 - rxz) * (0.6 + 0.4 * Math.cos(4 * th));
-    p.setXYZ(i, x, y, z);
-  }
-  geo.computeVertexNormals();
-  return geo;
-}
-
 function leafGeometry() {
   const geo = new THREE.PlaneGeometry(1, 0.46, 8, 4);
   geo.translate(0.5, 0, 0);
@@ -302,8 +284,7 @@ function buildPlants(g) {
   leaves.receiveShadow = true;
   g.add(leaves);
 
-  // 実
-  const fruitMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12 });
+  // 実：茎の節からぶら下がる。熟した赤・黄・橙のほか、未熟な緑と色づき途中も混ぜる
   const fruitList = [];
   for (const st of tips) {
     const n = rand() < 0.6 ? 2 : 1;
@@ -311,22 +292,37 @@ function buildPlants(g) {
       const t = randRange(0.12, 0.55);
       const pos = st.base.clone().lerp(st.tip, t);
       const a = rand() * Math.PI * 2;
-      fruitList.push({ x: pos.x + Math.cos(a) * 0.22, y: pos.y - 0.25, z: pos.z + Math.sin(a) * 0.22 });
+      fruitList.push({ x: pos.x + Math.cos(a) * 0.24, y: pos.y - 0.3, z: pos.z + Math.sin(a) * 0.24, v: Math.floor(rand() * 4) });
     }
   }
-  const fruits = new THREE.InstancedMesh(paprikaGeometry(18), fruitMat, fruitList.length);
-  const fcols = [0xc81d12, 0xf0b90f, 0xe9670f, 0xc81d12, 0x3c7a22];
-  const calyx = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.12, 0.1, 6), new THREE.MeshStandardMaterial({ color: 0x3e6a22, roughness: 0.6 }), fruitList.length);
-  fruitList.forEach((f, i) => {
-    const s = randRange(0.2, 0.27);
-    dummy.position.set(f.x, f.y, f.z); dummy.rotation.set(randRange(-0.15, 0.15), rand() * 6, randRange(-0.15, 0.15)); dummy.scale.setScalar(s); dummy.updateMatrix();
-    fruits.setMatrixAt(i, dummy.matrix);
-    fruits.setColorAt(i, col.setHex(fcols[Math.floor(rand() * fcols.length)]));
-    dummy.position.y += s * 0.98; dummy.scale.setScalar(1); dummy.updateMatrix();
-    calyx.setMatrixAt(i, dummy.matrix);
+  const PC = PAPRIKA_COLORS;
+  const palette = [PC.red, PC.red, PC.yellow, PC.orange, PC.green, PC.green, PC.turning];
+  const variants = paprikaVariants();
+  const fruitMat = paprikaMaterial();
+  const pStemGeo = paprikaStem();
+  const stems2 = new THREE.InstancedMesh(pStemGeo, paprikaStemMaterial(), fruitList.length);
+  variants.forEach((geo, vi) => {
+    const list = fruitList.filter((f) => f.v === vi);
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(geo, fruitMat, list.length);
+    list.forEach((f, i) => {
+      const s = randRange(0.2, 0.26);
+      dummy.position.set(f.x, f.y, f.z);
+      dummy.rotation.set(randRange(-0.18, 0.18), rand() * 6.28, randRange(-0.18, 0.18));
+      dummy.scale.setScalar(s);
+      dummy.updateMatrix();
+      im.setMatrixAt(i, dummy.matrix);
+      im.setColorAt(i, col.setHex(palette[Math.floor(rand() * palette.length)]));
+      dummy.translateY(geo.userData.stemOffset * s);
+      dummy.updateMatrix();
+      stems2.setMatrixAt(f.si = fruitList.indexOf(f), dummy.matrix);
+    });
+    im.castShadow = true;
+    im.receiveShadow = true;
+    g.add(im);
   });
-  fruits.castShadow = true;
-  g.add(fruits, calyx);
+  stems2.castShadow = true;
+  g.add(stems2);
 
   // 上の誘引ワイヤーと黄色い粘着シート（本物の温室にある虫取り）
   const wireMat = new THREE.MeshStandardMaterial({ color: 0xaab0b5, metalness: 0.8, roughness: 0.4 });
