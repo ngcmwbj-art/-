@@ -116,6 +116,10 @@ const html = T('index.html')
   .replaceAll('{{COUNT}}', String(games.length)).replaceAll('{{BUILT_AT}}', esc(builtAt))
   .replace('{{PORTAL}}', portal);
 writeFileSync(path.join(DIST, 'index.html'), html);
+// Claude の Artifact で公開するとき用（外枠の <html><head><body> は公開時に付くので、中身だけにする）
+writeFileSync(path.join(DIST, 'artifact.html'), html
+  .replace(/^[\s\S]*?<head>/, '').replace('<meta charset="utf-8">', '').replace(/<meta name="viewport"[^>]*>/, '<meta name="claude:viewport-fit-sides" content="cover">')
+  .replace('</head>', '').replace('<body>', '').replace('</body>', '').replace('</html>', '').trim() + '\n');
 writeFileSync(path.join(DIST, 'embed.html'), `<!-- 既存のページに貼るときは、<head> に portal.css、</body> の前に portal.js を読み込み、この部分を置く。previews/ も同じ場所に置く -->\n<link rel="stylesheet" href="portal.css">\n${portal}\n<script src="portal.js" defer></script>\n`);
 writeFileSync(path.join(DIST, 'portal.css'), T('portal.css'));
 writeFileSync(path.join(DIST, 'portal.js'), T('portal.js').replace('/*SPRINGS*/', `const SPRINGS = ${JSON.stringify({ frame: SPRINGS.frame, content: SPRINGS.content })};`));
