@@ -17,9 +17,8 @@
 
   /* ── 出現：枠をばねで持ち上げ、少し遅れて映像、さらに遅れて文字を1行ずつ ── */
   function reveal(card, order) {
-    card.classList.remove('gp-pending');
     card.dataset.revealed = '1';
-    revealIO.unobserve(card);
+    revealIO?.unobserve(card);
     if (reduce.matches || !card.animate) return;
     const d0 = Math.min(order, 8) * 70;
     const F = SPRINGS.frame, C = SPRINGS.content;
@@ -33,14 +32,17 @@
       el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: dl, easing: 'ease-out', fill: 'backwards' });
     });
   }
-  // 画面に入ったものから順に出す
+  // カードは最初から見える状態にしておく（画面に入ったかの検知が届かない表示でも、何も見えなくならないように）。
+  // 最初の画面にあるものはすぐ、下にあるものは画面に入ったときに動かす。検知が使えなければ動かさずにそのまま
+  const inView = (c) => { const r = c.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; };
   let queue = [], flushTimer = 0;
-  const revealIO = new IntersectionObserver((entries) => {
+  const revealIO = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
     for (const e of entries) if (e.isIntersecting && !e.target.dataset.revealed) { queue.push(e.target); revealIO.unobserve(e.target); }
     clearTimeout(flushTimer);
     flushTimer = setTimeout(() => { queue.sort((a, b) => cards.indexOf(a) - cards.indexOf(b)).forEach((c, i) => reveal(c, i)); queue = []; }, 16);
-  }, { rootMargin: '0px 0px -6% 0px' });
-  cards.forEach((c) => { c.classList.add('gp-pending'); revealIO.observe(c); });
+  }, { rootMargin: '0px 0px -6% 0px' }) : null;
+  cards.filter(inView).forEach((c, i) => reveal(c, i));
+  if (revealIO) cards.filter((c) => !c.dataset.revealed).forEach((c) => revealIO.observe(c));
 
   /* ── プレビュー動画：近づいたら読み込んで再生、離れたら止める ── */
   const canPlayWebm = !!document.createElement('video').canPlayType('video/webm; codecs="vp9"');

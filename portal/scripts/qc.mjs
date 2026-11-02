@@ -73,6 +73,16 @@ await playback('スマホ', { viewport: { width: 390, height: 844 }, isMobile: t
 await playback('スマホ・WebM非対応（MP4）', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   `(() => { const o = HTMLMediaElement.prototype.canPlayType; HTMLMediaElement.prototype.canPlayType = function (t) { return /webm/.test(t) ? '' : o.call(this, t); }; })();`);
 
+// ── 表示：画面に入ったかの検知（IntersectionObserver）が届かない表示でも、全カードが見える（アプリ内の表示などで真っ白にならない）
+{
+  const { ctx, page } = await open({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+    `window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };`);
+  await page.waitForTimeout(1500);
+  const op = await page.$$eval('.gp-card', (cs) => cs.map((c) => +getComputedStyle(c).opacity));
+  check('表示', `検知が届かない表示でも全カードが見える（不透明 ${op.filter((o) => o === 1).length} / ${op.length} 枚）`, op.length && op.every((o) => o === 1));
+  await ctx.close();
+}
+
 // ── 3. JSON と表示の一致・1. リンク・5. 絞り込み
 {
   const { ctx, page, net, errs } = await open({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

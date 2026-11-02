@@ -121,10 +121,7 @@ body { margin: 0; background: var(--gp-bg); color: var(--gp-ink); font-family: v
 .gp-cta[aria-disabled="true"] { background: var(--gp-chip); color: var(--gp-ink-3); cursor: not-allowed; letter-spacing: .02em; font-weight: 700; }
 .gp-card.is-dev .gp-media img, .gp-card.is-dev .gp-media video { filter: saturate(.55); }
 
-/* 出現アニメーション前の状態（JS が動くときだけ。動かないときは最初から見える） */
-.gp-js .gp-card.gp-pending { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .gp-js .gp-card.gp-pending { opacity: 1; }
   .gp-card, .gp-cta, .gp-cta svg, .gp-media video { transition: none; }
 }
 @media (max-width: 600px) {

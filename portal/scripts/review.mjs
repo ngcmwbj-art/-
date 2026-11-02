@@ -15,6 +15,7 @@ const VIEWS = [
   { name: 'tab', viewport: { width: 820, height: 1100 }, isMobile: true, hasTouch: true },
   { name: 'sp', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
   { name: 'sp-narrow', viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  { name: 'sp-landscape', viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 ];
 const problems = [];
 for (const v of VIEWS) {
