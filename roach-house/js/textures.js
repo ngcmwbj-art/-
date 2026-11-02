@@ -105,7 +105,7 @@ export const dirt = () => once('dirt', () => {
   });
   const rough = fromField(w / 2, h / 2, (u, v) => {
     const wet = clamp01((fbm(u * 3 + 3, v * 3, 3, 3) - 0.55) * 4);
-    const r = mix(0.95, 0.45, wet) * 255;
+    const r = mix(0.97, 0.68, wet) * 255;
     return [r, r, r];
   });
   return { map: tex(c), normal: normalFromHeight(H, w, h, 6), rough: tex(rough, false) };
