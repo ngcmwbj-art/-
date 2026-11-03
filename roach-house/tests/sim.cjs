@@ -32,6 +32,22 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
         if (g.nutrition >= 100) inp.press('egg');
         if (style === 'smart' && g.canAttackNow() && (g.farmer.carry || g.farmer.state === 'CHASE')) inp.press('attack');
         const f = g.farmer;
+        const steer = (ex, ez, dash = true) => {
+          const n = Math.hypot(ex, ez) || 1, fx = Math.sin(g.camYaw), fz = Math.cos(g.camYaw);
+          inp.mz = (ex * fx + ez * fz) / n; inp.mx = (-ex * fz + ez * fx) / n; inp.dash = dash;
+        };
+        // 燻煙剤：サイレンと緑の線をたよりに逃げ場へ（人も同じ情報を持っている）
+        if (style === 'smart' && g.safeRings && g.safeRings.length) {
+          const sp = g.nearestSafe(p), d = Math.hypot(sp.x - p.x, sp.z - p.z);
+          if (d > 0.6) { if (p.surface >= 0) steer(sp.x - p.x, sp.z - p.z); else steer(sp.x - p.x, sp.z - p.z); }
+          return;
+        }
+        // ネコ：鈴が近い・ねらわれたら、ネコと反対へ逃げる
+        const C = g.cat;
+        if (style === 'smart' && C && p.surface < 0 && (C.target === p || (Math.hypot(C.x - p.x, C.z - p.z) < 3.5 && C.st !== 'pester'))) {
+          steer(p.x - C.x, p.z - C.z);
+          return;
+        }
         const danger = (f.act && !f.act.done && Math.hypot(f.act.x - p.x, f.act.z - p.z) < f.act.radius + 0.6) ||
           g.clouds.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < c.r + 0.4 && Math.abs(c.y - p.y) < 1.5);
         if (style === 'smart' && ((f.state === 'CHASE' && f.target === p) || danger)) {

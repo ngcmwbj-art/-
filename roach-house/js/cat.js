@@ -168,11 +168,11 @@ export function makeCat() {
   const whiskM = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 });
 
   // 毛のある部品：本体＋毛の殻をまとめて足す
-  const furry = (parent, geo, shadow = true) => {
+  const furry = (parent, geo, shadow = true, fuzz = true) => {
     const m = new THREE.Mesh(geo, furM);
     m.castShadow = shadow; m.receiveShadow = true;
     parent.add(m);
-    for (const sm2 of shells) { const s = new THREE.Mesh(geo, sm2); s.raycast = () => {}; parent.add(s); }
+    if (fuzz) for (const sm2 of shells) { const s = new THREE.Mesh(geo, sm2); s.raycast = () => {}; parent.add(s); }
     return m;
   };
 
@@ -216,14 +216,14 @@ export function makeCat() {
     v.z *= 0.21;
     if (v.y > 0.3) v.z -= (v.y - 0.3) * 0.08; // 額をうしろへ
   });
-  furry(head, paint(skullG, 'head'));
+  furry(head, paint(skullG, 'head'), true, false); // 顔は近くで見るので毛の殻なし（ざらつき防止）
   // 口もと（左右のひげ袋とあご）
   for (const s of [-1, 1]) {
-    const pg = sculpt(new THREE.SphereGeometry(1, 16, 12), (v) => { v.x = v.x * 0.05 + s * 0.04; v.y = v.y * 0.04 - 0.065; v.z = v.z * 0.045 + 0.18; });
-    furry(head, paint(pg, 'head', 0, -0.2, 0), false);
+    const pg = sculpt(new THREE.SphereGeometry(1, 16, 12), (v) => { v.x = v.x * 0.044 + s * 0.036; v.y = v.y * 0.035 - 0.065; v.z = v.z * 0.04 + 0.185; });
+    furry(head, paint(pg, 'head', 0, -0.2, 0), false, false);
   }
   const chinG = sculpt(new THREE.SphereGeometry(1, 14, 10), (v) => { v.x *= 0.045; v.y = v.y * 0.03 - 0.11; v.z = v.z * 0.04 + 0.16; });
-  furry(head, paint(chinG, 'head', 0, -0.2, 0), false);
+  furry(head, paint(chinG, 'head', 0, -0.2, 0), false, false);
   // 鼻（ピンクの逆三角）
   const noseG = new THREE.ConeGeometry(0.02, 0.022, 3);
   noseG.rotateX(Math.PI); noseG.rotateY(Math.PI);

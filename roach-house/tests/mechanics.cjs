@@ -94,11 +94,13 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     // 8. 殺虫剤の霧でダメージ・仲間に乗りかわり
     g.start('s5', 17); freezeFarmer();
     g.nutrition = 100; inp.press('egg');
-    RH.sim(11, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    RH.sim(12.5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
     const before = g.nymphs.length;
     const old = g.player;
     g.spawnCloud(old.x, 0, old.z);
-    RH.sim(6, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    RH.sim(3, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    if (old.alive) g.spawnCloud(old.x, 0, old.z); // 2回吹きかけられた
+    RH.sim(4.5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
     check('霧の中でやられる', !old.alive);
     check('仲間に意識が移る', g.player !== old && g.player.alive && g.state === 'play', `n ${before}->${g.nymphs.length}`);
 

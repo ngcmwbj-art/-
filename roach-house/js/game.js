@@ -1873,7 +1873,7 @@ export class Game {
         if (!r.alive || r.st === 'fly' || r.st === 'glide') continue;
         if (Math.hypot(r.x - F.x, r.z - F.z) > F.r) continue;
         if (SAFE_SPOTS.some((sp) => Math.hypot(sp.x - r.x, sp.z - r.z) < sp.r)) continue;
-        this.damage(r, 7 * dt * (r.nymph ? 1.3 : 1), 'smoke');
+        this.damage(r, 5.5 * dt * (r.nymph ? 1.3 : 1), 'smoke');
       }
       if (!F.eggMsg && this.eggs.some((e) => e.alive && Math.hypot(e.x - F.x, e.z - F.z) < F.r)) {
         F.eggMsg = true;
@@ -1950,7 +1950,11 @@ export class Game {
           P.done = true;
           for (const r of this.roaches) {
             if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide') continue;
-            if (Math.hypot(r.x - P.x, r.z - P.z) < 0.5) this.damage(r, r.isPlayer ? 30 : 999, 'cat');
+            if (Math.hypot(r.x - P.x, r.z - P.z) < 0.5) {
+              // 自分には大けが（でも一撃ではやられない）。仲間はひとたまりもない。物音で農場主も気づく
+              if (r.isPlayer) { this.damage(r, Math.min(30, Math.max(0, r.hp - 8)), 'cat'); this.noise(r, 9, 35); this.toast('ネコにはたかれた！ 高い所へ逃げろ！', 'bad'); }
+              else this.damage(r, 999, 'cat');
+            }
           }
           this.sfx.thump();
         }
