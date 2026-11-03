@@ -20,13 +20,13 @@ export const STAGES = [
     tip: 'まずはコンテナを1箱かじってみよう。見つかったら栽培槽の下へ' },
   { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'わなが増え、見回りも多くなる。足もとに気をつけろ', target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
     tip: 'ホイホイ（黄色い家）が多い。地図の×印を見て、通り道を選ぼう' },
-  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。JAの検品も来る', target: 8, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true,
+  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。JAの検品も来る', target: 7, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true,
     tip: '黒い丸い容器は毒エサ。JAの検品員が来たら、近づかずに待とう' },
-  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速く、燻煙剤も早め。ハウスのネコもうろつく', target: 9, baits: 1, fSpeed: 0.97, susp: 0.92, patrol: [4, 7], patrolP: 0.6, loadT: 10, traps: 3, hatch: 10, sprayDmg: 23, fumAt: 0.5, inspect: true, cat: true,
+  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速い。ハウスのネコもうろつく', target: 8, baits: 1, fSpeed: 0.97, susp: 0.92, patrol: [4, 7], patrolP: 0.6, loadT: 10, traps: 3, hatch: 10, sprayDmg: 23, fumAt: 0.5, inspect: true, cat: true,
     tip: '鈴の音はネコ。ネコは台や栽培槽の上には来ない' },
-  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '10箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 10, baits: 2, fSpeed: 1.0, susp: 0.98, patrol: [4, 6], patrolP: 0.6, loadT: 12, traps: 4, hatch: 11, sprayDmg: 24, fumAt: 0.5, inspect: true, cat: true,
+  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '9箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 9, baits: 2, fSpeed: 1.0, susp: 0.98, patrol: [4, 6], patrolP: 0.6, loadT: 12, traps: 4, hatch: 11, sprayDmg: 24, fumAt: 0.5, inspect: true, cat: true,
     tip: '仲間をたくさん増やして、探索と囮で一気に攻めよう' },
-  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗なハウス。農場主の懐中電灯の光だけに気をつけろ', target: 9, baits: 2, fSpeed: 0.97, susp: 0.95, patrol: [4, 7], patrolP: 0.55, loadT: 11, traps: 4, hatch: 11, sprayDmg: 23, fumAt: 0.5, inspect: false, cat: true, night: true,
+  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗なハウス。農場主の懐中電灯の光だけに気をつけろ', target: 8, baits: 2, fSpeed: 0.97, susp: 0.95, patrol: [4, 7], patrolP: 0.55, loadT: 11, traps: 4, hatch: 11, sprayDmg: 23, fumAt: 0.5, inspect: false, cat: true, night: true,
     tip: '暗いので光の外なら見つかりにくい。懐中電灯の光の輪に入るな' },
 ];
 export const DIFFS = Object.fromEntries(STAGES.map((st) => [st.key, st]));

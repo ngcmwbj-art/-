@@ -278,7 +278,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     // 26. 6つのステージ：1〜5はだんだん難しくなり、6は夜の特別ステージ。クリアで次が開く
     const STG = RH.stages, S5 = STG.slice(0, 5);
     check('ステージは6つ', STG.length === 6);
-    check('先へ進むほど目標の箱が増える（1〜5）', S5.every((st, k) => k === 0 || st.target > S5[k - 1].target), S5.map((x) => x.target).join(','));
+    check('先へ進むほど目標の箱が減らない（1〜5）', S5.every((st, k) => k === 0 || st.target >= S5[k - 1].target) && S5[4].target > S5[0].target, S5.map((x) => x.target).join(','));
     check('先へ進むほど農場主が速く鋭い（1〜5）', S5.every((st, k) => k === 0 || (st.fSpeed >= S5[k - 1].fSpeed && st.susp >= S5[k - 1].susp)));
     check('ステージ6は夜', !!STG[5].night && S5.every((x) => !x.night));
     check('どのステージにも開始時の一言がある', STG.every((x) => typeof x.tip === 'string' && x.tip.length > 5));
@@ -292,7 +292,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('同じステージをもう一度クリアしても進まない', r3.rec.cleared === 1 && r3.unlockedStage === 0);
     check('以前の記録（むずかしいで勝ち）はステージ5まで開いた扱い', F.normalizeRecords({ winHard: true }).cleared === 5);
     g.start('s4', 60);
-    check('ステージ4の目標は9箱・出荷の限度は8箱', g.diff.target === 9 && g.shipLeft() === 8, `${g.diff.target}/${g.shipLeft()}`);
+    check('ステージ4の目標は8箱・出荷の限度は9箱', g.diff.target === 8 && g.shipLeft() === 9, `${g.diff.target}/${g.shipLeft()}`);
 
     // 27. 星3つと自己ベスト
     const stA = { ...st, shipped: 2, chased: 1, deaths: 0 };
