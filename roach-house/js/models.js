@@ -432,11 +432,30 @@ export function makeFarmer() {
     curls.castShadow = true;
     headG.add(curls);
     // もみあげ
+    // 長いもみあげ：パーマの巻き毛を、髪から耳の前を通ってあごの近くまでつなげて並べる
+    const sbPts = [];
     for (const s of [-1, 1]) {
-      const sb = mesh(new THREE.BoxGeometry(0.06, 0.2, 0.12), M.hair, false);
-      sb.position.set(s * 0.45, 0.6, 0.08);
-      headG.add(sb);
+      for (let k = 0; k <= 9; k++) {
+        const t = k / 9;
+        const y = 0.8 - t * 0.5;
+        const x = s * (0.455 - t * 0.075);
+        const z = 0.04 + t * 0.12;
+        sbPts.push([x, y, z, 0.058 - t * 0.012]);
+        sbPts.push([x - s * 0.01, y - 0.025, z + 0.06, 0.05 - t * 0.012]);
+        sbPts.push([x + s * 0.012, y - 0.012, z + 0.03, 0.054 - t * 0.012]);
+        sbPts.push([x - s * 0.018, y - 0.04, z + 0.1, 0.044 - t * 0.01]);
+      }
     }
+    const sb = new THREE.InstancedMesh(curlGeo, curlMat, sbPts.length);
+    sbPts.forEach(([x, y, z, sc], i) => {
+      d.position.set(x, y, z);
+      d.rotation.set(rnd() * 6, rnd() * 6, rnd() * 6);
+      d.scale.setScalar(sc);
+      d.updateMatrix();
+      sb.setMatrixAt(i, d.matrix);
+      sb.setColorAt(i, c.setHex(rnd() < 0.5 ? 0x231e1a : 0x332b25));
+    });
+    headG.add(sb);
   }
   const face = new THREE.Group();
   face.position.set(0, 0.62, 0.44);
