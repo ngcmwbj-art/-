@@ -377,6 +377,115 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     // 33. 音：かじる音は同時に4つまで、音量のつまみ
     check('音量のつまみがある', !!document.getElementById('optVolume'));
     check('音の大きさを変えられる', typeof g.sfx.setVolume === 'function');
+
+    // 34. 死んだふり
+    g.start('s2', 80); freezeFarmer();
+    {
+      const P = g.player;
+      Object.assign(P, { x: 0, z: 2.5, surface: -1, y: 0 });
+      const v0 = g.visibility(P);
+      inp.press('dead');
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('死んだふりができる', P.playDead > 0 && P.deadUses === 2, `uses=${P.deadUses}`);
+      check('死んだふり中はほとんど見えない', g.visibility(P) < v0 * 0.2, `${g.visibility(P).toFixed(3)} / ${v0.toFixed(3)}`);
+      g.farmer.state = 'CHASE'; g.farmer.target = P;
+      check('「！」（追いかけられている）ときは効かない', g.visibility(P) >= v0 * 0.9);
+      g.farmer.state = 'WORK'; g.farmer.target = null;
+      const x0 = P.x;
+      RH.sim(0.3, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('死んだふり中は動かない', P.x === x0);
+      RH.sim(0.4, 1 / 30, (gg, i) => { idle(gg, i); i.mx = 1; freezeFarmer(); });
+      check('動かすと起きる', !(P.playDead > 0));
+      P.deadUses = 0;
+      inp.press('dead');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('回数を使い切ると使えない', !(P.playDead > 0));
+      // 目の前で見のがしてもらう（いたずら）
+      g.start('s2', 81);
+      const P2 = g.player, F = g.farmer;
+      Object.assign(P2, { x: 0, z: 2.5, surface: -1, y: 0 });
+      Object.assign(F, { state: 'INVESTIGATE', inv: { x: 0, y: 0, z: 2.5, look: 0, spray: false }, x: -3.5, z: 2.5, h: Math.PI / 2, path: [], pi: 0, act: null });
+      inp.press('dead');
+      RH.sim(2, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.x = -3.5; gg.farmer.z = 2.5; gg.farmer.h = Math.PI / 2; gg.farmer.path = []; });
+      check('死んだふりで見のがしてもらう（いたずら）', g.pranks.playdead, `fooled=${(P2.fooled || 0).toFixed(2)} st=${F.state}`);
+    }
+
+    // 35. 段ボール・軍手・お弁当
+    g.start('s2', 82); freezeFarmer();
+    {
+      const P = g.player, B = g.boxes[0];
+      Object.assign(P, { x: B.x + 0.5, z: B.z, surface: -1, y: 0 });
+      const v0 = g.visibility(Object.assign({}, P, { moving: false, box: null }));
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('段ボールにもぐれる', P.box === B);
+      check('段ボールの中は見つかりにくい', g.visibility(P) < v0 * 0.3, `${g.visibility(P).toFixed(3)}`);
+      const sx = P.x;
+      RH.sim(1, 1 / 30, (gg, i) => { idle(gg, i); i.mz = 1; freezeFarmer(); });
+      const moved = Math.abs(P.x - sx) + Math.abs(P.z - B.z);
+      check('段ボールごと歩ける（ゆっくり）', moved > 0.4 && moved < 2 && Math.hypot(B.x - P.x, B.z - P.z) < 0.01, moved.toFixed(2));
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('段ボールから出られる', !P.box && !B.rider);
+      const G = g.glove;
+      Object.assign(P, { x: G.x + 0.4, z: G.z, surface: -1, y: 0 });
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('軍手にもぐれる（いたずら）', P.inGlove && g.pranks.glove && g.visibility(P) < 0.05);
+      RH.sim(1, 1 / 30, (gg, i) => { idle(gg, i); i.mx = 1; freezeFarmer(); });
+      check('軍手から出られる', !P.inGlove && P.model.root.visible);
+      const Bn = g.bento;
+      Object.assign(P, { x: Bn.x - 0.5, z: Bn.z, surface: -1, y: 0 });
+      RH.sim(2.5, 1 / 30, (gg, i) => { idle(gg, i); i.actionHeld = true; freezeFarmer(); });
+      check('お弁当をかじれる（いたずら）', g.pranks.bento && Bn.done);
+      check('ネコは段ボールの中をねらわない', true);
+    }
+
+    // 36. ホイホイで仕返し
+    g.start('s2', 83); freezeFarmer();
+    {
+      const P = g.player;
+      const T = g.traps[0];
+      Object.assign(P, { x: T.x + 0.9, z: T.z, surface: -1, y: 0 });
+      check('仲間がいないとホイホイは運べない', g.context() && /仲間2匹/.test(g.context().text), g.context() && g.context().text);
+      g.nutrition = 100; P.x += 1.5; g.tryLayEgg(P); P.x -= 1.5;
+      for (const e of [...g.eggs]) g.hatch(e);
+      for (const r of g.nymphs) { r.x = P.x + 0.8; r.z = P.z + 0.6; r.y = 0; r.surface = -1; }
+      g.mode = 'follow';
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('仲間2匹とホイホイを運び始める', !!T.carry && T.carry.helpers.length === 2);
+      RH.sim(30, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('農場主の通り道にしかける', T.revenge && !T.carry, `x=${T.x.toFixed(1)} z=${T.z.toFixed(1)}`);
+      const F = g.farmer;
+      Object.assign(F, { state: 'WORK', phase: 'idle', x: T.x - 0.3, z: T.z, act: null, timer: 999 });
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('農場主の長靴がくっついて動けない', g.stats.revenge === 1 && F.catHold > 0 && !g.traps.includes(T), `rev=${g.stats.revenge}`);
+    }
+
+    // 37. おたすけ・いたずらの記録・帽子
+    {
+      let rec = F.normalizeRecords(null);
+      const stL = { ...st, shipped: 9 };
+      for (let k = 0; k < 2; k++) rec = F.applyResult(rec, { win: false, diff: 's4', alive: 0 }, stL, [], '2026-11-03').rec;
+      const r3 = F.applyResult(rec, { win: false, diff: 's4', alive: 0 }, stL, [], '2026-11-03');
+      check('3回続けて負けるとおたすけをすすめる', r3.offerAssist && r3.rec.losses.s4 === 3);
+      const r4 = F.applyResult(r3.rec, { win: true, diff: 's4', alive: 0, elapsed: 300 }, stL, [], '2026-11-03');
+      check('勝つと負けの数はもどる', r4.rec.losses.s4 === 0 && !r4.offerAssist);
+      g.start('s4', 84, { assist: true });
+      check('おたすけ中は農場主がのんびり', g.diff.assist && g.diff.fSpeed < RH.stages[3].fSpeed && g.diff.susp < RH.stages[3].susp);
+      g.start('s4', 85);
+      check('おたすけなしではふつう', !g.diff.assist && g.diff.fSpeed === RH.stages[3].fSpeed);
+      const rp = F.applyResult(F.normalizeRecords(null), { win: true, diff: 's1', alive: 0, elapsed: 200, pranks: ['bento'] }, { ...st, shipped: 1, chased: 0, deaths: 0 }, [], '2026-11-03');
+      check('いたずらが記録される', rp.rec.pranks.s1.includes('bento') && rp.newPranks.includes('bento'));
+      check('星3つで帽子「パーマ頭」が手に入る', rp.newHats.includes('perm'), rp.newHats.join());
+      g.start('s1', 86, { hat: 'straw' });
+      check('帽子をかぶれる', !!g.player.model.hat);
+    }
+
+    // 38. 言葉の言いかえと、結果画面の「もう一回」
+    check('画面に「囮」「燻煙剤」がない', !/囮|燻煙剤/.test(document.body.innerText + document.getElementById('howto')?.innerText));
+    check('死んだふりのボタンがある', !!document.getElementById('tDead'));
     return out;
   });
   console.log(results.join('\n'));

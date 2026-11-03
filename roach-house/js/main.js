@@ -11,7 +11,9 @@ import { setTextureSize } from './textures.js';
 import { WING_COLORS } from './models.js';
 import {
   todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings, STAR_RULES,
+  HATS, unlockedHats, totalStars,
 } from './features.js';
+import { PRANKS } from './game.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -151,9 +153,10 @@ function startGame(diff) {
   lastDiff = diff;
   refreshDay();
   const tutorial = $('optTutor').checked;
-  game.start(diff, undefined, { tutorial, wing: records.wing, layoutSeed: dailySeed(dayKey) });
+  const assist = !!(records.assist && records.assist[diff]);
+  game.start(diff, undefined, { tutorial, wing: records.wing, hat: records.hat, assist, layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
-  $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}`;
+  renderOrderMini();
   $('orderMini').hidden = false;
   const D = game.diff;
   world.setNight(!!D.night);
@@ -173,6 +176,18 @@ function startGame(diff) {
   $('toasts').innerHTML = '';
   setScreen('play');
   updateCmdButtons();
+}
+
+// 今日の注文といたずらリスト（遊んでいる間の小窓）
+let miniKey = '';
+function renderOrderMini() {
+  const pr = game.pranks || {};
+  const key = PRANKS.map((x) => (pr[x.id] ? 1 : 0)).join('');
+  if (key === miniKey && $('orderMini').innerHTML) return;
+  miniKey = key;
+  const done = (records.pranks && records.pranks[lastDiff]) || [];
+  $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}` +
+    `<br><b>いたずら</b><br>${PRANKS.map((x) => `<span class="${pr[x.id] ? 'ok' : done.includes(x.id) ? 'was' : ''}">${pr[x.id] ? '✓' : '・'}${x.text}</span>`).join('<br>')}`;
 }
 
 function calmScreen() {
@@ -217,6 +232,18 @@ function renderBook() {
     sfx.click();
     renderBook();
   }));
+  const hatOk = unlockedHats(records);
+  const ns = totalStars(records);
+  $('bookHats').innerHTML = Object.entries(HATS).map(([k, h]) => {
+    const ok = hatOk.includes(k);
+    return `<button class="wing ${records.hat === k ? 'on' : ''}" data-hat="${k}" ${ok ? '' : 'disabled'}>${h.label}${ok ? '' : `<small>星 ${h.need} 個（いま ${ns} 個）</small>`}</button>`;
+  }).join('');
+  $('bookHats').querySelectorAll('[data-hat]').forEach((b) => b.addEventListener('click', () => {
+    records.hat = b.dataset.hat;
+    store.set('records', records);
+    sfx.click();
+    renderBook();
+  }));
   $('bookTitles').innerHTML = TITLES.map((t) => {
     const ok = records.titles.includes(t.id);
     return `<li class="${ok ? '' : 'locked'}"><b>${ok ? '★ ' : '☆ '}${t.name}</b><small>${t.desc}</small></li>`;
@@ -244,7 +271,7 @@ $('btnSkipTutor').addEventListener('click', (e) => { e.preventDefault(); game.en
 const TIPS = [
   '台の下でじっとしていれば、農場主からはほとんど見えません。',
   'がっつきゲージは緑のうちに離すと音が出ません。黄色で止めるのが一番効率がいい食べかたです。',
-  '「囮」の仲間が追われている間に、反対側のコンテナを狙いましょう。',
+  '「おとり」の仲間が追われている間に、反対側のコンテナを狙いましょう。',
   '農場主がコンテナを運んでいる時に突撃すると、コンテナを床に落とします。',
   '卵は畝の葉の下か台の下に産むと、見つかりにくくなります。',
   'ダメになったコンテナを農場主が見つけると、怒って近くにホイホイを置きます。',
@@ -262,7 +289,7 @@ function renderStages() {
     const b = best[st.key];
     const cleared = st.no <= (records.cleared || 0);
     return `<button class="stage ${st.no === open && !cleared ? 'next' : ''}" data-diff="${st.key}" ${ok ? '' : 'disabled'}>
-      <span class="no">${st.label}${cleared ? '　✓クリア' : ''}</span><b>${ok ? st.name : '？？？'}</b>
+      <span class="no">${st.label}${cleared ? '　✓クリア' : ''}${records.assist && records.assist[st.key] ? '　<i class="assist-tag">おたすけ中</i>' : ''}</span><b>${ok ? st.name : '？？？'}</b>
       <span class="stars">${'★'.repeat(records.stars[st.key] || 0)}${'☆'.repeat(3 - (records.stars[st.key] || 0))}</span>
       <span>${ok ? `${st.target}箱ダメにする。${st.desc}` : `ステージ${st.no - 1}をクリアすると遊べる`}</span>
       <em>${b ? `最高 ${b.rank}・${b.score}点` : ''}</em></button>`;
@@ -279,6 +306,15 @@ $('btnResume').addEventListener('click', resumeGame);
 $('btnRetry').addEventListener('click', () => startGame(lastDiff));
 $('btnTitle').addEventListener('click', toTitle);
 $('btnAgain').addEventListener('click', () => startGame(lastDiff));
+$('btnAssist').addEventListener('click', (e) => {
+  const b = e.currentTarget, d = b.dataset.diff;
+  records.assist = records.assist || {};
+  if (b.dataset.on === '1') delete records.assist[d];
+  else records.assist[d] = true;
+  store.set('records', records);
+  sfx.click();
+  startGame(d);
+});
 $('btnTitle2').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pauseGame);
 $('optSound').addEventListener('change', (e) => { soundOn = e.target.checked; store.set('sound', soundOn); sfx.setMuted(!soundOn); });
@@ -356,6 +392,24 @@ function showResult(res) {
   const nxt = cur ? STAGES[cur.no] : null;
   $('btnNext').hidden = !(res.win && nxt);
   if (nxt) $('btnNext').textContent = `次のステージへ（${nxt.label}）`;
+  // すぐやり直し：負けたら「もう一回」をいちばん大きく、勝ったら「次のステージへ」を先頭に
+  const showNext = res.win && nxt;
+  $('btnAgain').className = `btn ${showNext ? '' : 'primary big-again'}`;
+  $('btnAgain').textContent = res.win ? 'もう一度' : 'もう一回！';
+  // おたすけ
+  const ab = $('btnAssist');
+  const assistOn = !!(records.assist && records.assist[res.diff]);
+  ab.hidden = !(out.offerAssist || assistOn);
+  ab.textContent = assistOn ? 'おたすけをやめる（ふつうにもどす）' : `おたすけを使う？（${records.losses[res.diff]}回続けて負けたので、農場主を少しのんびりにできる）`;
+  ab.dataset.diff = res.diff;
+  ab.dataset.on = assistOn ? '1' : '0';
+  if (res.assist) news.push('<span class="was">（おたすけ中のプレイ）</span>');
+  // いたずら
+  const prs = res.pranks || [];
+  const prDone = records.pranks[res.diff] || [];
+  news.push(`<b>いたずら</b>　${PRANKS.map((x) => `<span class="${prs.includes(x.id) ? 'ok' : 'ng'}">${prs.includes(x.id) ? '✓' : '・'}${x.text}${!prs.includes(x.id) && prDone.includes(x.id) ? '（前にやった）' : ''}</span>`).join('　')}`);
+  if ((s.revenge || 0) > 0) news.push(`<span class="new">ホイホイの仕返し ${s.revenge} 回成功！</span>`);
+  for (const k of out.newHats || []) news.push(`<span class="new">帽子「${HATS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`);
   $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}${news.length ? '<br>' + news.join('<br>') : ''}`;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
@@ -376,12 +430,12 @@ const hints = {
     { id: 'move', kb: 'WASDで移動、マウスをドラッグ（またはQ/E）で視点を回せます。野菜コンテナを目指そう', tc: '左下をなぞって移動、右側をなぞって視点を回せます。野菜コンテナを目指そう', until: (g) => g.elapsed > 9 },
     { id: 'map', kb: '右上の地図の緑の四角がまだ食べられるコンテナ。赤い点が農場主、扇形が視界です', tc: '右上の地図の緑の四角がコンテナ。赤い点が農場主、扇形が視界です', until: (g) => g.elapsed > 18 },
     { id: 'eat', kb: 'コンテナのそばでスペースを長押しすると食べる。がっつきゲージが赤になる前に離そう！', tc: 'コンテナのそばで「食べる」を長押し。がっつきゲージが赤になる前に離そう！', when: (g) => !!(g.context() && g.context().crate), until: (_, ev) => ev.has('ruin') || ev.has('egg'), max: 12 },
-    { id: 'climb', kb: '台や栽培槽のふちでスペースを押すと登れます。栽培槽の上では株の実もかじれる', tc: '台や栽培槽のふちで「登る」を押すと登れます。栽培槽の上では株の実もかじれる', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 9 },
+    { id: 'climb', kb: '台やさいばい槽のふちでスペースを押すと登れます。さいばい槽の上では株の実もかじれる', tc: '台やさいばい槽のふちで「登る」を押すと登れます。さいばい槽の上では株の実もかじれる', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 9 },
     { id: 'wind', kb: '通路の入口の渦！ スペースで風に乗ると、通路の先まで一気に飛べる', tc: '通路の入口の渦！「風に乗る」で通路の先まで一気に飛べる', when: (g) => { const c = g.context(); return c && c.text === '風に乗る'; }, until: (_, ev) => ev.has('wind'), max: 8 },
     { id: 'bait', kb: '黒い丸い容器は毒エサ。食べると栄養は満タンだが、毒で体力が減り続ける。食べるかどうかはあなたしだい', tc: '黒い丸い容器は毒エサ。食べると栄養は満タンだが、毒で体力が減り続ける', when: (g) => { const c = g.context(); return c && c.bait; }, max: 8 },
-    { id: 'smoke', kb: '燻煙剤だ！ 緑の輪（出入り口・西の換気口）へ逃げこめ！ 右上の地図の緑の丸が逃げ場', tc: '燻煙剤だ！ 緑の輪（出入り口・換気口）へ逃げこめ！ 地図の緑の丸が逃げ場', when: (_, ev) => ev.has('fumigate'), max: 12 },
+    { id: 'smoke', kb: 'けむり玉だ！ 緑の輪（出入り口・西の換気口）へ逃げこめ！ 右上の地図の緑の丸が逃げ場', tc: 'けむり玉だ！ 緑の輪（出入り口・換気口）へ逃げこめ！ 地図の緑の丸が逃げ場', when: (_, ev) => ev.has('fumigate'), max: 12 },
     { id: 'egg', kb: '栄養が満タン！ Rで卵を産もう。葉の下や台の下なら見つかりにくい', tc: '栄養が満タン！「産卵」で卵を産もう。葉の下や台の下なら見つかりにくい', when: (g) => g.nutrition >= 100, until: (_, ev) => ev.has('egg'), max: 12 },
-    { id: 'cmd', kb: '仲間が生まれた！ 1：探索　2：囮　3：集合 で指示を出せます', tc: '仲間が生まれた！ 右の「探索・囮・集合」で指示を出せます', when: (_, ev) => ev.has('hatch'), max: 10 },
+    { id: 'cmd', kb: '仲間が生まれた！ 1：探索　2：おとり　3：集合 で指示を出せます', tc: '仲間が生まれた！ 右の「探索・おとり・集合」で指示を出せます', when: (_, ev) => ev.has('hatch'), max: 10 },
     { id: 'hide', kb: '見つかった！ 葉の下や台の下に逃げこんで、じっとしていよう', tc: '見つかった！ 葉の下や台の下に逃げこんで、じっとしていよう', when: (_, ev) => ev.has('spotted'), max: 7 },
     { id: 'attack', kb: '農場主の足もと！ Fで顔に突撃するとパニックにできる', tc: '農場主の足もと！「突撃」で顔に飛びつくとパニックにできる', when: (g) => g.canAttackNow() && g.elapsed > 25, until: (_, ev) => ev.has('panic'), max: 6 },
   ],
@@ -476,7 +530,7 @@ function updateCamera(dt) {
 
 // ---------- HUD ----------
 const fmt = (t) => { t = Math.max(0, Math.ceil(t)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const F_TEXT = { WORK: ['…', '作業中'], INVESTIGATE: ['?', 'あやしんでいる'], CHASE: ['!', '追いかけてくる！'], PANIC: ['@', 'パニック中'], FUMIGATE: ['煙', '燻煙剤をたいている！'] };
+const F_TEXT = { WORK: ['…', '作業中'], INVESTIGATE: ['?', 'あやしんでいる'], CHASE: ['!', '追いかけてくる！'], PANIC: ['@', 'パニック中'], FUMIGATE: ['煙', 'けむり玉をたいている！'] };
 const cache = {};
 function setText(id, v) { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } }
 function setW(el, k) { const v = `${Math.round(clamp(k, 0, 1) * 1000) / 10}%`; if (el.style.width !== v) el.style.width = v; }
@@ -492,7 +546,15 @@ function updateHud(dt) {
   const tt = g.tutorialText(document.body.classList.contains('touch'));
   $('tutor').hidden = !tt || screen !== 'play';
   if (tt) setText('tutorText', tt);
-  $('orderMini').hidden = !!tt || screen !== 'play';
+  $('orderMini').hidden = screen !== 'play';
+  if (screen === 'play') renderOrderMini();
+  // 死んだふりのボタン：使っている間は緑、残りの回数
+  const pd = g.player;
+  const tD = $('tDead');
+  tD.classList.toggle('using', !!(pd && pd.playDead > 0));
+  tD.classList.toggle('off', !!(pd && (pd.deadUses || 0) <= 0 && !(pd.playDead > 0)));
+  const dl = `死んだ<br>ふり<small>${pd ? pd.deadUses || 0 : 0}</small>`;
+  if (tD.dataset.l !== dl) { tD.dataset.l = dl; tD.innerHTML = dl; }
   // ナイス！
   if (g.niceT > 0.85 && !niceShown) {
     const el = $('nicePop');
@@ -590,9 +652,18 @@ function updateLabels() {
     const f = g.farmer;
     const s = project(f.x, 6.6, f.z);
     if (s && s.on) {
-      if (f.speechT > 0 && f.speech) place(label('speech', escapeHtml(f.speech)), s);
-      else if (f.state === 'INVESTIGATE') place(label('mark q', '?'), s);
-      else if (f.state === 'CHASE') place(label('mark x', '!'), s);
+      // 頭の上の「？」（あやしんでいる）「！」（見つけた）。気づきの度合いで大きく濃く
+      let mk = null;
+      if (f.state === 'CHASE') mk = label('mark x', '！');
+      else if (f.state === 'INVESTIGATE' || (f.state === 'WORK' && f.susp > 18)) {
+        const k = Math.min(1, f.susp / 100);
+        mk = label(`mark q ${k > 0.6 ? 'hot' : ''}`, '？');
+        mk.style.setProperty('--k', k.toFixed(2));
+      }
+      if (f.speechT > 0 && f.speech) {
+        place(label('speech', escapeHtml(f.speech)), s);
+        if (mk) { const s0 = project(f.x, 8.4, f.z); if (s0 && s0.on) place(mk, s0); }
+      } else if (mk) place(mk, s);
     }
     const I = g.inspector;
     if (I && I.m && I.speechT > 0) {
@@ -645,6 +716,7 @@ function showPings() {
     const sp = screenPos(pg.x, 0.2, pg.z);
     const el = document.createElement('div');
     el.className = `ripple ${pg.kind === 'bell' ? 'bell' : ''}`;
+    if (pg.kind === 'bell') el.dataset.t = 'チリン';
     el.style.setProperty('--pos', `translate(${sp.x.toFixed(0)}px, ${sp.y.toFixed(0)}px)`);
     el.style.setProperty('--op', String(Math.min(0.9, 0.25 + pg.v * 0.7)));
     ripplesEl.appendChild(el);
@@ -794,12 +866,13 @@ function frame(now) {
     if (screen !== 'title') { updateHud(dt); drawMinimap(dt); }
     updateLabels();
     showPings();
+    if (game.cat && game.cat.m.setFuzz) game.cat.m.setFuzz(camera.position.distanceTo(game.cat.m.root.position) < 6);
     const tNow = now / 1000;
     world.update(tNow, camera);
     world.setNearFade(screen === 'title' || !game.player ? 0.6 : camState.dist - 0.3);
     let focusD = 24;
     if (game.player && game.state !== 'title') focusD = camera.position.distanceTo(new THREE.Vector3(game.player.x, game.player.y + 0.15, game.player.z));
-    // 燻煙剤の煙でかすむ
+    // けむり玉の煙でかすむ
     scene.fog.density = 0.0055 + (screen !== 'title' ? (game.fogLevel || 0) * 0.05 : 0);
     // 農場主のラジオ：近いほど大きく、左右で方向が分かる
     if (screen === 'play' && game.farmer && game.player) {

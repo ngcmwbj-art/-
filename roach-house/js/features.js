@@ -55,9 +55,9 @@ export const ENCYCLOPEDIA = [
   { id: 'trap', name: 'ホイホイ', text: '粘着わな。くっついたら食べるボタンを連打。捕まった仲間は近くで押すと助けられる。' },
   { id: 'spray', name: '殺虫スプレー', text: '黄色い輪が予告。霧はしばらく残る。' },
   { id: 'bait', name: '毒エサ', text: '黒い丸い容器。食べると栄養が満タンになるが、毒が回って体力が減り続ける。仲間は近づかない。' },
-  { id: 'fogger', name: '燻煙剤', text: '農場主が本気で怒ると、ハウスを煙でいっぱいにする。出入り口か換気口へ逃げろ。卵だけは煙に強い。' },
+  { id: 'fogger', name: 'けむり玉', text: '農場主が本気で怒ると、ハウスを煙でいっぱいにする。出入り口か換気口へ逃げろ。卵だけは煙に強い。' },
   { id: 'wind', name: '循環扇の風', text: '入口の渦で「風に乗る」と、通路の先まで一気に飛べる。' },
-  { id: 'fruit', name: '株の実', text: '栽培槽に登るとかじれる。落ちるとドスンと音がする。栄養はたっぷり。' },
+  { id: 'fruit', name: '株の実', text: 'さいばい槽に登るとかじれる。落ちるとドスンと音がする。栄養はたっぷり。' },
   { id: 'egg', name: '卵（卵しょう）', text: '中に仲間が入っている。隠れた場所に産めば見つかりにくい。' },
 ];
 
@@ -73,7 +73,7 @@ export const TITLES = [
   { id: 'wind10', name: '風使い', desc: '風に乗って合計10回飛ぶ', check: (r) => r.winds >= 10 },
   { id: 'fruit10', name: '実落とし', desc: '株の実を合計10個落とす', check: (r) => r.fruits >= 10 },
   { id: 'bait3', name: '毒にも負けない', desc: '毒エサを合計3回食べる', check: (r) => r.baits >= 3 },
-  { id: 'smoke', name: '煙をくぐりぬけた者', desc: '燻煙剤から生きのびる', check: (r) => r.smoke >= 1 },
+  { id: 'smoke', name: '煙をくぐりぬけた者', desc: 'けむり玉から生きのびる', check: (r) => r.smoke >= 1 },
   { id: 'order10', name: '注文の達人', desc: '今日の注文を合計10個こなす', check: (r) => r.orders >= 10 },
   { id: 'allwin', name: '全ステージ制覇', desc: '6つのステージをすべてクリアする', check: (r) => r.cleared >= 6 },
   { id: 'stars', name: '星あつめ名人', desc: '星を合計12個あつめる', check: (r) => Object.values(r.stars || {}).reduce((a, b) => a + b, 0) >= 12 },
@@ -93,6 +93,7 @@ export function emptyRecords() {
   return {
     games: 0, wins: 0, ruined: 0, eggs: 0, attacks: 0, escapes: 0, nice: 0, winds: 0, fruits: 0, baits: 0, smoke: 0,
     orders: 0, cleared: 0, stars: {}, bests: {}, titles: [], seen: [], ordersDone: {}, wing: 'normal',
+    losses: {}, assist: {}, pranks: {}, hat: 'none', revenge: 0,
   };
 }
 export function normalizeRecords(r) {
@@ -106,13 +107,28 @@ export function normalizeRecords(r) {
   if (!out.ordersDone || typeof out.ordersDone !== 'object') out.ordersDone = {};
   if (!out.stars || typeof out.stars !== 'object') out.stars = {};
   if (!out.bests || typeof out.bests !== 'object') out.bests = {};
+  for (const k of ['losses', 'assist', 'pranks']) if (!out[k] || typeof out[k] !== 'object') out[k] = {};
+  if (typeof out.hat !== 'string') out.hat = 'none';
   return out;
 }
+
+// 帽子（星の合計で手に入る）
+export const HATS = {
+  none: { label: 'なし', need: 0 },
+  perm: { label: 'パーマ頭', need: 3 },
+  straw: { label: '麦わら帽子', need: 6 },
+  jacap: { label: 'JAの帽子', need: 10 },
+  towel: { label: 'ねじりはちまき', need: 14 },
+};
+export function totalStars(r) { return Object.values(r.stars || {}).reduce((a, b) => a + (b || 0), 0); }
+export function unlockedHats(r) { const n = totalStars(r); return Object.keys(HATS).filter((k) => n >= HATS[k].need); }
+// おたすけ：同じステージで3回続けて負けたらすすめる
+export const ASSIST_AFTER = 3;
 
 // 1ゲームの結果を記録に足す。新しく取った称号・羽の色を返す
 export function applyResult(rec, res, stats, orders, dayKey) {
   const r = normalizeRecords(rec);
-  const before = { titles: new Set(r.titles), wings: unlockedWings(r) };
+  const before = { titles: new Set(r.titles), wings: unlockedWings(r), hats: unlockedHats(r) };
   r.games++;
   if (res.win) {
     r.wins++;
@@ -152,7 +168,17 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   }
   const unlockedStage = r.newStage && r.newStage <= 6 ? r.newStage : 0;
   delete r.newStage;
-  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest };
+  // 続けて負けた回数（おたすけをすすめる目安）
+  r.losses[key] = res.win ? 0 : (r.losses[key] || 0) + 1;
+  const offerAssist = !res.win && r.losses[key] >= ASSIST_AFTER && !r.assist[key];
+  // いたずらリスト（ステージごとに、こなしたものを残す）
+  const pd = new Set(r.pranks[key] || []);
+  const newPranks = (res.pranks || []).filter((id) => !pd.has(id));
+  for (const id of newPranks) pd.add(id);
+  r.pranks[key] = [...pd];
+  r.revenge = (r.revenge || 0) + (stats.revenge || 0);
+  const newHats = unlockedHats(r).filter((k) => !before.hats.includes(k));
+  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest, offerAssist, newPranks, newHats };
 }
 export function unlockedWings(r) {
   return Object.keys(WING_UNLOCK).filter((k) => WING_UNLOCK[k].check(r));

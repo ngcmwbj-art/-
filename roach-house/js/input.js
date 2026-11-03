@@ -13,7 +13,7 @@ export class Input {
     this.enabled = true;
 
     const map = {
-      Space: 'action', KeyF: 'attack', KeyR: 'egg', Digit1: 'cmd1', Digit2: 'cmd2', Digit3: 'cmd3',
+      Space: 'action', KeyF: 'attack', KeyR: 'egg', KeyX: 'dead', KeyC: 'dead', Digit1: 'cmd1', Digit2: 'cmd2', Digit3: 'cmd3',
       Numpad1: 'cmd1', Numpad2: 'cmd2', Numpad3: 'cmd3', Escape: 'pause', KeyP: 'pause', KeyM: 'mute',
     };
     window.addEventListener('keydown', (e) => {

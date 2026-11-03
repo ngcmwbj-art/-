@@ -711,7 +711,7 @@ export function makeBait() {
   return g;
 }
 
-// ---------------- 燻煙剤の缶 ----------------
+// ---------------- けむり玉の缶 ----------------
 export function makeFogger() {
   const g = new THREE.Group();
   const body = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.8, 20), new THREE.MeshPhysicalMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.5, clearcoat: 0.8 }));
@@ -859,4 +859,126 @@ export function makeInspector() {
   arms[0].rotation.x = -0.8;
   root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
   return { root, legs, arms };
+}
+
+// ---------------- いたずら・隠れ場所の小物 ----------------
+// 農場主のお弁当（ふた付きの弁当箱と、包みのふろしき）
+export function makeBento() {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.16, 0.42), new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.35 }));
+  box.position.y = 0.08; box.castShadow = true; box.receiveShadow = true;
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.02, 0.38), new THREE.MeshStandardMaterial({ color: 0xb0302a, roughness: 0.4 }));
+  rim.position.y = 0.165;
+  const rice = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.34), new THREE.MeshStandardMaterial({ color: 0xf6f3ea, roughness: 0.8 }));
+  rice.position.set(-0.13, 0.17, 0);
+  const ume = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshStandardMaterial({ color: 0xc0202a, roughness: 0.5 }));
+  ume.position.set(-0.13, 0.195, 0);
+  const egg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.1), new THREE.MeshStandardMaterial({ color: 0xf2c94a, roughness: 0.6 }));
+  egg.position.set(0.12, 0.18, -0.08);
+  const sausage = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.08, 4, 8), new THREE.MeshStandardMaterial({ color: 0xc8452e, roughness: 0.5 }));
+  sausage.rotation.z = Math.PI / 2; sausage.position.set(0.13, 0.18, 0.08);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.03, 0.44), new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.35 }));
+  lid.position.set(0.05, 0.02, 0.38); lid.rotation.y = 0.35; lid.castShadow = true;
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshStandardMaterial({ color: 0x3a6fb0, roughness: 0.9, side: THREE.DoubleSide }));
+  cloth.rotation.x = -Math.PI / 2; cloth.rotation.z = 0.6; cloth.position.y = 0.004; cloth.receiveShadow = true;
+  g.add(cloth, box, rim, rice, ume, egg, sausage, lid);
+  g.userData.food = [egg, sausage, ume];
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
+// 落ちている軍手（白に、手のひらの赤いゴム）
+export function makeGlove() {
+  const g = new THREE.Group();
+  const knit = new THREE.MeshStandardMaterial({ color: 0xefece2, roughness: 1, map: TX.knit().map, normalMap: TX.knit().normal });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0xc8342a, roughness: 0.6 });
+  const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.34, 6, 14), knit);
+  palm.scale.set(1, 0.32, 1); palm.rotation.x = Math.PI / 2; palm.position.y = 0.075;
+  const palmR = new THREE.Mesh(new THREE.CapsuleGeometry(0.205, 0.3, 6, 14), rubber);
+  palmR.scale.set(1, 0.12, 1); palmR.rotation.x = Math.PI / 2; palmR.position.y = 0.012;
+  g.add(palm, palmR);
+  const fingers = [[-0.16, 0.42, 0.3], [-0.055, 0.47, 0.06], [0.055, 0.46, -0.04], [0.16, 0.4, -0.2], [0.27, 0.05, -0.9]];
+  for (const [x, z, a] of fingers) {
+    const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.2, 4, 10), knit);
+    f.scale.set(1, 1, 0.6); f.rotation.set(Math.PI / 2, 0, a); f.position.set(x, 0.05, z);
+    f.castShadow = true;
+    g.add(f);
+  }
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x4a7bc8, roughness: 0.9, side: THREE.DoubleSide }));
+  cuff.rotation.x = Math.PI / 2; cuff.scale.set(1, 1, 0.35); cuff.position.set(0, 0.07, -0.38);
+  g.add(cuff);
+  palm.castShadow = true;
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
+// 段ボール箱（底のない箱。ゴキブリがかぶって歩く）
+export function makeBox() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xe0c08a, roughness: 0.9, map: TX.cardboard(), side: THREE.DoubleSide });
+  const W = 0.95, H = 0.48, D = 0.72, t = 0.02;
+  const parts = [
+    [W, H, t, 0, H / 2, D / 2], [W, H, t, 0, H / 2, -D / 2],
+    [t, H, D, W / 2, H / 2, 0], [t, H, D, -W / 2, H / 2, 0],
+    [W, t, D, 0, H, 0],
+  ];
+  for (const [w, h, d, x, y, z] of parts) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+    g.add(m);
+  }
+  // ふたの折り返しと、のぞき穴
+  for (const s of [-1, 1]) {
+    const flap = new THREE.Mesh(new THREE.BoxGeometry(W, t, D * 0.5), mat);
+    flap.position.set(0, H + 0.01, s * (D / 2 + D * 0.22)); flap.rotation.x = s * 0.5;
+    g.add(flap);
+  }
+  const hole = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.07), new THREE.MeshBasicMaterial({ color: 0x120a04 }));
+  hole.position.set(0, H * 0.62, D / 2 + 0.012);
+  g.add(hole);
+  const tape = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.005, D + 0.02), new THREE.MeshStandardMaterial({ color: 0xd8c08a, roughness: 0.4 }));
+  tape.position.y = H + 0.012;
+  g.add(tape);
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
+// ゴキブリの帽子（自分だけ）
+export function makeHat(key) {
+  const g = new THREE.Group();
+  if (key === 'perm') {
+    const m = new THREE.MeshStandardMaterial({ color: 0x2a1c14, roughness: 0.8 });
+    const geo = new THREE.SphereGeometry(0.03, 8, 6);
+    for (let i = 0; i < 26; i++) {
+      const a = (i / 26) * Math.PI * 2 * 2.3, r = 0.03 + (i % 9) * 0.006;
+      const c = new THREE.Mesh(geo, m);
+      c.position.set(Math.cos(a) * r, 0.02 + (i % 3) * 0.012, Math.sin(a) * r * 0.9);
+      g.add(c);
+    }
+  } else if (key === 'straw') {
+    const m = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.9, map: TX.straw().map });
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.008, 24), m);
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.06, 18), m);
+    crown.position.y = 0.032;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.066, 0.066, 0.016, 18, 1, true), new THREE.MeshStandardMaterial({ color: 0xb0302a }));
+    band.position.y = 0.012;
+    g.add(brim, crown, band);
+  } else if (key === 'jacap') {
+    const m = new THREE.MeshStandardMaterial({ color: 0x2e8b3e, roughness: 0.7 });
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), m);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.006, 0.07), m);
+    visor.position.set(0, 0.004, 0.075);
+    const badge = new THREE.Mesh(new THREE.CircleGeometry(0.018, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    badge.position.set(0, 0.035, 0.058); badge.rotation.x = -0.5;
+    g.add(cap, visor, badge);
+  } else if (key === 'towel') {
+    const m = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.9 });
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.014, 6, 20), m);
+    band.rotation.x = Math.PI / 2;
+    const knot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), m);
+    knot.position.set(0.045, 0.01, 0.035);
+    g.add(band, knot);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; o.castShadow = true; } });
+  return g;
 }

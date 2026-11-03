@@ -426,7 +426,7 @@ export const groundSheet = () => once('sheet', () => {
   });
   return { map: tex(c), normal: normalFromHeight(H, w, h, 1.2) };
 });
-// 栽培槽の白い発泡（細かな粒）
+// さいばい槽の白い発泡（細かな粒）
 export const foam = () => once('foam', () => {
   const w = 256, h = 128;
   const H = new Float32Array(w * h);

@@ -41,7 +41,7 @@
     </div>
     <div class="cmds">
       <button class="cmd" data-cmd="search" id="cmd-search"><kbd>1</kbd>探索</button>
-      <button class="cmd" data-cmd="decoy" id="cmd-decoy"><kbd>2</kbd>囮</button>
+      <button class="cmd" data-cmd="decoy" id="cmd-decoy"><kbd>2</kbd>おとり</button>
       <button class="cmd on" data-cmd="follow" id="cmd-follow"><kbd>3</kbd>集合</button>
     </div>
     <div id="prompt" hidden></div>
@@ -59,9 +59,9 @@
   </div>
 
   <div id="touch" hidden>
-    <div class="joy-zone"><div class="joy-base"><div class="joy-knob"></div></div></div>
+    <div class="joy-zone"><div class="joy-base"><div class="joy-knob"></div></div><span class="joy-hint">端まで倒すとダッシュ</span></div>
     <div class="tbtns">
-      <button class="tbtn t-dash" data-act="dashhint" tabindex="-1">端まで<br>倒すと<br>ダッシュ</button>
+      <button class="tbtn t-dead" data-act="dead" id="tDead" tabindex="-1">死んだ<br>ふり</button>
       <button class="tbtn t-egg" data-act="egg" tabindex="-1">産卵</button>
       <button class="tbtn t-attack" data-act="attack" tabindex="-1">突撃</button>
       <button class="tbtn big" data-act="action" id="tAction" tabindex="-1">食べる</button>
@@ -96,24 +96,30 @@
           <div><h3>こっそり食べる</h3><ul>
             <li>食べるボタンを長く押すほど早く食べられる。でも「がっつきゲージ」が赤までいくとバリッと音が出てバレる。押す・離すをくり返そう。</li>
             <li>がっつきゲージが緑の帯のときに離すと「ナイス！」で少し多く食べられる。</li>
-            <li>地面の扇形が農場主の視界。株の列（葉の壁）の向こうは見えない。白い栽培槽の下や台の下でじっとしていれば見つかりにくい。</li>
+            <li>地面の扇形が農場主の視界。株の列（葉の壁）の向こうは見えない。白いさいばい槽の下や台の下でじっとしていれば見つかりにくい。</li>
             <li>農場主は腰のラジオを鳴らしている。ラジオと長靴の足音の大きさ・左右で居場所が分かる。画面の外にいるときは端に矢印が出る。足音は画面に「波紋」でも出る（音なしでも分かる）。</li>
           </ul></div>
           <div><h3>仲間をふやす</h3><ul>
             <li>栄養が満タンで産卵。卵は少したつと3匹の仲間になる。目立つ所の卵は踏みつぶされる。</li>
-            <li>「探索」は自分でエサを探して食べる。「囮」は農場主の前をうろついて気を引く。「集合」は後ろについてくる。</li>
+            <li>「探索」は自分でエサを探して食べる。「おとり」は農場主の前をうろついて気を引く。「集合」は後ろについてくる。</li>
             <li>自分がやられても、仲間がいればその1匹に乗りかわって続けられる。</li>
           </ul></div>
           <div><h3>反撃</h3><ul>
             <li>農場主の足もとで「突撃」すると顔に飛びつき、しばらくパニックにできる。運んでいたコンテナも落とす。そのかわり怒ってわなが増える。</li>
             <li>ホイホイにくっついたら食べるボタンを連打。捕まった仲間は近くで押すと助けられる。</li>
           </ul></div>
+          <div><h3>隠れる・いたずら</h3><ul>
+            <li>「死んだふり」：裏返ってじっとする。動くところを見られていなければ、農場主は見のがす。ただし農場主の頭に「！」が出ている（追いかけられている）ときは効かない。1回のプレイで3回まで。</li>
+            <li>落ちている段ボールの前で食べるボタンを押すと、かぶって歩ける。ゆっくりだが見つかりにくい。</li>
+            <li>いたずらリスト：農場主のお弁当をかじる／落ちている軍手にもぐりこむ／死んだふりで見のがしてもらう。</li>
+            <li>ホイホイのそばで、仲間が2匹近くにいれば「仲間とホイホイを運ぶ」。農場主の通り道にしかけると、長靴がくっついてしばらく動けない。</li>
+          </ul></div>
           <div><h3>ハウスのしかけ</h3><ul>
-            <li>栽培槽に登ると、株になっている実もかじれる。栄養たっぷりだが、落ちるとドスンと音がする。</li>
+            <li>さいばい槽に登ると、株になっている実もかじれる。栄養たっぷりだが、落ちるとドスンと音がする。</li>
             <li>通路の入口の渦で「風に乗る」と、循環扇の風で通路の先まで一気に飛べる。</li>
             <li>黒い丸い容器は毒エサ。食べると栄養が満タンになるが、毒で体力が減り続ける。</li>
-            <li>農場主が本気で怒ると燻煙剤をたく。煙がハウスに広がる前に、緑の輪（出入り口・換気口）へ逃げろ。緑の線が一番近い逃げ場を指す。</li>
-            <li>ステージ3からはJAの検品員が来る。台のまわりをまわるので、見つからないように待とう。ステージ4からはハウスのネコ（鈴の音）。ネコは台や栽培槽の上には来ない。</li>
+            <li>農場主が本気で怒るとけむり玉をたく。煙がハウスに広がる前に、緑の輪（出入り口・換気口）へ逃げろ。緑の線が一番近い逃げ場を指す。</li>
+            <li>ステージ3からはJAの検品員が来る。台のまわりをまわるので、見つからないように待とう。ステージ4からはハウスのネコ（鈴の音）。ネコは台やさいばい槽の上には来ない。</li>
             <li>ステージ6は真っ暗。農場主の懐中電灯の光の中だけ見つかりやすい。</li>
             <li>ステージごとに星3つ：クリア／出荷3箱以内／見つかるのが2回以内でやられずに。</li>
           </ul></div>
@@ -124,7 +130,8 @@
             <kbd>Space</kbd><span>食べる（長押し）・登る・風に乗る・脱出</span>
             <kbd>F</kbd><span>突撃</span>
             <kbd>R</kbd><span>産卵</span>
-            <kbd>1 2 3</kbd><span>仲間に指示（探索・囮・集合）</span>
+            <kbd>X</kbd><span>死んだふり（1回のプレイで3回まで）</span>
+            <kbd>1 2 3</kbd><span>仲間に指示（探索・おとり・集合）</span>
             <kbd>Esc / P</kbd><span>一時停止</span>
           </div>
           <p class="touch-only">左下を指でなぞって移動（端まで倒すとダッシュ）、右側をなぞって視点を回します。</p>
@@ -150,6 +157,7 @@
     <div class="sheet">
       <h2 class="rtitle">図鑑・称号・着せかえ</h2>
       <div class="book-sec"><h3>羽の色</h3><div class="wings" id="bookWings"></div></div>
+      <div class="book-sec"><h3>帽子（星を集めると増える）</h3><div class="wings" id="bookHats"></div></div>
       <div class="book-sec"><h3>称号</h3><ul class="titles" id="bookTitles"></ul></div>
       <div class="book-sec"><h3>図鑑</h3><ul class="ency" id="bookEncy"></ul></div>
       <div class="book-sec"><h3>自己ベスト</h3><div class="tbl-wrap"><table class="best-tbl" id="bookBest"></table></div></div>
@@ -174,6 +182,7 @@
         <button class="btn" id="btnAgain">もう一度</button>
         <button class="btn" id="btnTitle2">タイトルへ</button>
       </div>
+      <div class="row"><button class="btn assist" id="btnAssist" hidden>おたすけ</button></div>
     </div>
   </section>
 

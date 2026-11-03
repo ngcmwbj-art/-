@@ -159,6 +159,7 @@ export function makeCat() {
     sheen: 1, sheenColor: new THREE.Color(0xffd7a8), sheenRoughness: 0.45,
   });
   const shells = shellMats();
+  const shellMeshes = [];
   const pink = new THREE.MeshStandardMaterial({ color: 0xe79a9a, roughness: 0.55 });
   const earIn = new THREE.MeshStandardMaterial({ color: 0xf0b3a6, roughness: 0.8, side: THREE.DoubleSide });
   const dark = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.6 });
@@ -172,7 +173,7 @@ export function makeCat() {
     const m = new THREE.Mesh(geo, furM);
     m.castShadow = shadow; m.receiveShadow = true;
     parent.add(m);
-    if (fuzz) for (const sm2 of shells) { const s = new THREE.Mesh(geo, sm2); s.raycast = () => {}; parent.add(s); }
+    if (fuzz) for (const sm2 of shells) { const s = new THREE.Mesh(geo, sm2); s.raycast = () => {}; parent.add(s); shellMeshes.push(s); }
     return m;
   };
 
@@ -383,5 +384,8 @@ export function makeCat() {
 
   root.traverse((o) => { if (o.isMesh || o.isLine) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
   // 共有の素材は捨てない（毛の殻・目の質感は使い回す）
-  return { root, body, neck, head, legs, tail, tail2: segs[4], tailSegs: segs, lids, ears, bell: bellG };
+  // 遠いときは毛の殻を描かない（絵の量が約5分の1になる）
+  let fuzzOn = true;
+  const setFuzz = (on) => { if (on === fuzzOn) return; fuzzOn = on; for (const s of shellMeshes) s.visible = on; };
+  return { root, body, neck, head, legs, tail, tail2: segs[4], tailSegs: segs, lids, ears, bell: bellG, setFuzz };
 }

@@ -200,11 +200,11 @@ export function buildWorld(scene, renderer, q) {
   };
 }
 
-// ---------- 床・栽培槽・暖房パイプ ----------
-// 本物のパプリカハウス：白い防草シートの床、腰の高さの白い栽培槽（下はすき間）、
+// ---------- 床・さいばい槽・暖房パイプ ----------
+// 本物のパプリカハウス：白い防草シートの床、腰の高さの白いさいばい槽（下はすき間）、
 // 通路には温水の暖房パイプ。作業場はコンクリート
 export const TROUGH = { top: 1.4, bottom: 0.9, w: 1.1 };
-// 歩ける高い面：作業台（0〜2）と、栽培槽の上（3〜7）
+// 歩ける高い面：作業台（0〜2）と、さいばい槽の上（3〜7）
 export const TROUGH_TOP = 1.48;
 export const SURFACES = [
   ...TABLES,
@@ -238,7 +238,7 @@ export const WIND_LANES = [
   { x0: -7, x1: 8.6, z: 2.5 },
   { x0: -15, x1: 3.6, z: 7.5 },
 ];
-// 燻煙剤の煙から逃げられる場所（出入り口と、西の壁の換気口）
+// けむり玉の煙から逃げられる場所（出入り口と、西の壁の換気口）
 export const SAFE_SPOTS = [
   { x: 21.1, z: 11, r: 1.7, label: '出入り口' },
   { x: -21.1, z: -2.5, r: 1.3, label: '換気口' },
@@ -277,7 +277,7 @@ function buildGround(g) {
   puddle.position.set(5.2, 0.013, 2.5);
   g.add(puddle);
 
-  // 栽培槽（白い発泡の箱を脚で持ち上げる。上に培地と点滴チューブ）
+  // さいばい槽（白い発泡の箱を脚で持ち上げる。上に培地と点滴チューブ）
   const F = TX.foam();
   F.map.repeat.set(12, 1); F.normal.repeat.set(12, 1);
   const foamMat = new THREE.MeshStandardMaterial({ map: F.map, normalMap: F.normal, roughness: 0.8 });
@@ -937,7 +937,7 @@ function buildWindLanes(g) {
   };
 }
 
-// 西の壁の換気口（燻煙剤のときの逃げ場）
+// 西の壁の換気口（けむり玉のときの逃げ場）
 function buildVents(g) {
   const frame = new THREE.MeshStandardMaterial({ color: 0x8c949a, metalness: 0.6, roughness: 0.4 });
   const slat = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.6 });

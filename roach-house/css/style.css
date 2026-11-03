@@ -187,7 +187,9 @@ button:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 .tbtn.off { opacity: 0.45; }
 .t-attack { grid-column: 1; grid-row: 2; }
 .t-egg { grid-column: 2; grid-row: 1; }
-.t-dash { grid-column: 1; grid-row: 1; font-size: 11px; }
+.t-dead { grid-column: 1; grid-row: 1; font-size: 12px; }
+.t-dead.using { background: rgba(109, 186, 69, 0.6); border-color: var(--leaf); }
+.joy-hint { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); font-size: 11px; opacity: 0.6; pointer-events: none; }
 body.touch .hud-bl { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 body.touch .cmds { bottom: auto; top: calc(182px + env(safe-area-inset-top, 0px)); left: auto; right: calc(10px + env(safe-area-inset-right, 0px)); transform: none; flex-direction: column; }
 body.touch #prompt:not(.urgent) { display: none; }
@@ -287,11 +289,13 @@ body:not(.touch) .touch-only { display: none; }
 @keyframes popin { 0% { transform: translate(-50%, -30%) scale(0.6); opacity: 0; } 20% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; } 100% { transform: translate(-50%, -80%) scale(1); opacity: 0; } }
 /* 練習の案内 */
 #tutor {
-  position: absolute; left: 50%; transform: translateX(-50%); top: calc(84px + env(safe-area-inset-top, 0px));
-  width: min(92vw, 560px); display: flex; gap: 10px; align-items: center;
-  background: rgba(242, 195, 27, 0.96); color: var(--ink); border-radius: 12px; padding: 10px 12px; pointer-events: auto;
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+  width: min(70vw, 460px); display: flex; gap: 8px; align-items: center;
+  background: rgba(242, 195, 27, 0.9); color: var(--ink); border-radius: 10px; padding: 6px 10px; pointer-events: auto;
 }
-#tutor p { margin: 0; flex: 1; font-weight: 700; font-size: 15px; line-height: 1.5; }
+#tutor p { margin: 0; flex: 1; font-weight: 700; font-size: 13px; line-height: 1.45; }
+body.touch #tutor { bottom: auto; top: calc(60px + env(safe-area-inset-top, 0px)); width: min(52vw, 400px); }
+body.touch #tutor p { font-size: 12px; }
 #tutor .tskip { border: 1px solid rgba(22,15,10,0.4); background: rgba(255,255,255,0.5); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 /* 画面の端の矢印（農場主・案内） */
 .edge-ind { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; will-change: transform; }
@@ -385,3 +389,16 @@ body.touch .order-mini { display: none; }
 .ripple { position: absolute; left: 0; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; border: 3px solid var(--text); opacity: 0; animation: rip 0.9s ease-out forwards; }
 .ripple.bell { border-color: var(--yellow); border-style: dotted; }
 @keyframes rip { 0% { transform: var(--pos) scale(0.3); opacity: var(--op, 0.8); } 100% { transform: var(--pos) scale(1.6); opacity: 0; } }
+
+/* 第3回会議：すぐやり直し・おたすけ・？！・いたずら・帽子・チリン */
+#result .row .btn.big-again { order: -1; font-size: 20px; padding: 14px 28px; }
+#result .btn.assist { background: rgba(109, 186, 69, 0.18); border-color: var(--leaf); font-size: 14px; white-space: normal; }
+.assist-tag { font-style: normal; font-size: 11px; background: var(--leaf); color: var(--ink); border-radius: 6px; padding: 0 5px; }
+.mark.q { font-size: calc(24px + var(--k, 0.3) * 18px); opacity: calc(0.55 + var(--k, 0.3) * 0.45); }
+.mark.q.hot { color: #ff9a1f; }
+.mark.x { font-size: 44px; animation: markpop 0.5s ease-out; }
+@keyframes markpop { 0% { transform: scale(0.3); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
+.ripple.bell::after { content: attr(data-t); position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: 700; font-size: 13px; color: #ffe27a; text-shadow: 0 1px 2px #000; }
+#orderMini .ok { color: var(--leaf); font-weight: 700; }
+#orderMini .was { opacity: 0.6; }
+.tbtn small { display: block; font-size: 10px; opacity: 0.8; }
