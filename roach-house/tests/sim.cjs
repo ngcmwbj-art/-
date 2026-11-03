@@ -44,7 +44,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
         }
         // ネコ：鈴が近い・ねらわれたら、ネコと反対へ逃げる
         const C = g.cat;
-        if (style === 'smart' && C && p.surface < 0 && (C.target === p || (Math.hypot(C.x - p.x, C.z - p.z) < 3.5 && C.st !== 'pester'))) {
+        if (style === 'smart' && C && p.surface < 0 && (C.target === p && (C.st === 'stalk' || C.st === 'pounce'))) {
           steer(p.x - C.x, p.z - C.z);
           return;
         }
