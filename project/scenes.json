@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "output": "short_001",
+    "label": "AIニュース解説",
+    "speed": 1.0,
+    "voicevox_speaker": 3,
+    "min_duration": 45,
+    "max_duration": 60,
+    "chunk_gap": 0.25,
+    "scene_lead": 0.3,
+    "scene_tail": 0.6,
+    "readings": {
+      "DMG Media": "ディーエムジー・メディア",
+      "AI": "エーアイ"
+    },
+    "bgm": null
+  },
+  "scenes": [
+    {
+      "id": 1,
+      "text": "クリック率 −89%",
+      "narration": "もしも、検索結果をAIが全部まとめたら。ニュースサイトの閲覧が、ほぼ消えます。",
+      "theme": "red"
+    },
+    {
+      "id": 2,
+      "text": "英国メディア\nDMG Media",
+      "narration": "英国のDMG Mediaは、GoogleのAI要約の影響でクリック率が89%落ちたと報告しました。",
+      "theme": "dark"
+    },
+    {
+      "id": 3,
+      "text": "AI検索に広告",
+      "narration": "さらにGoogleは、AI検索に広告を入れ始めています。見る側は便利に、載せる側は厳しくなる流れです。",
+      "theme": "blue"
+    },
+    {
+      "id": 4,
+      "text": "もしも、あなたのサイトが\n読まれなくなったら",
+      "narration": "もしも情報が全部AIの回答で終わるなら、残るのは『その人にしか言えない話』だけです。",
+      "theme": "purple"
+    },
+    {
+      "id": 5,
+      "text": "毎週AIニュース3選",
+      "narration": "毎週、AIの動きを3分で解説します。",
+      "theme": "green"
+    }
+  ]
+}

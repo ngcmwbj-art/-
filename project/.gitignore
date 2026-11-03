@@ -1,0 +1,4 @@
+output/*.mp4
+output/*.srt
+output/*.timing.json
+__pycache__/
