@@ -12,8 +12,9 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   const runs = process.env.RUNS ? JSON.parse(process.env.RUNS) : [['easy', 1], ['easy', 2], ['normal', 1], ['normal', 2], ['normal', 3], ['hard', 1], ['hard', 2]];
   const style = process.env.STYLE || 'smart';
   for (const [diff, seed] of runs) {
-    const r = await page.evaluate(({ diff, seed, style }) => {
+    const r = await page.evaluate(({ diff, seed, style, ovr }) => {
       const RH = window.__rh, g = RH.game;
+      if (ovr) Object.assign(RH.stages.find((s) => s.key === diff) || {}, ovr);
       g.start(diff, seed * 7919);
       const log = [];
       const ok = g.kill.bind(g);
@@ -114,7 +115,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       const f = g.farmer;
       return { diff, seed, res: g.result && { win: g.result.win, reason: g.result.reason, rank: g.result.rank, time: Math.round(g.result.elapsed) },
         ruined: g.ruined, shipped: g.shipped, traps: g.traps.length, anger: f.anger, nymphs: g.nymphs.length, stats: g.stats, issues: [...issues], log, stateTime };
-    }, { diff, seed, style });
+    }, { diff, seed, style, ovr: process.env.OVR ? JSON.parse(process.env.OVR) : null });
     console.log(JSON.stringify(r));
   }
   console.log('ERRORS', errors.length, errors.slice(0, 5).join('\n'));
