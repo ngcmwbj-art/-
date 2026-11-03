@@ -1994,12 +1994,13 @@ export class Game {
       const sw = walking ? Math.sin(ph) * (0.45 - cr * 0.15) : 0;
       const lift = walking ? Math.max(0, Math.cos(ph)) : 0;
       const hind = L.userData.hind;
-      L.rotation.x = sw + (hind ? -0.25 - cr * 0.35 : 0.1 + cr * 0.25);
-      L.userData.knee.rotation.x = hind ? 0.55 + cr * 0.6 + lift * 0.4 : -0.15 - cr * 0.55 - lift * 0.5;
+      const c1 = Math.min(1, cr);
+      L.rotation.x = sw + (hind ? -0.25 - c1 * 0.6 : 0.1 + c1 * 0.65);
+      L.userData.knee.rotation.x = hind ? 0.55 + c1 * 1.05 + lift * 0.4 : -0.15 - c1 * 1.35 - lift * 0.5;
       L.userData.paw.rotation.x = -(L.rotation.x + L.userData.knee.rotation.x);
     });
     const bob = walking ? Math.abs(Math.sin(C.phase)) * 0.015 : Math.sin(this.clock * 1.6) * 0.004;
-    m.body.position.y = -cr * 0.12 + bob;
+    m.body.position.y = -Math.min(1, cr) * 0.17 + bob;
     m.body.rotation.x = C.st === 'pounce' && C.t >= 0.55 && C.t < 0.8 ? -0.25 : cr * 0.04;
     m.body.rotation.z = C.st === 'pounce' && C.t < 0.55 ? Math.sin(this.clock * 30) * 0.02 : 0; // おしりふりふり
     // 頭：獲物をじっと見る・ふだんはきょろきょろ

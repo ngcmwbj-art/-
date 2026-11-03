@@ -134,14 +134,14 @@ function shellMats() {
   const mats = [];
   for (let k = 1; k <= SHELLS; k++) {
     const f = k / SHELLS;
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, alphaMap: F.strands, alphaTest: 0.35 + f * 0.45, transparent: false });
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, alphaMap: F.strands, alphaTest: 0.35 + f * 0.45, transparent: false, alphaToCoverage: true });
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         transformed += objectNormal * ${(0.004 + f * 0.012).toFixed(4)};
         transformed.y -= ${(f * f * 0.003).toFixed(4)};`);
       // 根もとは少し暗く、毛先は明るく
       sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-        diffuseColor.rgb *= ${(0.97 + f * 0.1).toFixed(3)};`);
+        diffuseColor.rgb *= ${(0.9 + f * 0.06).toFixed(3)};`);
     };
     m.customProgramCacheKey = () => 'catShell' + k;
     mats.push(m);
@@ -195,15 +195,15 @@ export function makeCat() {
     furry(body, paint(hg, 'haunch'));
   }
   // 胸の白いふさ毛
-  const ruffG = sculpt(new THREE.SphereGeometry(1, 20, 14), (v) => { v.x *= 0.14; v.y = v.y * 0.15 + 0.6; v.z = v.z * 0.1 + 0.43; });
+  const ruffG = sculpt(new THREE.SphereGeometry(1, 20, 14), (v) => { v.x *= 0.12; v.y = v.y * 0.13 + 0.6; v.z = v.z * 0.08 + 0.38; });
   furry(body, paint(ruffG, 'head', 0, -0.9, 0)); // 頭の下側として塗る＝白
 
   // ---------- 頭 ----------
   const neck = new THREE.Group();
   neck.position.set(0, 0.7, 0.4);
   body.add(neck);
-  const neckG = sculpt(new THREE.SphereGeometry(1, 24, 16), (v) => { v.x *= 0.12; v.y = v.y * 0.13 + 0.08; v.z = v.z * 0.12 + 0.06; });
-  neckG.rotateX(-0.6);
+  const neckG = sculpt(new THREE.SphereGeometry(1, 24, 16), (v) => { v.x *= 0.125; v.y = v.y * 0.15 + 0.06; v.z = v.z * 0.13 + 0.02; });
+  neckG.rotateX(0.5);
   furry(neck, paint(neckG, 'torso', 0, 0.72, 0.45));
   const head = new THREE.Group();
   head.position.set(0, 0.2, 0.14);
@@ -211,40 +211,40 @@ export function makeCat() {
   neck.add(head);
   const skullG = sculpt(new THREE.SphereGeometry(1, 36, 28), (v) => {
     const cheek = Math.exp(-Math.pow((v.y + 0.25) / 0.45, 2)) * Math.exp(-Math.pow(v.z / 0.8, 2));
-    v.x *= 0.24 * (1 + 0.22 * cheek);
+    v.x *= 0.23 * (1 + 0.14 * cheek);
     v.y *= 0.2 * (v.y > 0 ? 0.95 : 1);
     v.z *= 0.21;
-    if (v.y > 0.1) v.z -= (v.y - 0.1) * 0.15; // 額をうしろへ
+    if (v.y > 0.3) v.z -= (v.y - 0.3) * 0.08; // 額をうしろへ
   });
   furry(head, paint(skullG, 'head'));
   // 口もと（左右のひげ袋とあご）
   for (const s of [-1, 1]) {
-    const pg = sculpt(new THREE.SphereGeometry(1, 16, 12), (v) => { v.x = v.x * 0.065 + s * 0.05; v.y = v.y * 0.055 - 0.07; v.z = v.z * 0.06 + 0.17; });
+    const pg = sculpt(new THREE.SphereGeometry(1, 16, 12), (v) => { v.x = v.x * 0.05 + s * 0.04; v.y = v.y * 0.04 - 0.065; v.z = v.z * 0.045 + 0.18; });
     furry(head, paint(pg, 'head', 0, -0.2, 0), false);
   }
-  const chinG = sculpt(new THREE.SphereGeometry(1, 14, 10), (v) => { v.x *= 0.06; v.y = v.y * 0.04 - 0.125; v.z = v.z * 0.05 + 0.13; });
+  const chinG = sculpt(new THREE.SphereGeometry(1, 14, 10), (v) => { v.x *= 0.045; v.y = v.y * 0.03 - 0.11; v.z = v.z * 0.04 + 0.16; });
   furry(head, paint(chinG, 'head', 0, -0.2, 0), false);
   // 鼻（ピンクの逆三角）
-  const noseG = new THREE.ConeGeometry(0.028, 0.03, 3);
+  const noseG = new THREE.ConeGeometry(0.02, 0.022, 3);
   noseG.rotateX(Math.PI); noseG.rotateY(Math.PI);
   const nose = new THREE.Mesh(noseG, pink);
   nose.scale.set(1.2, 1, 0.6);
-  nose.position.set(0, -0.025, 0.215);
+  nose.position.set(0, -0.03, 0.218);
   head.add(nose);
   // 口のすじ
   const mouthG = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0, -0.045, 0.218), new THREE.Vector3(0, -0.075, 0.222),
-    new THREE.Vector3(0, -0.075, 0.222), new THREE.Vector3(-0.035, -0.09, 0.21),
-    new THREE.Vector3(0, -0.075, 0.222), new THREE.Vector3(0.035, -0.09, 0.21),
+    new THREE.Vector3(0, -0.042, 0.222), new THREE.Vector3(0, -0.07, 0.224),
+    new THREE.Vector3(0, -0.07, 0.224), new THREE.Vector3(-0.028, -0.082, 0.215),
+    new THREE.Vector3(0, -0.07, 0.224), new THREE.Vector3(0.028, -0.082, 0.215),
   ]);
   head.add(new THREE.LineSegments(mouthG, new THREE.LineBasicMaterial({ color: 0x5a3020 })));
   // ひげ（少したれた曲線）
   const wp = [];
   for (const s of [-1, 1]) for (let k = 0; k < 5; k++) {
     const y0 = -0.06 + k * 0.012, ang = -0.25 + k * 0.12;
-    let px = s * 0.08, py = y0, pz = 0.19;
+    let px = s * 0.06, py = y0, pz = 0.2;
     for (let t = 1; t <= 4; t++) {
-      const nx = s * (0.08 + t * 0.07), ny = y0 + Math.sin(ang) * t * 0.05 - t * t * 0.004, nz = 0.19 - t * 0.02;
+      const nx = s * (0.06 + t * 0.07), ny = y0 + Math.sin(ang) * t * 0.05 - t * t * 0.004, nz = 0.19 - t * 0.02;
       wp.push(new THREE.Vector3(px, py, pz), new THREE.Vector3(nx, ny, nz));
       px = nx; py = ny; pz = nz;
     }
@@ -320,20 +320,25 @@ export function makeCat() {
     const L = new THREE.Group();
     L.position.set(x * 0.85, hind ? 0.56 : 0.56, z * 0.85);
     const upLen = hind ? 0.26 : 0.27;
-    const ug = new THREE.CylinderGeometry(hind ? 0.08 : 0.058, 0.046, upLen, 14, 4, true);
+    const ug = new THREE.CylinderGeometry(hind ? 0.085 : 0.066, 0.052, upLen, 14, 4, true);
     ug.translate(0, -upLen / 2, 0);
     furry(L, paint(ug, 'leg', 0, 0.5, 0));
     const knee = new THREE.Group();
     knee.position.y = -upLen;
     L.add(knee);
+    // ひざ・かかとの丸み（つなぎ目のすき間をふさぐ）
+    furry(knee, paint(new THREE.SphereGeometry(0.052, 14, 10), 'leg', 0, 0.3, 0), false);
+    const topG = new THREE.SphereGeometry(hind ? 0.085 : 0.066, 14, 10);
+    furry(L, paint(topG, 'leg', 0, 0.5, 0), false);
     const loLen = hind ? 0.3 : 0.27;
-    const lg = new THREE.CylinderGeometry(0.046, 0.04, loLen, 12, 4, true);
+    const lg = new THREE.CylinderGeometry(0.05, 0.043, loLen, 12, 4, true);
     lg.translate(0, -loLen / 2, 0);
     furry(knee, paint(lg, 'leg', 0, loLen, 0));
     // 足先（丸い足と4本の指のふくらみ）
     const paw = new THREE.Group();
     paw.position.set(0, -loLen, 0.02);
     knee.add(paw);
+    furry(paw, paint(new THREE.SphereGeometry(0.044, 12, 8), 'leg', 0, 0.02, 0), false);
     const pg = sculpt(new THREE.SphereGeometry(1, 16, 12), (v) => { v.x *= 0.058; v.y = v.y * 0.035 + 0.01; v.z = v.z * 0.075 + 0.015; if (v.y < 0) v.y *= 0.4; });
     furry(paw, paint(pg, 'leg', 0, 0, 0), true);
     for (let k = 0; k < 4; k++) {
