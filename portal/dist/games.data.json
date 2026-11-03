@@ -6,7 +6,7 @@
     "pagesRef": "origin/claude/kei-truck-runner-game-ngc2ni",
     "pagesNote": "GitHub Pages の公開元ブランチ（farm-roguelike/CLAUDE.md の記録による）"
   },
-  "builtAt": "2026/11/03 14:38",
+  "builtAt": "2026/11/03 14:57",
   "springs": {
     "frame": {
       "duration": 859,
@@ -468,7 +468,7 @@
       },
       "preview": {
         "id": "roach-house",
-        "capturedAt": "2026-11-02T16:36:22.196Z",
+        "capturedAt": "2026-11-03T05:56:54.229Z",
         "mode": "play",
         "fps": 12.5,
         "frames": 83,
@@ -477,21 +477,21 @@
         "mp4": "previews/roach-house.mp4",
         "poster": "previews/roach-house.jpg",
         "bytes": {
-          "webm": 504502,
-          "mp4": 406104,
-          "poster": 49334
+          "webm": 463346,
+          "mp4": 378714,
+          "poster": 52419
         },
         "deterministic": {
           "frames": 83,
-          "identical": 83,
-          "nearIdentical": 83,
-          "ratio": 1,
-          "minPsnr": null,
+          "identical": 0,
+          "nearIdentical": 0,
+          "ratio": 0,
+          "minPsnr": 42.96,
           "sameCount": true
         },
         "note": "",
         "pageErrors": [],
-        "sourceCommit": "c0ef107",
+        "sourceCommit": "655f1ce",
         "recipe": "recipes/roach-house.mjs"
       },
       "unverified": [
