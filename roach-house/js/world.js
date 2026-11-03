@@ -61,10 +61,14 @@ export const SUN_DIR = new THREE.Vector3(0.74, 0.34, -0.58).normalize();
 
 // 葉がそよぐ時間（シェーダーと共有）
 const windUniform = { value: 0 };
+// カメラからゴキブリまでの距離（これより手前の葉だけを透かす）
+const fadeUniform = { value: 2.0 };
+export function setNearFade(d) { fadeUniform.value = Math.max(0.6, d); }
 // 株の素材に「そよぎ」と「カメラに近い所を細かく抜いて透かす」を足す
 function patchPlantMat(mat, amount = 0, fade = true) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = windUniform;
+    sh.uniforms.uFade = fadeUniform;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying float vNearDist;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -77,9 +81,9 @@ function patchPlantMat(mat, amount = 0, fade = true) {
       .replace('#include <project_vertex>', '#include <project_vertex>\n  vNearDist = -mvPosition.z;');
     if (fade) {
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vNearDist;')
+        .replace('#include <common>', '#include <common>\nvarying float vNearDist;\nuniform float uFade;')
         .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-          float nf = smoothstep(0.55, 2.1, vNearDist);
+          float nf = smoothstep(uFade * 0.72, uFade * 0.92, vNearDist);
           float hh = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
           if (hh > nf) discard;`);
     }
@@ -151,6 +155,7 @@ export function buildWorld(scene, renderer, q) {
 
   return {
     group: g, sun,
+    setNearFade,
     setShadow(size) {
       if (sun.shadow.mapSize.x === size) return;
       sun.shadow.mapSize.set(size, size);
@@ -329,7 +334,9 @@ function buildPlants(g, q) {
   const stemMesh = new THREE.InstancedMesh(stemGeo, stemMat, stems.length);
   const strGeo = new THREE.CylinderGeometry(0.011, 0.011, 1, 3);
   strGeo.translate(0, 0.5, 0);
-  const strMesh = new THREE.InstancedMesh(strGeo, new THREE.MeshBasicMaterial({ color: 0xf2efe4 }), stems.length);
+  const strMat = new THREE.MeshBasicMaterial({ color: 0xf2efe4 });
+  patchPlantMat(strMat, 0);
+  const strMesh = new THREE.InstancedMesh(strGeo, strMat, stems.length);
   const place = (mesh, i, a, b, r = 1) => {
     const dir = b.clone().sub(a);
     dummy.position.copy(a);

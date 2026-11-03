@@ -382,7 +382,7 @@ function updateCamera(dt) {
   game.camYaw = camState.yaw;
   let pitch = camState.pitch, dist = 3.3;
   if (info.underTable) { pitch = Math.min(pitch, 0.2); dist = 2.4; }
-  else if (info.onTrough) { dist = 2.4; }
+  else if (info.onTrough) { dist = 2.3; pitch = Math.max(pitch, 0.75); }
   else if (info.underRow) { pitch = Math.min(pitch, 0.24); dist = 1.7; }
   if (info.flying) { dist = 4.5; pitch = 0.25; }
   if (game.state === 'over') { camState.yaw += dt * 0.25; dist = 5; pitch = 0.5; }
@@ -704,6 +704,7 @@ function frame(now) {
     updateLabels();
     const tNow = now / 1000;
     world.update(tNow, camera);
+    world.setNearFade(screen === 'title' || !game.player ? 0.6 : camState.dist - 0.3);
     let focusD = 24;
     if (game.player && game.state !== 'title') focusD = camera.position.distanceTo(new THREE.Vector3(game.player.x, game.player.y + 0.15, game.player.z));
     // 燻煙剤の煙でかすむ
