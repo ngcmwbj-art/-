@@ -1979,15 +1979,50 @@ export class Game {
         C.speed = spd;
       } else C.speed = 0;
     } else C.speed = 0;
-    // 見た目
-    C.phase += C.speed * dt * 4;
+    // 見た目：歩き・しのび足・とびかかり・しっぽ・まばたき・耳
+    C.phase += C.speed * dt * 3.2;
     m.root.position.set(C.x, 0, C.z);
     m.root.rotation.y = C.h;
-    m.legs.forEach((L, i) => { L.rotation.x = C.speed > 0.1 ? Math.sin(C.phase + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.6 : 0; });
-    m.tail.rotation.z = Math.sin(this.clock * 2) * 0.3;
-    m.tail2.rotation.x = 0.4 + Math.sin(this.clock * 3) * 0.3;
-    m.body.position.y = C.st === 'pounce' && C.t < 0.55 ? -0.12 : 0;
-    m.body.rotation.z = C.st === 'pounce' && C.t < 0.55 ? Math.sin(this.clock * 30) * 0.05 : 0;
+    const walking = C.speed > 0.1;
+    const crouch = C.st === 'stalk' ? 1 : (C.st === 'pounce' && C.t < 0.55 ? 1.4 : 0);
+    C.crouch = (C.crouch || 0) + (crouch - (C.crouch || 0)) * Math.min(1, dt * 6);
+    const cr = C.crouch;
+    // 足の順番：左後ろ→左前→右後ろ→右前
+    const offs = [0.5, 1.5, 0, 1];
+    m.legs.forEach((L, i) => {
+      const ph = C.phase + offs[i] * Math.PI;
+      const sw = walking ? Math.sin(ph) * (0.45 - cr * 0.15) : 0;
+      const lift = walking ? Math.max(0, Math.cos(ph)) : 0;
+      const hind = L.userData.hind;
+      L.rotation.x = sw + (hind ? -0.25 - cr * 0.35 : 0.1 + cr * 0.25);
+      L.userData.knee.rotation.x = hind ? 0.55 + cr * 0.6 + lift * 0.4 : -0.15 - cr * 0.55 - lift * 0.5;
+      L.userData.paw.rotation.x = -(L.rotation.x + L.userData.knee.rotation.x);
+    });
+    const bob = walking ? Math.abs(Math.sin(C.phase)) * 0.015 : Math.sin(this.clock * 1.6) * 0.004;
+    m.body.position.y = -cr * 0.12 + bob;
+    m.body.rotation.x = C.st === 'pounce' && C.t >= 0.55 && C.t < 0.8 ? -0.25 : cr * 0.04;
+    m.body.rotation.z = C.st === 'pounce' && C.t < 0.55 ? Math.sin(this.clock * 30) * 0.02 : 0; // おしりふりふり
+    // 頭：獲物をじっと見る・ふだんはきょろきょろ
+    let look = Math.sin(this.clock * 0.7) * 0.35;
+    if (C.target && (C.st === 'stalk' || C.st === 'pounce')) look = clamp(angleDiff(C.h, Math.atan2(C.target.x - C.x, C.target.z - C.z)), -0.8, 0.8);
+    m.neck.rotation.y += (look - m.neck.rotation.y) * Math.min(1, dt * 5);
+    m.neck.rotation.x = cr * 0.25 + (walking ? Math.sin(C.phase * 2) * 0.03 : 0);
+    // しっぽ：ふだんはゆらゆら、ねらうときは先だけピクピク
+    const tw = C.st === 'stalk' ? 0.15 : 0.35;
+    m.tail.rotation.x = -0.9 + cr * 0.75;
+    m.tailSegs.forEach((S, k) => {
+      S.rotation.z = Math.sin(this.clock * 2.2 - k * 0.55) * tw * (0.3 + k * 0.12);
+      S.rotation.x = (C.st === 'stalk' ? -0.02 : 0.1) + (k > 5 && C.st === 'stalk' ? Math.sin(this.clock * 14) * 0.25 : 0);
+    });
+    // まばたき
+    C.blinkT = (C.blinkT ?? 2) - dt;
+    if (C.blinkT < 0) C.blinkT = 2 + rand() * 4;
+    const closed = C.blinkT < 0.12 ? 1 : 0;
+    for (const lid of m.lids) lid.rotation.x = -1.45 + closed * 1.2;
+    // 耳：ときどきピクッ、ねらうときは前へ
+    m.ears.forEach((E, i) => { E.rotation.x = -0.15 - cr * 0.25 + (Math.sin(this.clock * 0.9 + i * 2) > 0.97 ? 0.3 : 0); });
+    // 鈴は歩くとゆれる
+    m.bell.rotation.x = walking ? Math.sin(C.phase * 2) * 0.35 : 0;
     // 鈴の音（動くと鳴る）
     C.bellT -= dt;
     if (C.speed > 0.3 && C.bellT <= 0 && this.player) {
