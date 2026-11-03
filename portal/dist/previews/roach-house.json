@@ -1,6 +1,6 @@
 {
   "id": "roach-house",
-  "capturedAt": "2026-11-03T05:56:54.229Z",
+  "capturedAt": "2026-11-03T18:28:50.453Z",
   "mode": "play",
   "fps": 12.5,
   "frames": 83,
@@ -9,20 +9,13 @@
   "mp4": "previews/roach-house.mp4",
   "poster": "previews/roach-house.jpg",
   "bytes": {
-    "webm": 463346,
-    "mp4": 378714,
-    "poster": 52419
+    "webm": 502452,
+    "mp4": 392758,
+    "poster": 52473
   },
-  "deterministic": {
-    "frames": 83,
-    "identical": 0,
-    "nearIdentical": 0,
-    "ratio": 0,
-    "minPsnr": 42.96,
-    "sameCount": true
-  },
+  "deterministic": null,
   "note": "",
   "pageErrors": [],
-  "sourceCommit": "655f1ce",
+  "sourceCommit": "f1b748d",
   "recipe": "recipes/roach-house.mjs"
 }
