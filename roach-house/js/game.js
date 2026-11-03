@@ -51,9 +51,9 @@ const BENTO_SPOT = { x: 19.8, z: -6.2 };
 const GLOVE_SPOT = { x: 8.2, z: 11.8, h: 0.6 };
 const BOX_SPOTS = [{ x: 6.2, z: -1.6, h: 0.3 }, { x: -20.0, z: -6.0, h: 1.2 }];
 export const PRANKS = [
-  { id: 'bento', text: '農場主のお弁当をかじる' },
-  { id: 'glove', text: '落ちている軍手にもぐりこむ' },
-  { id: 'playdead', text: '死んだふりで農場主に見のがしてもらう' },
+  { id: 'bento', text: '農場主のお弁当をかじる', short: 'お弁当' },
+  { id: 'glove', text: '落ちている軍手にもぐりこむ', short: '軍手' },
+  { id: 'playdead', text: '死んだふりで農場主に見のがしてもらう', short: '死んだふり' },
 ];
 const PLAYDEAD_USES = 3;
 // おたすけ：農場主を少しのんびりに

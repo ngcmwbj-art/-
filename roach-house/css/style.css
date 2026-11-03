@@ -402,3 +402,4 @@ body.touch .order-mini { display: none; }
 #orderMini .ok { color: var(--leaf); font-weight: 700; }
 #orderMini .was { opacity: 0.6; }
 .tbtn small { display: block; font-size: 10px; opacity: 0.8; }
+#tutor { z-index: 6; }

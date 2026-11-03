@@ -187,7 +187,7 @@ function renderOrderMini() {
   miniKey = key;
   const done = (records.pranks && records.pranks[lastDiff]) || [];
   $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}` +
-    `<br><b>いたずら</b><br>${PRANKS.map((x) => `<span class="${pr[x.id] ? 'ok' : done.includes(x.id) ? 'was' : ''}">${pr[x.id] ? '✓' : '・'}${x.text}</span>`).join('<br>')}`;
+    `<br><b>いたずら ${PRANKS.filter((x) => pr[x.id]).length}/${PRANKS.length}</b>　${PRANKS.map((x) => `<span class="${pr[x.id] ? 'ok' : done.includes(x.id) ? 'was' : ''}" title="${x.text}">${pr[x.id] ? '✓' : '・'}${x.short}</span>`).join(' ')}`;
 }
 
 function calmScreen() {
