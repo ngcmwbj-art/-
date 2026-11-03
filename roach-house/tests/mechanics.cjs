@@ -292,7 +292,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('同じステージをもう一度クリアしても進まない', r3.rec.cleared === 1 && r3.unlockedStage === 0);
     check('以前の記録（むずかしいで勝ち）はステージ5まで開いた扱い', F.normalizeRecords({ winHard: true }).cleared === 5);
     g.start('s4', 60);
-    check('ステージ4の目標は8箱・出荷の限度は9箱', g.diff.target === 8 && g.shipLeft() === 9, `${g.diff.target}/${g.shipLeft()}`);
+    check('ステージ4の目標は7箱・出荷の限度は10箱', g.diff.target === 7 && g.shipLeft() === 10, `${g.diff.target}/${g.shipLeft()}`);
 
     // 27. 星3つと自己ベスト
     const stA = { ...st, shipped: 2, chased: 1, deaths: 0 };
