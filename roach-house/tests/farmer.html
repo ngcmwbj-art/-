@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>農場主の確認</title>
+<style>html,body{margin:0;height:100%;background:#6b625a}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js", "three/addons/": "../vendor/addons/" } }</script>
+</head><body>
+<script type="module">
+// 農場主の見た目を正面・ななめ・横から確かめる（ゲームには関係しない確認用ページ）
+import * as THREE from 'three';
+import { RoomEnvironment } from './room-env.js';
+import { makeFarmer } from '../js/models.js';
+const r = new THREE.WebGLRenderer({ antialias: true });
+r.setSize(innerWidth, innerHeight); r.toneMapping = THREE.ACESFilmicToneMapping; document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x6b625a);
+const pm = new THREE.PMREMGenerator(r); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(3, 8, 6); scene.add(sun);
+[0, 0.8, 1.57].forEach((rot, i) => { const f = makeFarmer(); f.root.position.x = -2.4 + i * 2.4; f.root.rotation.y = rot; scene.add(f.root); });
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100); cam.position.set(0, 5.2, 9); cam.lookAt(0, 4.6, 0);
+r.render(scene, cam); window.done = true;
+</script></body></html>

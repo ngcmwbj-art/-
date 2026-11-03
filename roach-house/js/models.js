@@ -395,11 +395,49 @@ export function makeFarmer() {
     ear.position.set(s * 0.47, 0.62, 0);
     headG.add(ear);
   }
-  const hairBack = mesh(SPH, M.hair);
-  hairBack.scale.set(0.48, 0.32, 0.46);
-  hairBack.position.set(0, 0.82, -0.2);
-  hairBack.scale.z = 0.4;
-  headG.add(hairBack);
+  // パーマ頭：小さな巻き毛のかたまりを頭にびっしり並べる（ところどころ白髪）
+  {
+    const curlGeo = new THREE.IcosahedronGeometry(1, 1);
+    const curlMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0.05 });
+    const pts = [];
+    const N = 560;
+    for (let i = 0; i < N; i++) {
+      // 球の上にまんべんなく点を置く
+      const y = 1 - (i + 0.5) / N * 2;
+      const r = Math.sqrt(1 - y * y);
+      const a = i * 2.39996;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      const theta = Math.acos(y); // 頭のてっぺんからの角度
+      const front = z > 0.25 && Math.abs(x) < 0.85;
+      if (front && theta > 0.78) continue;            // 額から下は顔
+      if (!front && theta > 1.62) continue;           // 襟足まで
+      if (Math.abs(x) > 0.82 && theta > 1.25 && z > -0.2) continue; // 耳のまわりはあける
+      pts.push([x, y, z]);
+    }
+    const curls = new THREE.InstancedMesh(curlGeo, curlMat, pts.length);
+    const d = new THREE.Object3D();
+    const c = new THREE.Color();
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    pts.forEach(([x, y, z], i) => {
+      const puff = 1.08 + rnd() * 0.08 + (y > 0.3 ? 0.06 : 0); // 上ほどふくらむ
+      d.position.set(x * 0.47 * puff, 0.64 + y * 0.55 * puff, z * 0.5 * puff);
+      d.rotation.set(rnd() * 6, rnd() * 6, rnd() * 6);
+      d.scale.setScalar(0.06 + rnd() * 0.03);
+      d.updateMatrix();
+      curls.setMatrixAt(i, d.matrix);
+      c.setHex(rnd() < 0.1 ? 0x5e5853 : rnd() < 0.5 ? 0x231e1a : 0x332b25);
+      curls.setColorAt(i, c);
+    });
+    curls.castShadow = true;
+    headG.add(curls);
+    // もみあげ
+    for (const s of [-1, 1]) {
+      const sb = mesh(new THREE.BoxGeometry(0.06, 0.2, 0.12), M.hair, false);
+      sb.position.set(s * 0.45, 0.6, 0.08);
+      headG.add(sb);
+    }
+  }
   const face = new THREE.Group();
   face.position.set(0, 0.62, 0.44);
   const eyes = [];
@@ -424,17 +462,6 @@ export function makeFarmer() {
   mouth.position.set(0, -0.22, 0.01);
   face.add(nose, mouth);
   headG.add(face);
-  // 麦わら帽子
-  const brim = mesh(new THREE.CylinderGeometry(1.05, 1.1, 0.04, 40), M.straw);
-  brim.position.y = 1.02;
-  const crown = mesh(new THREE.CylinderGeometry(0.44, 0.52, 0.46, 30), M.straw);
-  crown.position.y = 1.26;
-  const topC = mesh(new THREE.SphereGeometry(0.44, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.straw);
-  topC.scale.y = 0.25;
-  topC.position.y = 1.49;
-  const band = mesh(new THREE.CylinderGeometry(0.53, 0.53, 0.12, 30), M.ribbon, false);
-  band.position.y = 1.1;
-  headG.add(brim, crown, topC, band);
   root.add(headG);
   // 首のタオル
   const towel = mesh(new THREE.TorusGeometry(0.4, 0.12, 10, 24), M.towel);
