@@ -6,7 +6,7 @@
     "pagesRef": "origin/claude/kei-truck-runner-game-ngc2ni",
     "pagesNote": "GitHub Pages の公開元ブランチ（farm-roguelike/CLAUDE.md の記録による）"
   },
-  "builtAt": "2026/11/03 1:36",
+  "builtAt": "2026/11/03 14:38",
   "springs": {
     "frame": {
       "duration": 859,
@@ -442,7 +442,7 @@
     },
     {
       "id": "roach-house",
-      "title": "ゴキブリ大作戦 パプリカハウス",
+      "title": "侵略のG",
       "tagline": "ゴキブリ目線で出荷前の野菜を狙え",
       "genre": "アクション",
       "tags": [
