@@ -136,11 +136,13 @@ export function makeRoach(nymph = false, wingKey = 'normal') {
     a.position.set(s * 0.028, 0.098, 0.29);
     let parent = a;
     const segs = [];
-    for (let i = 0; i < 7; i++) {
+    // 仲間（幼虫）は数が多くなるので、触角の節を少なくして軽くする
+    const nSeg = nymph ? 3 : 7;
+    for (let i = 0; i < nSeg; i++) {
       const sg = new THREE.Group();
-      if (i > 0) sg.position.z = 0.075;
+      if (i > 0) sg.position.z = 0.075 * (7 / nSeg);
       const m = mesh(antGeo, M.leg, false);
-      m.scale.setScalar(1 - i * 0.07);
+      m.scale.set(1 - i * 0.07 * (7 / nSeg), 1 - i * 0.07 * (7 / nSeg), 7 / nSeg);
       sg.add(m);
       parent.add(sg);
       segs.push(sg);
@@ -173,7 +175,7 @@ export function makeRoach(nymph = false, wingKey = 'normal') {
       knee.position.x = 0.12;
       knee.rotation.z = -1.2;
       knee.add(mesh(tibGeo, M.leg, false));
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < (nymph ? 0 : 4); i++) {
         const sp = mesh(spineGeo, M.spine, false);
         sp.position.set(0.03 + i * 0.03, 0, 0);
         sp.rotation.z = -0.9;

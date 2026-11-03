@@ -259,6 +259,19 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('羽の色が増える', rs1.newWings.includes('black') && rs1.newWings.includes('paprika'));
     const rs2 = F.applyResult(rs1.rec, { win: true, diff: 'normal', alive: 6 }, st, ords, '2026-11-03');
     check('同じ日の同じ注文は1回だけ数える', rs2.rec.orders === rs1.rec.orders);
+
+    // 25. 仲間の数に上限はない：45匹にしても動く
+    g.start('normal', 50); freezeFarmer();
+    Object.assign(g.player, { x: -10, z: 2.5, surface: -1, y: 0 });
+    for (let k = 0; k < 15; k++) { g.nutrition = 100; g.tryLayEgg(g.player); g.player.x += 0.4; }
+    for (const e of [...g.eggs]) g.hatch(e);
+    check('仲間が9匹をこえて増える', g.nymphs.length >= 45, `n=${g.nymphs.length}`);
+    g.setMode('search');
+    const t0 = performance.now();
+    const badMany = RH.sim(20, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    const msPer = (performance.now() - t0) / 600;
+    check('45匹でも異常なく動く', badMany.length === 0 && g.state === 'play', badMany.join());
+    check('45匹でも計算が軽い（1コマ8ms未満）', msPer < 8, `${msPer.toFixed(2)}ms`);
     return out;
   });
   console.log(results.join('\n'));

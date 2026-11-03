@@ -20,7 +20,8 @@ export const DIFFS = {
   hard: { key: 'hard', label: 'むずかしい', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [3, 5], patrolP: 0.6, loadT: 9, traps: 5, hatch: 12, sprayDmg: 32 },
 };
 
-export const MAX_NYMPHS = 9;
+// 仲間の数に上限はない（栄養がたまるたびに卵を産める）
+export const MAX_NYMPHS = Infinity;
 const EAT_REACH = 0.42;
 const ATTACK_RANGE = 3.6;
 const ATTACK_CD = 22;
@@ -504,7 +505,7 @@ export class Game {
   tryLayEgg(p) {
     if (this.nutrition < 100) { this.toast(`栄養が足りない（${Math.floor(this.nutrition)} / 100）。野菜を食べよう`, 'info'); return; }
     const pending = this.eggs.filter((e) => e.alive).length * 3;
-    if (this.nymphs.length + pending >= MAX_NYMPHS) { this.toast(`仲間はこれ以上ふやせない（最大 ${MAX_NYMPHS} 匹）`, 'info'); return; }
+    if (this.nymphs.length + pending >= MAX_NYMPHS) return;
     if (p.st !== 'move') return;
     this.nutrition = 0;
     const m = makeEgg();
@@ -956,7 +957,7 @@ export class Game {
     if (!e.alive) return;
     e.alive = false;
     this.root.remove(e.model);
-    const n = Math.min(3, MAX_NYMPHS - this.nymphs.length);
+    const n = 3;
     for (let i = 0; i < n; i++) {
       const a = (i / 3) * Math.PI * 2;
       let x = e.x + Math.cos(a) * 0.3, z = e.z + Math.sin(a) * 0.3;
@@ -1627,7 +1628,23 @@ export class Game {
       m.root.rotation.y = r.h;
       const mv = r.st === 'stuck' ? 0.6 : r.moving ? 1 : 0;
       const ph = r.st === 'stuck' ? t * 30 : r.phase;
-      animateRoach(m, ph, mv, t + r.id, !!r.eatingCrate);
+      // 遠くの仲間は脚と触角を描かない（数が多くても重くならないように）
+      if (!r.isPlayer) {
+        const far = this.player && Math.hypot(r.x - this.player.x, r.z - this.player.z) > 9;
+        if (m.farLod !== far) {
+          m.farLod = far;
+          for (const L of m.legs) L.g.visible = !far;
+          for (const A of m.antennae) A.g.visible = !far;
+          for (const P of m.palps) P.visible = !far;
+        }
+        if (far) continue;
+      } else if (m.farLod) {
+        m.farLod = false;
+        for (const L of m.legs) L.g.visible = true;
+        for (const A of m.antennae) A.g.visible = true;
+        for (const P of m.palps) P.visible = true;
+      }
+      animateRoach(m, ph, mv, t + r.id, !!(r.eatingCrate || r.eatingFruit));
       if (r.st === 'climb') {
         const c = r.climb;
         m.body.rotation.x = -1.25 * Math.sin(Math.PI * Math.min(1, c.t));
