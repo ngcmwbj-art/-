@@ -101,7 +101,7 @@ function furTex() {
   const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
   c2.getContext('2d').putImageData(new ImageData(A, w, h), 0, 0);
   const strands = new THREE.CanvasTexture(c2);
-  strands.wrapS = strands.wrapT = THREE.RepeatWrapping; strands.repeat.set(7, 7);
+  strands.wrapS = strands.wrapT = THREE.RepeatWrapping; strands.repeat.set(10, 10);
   FUR = { normal, strands };
   return FUR;
 }
@@ -128,20 +128,20 @@ function eyeTex() {
 }
 
 // 毛の殻：同じ形を少しずつ外へふくらませ、毛すじの所だけ残す
-const SHELLS = 6;
+const SHELLS = 4;
 function shellMats() {
   const F = furTex();
   const mats = [];
   for (let k = 1; k <= SHELLS; k++) {
     const f = k / SHELLS;
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, alphaMap: F.strands, alphaTest: 0.12 + f * 0.6, transparent: false });
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, alphaMap: F.strands, alphaTest: 0.35 + f * 0.45, transparent: false });
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-        transformed += objectNormal * ${(0.006 + f * 0.022).toFixed(4)};
-        transformed.y -= ${(f * f * 0.006).toFixed(4)};`);
+        transformed += objectNormal * ${(0.004 + f * 0.012).toFixed(4)};
+        transformed.y -= ${(f * f * 0.003).toFixed(4)};`);
       // 根もとは少し暗く、毛先は明るく
       sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-        diffuseColor.rgb *= ${(0.78 + f * 0.3).toFixed(3)};`);
+        diffuseColor.rgb *= ${(0.97 + f * 0.1).toFixed(3)};`);
     };
     m.customProgramCacheKey = () => 'catShell' + k;
     mats.push(m);
@@ -177,31 +177,37 @@ export function makeCat() {
   };
 
   // ---------- 胴：胸は深く、腰は丸く、背中は少しくぼむ ----------
-  const torsoG = sculpt(new THREE.SphereGeometry(1, 40, 28), (v) => {
+  const torsoG = sculpt(new THREE.SphereGeometry(1, 48, 32), (v) => {
     const z = v.z; // -1 腰 … +1 胸
-    v.x *= 0.27 * (1 + 0.12 * Math.max(0, -z) - 0.1 * Math.max(0, z - 0.6));
-    v.y *= 0.25 * (1 + 0.16 * Math.max(0, z) + 0.05 * Math.max(0, -z));
-    v.z *= 0.6;
-    if (v.y > 0) v.y -= 0.04 * Math.cos(z * 1.6) * (v.y / 0.25); // 背中のくぼみ
-    if (v.y < 0) v.y *= 0.9 + 0.1 * Math.abs(z);
-    v.y += 0.64 + z * 0.04;
+    const rump = Math.exp(-Math.pow((z + 0.62) / 0.3, 2)), chest = Math.exp(-Math.pow((z - 0.55) / 0.35, 2));
+    v.x *= 0.19 * (1 + 0.32 * rump + 0.12 * chest);
+    let ry = 0.19 * (1 + 0.1 * rump + 0.35 * chest);
+    if (v.y < 0) ry *= 1 - 0.28 * Math.exp(-Math.pow(z / 0.4, 2)); // おなかの引きしまり
+    v.y *= ry;
+    v.z *= 0.5;
+    if (v.y > 0) v.y -= 0.025 * Math.exp(-Math.pow(z / 0.5, 2)); // 背中のくぼみ
+    v.y += 0.6 + z * 0.03;
   });
   furry(body, paint(torsoG, 'torso'));
   // 腰の大きなもも（後ろ足の付け根）
   for (const s of [-1, 1]) {
-    const hg = sculpt(new THREE.SphereGeometry(1, 24, 18), (v) => { v.x = v.x * 0.11 + s * 0.17; v.y = v.y * 0.2 + 0.56; v.z = v.z * 0.2 - 0.36; });
+    const hg = sculpt(new THREE.SphereGeometry(1, 24, 18), (v) => { v.x = v.x * 0.07 + s * 0.14; v.y = v.y * 0.15 + 0.55; v.z = v.z * 0.15 - 0.3; });
     furry(body, paint(hg, 'haunch'));
   }
   // 胸の白いふさ毛
-  const ruffG = sculpt(new THREE.SphereGeometry(1, 20, 14), (v) => { v.x *= 0.17; v.y = v.y * 0.17 + 0.62; v.z = v.z * 0.12 + 0.5; });
+  const ruffG = sculpt(new THREE.SphereGeometry(1, 20, 14), (v) => { v.x *= 0.14; v.y = v.y * 0.15 + 0.6; v.z = v.z * 0.1 + 0.43; });
   furry(body, paint(ruffG, 'head', 0, -0.9, 0)); // 頭の下側として塗る＝白
 
   // ---------- 頭 ----------
   const neck = new THREE.Group();
-  neck.position.set(0, 0.8, 0.5);
+  neck.position.set(0, 0.7, 0.4);
   body.add(neck);
+  const neckG = sculpt(new THREE.SphereGeometry(1, 24, 16), (v) => { v.x *= 0.12; v.y = v.y * 0.13 + 0.08; v.z = v.z * 0.12 + 0.06; });
+  neckG.rotateX(-0.6);
+  furry(neck, paint(neckG, 'torso', 0, 0.72, 0.45));
   const head = new THREE.Group();
-  head.position.set(0, 0.12, 0.12);
+  head.position.set(0, 0.2, 0.14);
+  head.scale.setScalar(0.85);
   neck.add(head);
   const skullG = sculpt(new THREE.SphereGeometry(1, 36, 28), (v) => {
     const cheek = Math.exp(-Math.pow((v.y + 0.25) / 0.45, 2)) * Math.exp(-Math.pow(v.z / 0.8, 2));
@@ -288,22 +294,22 @@ export function makeCat() {
     ears.push(E);
   }
   // 首輪と鈴
-  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.022, 8, 28), red);
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.018, 8, 28), red);
   collar.rotation.x = Math.PI / 2 - 0.55;
-  collar.position.set(0, -0.02, 0.02);
+  collar.position.set(0, 0.1, 0.08);
   collar.scale.set(1, 1.05, 1);
   neck.add(collar);
   const bellG = new THREE.Group();
-  bellG.position.set(0, -0.12, 0.13);
-  const bellBody = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 14), gold);
+  bellG.position.set(0, 0.0, 0.19);
+  const bellBody = new THREE.Mesh(new THREE.SphereGeometry(0.036, 20, 14), gold);
   bellBody.castShadow = true;
-  const slot = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.004, 4, 24), dark);
+  const slot = new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.0035, 4, 24), dark);
   slot.rotation.x = Math.PI / 2;
   slot.position.y = -0.006;
   const slit = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.03, 0.012), dark);
-  slit.position.set(0, -0.025, 0.036);
+  slit.position.set(0, -0.02, 0.029);
   const loop = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.004, 4, 12), gold);
-  loop.position.y = 0.05;
+  loop.position.y = 0.04;
   bellG.add(bellBody, slot, slit, loop);
   neck.add(bellG);
 
@@ -312,16 +318,16 @@ export function makeCat() {
   const LEG = [[-0.13, 0.36, false], [0.13, 0.36, false], [-0.15, -0.36, true], [0.15, -0.36, true]];
   for (const [x, z, hind] of LEG) {
     const L = new THREE.Group();
-    L.position.set(x, hind ? 0.52 : 0.5, z);
-    const upLen = hind ? 0.24 : 0.24;
-    const ug = new THREE.CylinderGeometry(hind ? 0.075 : 0.062, 0.05, upLen, 14, 4);
+    L.position.set(x * 0.85, hind ? 0.56 : 0.56, z * 0.85);
+    const upLen = hind ? 0.26 : 0.27;
+    const ug = new THREE.CylinderGeometry(hind ? 0.08 : 0.058, 0.046, upLen, 14, 4, true);
     ug.translate(0, -upLen / 2, 0);
     furry(L, paint(ug, 'leg', 0, 0.5, 0));
     const knee = new THREE.Group();
     knee.position.y = -upLen;
     L.add(knee);
-    const loLen = hind ? 0.26 : 0.24;
-    const lg = new THREE.CylinderGeometry(0.048, 0.042, loLen, 12, 4);
+    const loLen = hind ? 0.3 : 0.27;
+    const lg = new THREE.CylinderGeometry(0.046, 0.04, loLen, 12, 4, true);
     lg.translate(0, -loLen / 2, 0);
     furry(knee, paint(lg, 'leg', 0, loLen, 0));
     // 足先（丸い足と4本の指のふくらみ）
@@ -345,14 +351,14 @@ export function makeCat() {
 
   // ---------- しっぽ：8つの節で、波打つように動かせる ----------
   const tail = new THREE.Group();
-  tail.position.set(0, 0.74, -0.56);
+  tail.position.set(0, 0.68, -0.48);
   body.add(tail);
   const segs = [];
   let parent = tail;
   const N = 8, segLen = 0.085;
   for (let k = 0; k < N; k++) {
-    const r0 = 0.05 - k * 0.0028, r1 = 0.05 - (k + 1) * 0.0028;
-    const g = new THREE.CylinderGeometry(r1, r0, segLen, 12, 2);
+    const r0 = 0.04 - k * 0.0024, r1 = 0.04 - (k + 1) * 0.0024;
+    const g = new THREE.CylinderGeometry(r1, r0, segLen, 12, 2, true);
     g.translate(0, segLen / 2, 0);
     const cap = new THREE.SphereGeometry(r1, 12, 8);
     cap.translate(0, segLen, 0);

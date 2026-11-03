@@ -20,13 +20,13 @@ export const STAGES = [
     tip: 'まずはコンテナを1箱かじってみよう。見つかったら栽培槽の下へ' },
   { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'わなが増え、見回りも多くなる。足もとに気をつけろ', target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
     tip: 'ホイホイ（黄色い家）が多い。地図の×印を見て、通り道を選ぼう' },
-  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。JAの検品も来る', target: 8, baits: 1, fSpeed: 0.96, susp: 0.9, patrol: [5, 8], patrolP: 0.6, loadT: 7, traps: 3, hatch: 10, sprayDmg: 24, fumAt: 0.5, inspect: true,
+  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。JAの検品も来る', target: 8, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 8, traps: 3, hatch: 10, sprayDmg: 22, fumAt: 0.5, inspect: true,
     tip: '黒い丸い容器は毒エサ。JAの検品員が来たら、近づかずに待とう' },
-  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速く、燻煙剤も早め。ハウスのネコもうろつく', target: 9, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.6, loadT: 8, traps: 3, hatch: 10, sprayDmg: 26, fumAt: 0.45, inspect: true, cat: true,
+  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速く、燻煙剤も早め。ハウスのネコもうろつく', target: 9, baits: 1, fSpeed: 0.97, susp: 0.92, patrol: [4, 7], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 24, fumAt: 0.5, inspect: true, cat: true,
     tip: '鈴の音はネコ。ネコは台や栽培槽の上には来ない' },
-  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '10箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 10, baits: 2, fSpeed: 1.05, susp: 1.1, patrol: [4, 6], patrolP: 0.6, loadT: 10, traps: 4, hatch: 11, sprayDmg: 28, fumAt: 0.45, inspect: true, cat: true,
+  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '10箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 10, baits: 2, fSpeed: 1.0, susp: 0.98, patrol: [4, 6], patrolP: 0.6, loadT: 11, traps: 4, hatch: 11, sprayDmg: 25, fumAt: 0.5, inspect: true, cat: true,
     tip: '仲間をたくさん増やして、探索と囮で一気に攻めよう' },
-  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗なハウス。農場主の懐中電灯の光だけに気をつけろ', target: 9, baits: 2, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 9, traps: 4, hatch: 11, sprayDmg: 26, fumAt: 0.5, inspect: false, cat: true, night: true,
+  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗なハウス。農場主の懐中電灯の光だけに気をつけろ', target: 9, baits: 2, fSpeed: 0.97, susp: 0.95, patrol: [4, 7], patrolP: 0.55, loadT: 10, traps: 4, hatch: 11, sprayDmg: 24, fumAt: 0.5, inspect: false, cat: true, night: true,
     tip: '暗いので光の外なら見つかりにくい。懐中電灯の光の輪に入るな' },
 ];
 export const DIFFS = Object.fromEntries(STAGES.map((st) => [st.key, st]));
@@ -1912,12 +1912,12 @@ export class Game {
       }
       // 獲物（床の上のゴキブリ）をさがす
       if (C.cd <= 0) {
-        let best = null, bd = 6.5;
+        let best = null, bd = 5;
         for (const r of this.roaches) {
           if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide') continue;
           const d = Math.hypot(r.x - C.x, r.z - C.z);
           const ang = Math.abs(angleDiff(C.h, Math.atan2(r.x - C.x, r.z - C.z)));
-          if (d < bd && ang < 1.1 && (this.hideFactor(r) > 0.5 || r.moving)) { bd = d; best = r; }
+          if (d < bd && ang < 0.9 && (this.hideFactor(r) > 0.5 || r.moving) && (r.isPlayer || rand() < 0.5)) { bd = d; best = r; }
         }
         if (best) { C.st = 'stalk'; C.target = best; C.t = 0; this.sfx.meow(); if (best.isPlayer) this.toast('ネコに見つかった！ 台や栽培槽の上へ！', 'bad'); }
       }
@@ -1925,9 +1925,9 @@ export class Game {
       if (C.pesterT <= 0 && f.state === 'WORK' && !f.hidden) { C.st = 'pester'; C.t = 0; C.pesterT = 25 + rand() * 20; }
     } else if (C.st === 'stalk') {
       const r = C.target;
-      if (!r || !r.alive || r.y > 0.3 || C.t > 8) { C.st = 'wander'; C.cd = 4; C.target = null; }
+      if (!r || !r.alive || r.y > 0.3 || C.t > 6) { C.st = 'wander'; C.cd = 6; C.target = null; }
       else {
-        tx = r.x; tz = r.z; spd = 2.6;
+        tx = r.x; tz = r.z; spd = 2.3;
         if (Math.hypot(r.x - C.x, r.z - C.z) < 1.7) {
           C.st = 'pounce'; C.t = 0;
           C.pounce = { x: r.x, z: r.z, sx: C.x, sz: C.z };
@@ -1950,14 +1950,14 @@ export class Game {
           P.done = true;
           for (const r of this.roaches) {
             if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide') continue;
-            if (Math.hypot(r.x - P.x, r.z - P.z) < 0.6) this.damage(r, r.isPlayer ? 40 : 999, 'cat');
+            if (Math.hypot(r.x - P.x, r.z - P.z) < 0.5) this.damage(r, r.isPlayer ? 30 : 999, 'cat');
           }
           this.sfx.thump();
         }
       }
       if (C.t > 1.1) {
         if (C.marker) { this.root.remove(C.marker); disposeObject(C.marker); C.marker = null; }
-        C.st = 'wander'; C.cd = 3.5; C.target = null; C.t = 0;
+        C.st = 'wander'; C.cd = 10; C.target = null; C.t = 0;
       }
     } else if (C.st === 'pester') {
       tx = f.x + Math.sin(C.t * 2) * 0.9; tz = f.z + Math.cos(C.t * 2) * 0.9; spd = 2.4;
