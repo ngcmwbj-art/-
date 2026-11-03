@@ -75,7 +75,8 @@ export const TITLES = [
   { id: 'bait3', name: '毒にも負けない', desc: '毒エサを合計3回食べる', check: (r) => r.baits >= 3 },
   { id: 'smoke', name: '煙をくぐりぬけた者', desc: '燻煙剤から生きのびる', check: (r) => r.smoke >= 1 },
   { id: 'order10', name: '注文の達人', desc: '今日の注文を合計10個こなす', check: (r) => r.orders >= 10 },
-  { id: 'allwin', name: '三冠', desc: 'やさしい・ふつう・むずかしいで勝つ', check: (r) => r.winEasy && r.winNormal && r.winHard },
+  { id: 'allwin', name: '全ステージ制覇', desc: '5つのステージをすべてクリアする', check: (r) => r.cleared >= 5 },
+  { id: 'stage3', name: '一人前のゴキブリ', desc: 'ステージ3をクリアする', check: (r) => r.cleared >= 3 },
 ];
 
 // 羽の色の解放条件
@@ -90,13 +91,16 @@ export const WING_UNLOCK = {
 export function emptyRecords() {
   return {
     games: 0, wins: 0, ruined: 0, eggs: 0, attacks: 0, escapes: 0, nice: 0, winds: 0, fruits: 0, baits: 0, smoke: 0,
-    orders: 0, winEasy: false, winNormal: false, winHard: false, titles: [], seen: [], ordersDone: {}, wing: 'normal',
+    orders: 0, cleared: 0, titles: [], seen: [], ordersDone: {}, wing: 'normal',
   };
 }
 export function normalizeRecords(r) {
   const base = emptyRecords();
   if (!r || typeof r !== 'object') return base;
   const out = { ...base, ...r };
+  // 以前の「やさしい・ふつう・むずかしい」の記録を、クリアしたステージに読みかえる
+  if (!r.cleared && (r.winEasy || r.winNormal || r.winHard)) out.cleared = r.winHard ? 5 : r.winNormal ? 3 : 1;
+  delete out.winEasy; delete out.winNormal; delete out.winHard;
   for (const k of ['titles', 'seen']) if (!Array.isArray(out[k])) out[k] = [];
   if (!out.ordersDone || typeof out.ordersDone !== 'object') out.ordersDone = {};
   return out;
@@ -109,9 +113,8 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   r.games++;
   if (res.win) {
     r.wins++;
-    if (res.diff === 'easy') r.winEasy = true;
-    if (res.diff === 'normal') r.winNormal = true;
-    if (res.diff === 'hard') r.winHard = true;
+    const no = parseInt(String(res.diff).replace('s', ''), 10);
+    if (no > (r.cleared || 0)) { r.cleared = no; r.newStage = no + 1; }
   }
   r.ruined += stats.ruined; r.eggs += stats.eggs; r.attacks += stats.attacks; r.escapes += stats.escapes;
   r.nice += stats.nice; r.winds += stats.winds; r.fruits += stats.fruits; r.baits += stats.baits; r.smoke += stats.smokeSurvived;
@@ -132,7 +135,9 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   for (const t of TITLES) if (!r.titles.includes(t.id) && t.check(r)) r.titles.push(t.id);
   const newTitles = TITLES.filter((t) => r.titles.includes(t.id) && !before.titles.has(t.id));
   const newWings = unlockedWings(r).filter((k) => !before.wings.includes(k));
-  return { rec: r, newTitles, newWings, cleared };
+  const unlockedStage = r.newStage && r.newStage <= 5 ? r.newStage : 0;
+  delete r.newStage;
+  return { rec: r, newTitles, newWings, cleared, unlockedStage };
 }
 export function unlockedWings(r) {
   return Object.keys(WING_UNLOCK).filter((k) => WING_UNLOCK[k].check(r));

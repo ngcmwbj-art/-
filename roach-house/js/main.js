@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { buildWorld, ROWS, TABLES, DOOR, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
 import * as FEATURES from './features.js';
-import { Game, DIFFS, MAX_NYMPHS } from './game.js';
+import { Game, DIFFS, STAGES, MAX_NYMPHS } from './game.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
 import { clamp, damp, inRect } from './util.js';
@@ -143,7 +143,7 @@ function renderOrders() {
 renderOrders();
 $('optTutor').checked = !store.get('tutorialDone', false);
 
-let lastDiff = 'normal';
+let lastDiff = 's1';
 function startGame(diff) {
   sfx.unlock();
   sfx.startAmbience();
@@ -155,6 +155,8 @@ function startGame(diff) {
   $('optTutor').checked = false;
   $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}`;
   $('orderMini').hidden = false;
+  const D = game.diff;
+  if (!tutorial) ui.toast(`${D.label}「${D.name}」 コンテナを${D.target}箱ダメにしろ！`, 'info');
   hints.reset();
   camState.yaw = game.camYaw;
   camState.pitch = 0.36;
@@ -238,7 +240,27 @@ const TIPS = [
 ];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
-document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => startGame(b.dataset.diff)));
+// ステージ選び：クリアした次のステージまで遊べる
+function renderStages() {
+  const best = store.get('best', {});
+  const open = Math.min(5, (records.cleared || 0) + 1);
+  $('stages').innerHTML = STAGES.map((st) => {
+    const ok = st.no <= open;
+    const b = best[st.key];
+    const cleared = st.no <= (records.cleared || 0);
+    return `<button class="stage ${st.no === open && !cleared ? 'next' : ''}" data-diff="${st.key}" ${ok ? '' : 'disabled'}>
+      <span class="no">${st.label}${cleared ? '　✓クリア' : ''}</span><b>${ok ? st.name : '？？？'}</b>
+      <span>${ok ? `${st.target}箱ダメにする。${st.desc}` : `ステージ${st.no - 1}をクリアすると遊べる`}</span>
+      <em>${b ? `最高 ${b.rank}・${b.score}点` : ''}</em></button>`;
+  }).join('');
+  $('stages').querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => startGame(b.dataset.diff)));
+}
+renderStages();
+$('btnNext').addEventListener('click', () => {
+  const st = DIFFS[lastDiff];
+  const nx = STAGES[st ? st.no : 0];
+  if (nx) startGame(nx.key);
+});
 $('btnResume').addEventListener('click', resumeGame);
 $('btnRetry').addEventListener('click', () => startGame(lastDiff));
 $('btnTitle').addEventListener('click', toTitle);
@@ -263,14 +285,7 @@ function updateCmdButtons() {
   for (const m of ['search', 'decoy', 'follow']) $(`cmd-${m}`).classList.toggle('on', game.mode === m);
 }
 
-function renderBest() {
-  const best = store.get('best', {});
-  for (const k of Object.keys(DIFFS)) {
-    const b = best[k];
-    $(`best-${k}`).textContent = b ? `最高 ${b.rank}・${b.score}点` : '';
-  }
-}
-renderBest();
+function renderBest() { renderStages(); }
 
 // ---------- 結果 ----------
 const REASONS = {
@@ -281,7 +296,8 @@ const REASONS = {
 function showResult(res) {
   if (game.state !== 'over' || game.result !== res) return;
   calmScreen();
-  $('rTitle').textContent = res.win ? '作戦成功！' : '作戦失敗…';
+  const stR = DIFFS[res.diff];
+  $('rTitle').textContent = res.win ? `${stR ? stR.label + ' ' : ''}クリア！` : '作戦失敗…';
   $('rTitle').className = `rtitle ${res.win ? 'win' : 'lose'}`;
   $('rReason').textContent = REASONS[res.reason] || '';
   $('rRank').textContent = res.rank;
@@ -308,6 +324,11 @@ function showResult(res) {
   const ol = orders.map((o) => (out.cleared.includes(o.id) ? `<span class="ok">✓ ${o.text}</span>` : `<span class="ng">・${o.text}</span>`));
   const news = [...out.newTitles.map((t) => `<span class="new">★ 称号「${t.name}」を手に入れた！</span>`),
     ...out.newWings.map((k) => `<span class="new">羽の色「${WING_COLORS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`)];
+  if (out.unlockedStage) news.unshift(`<span class="new">${STAGES[out.unlockedStage - 1].label}「${STAGES[out.unlockedStage - 1].name}」が遊べるようになった！</span>`);
+  const cur = DIFFS[res.diff];
+  const nxt = cur ? STAGES[cur.no] : null;
+  $('btnNext').hidden = !(res.win && nxt);
+  if (nxt) $('btnNext').textContent = `次のステージへ（${nxt.label}）`;
   $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}${news.length ? '<br>' + news.join('<br>') : ''}`;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
@@ -761,6 +782,6 @@ window.__rh.sim = (seconds, step = 1 / 30, bot) => {
   return game.sanity();
 };
 window.__rh.startGame = startGame;
-Object.assign(window.__rh, { plantFruits: PLANT_FRUITS, rows: ROWS, windLanes: WIND_LANES, safeSpots: SAFE_SPOTS, features: FEATURES });
+Object.assign(window.__rh, { stages: STAGES, plantFruits: PLANT_FRUITS, rows: ROWS, windLanes: WIND_LANES, safeSpots: SAFE_SPOTS, features: FEATURES });
 window.__rh.MAX_NYMPHS = MAX_NYMPHS;
 window.__rh.DOOR = DOOR;

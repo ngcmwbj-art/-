@@ -272,6 +272,23 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     const msPer = (performance.now() - t0) / 600;
     check('45匹でも異常なく動く', badMany.length === 0 && g.state === 'play', badMany.join());
     check('45匹でも計算が軽い（1コマ8ms未満）', msPer < 8, `${msPer.toFixed(2)}ms`);
+
+    // 26. 5つのステージ：だんだん難しくなり、クリアで次が開く
+    const STG = RH.stages;
+    check('ステージは5つ', STG.length === 5);
+    check('先へ進むほど目標の箱が増える', STG.every((st, k) => k === 0 || st.target > STG[k - 1].target), STG.map((x) => x.target).join(','));
+    check('先へ進むほど農場主が速く鋭い', STG.every((st, k) => k === 0 || (st.fSpeed >= STG[k - 1].fSpeed && st.susp >= STG[k - 1].susp)));
+    const btns = [...document.querySelectorAll('#stages .stage')];
+    check('はじめはステージ1だけ遊べる', btns.length === 5 && !btns[0].disabled && btns.slice(1).every((b) => b.disabled));
+    const r1 = F.applyResult(F.normalizeRecords(null), { win: true, diff: 's1', alive: 0 }, st, [], '2026-11-03');
+    check('ステージ1クリアでステージ2が開く', r1.rec.cleared === 1 && r1.unlockedStage === 2);
+    const r2 = F.applyResult(r1.rec, { win: false, diff: 's2', alive: 0 }, st, [], '2026-11-03');
+    check('負けたら次は開かない', r2.rec.cleared === 1 && r2.unlockedStage === 0);
+    const r3 = F.applyResult(r1.rec, { win: true, diff: 's1', alive: 0 }, st, [], '2026-11-03');
+    check('同じステージをもう一度クリアしても進まない', r3.rec.cleared === 1 && r3.unlockedStage === 0);
+    check('以前の記録（むずかしいで勝ち）はステージ5まで開いた扱い', F.normalizeRecords({ winHard: true }).cleared === 5);
+    g.start('s4', 60);
+    check('ステージ4の目標は9箱・出荷の限度は8箱', g.diff.target === 9 && g.shipLeft() === 8, `${g.diff.target}/${g.shipLeft()}`);
     return out;
   });
   console.log(results.join('\n'));

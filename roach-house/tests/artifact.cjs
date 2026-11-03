@@ -17,7 +17,7 @@ const path = require('path');
   await page.addInitScript(() => { try { localStorage.setItem('roachhouse.quality', '"low"'); } catch (_) {} });
   await page.goto('https://artifact.test/');
   await page.waitForFunction(() => window.__rh && window.__rh.game, null, { timeout: 15000 });
-  await page.click('[data-diff="normal"]');
+  await page.click('[data-diff="s1"]');
   await page.waitForTimeout(1500);
   const bad = await page.evaluate(() => window.__rh.sim(60, 1 / 30, (g, i) => { i.mx = 0.3; i.mz = 1; }));
   await page.waitForTimeout(500);

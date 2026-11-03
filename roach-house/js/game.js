@@ -14,11 +14,19 @@ import { seededRand } from './features.js';
 import { Grid } from './pathfind.js';
 import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectDist, inRect, setSeed } from './util.js';
 
-export const DIFFS = {
-  easy: { key: 'easy', label: 'やさしい', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20 },
-  normal: { key: 'normal', label: 'ふつう', target: 8, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 4, traps: 3, hatch: 10, sprayDmg: 26 },
-  hard: { key: 'hard', label: 'むずかしい', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [3, 5], patrolP: 0.6, loadT: 9, traps: 5, hatch: 12, sprayDmg: 32 },
-};
+// 5つのステージ（だんだん難しくなる）。1・3・5 は以前の「やさしい・ふつう・むずかしい」と同じ調整
+export const STAGES = [
+  { key: 's1', no: 1, label: 'ステージ1', name: 'はじめての夜明け', desc: '農場主はのんびり屋。まずはかじって、隠れて、慣れよう', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20, fumAt: 0.5 },
+  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'わなが増え、見回りも多くなる。足もとに気をつけろ', target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 6, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5 },
+  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。食べるかどうかはあなたしだい', target: 8, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 4, traps: 3, hatch: 10, sprayDmg: 26, fumAt: 0.5 },
+  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速くなり、燻煙剤も早めにたかれる', target: 9, baits: 1, fSpeed: 1.06, susp: 1.15, patrol: [3, 6], patrolP: 0.58, loadT: 6, traps: 4, hatch: 11, sprayDmg: 29, fumAt: 0.4 },
+  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '10箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [3, 5], patrolP: 0.6, loadT: 9, traps: 5, hatch: 12, sprayDmg: 32, fumAt: 0.4 },
+];
+export const DIFFS = Object.fromEntries(STAGES.map((st) => [st.key, st]));
+// 以前の呼び名（テスト用）
+DIFFS.easy = STAGES[0];
+DIFFS.normal = STAGES[2];
+DIFFS.hard = STAGES[4];
 
 // 仲間の数に上限はない（栄養がたまるたびに卵を産める）
 export const MAX_NYMPHS = Infinity;
@@ -1178,10 +1186,10 @@ export class Game {
       if (this.traps.some((t) => Math.hypot(t.x - tx, t.z - tz) < 1.6)) continue;
       if (f.trapQueue.some((t) => Math.hypot(t.x - tx, t.z - tz) < 1.6)) continue;
       if (Math.hypot(tx - DOOR.x, tz - DOOR.z) < 2) continue;
-      // 3回に1回は毒エサ（むずかしいは2回に1回）
-      const every = this.diff.key === 'hard' ? 2 : 3;
+      // ステージ3からは3回に1回は毒エサ（ステージ5は2回に1回）
+      const every = this.diff.no >= 5 ? 2 : 3;
       const n = this.traps.length + this.baits.length + f.trapQueue.length;
-      const kind = this.diff.key !== 'easy' && n % every === every - 1 ? 'bait' : 'trap';
+      const kind = this.diff.no >= 3 && n % every === every - 1 ? 'bait' : 'trap';
       f.trapQueue.push({ x: tx, z: tz, kind });
       return;
     }
@@ -1274,7 +1282,7 @@ export class Game {
         break;
       case 'choose': {
         f.baseH = f.h;
-        if (!this.fumigated && f.anger >= 3 && this.ruined >= Math.ceil(this.diff.target / 2) && !f.carry) {
+        if (!this.fumigated && f.anger >= 3 && this.ruined >= Math.ceil(this.diff.target * (this.diff.fumAt || 0.5)) && !f.carry) {
           this.startFumigation();
           break;
         }

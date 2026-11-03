@@ -11,7 +11,7 @@ page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g/.test(m.text(
 await page.goto(URL);
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/s-title.png` });
-await page.click('[data-diff="normal"]');
+await page.click('[data-diff="s1"]');
 await page.waitForTimeout(800);
 await page.keyboard.down('KeyD');
 await page.waitForTimeout(1500);

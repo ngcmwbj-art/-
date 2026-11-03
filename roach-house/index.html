@@ -72,11 +72,7 @@
       <h1 class="logo"><span class="k1">ゴキブリ大作戦</span><span class="k2">パプリカハウス</span></h1>
       <p class="lead">夜明けのパプリカハウス。収穫したパプリカのコンテナをかじってダメにしろ。農場主は殺虫剤とホイホイ、毒エサで待ちかまえている。食べて、卵を産んで、仲間と力を合わせ、出荷が終わる前に勝負をつけよう。</p>
       <div class="card order-card" id="orderCard"></div>
-      <div class="diffs">
-        <button class="diff" data-diff="easy"><b>やさしい</b><span>6箱ダメにする</span><em id="best-easy"></em></button>
-        <button class="diff main" data-diff="normal"><b>ふつう</b><span>8箱ダメにする</span><em id="best-normal"></em></button>
-        <button class="diff" data-diff="hard"><b>むずかしい</b><span>10箱ダメにする</span><em id="best-hard"></em></button>
-      </div>
+      <div class="stages" id="stages"></div>
       <div class="opts">
         <label><input type="checkbox" id="optTutor"> 練習から始める</label>
         <label><input type="checkbox" id="optHints" checked> ヒントを出す</label>
@@ -90,6 +86,7 @@
         <summary>遊びかた</summary>
         <div class="body">
           <div><h3>勝ち負け</h3><ul>
+            <li>ステージは5つ。クリアすると次のステージが遊べるようになる。先に進むほど、ダメにする箱が増え、わなや毒エサが増え、農場主も手ごわくなる。</li>
             <li>目標の数のコンテナをかじりつくしたら勝ち。時間制限はない。</li>
             <li>農場主は1箱ずつ出荷していく。出荷されすぎて目標に届かなくなったら負け（左上に「あと何箱」）。</li>
           </ul></div>
@@ -165,7 +162,8 @@
       <dl class="rstats" id="rStats"></dl>
       <p class="tip" id="rTip"></p>
       <div class="row">
-        <button class="btn primary" id="btnAgain">もう一度</button>
+        <button class="btn primary" id="btnNext" hidden>次のステージへ</button>
+        <button class="btn" id="btnAgain">もう一度</button>
         <button class="btn" id="btnTitle2">タイトルへ</button>
       </div>
     </div>
