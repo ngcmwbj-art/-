@@ -7,20 +7,27 @@ import {
 } from './world.js';
 import {
   makeRoach, animateRoach, makeFarmer, makeCrate, setCrateRot, animateFlies, makeTrap, makeEgg,
-  makeCloud, makeRing, makeCone, disposeObject, makeBait, makeFogger, VEG_COLORS,
+  makeCloud, makeRing, makeCone, disposeObject, makeBait, makeFogger, VEG_COLORS, makeCat, makeInspector,
 } from './models.js';
 import { paprikaMaterial } from './paprika.js';
 import { seededRand } from './features.js';
 import { Grid } from './pathfind.js';
 import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectDist, inRect, setSeed } from './util.js';
 
-// 5つのステージ（だんだん難しくなる）。1・3・5 は以前の「やさしい・ふつう・むずかしい」と同じ調整
+// 6つのステージ（だんだん難しくなる）
 export const STAGES = [
-  { key: 's1', no: 1, label: 'ステージ1', name: 'はじめての夜明け', desc: '農場主はのんびり屋。まずはかじって、隠れて、慣れよう', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20, fumAt: 0.5 },
-  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'わなが増え、見回りも多くなる。足もとに気をつけろ', target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 6, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5 },
-  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。食べるかどうかはあなたしだい', target: 8, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 4, traps: 3, hatch: 10, sprayDmg: 26, fumAt: 0.5 },
-  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速くなり、燻煙剤も早めにたかれる', target: 9, baits: 1, fSpeed: 1.06, susp: 1.15, patrol: [3, 6], patrolP: 0.58, loadT: 6, traps: 4, hatch: 11, sprayDmg: 29, fumAt: 0.4 },
-  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '10箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 10, baits: 2, fSpeed: 1.12, susp: 1.3, patrol: [3, 5], patrolP: 0.6, loadT: 9, traps: 5, hatch: 12, sprayDmg: 32, fumAt: 0.4 },
+  { key: 's1', no: 1, label: 'ステージ1', name: 'はじめての夜明け', desc: '農場主はのんびり屋。まずはかじって、隠れて、慣れよう', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20, fumAt: 0.5,
+    tip: 'まずはコンテナを1箱かじってみよう。見つかったら栽培槽の下へ' },
+  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'わなが増え、見回りも多くなる。足もとに気をつけろ', target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
+    tip: 'ホイホイ（黄色い家）が多い。地図の×印を見て、通り道を選ぼう' },
+  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。JAの検品も来る', target: 8, baits: 1, fSpeed: 0.96, susp: 0.9, patrol: [5, 8], patrolP: 0.6, loadT: 7, traps: 3, hatch: 10, sprayDmg: 24, fumAt: 0.5, inspect: true,
+    tip: '黒い丸い容器は毒エサ。JAの検品員が来たら、近づかずに待とう' },
+  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速く、燻煙剤も早め。ハウスのネコもうろつく', target: 9, baits: 1, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.6, loadT: 8, traps: 3, hatch: 10, sprayDmg: 26, fumAt: 0.45, inspect: true, cat: true,
+    tip: '鈴の音はネコ。ネコは台や栽培槽の上には来ない' },
+  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '10箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 10, baits: 2, fSpeed: 1.05, susp: 1.1, patrol: [4, 6], patrolP: 0.6, loadT: 10, traps: 4, hatch: 11, sprayDmg: 28, fumAt: 0.45, inspect: true, cat: true,
+    tip: '仲間をたくさん増やして、探索と囮で一気に攻めよう' },
+  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗なハウス。農場主の懐中電灯の光だけに気をつけろ', target: 9, baits: 2, fSpeed: 1.0, susp: 1.0, patrol: [4, 7], patrolP: 0.55, loadT: 9, traps: 4, hatch: 11, sprayDmg: 26, fumAt: 0.5, inspect: false, cat: true, night: true,
+    tip: '暗いので光の外なら見つかりにくい。懐中電灯の光の輪に入るな' },
 ];
 export const DIFFS = Object.fromEntries(STAGES.map((st) => [st.key, st]));
 // 以前の呼び名（テスト用）
@@ -56,6 +63,7 @@ export class Game {
     this.shake = 0;
     this.camYaw = Math.PI / 2;
     this.snapRequests = [];
+    this.soundPings = [];
     this.highlights = [];
     this.baits = [];
     this.fallers = [];
@@ -95,8 +103,15 @@ export class Game {
     this.safeRings = [];
     this.highlights = [];
     this.snapRequests = [];
+    this.soundPings = [];
     this.minHp = 100;
     this.niceT = 0;
+    this.cat = null;
+    this.inspector = null;
+    this.inspectDone = false;
+    this.safeLine = null;
+    this.lastDeathCause = null;
+    this.night = !!D.night;
     this.wing = opts.wing || 'normal';
     this.calm = !!opts.tutorial;
     this.tutorial = opts.tutorial ? { step: 0, t: 0, sx: PLAYER_START.x, sz: PLAYER_START.z, yaw: Math.PI / 2, hideT: 0 } : null;
@@ -153,6 +168,16 @@ export class Game {
       walkPhase: 0, stepAcc: 0, moveSpeed: 0, baseH: 0, lookT: 0, inv: null, coneRange: 10,
       glanceT: 3, glanceDir: 1, glanceDur: 0, lookOff: 0, view: -Math.PI / 2,
     };
+    // 夜：農場主の懐中電灯（右手の先から前を照らす）
+    if (!this.flashlight) {
+      this.flashlight = new THREE.SpotLight(0xfff1c8, 0, 18, 0.42, 0.45, 1.2);
+      this.flashlight.position.set(0.9, 4.0, 0.8);
+      this.flashlight.target.position.set(0, 0, 9);
+      fm.root.add(this.flashlight, this.flashlight.target);
+    }
+    this.flashlight.intensity = this.night ? 140 : 0;
+    this.flashlight.visible = this.night;
+    if (D.cat) this.spawnCat();
     if (this.tutorial) { this.farmer.timer = 1e9; this.say('（農場主はまだラジオを聞いている）'); }
     else this.say('さて、今日も出荷するか。手間かけさせんなよ');
   }
@@ -247,6 +272,9 @@ export class Game {
     this.updateCrates(dt);
     this.updateFallers(dt);
     this.updateFog(dt);
+    this.updateCat(dt);
+    this.updateInspector(dt);
+    this.updateSafeLine();
     const p = this.player;
     if (p && p.alive && p.hp < this.minHp - 8 && p.hp < 45) {
       this.minHp = p.hp;
@@ -923,6 +951,7 @@ export class Game {
     }
     this.sfx.die();
     this.stats.deaths++;
+    this.lastDeathCause = cause;
     // 仲間がいれば意識を移す
     let next = null, bd = Infinity;
     for (const o of this.roaches) {
@@ -1014,6 +1043,7 @@ export class Game {
       const dp = Math.hypot(this.player.x - f.x, this.player.z - f.z);
       const v = Math.max(0, 1 - dp / 26);
       this.sfx.boot(v * v * 0.8, this.panOf(f.x, f.z));
+      if (v > 0.15) this.soundPings.push({ x: f.x, z: f.z, v: Math.min(1, v * 1.2), kind: 'step' });
       if (dp < 5) this.shake = Math.max(this.shake, (1 - dp / 5) * 0.25);
     }
     return false;
@@ -1061,6 +1091,12 @@ export class Game {
     if (d > range) return 0;
     if (t.y < 4.5 && this.plantsBetween(f.x, f.z, t.x, t.z)) return 0;
     const dot = d > 0.01 ? (dx * Math.sin(f.view) + dz * Math.cos(f.view)) / d : 1;
+    if (this.night) {
+      // 夜は懐中電灯の光の中だけよく見える。すぐ近くはうっすら
+      if (d <= 1.8 && dot > -0.3) return this.visibility(t) * 0.45;
+      if (dot < 0.9) return 0;
+      return this.visibility(t) * (1 - (d / range) * 0.5) * 1.1;
+    }
     if (d > 2.2 && dot < 0.71) return 0;
     if (d <= 2.2 && dot < -0.3) return 0;
     return this.visibility(t) * (1 - (d / range) * 0.65);
@@ -1089,7 +1125,14 @@ export class Game {
     f.speechT -= dt;
     f.sprayCD = Math.max(0, f.sprayCD - dt);
     f.whackCD = Math.max(0, f.whackCD - dt);
-    f.coneRange = 10 + f.anger * 1.2;
+    f.coneRange = this.night ? 13 : 10 + f.anger * 1.2;
+    // ネコが足にじゃれている間は動けない
+    if (f.catHold > 0 && f.state !== 'PANIC' && f.state !== 'FUMIGATE') {
+      f.catHold -= dt;
+      f.moveSpeed = 0;
+      f.view = f.h;
+      return;
+    }
     f.moveSpeed = 0;
     // 歩きながら時々よそ見をする（視界が横にふれる）
     f.glanceT -= dt;
@@ -1735,7 +1778,7 @@ export class Game {
     m.mouth.scale.set(f.state === 'PANIC' ? 0.8 : 1, f.state === 'PANIC' || f.state === 'CHASE' ? 3 : 1, 1);
     // 視界の扇形
     const c = f.cone;
-    c.visible = f.state !== 'PANIC';
+    c.visible = f.state !== 'PANIC' && !this.night && !f.hidden;
     c.position.set(f.x, 0.04, f.z);
     c.rotation.y = f.h + f.lookOff;
     c.scale.setScalar(f.coneRange);
@@ -1848,6 +1891,216 @@ export class Game {
     }
   }
 
+  // ---------------- ハウスのネコ（ステージ4以降） ----------------
+  spawnCat() {
+    const m = makeCat();
+    this.root.add(m.root);
+    this.cat = { x: -19.5, z: -12.5, h: 0, m, st: 'wander', t: 0, tx: -10, tz: -12.5, target: null, cd: 3, bellT: 0, phase: 0, speed: 0, pounce: null, marker: null, bored: 0, pesterT: 20 + rand() * 15 };
+  }
+
+  updateCat(dt) {
+    const C = this.cat;
+    if (!C) return;
+    const f = this.farmer, m = C.m;
+    m.root.visible = !this.fog || this.fog.cleared;
+    if (!m.root.visible || this.calm) { m.root.position.set(C.x, 0, C.z); return; }
+    C.t += dt; C.cd = Math.max(0, C.cd - dt); C.pesterT -= dt;
+    let tx = C.tx, tz = C.tz, spd = 1.6;
+    if (C.st === 'wander') {
+      if (Math.hypot(C.tx - C.x, C.tz - C.z) < 0.6 || C.t > 9) {
+        C.tx = randRange(-20, 20); C.tz = randRange(-12.5, 12.5); C.t = 0;
+      }
+      // 獲物（床の上のゴキブリ）をさがす
+      if (C.cd <= 0) {
+        let best = null, bd = 6.5;
+        for (const r of this.roaches) {
+          if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide') continue;
+          const d = Math.hypot(r.x - C.x, r.z - C.z);
+          const ang = Math.abs(angleDiff(C.h, Math.atan2(r.x - C.x, r.z - C.z)));
+          if (d < bd && ang < 1.1 && (this.hideFactor(r) > 0.5 || r.moving)) { bd = d; best = r; }
+        }
+        if (best) { C.st = 'stalk'; C.target = best; C.t = 0; this.sfx.meow(); if (best.isPlayer) this.toast('ネコに見つかった！ 台や栽培槽の上へ！', 'bad'); }
+      }
+      // ときどき農場主の足にじゃれる
+      if (C.pesterT <= 0 && f.state === 'WORK' && !f.hidden) { C.st = 'pester'; C.t = 0; C.pesterT = 25 + rand() * 20; }
+    } else if (C.st === 'stalk') {
+      const r = C.target;
+      if (!r || !r.alive || r.y > 0.3 || C.t > 8) { C.st = 'wander'; C.cd = 4; C.target = null; }
+      else {
+        tx = r.x; tz = r.z; spd = 2.6;
+        if (Math.hypot(r.x - C.x, r.z - C.z) < 1.7) {
+          C.st = 'pounce'; C.t = 0;
+          C.pounce = { x: r.x, z: r.z, sx: C.x, sz: C.z };
+          C.marker = makeRing(0xff3b30, 0.45, 0.6, 0.75);
+          C.marker.position.set(r.x, 0.04, r.z);
+          this.root.add(C.marker);
+          this.sfx.hiss2();
+        }
+      }
+    } else if (C.st === 'pounce') {
+      const P = C.pounce;
+      spd = 0;
+      tx = null;
+      C.h = dampAngle(C.h, Math.atan2(P.x - C.x, P.z - C.z), 10, dt);
+      if (C.t > 0.55 && !P.done) {
+        // とびかかる
+        const k = Math.min(1, (C.t - 0.55) / 0.25);
+        C.x = lerp(P.sx, P.x, k); C.z = lerp(P.sz, P.z, k);
+        if (k >= 1) {
+          P.done = true;
+          for (const r of this.roaches) {
+            if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide') continue;
+            if (Math.hypot(r.x - P.x, r.z - P.z) < 0.6) this.damage(r, r.isPlayer ? 40 : 999, 'cat');
+          }
+          this.sfx.thump();
+        }
+      }
+      if (C.t > 1.1) {
+        if (C.marker) { this.root.remove(C.marker); disposeObject(C.marker); C.marker = null; }
+        C.st = 'wander'; C.cd = 3.5; C.target = null; C.t = 0;
+      }
+    } else if (C.st === 'pester') {
+      tx = f.x + Math.sin(C.t * 2) * 0.9; tz = f.z + Math.cos(C.t * 2) * 0.9; spd = 2.4;
+      if (Math.hypot(f.x - C.x, f.z - C.z) < 1.4 && !C.hit) {
+        C.hit = true;
+        f.catHold = 4;
+        this.say(pick(['こら、ミケ！ 足にじゃれるな！', 'うおっ、ミケ！ 今いそがしいんだよ！']));
+        this.sfx.meow();
+      }
+      if (C.t > 7) { C.st = 'wander'; C.hit = false; C.t = 0; }
+    }
+    if (tx !== null) {
+      const dx = tx - C.x, dz = tz - C.z, d = Math.hypot(dx, dz);
+      if (d > 0.05) {
+        const st = Math.min(d, spd * dt);
+        C.x = clamp(C.x + (dx / d) * st, BOUNDS.minX, BOUNDS.maxX);
+        C.z = clamp(C.z + (dz / d) * st, BOUNDS.minZ, BOUNDS.maxZ);
+        C.h = dampAngle(C.h, Math.atan2(dx, dz), 6, dt);
+        C.speed = spd;
+      } else C.speed = 0;
+    } else C.speed = 0;
+    // 見た目
+    C.phase += C.speed * dt * 4;
+    m.root.position.set(C.x, 0, C.z);
+    m.root.rotation.y = C.h;
+    m.legs.forEach((L, i) => { L.rotation.x = C.speed > 0.1 ? Math.sin(C.phase + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.6 : 0; });
+    m.tail.rotation.z = Math.sin(this.clock * 2) * 0.3;
+    m.tail2.rotation.x = 0.4 + Math.sin(this.clock * 3) * 0.3;
+    m.body.position.y = C.st === 'pounce' && C.t < 0.55 ? -0.12 : 0;
+    m.body.rotation.z = C.st === 'pounce' && C.t < 0.55 ? Math.sin(this.clock * 30) * 0.05 : 0;
+    // 鈴の音（動くと鳴る）
+    C.bellT -= dt;
+    if (C.speed > 0.3 && C.bellT <= 0 && this.player) {
+      C.bellT = 0.55;
+      const dp = Math.hypot(C.x - this.player.x, C.z - this.player.z);
+      this.sfx.bell(Math.max(0, 1 - dp / 16) * 0.6, this.panOf(C.x, C.z));
+      if (dp < 16) this.soundPings.push({ x: C.x, z: C.z, v: Math.max(0.3, 1 - dp / 16), kind: 'bell' });
+      this.events.push('bell');
+    }
+  }
+
+  // ---------------- JAの検品（ステージ3〜5で1回） ----------------
+  updateInspector(dt) {
+    if (!this.diff.inspect || this.inspectDone || this.calm) return;
+    const I = this.inspector;
+    if (!I) {
+      if ((this.shipped >= 3 || this.elapsed > 160) && (!this.fog || this.fog.cleared) && this.farmer.state !== 'FUMIGATE') {
+        this.inspector = { st: 'coming', t: 0 };
+        this.toast('JAの検品員が来る！ 10秒後、台のまわりをまわる。近づくな！', 'warn');
+        this.sfx.chime();
+        this.say('おっ、JAさんが来るな。ちゃんとしとかねえと');
+        this.events.push('inspect');
+      }
+      return;
+    }
+    I.t += dt;
+    if (I.st === 'coming') {
+      if (I.t < 10) return;
+      const m = makeInspector();
+      this.root.add(m.root);
+      Object.assign(I, { st: 'walk', m, x: DOOR.x, z: DOOR.z, h: -Math.PI / 2, stops: [[13, 8.7], [13, 3.4], [13, -4.4], [13, -10.6], [DOOR.x, DOOR.z]], si: 0, path: [], pi: 0, wait: 0, phase: 0, spotted: false, speech: 'JAです、検品にまいりました', speechT: 3 });
+      I.path = this.grid.find(I.x, I.z, I.stops[0][0], I.stops[0][1]);
+      return;
+    }
+    I.speechT -= dt;
+    let moving = false;
+    if (I.st === 'walk') {
+      const p = I.path[I.pi];
+      if (!p) {
+        I.st = 'look'; I.wait = 4.5; I.baseH = I.h;
+      } else {
+        const dx = p.x - I.x, dz = p.z - I.z, d = Math.hypot(dx, dz);
+        if (d < 0.2) I.pi++;
+        else { const st = Math.min(d, 2.2 * dt); I.x += dx / d * st; I.z += dz / d * st; I.h = dampAngle(I.h, Math.atan2(dx, dz), 6, dt); moving = true; }
+      }
+    } else if (I.st === 'look') {
+      I.wait -= dt;
+      I.h = I.baseH + Math.sin(I.t * 1.4) * 1.3;
+      if (I.wait <= 0) {
+        I.si++;
+        if (I.si >= I.stops.length) {
+          this.root.remove(I.m.root); disposeObject(I.m.root);
+          this.inspector = null; this.inspectDone = true;
+          this.toast('JAの検品が終わった', 'info');
+          return;
+        }
+        if (I.si === I.stops.length - 1) { I.speech = 'はい、問題…なさそうですね'; I.speechT = 2.5; }
+        I.st = 'walk'; I.pi = 0;
+        I.path = this.grid.find(I.x, I.z, I.stops[I.si][0], I.stops[I.si][1]);
+      }
+    }
+    // 見る：見つかると農場主を呼ぶ
+    if (!I.spotted) {
+      for (const r of this.roaches) {
+        if (!r.alive || r.st === 'fly' || r.st === 'glide') continue;
+        const dx = r.x - I.x, dz = r.z - I.z, d = Math.hypot(dx, dz);
+        if (d > 6) continue;
+        const dot = (dx * Math.sin(I.h) + dz * Math.cos(I.h)) / (d || 1);
+        if (dot < 0.6) continue;
+        if (this.visibility(r) * (1 - d / 9) > 0.25) {
+          I.spotted = true;
+          I.speech = 'ちょっと！ ゴキブリいますよ！'; I.speechT = 3;
+          this.farmer.anger = Math.min(3, this.farmer.anger + 1);
+          if (this.farmer.state !== 'FUMIGATE' && this.farmer.state !== 'PANIC') this.startChase(r);
+          this.say('なにっ！？ JAさんの前でかよ！');
+          this.toast('検品員に見つかった！ 農場主が飛んでくる！', 'bad');
+          break;
+        }
+      }
+    }
+    I.phase += moving ? dt * 4.5 : 0;
+    const sw = moving ? Math.sin(I.phase) * 0.5 : 0;
+    I.m.legs[0].rotation.x = sw; I.m.legs[1].rotation.x = -sw;
+    I.m.root.position.set(I.x, 0, I.z);
+    I.m.root.rotation.y = I.h;
+  }
+
+  // ---------------- 燻煙剤のとき、いちばん近い逃げ場への緑の線 ----------------
+  updateSafeLine() {
+    const on = this.safeRings.length > 0 && this.player && this.player.alive;
+    if (!on) {
+      if (this.safeLine) { this.root.remove(this.safeLine); disposeObject(this.safeLine); this.safeLine = null; }
+      return;
+    }
+    const p = this.player, sp = this.nearestSafe(p);
+    if (!this.safeLine) {
+      const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+      const mat = new THREE.LineDashedMaterial({ color: 0x6dff7a, dashSize: 0.5, gapSize: 0.3, depthTest: false, transparent: true, toneMapped: false });
+      this.safeLine = new THREE.Line(geo, mat);
+      this.safeLine.renderOrder = 20;
+      this.safeLine.frustumCulled = false;
+      this.safeLine.userData.ownMaterial = true;
+      this.safeLine.userData.ownGeometry = true;
+      this.root.add(this.safeLine);
+    }
+    const pos = this.safeLine.geometry.attributes.position;
+    pos.setXYZ(0, p.x, p.y + 0.3, p.z);
+    pos.setXYZ(1, sp.x, 0.3, sp.z);
+    pos.needsUpdate = true;
+    this.safeLine.computeLineDistances();
+    this.safeLine.material.opacity = 0.6 + 0.4 * Math.sin(this.clock * 6);
+  }
+
   // ---------------- 練習（はじめての人だけ） ----------------
   updateTutorial(dt) {
     const T = this.tutorial, p = this.player;
@@ -1935,11 +2188,35 @@ export class Game {
       win, reason, score: Math.max(0, score), rank, alive, elapsed: this.elapsed, diff: this.diff.key,
       stats: { ...this.stats, ruinedColor: [...this.stats.ruinedColor], seen: [...this.stats.seen] },
       grumble: this.grumble(win, reason),
+      advice: this.advice(win, reason),
       highlights: this.highlights,
     };
     if (win) { this.sfx.win(); this.say('ふざけんな！ 今日の出荷どうしてくれんだ！'); }
     else { this.sfx.lose(); this.say(reason === 'dead' ? 'ざまあみろ！ 二度と来んな！' : '見たか虫けら！ 全部出荷してやったぞ！'); }
     this.ui.gameOver(this.result);
+  }
+
+  // 負けたときの「次はこうしてみよう」（記録された理由だけを使う）
+  advice(win, reason) {
+    const s = this.stats;
+    if (win) {
+      if (s.shipped > 3) return '星を集めるなら：出荷を3箱以内におさえよう。運んでいる農場主に突撃すると、コンテナを落とす';
+      if (s.chased > 2) return '星を集めるなら：見つかる回数を2回以内に。栽培槽の下を通って近づこう';
+      return '';
+    }
+    if (reason === 'dead') {
+      return {
+        spray: '黄色い輪は殺虫剤の予告。輪が出たらすぐ横へ逃げよう。霧はしばらく残る',
+        whack: '赤い輪は踏みつけ・叩きの予告。輪の外へ走ろう。台の下なら踏まれない',
+        trap: 'ホイホイは地図の×印。くっついたら食べるボタンを連打して抜け出そう',
+        poison: '毒エサは体力が多いときだけ食べよう。毒の間は隠れて待つ',
+        smoke: '燻煙剤のサイレンが鳴ったら、すぐ緑の輪（出入り口・換気口）へ。緑の線をたどろう',
+        cat: 'ネコは台や栽培槽の上には来ない。鈴の音が近づいたら高い所へ',
+      }[this.lastDeathCause] || '見つかったら、栽培槽の下や台の下でじっとしよう。仲間がいれば乗りかわれる';
+    }
+    if (s.attacks === 0) return '出荷が早かった。農場主の足もとで「突撃」すると、運んでいるコンテナを落とさせて時間をかせげる';
+    if (s.born < 3) return '仲間をふやそう。栄養が満タンになったらすぐ産卵し、「探索」で同時に何箱もかじらせる';
+    return '「囮」の仲間で農場主を引きつけ、そのすきに台の上のコンテナを一気にかじろう';
   }
 
   // 結果画面の農場主のぼやき（強めの口調）

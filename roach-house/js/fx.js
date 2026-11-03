@@ -63,6 +63,7 @@ export class FX {
     this.composer = null;
     this.focus = 4;
     this.w = 1; this.h = 1;
+    this.dprScale = 1; // 重いときに画面の細かさだけを下げる割合
   }
 
   setLevel(name) {
@@ -71,7 +72,7 @@ export class FX {
     this.level = name;
     this.L = L;
     const r = this.renderer;
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, L.dpr));
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, L.dpr) * this.dprScale);
     if (this.composer) { this.composer.dispose(); this.composer = null; }
     this.passes = {};
     if (L.ao || L.dof || L.bloom || L.grade) {
@@ -105,6 +106,12 @@ export class FX {
       }
       this.composer = comp;
     }
+    this.setSize(this.w, this.h);
+  }
+
+  setDprScale(k) {
+    this.dprScale = Math.max(0.55, Math.min(1, k));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.L.dpr) * this.dprScale);
     this.setSize(this.w, this.h);
   }
 
@@ -147,10 +154,19 @@ export class AutoQuality {
     this.acc = 0; this.n = 0;
     if (this.cool > 0) return;
     const i = ORDER.indexOf(this.fx.level);
-    if (fps < 36 && i > 0) {
-      this.fx.setLevel(ORDER[i - 1]);
-      this.cool = 6;
-      this.onChange(ORDER[i - 1], fps);
+    if (fps < 36) {
+      // まず画面の細かさだけを少しずつ下げ、それでも重ければ画質を1段下げる
+      if (this.fx.dprScale > 0.6) { this.fx.setDprScale(this.fx.dprScale - 0.15); this.cool = 4; }
+      else if (i > 0) {
+        this.fx.setDprScale(1);
+        this.fx.setLevel(ORDER[i - 1]);
+        this.cool = 6;
+        this.onChange(ORDER[i - 1], fps);
+      }
+    } else if (fps > 55 && this.fx.dprScale < 1) {
+      // 余裕があれば細かさを少しもどす
+      this.fx.setDprScale(this.fx.dprScale + 0.1);
+      this.cool = 8;
     }
   }
 }

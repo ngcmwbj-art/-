@@ -153,9 +153,39 @@ export function buildWorld(scene, renderer, q) {
   const wind = buildWindLanes(g);
   buildVents(g);
 
+  // 夜（ステージ6）：月明かりと作業灯だけ
+  const lamps = [];
+  for (const [x, z] of [[20.2, 9.2], [13, 2.4]]) {
+    const L = new THREE.PointLight(0xffc27a, 0, 14, 1.6);
+    L.position.set(x, 5.6, z);
+    g.add(L);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe0a8 }));
+    bulb.position.copy(L.position);
+    bulb.visible = false;
+    g.add(bulb);
+    lamps.push({ L, bulb });
+  }
+  const day = { bg: scene.background, fogColor: scene.fog.color.clone(), fogDensity: scene.fog.density, env: scene.environmentIntensity, hemi: hemi.intensity, sun: sun.intensity, sunColor: sun.color.clone(), bounce: bounce.intensity };
+  let isNight = false;
   return {
     group: g, sun,
     setNearFade,
+    get night() { return isNight; },
+    setNight(on) {
+      if (on === isNight) return;
+      isNight = on;
+      sky.visible = !on;
+      scene.background = on ? new THREE.Color(0x070b16) : day.bg;
+      scene.fog.color.copy(on ? new THREE.Color(0x0a0e18) : day.fogColor);
+      scene.environmentIntensity = on ? 0.12 : day.env;
+      hemi.intensity = on ? 0.18 : day.hemi;
+      sun.intensity = on ? 0.55 : day.sun;
+      sun.color.copy(on ? new THREE.Color(0x8fa6ff) : day.sunColor);
+      bounce.intensity = on ? 0 : day.bounce;
+      if (shafts) shafts.forEach((m) => { m.visible = !on; });
+      if (dust) dust.pts.visible = !on;
+      for (const l of lamps) { l.L.intensity = on ? 30 : 0; l.bulb.visible = on; }
+    },
     setShadow(size) {
       if (sun.shadow.mapSize.x === size) return;
       sun.shadow.mapSize.set(size, size);
@@ -824,7 +854,7 @@ function buildShafts(g) {
       m.renderOrder = 3;
       m.userData.base = base;
       g.add(m);
-      if (k === 0) list.push(m);
+      list.push(m);
     }
   }
   return list;
@@ -848,6 +878,7 @@ function buildDust(g, n) {
   g.add(pts);
   const base = new Float32Array(pos);
   return {
+    pts,
     update(t, cam) {
       const cx = cam.position.x, cz = cam.position.z;
       const a = geo.attributes.position.array;

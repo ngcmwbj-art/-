@@ -75,7 +75,8 @@ export const TITLES = [
   { id: 'bait3', name: '毒にも負けない', desc: '毒エサを合計3回食べる', check: (r) => r.baits >= 3 },
   { id: 'smoke', name: '煙をくぐりぬけた者', desc: '燻煙剤から生きのびる', check: (r) => r.smoke >= 1 },
   { id: 'order10', name: '注文の達人', desc: '今日の注文を合計10個こなす', check: (r) => r.orders >= 10 },
-  { id: 'allwin', name: '全ステージ制覇', desc: '5つのステージをすべてクリアする', check: (r) => r.cleared >= 5 },
+  { id: 'allwin', name: '全ステージ制覇', desc: '6つのステージをすべてクリアする', check: (r) => r.cleared >= 6 },
+  { id: 'stars', name: '星あつめ名人', desc: '星を合計12個あつめる', check: (r) => Object.values(r.stars || {}).reduce((a, b) => a + b, 0) >= 12 },
   { id: 'stage3', name: '一人前のゴキブリ', desc: 'ステージ3をクリアする', check: (r) => r.cleared >= 3 },
 ];
 
@@ -91,7 +92,7 @@ export const WING_UNLOCK = {
 export function emptyRecords() {
   return {
     games: 0, wins: 0, ruined: 0, eggs: 0, attacks: 0, escapes: 0, nice: 0, winds: 0, fruits: 0, baits: 0, smoke: 0,
-    orders: 0, cleared: 0, titles: [], seen: [], ordersDone: {}, wing: 'normal',
+    orders: 0, cleared: 0, stars: {}, bests: {}, titles: [], seen: [], ordersDone: {}, wing: 'normal',
   };
 }
 export function normalizeRecords(r) {
@@ -103,6 +104,8 @@ export function normalizeRecords(r) {
   delete out.winEasy; delete out.winNormal; delete out.winHard;
   for (const k of ['titles', 'seen']) if (!Array.isArray(out[k])) out[k] = [];
   if (!out.ordersDone || typeof out.ordersDone !== 'object') out.ordersDone = {};
+  if (!out.stars || typeof out.stars !== 'object') out.stars = {};
+  if (!out.bests || typeof out.bests !== 'object') out.bests = {};
   return out;
 }
 
@@ -135,10 +138,33 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   for (const t of TITLES) if (!r.titles.includes(t.id) && t.check(r)) r.titles.push(t.id);
   const newTitles = TITLES.filter((t) => r.titles.includes(t.id) && !before.titles.has(t.id));
   const newWings = unlockedWings(r).filter((k) => !before.wings.includes(k));
-  const unlockedStage = r.newStage && r.newStage <= 5 ? r.newStage : 0;
+  // 星と自己ベスト
+  const got = starsOf(res, stats);
+  const key = String(res.diff);
+  const prevStars = r.stars[key] || 0;
+  if (got.count > prevStars) r.stars[key] = got.count;
+  const pb = r.bests[key] || {};
+  const newBest = {};
+  if (res.win) {
+    if (!pb.time || res.elapsed < pb.time) { pb.time = Math.round(res.elapsed); newBest.time = true; }
+    if (pb.shipped === undefined || stats.shipped < pb.shipped) { pb.shipped = stats.shipped; newBest.shipped = true; }
+    r.bests[key] = pb;
+  }
+  const unlockedStage = r.newStage && r.newStage <= 6 ? r.newStage : 0;
   delete r.newStage;
-  return { rec: r, newTitles, newWings, cleared, unlockedStage };
+  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest };
 }
 export function unlockedWings(r) {
   return Object.keys(WING_UNLOCK).filter((k) => WING_UNLOCK[k].check(r));
+}
+
+// ステージの星3つ：★1 クリア／★2 出荷を3箱以内で勝つ／★3 見つかったのが2回以内で、やられずに勝つ
+export const STAR_RULES = [
+  { text: 'クリアする', check: (res) => res.win },
+  { text: '出荷を3箱以内におさえて勝つ', check: (res, s) => res.win && s.shipped <= 3 },
+  { text: '見つかったのが2回以内で、一度もやられずに勝つ', check: (res, s) => res.win && s.chased <= 2 && s.deaths === 0 },
+];
+export function starsOf(res, stats) {
+  const each = STAR_RULES.map((r) => !!r.check(res, stats));
+  return { each, count: each.filter(Boolean).length };
 }

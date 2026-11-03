@@ -352,3 +352,36 @@ body.touch .order-mini { display: none; }
 .stage.next .no { color: #fff2c4; }
 .stage:disabled { opacity: 0.45; cursor: not-allowed; }
 @media (max-width: 720px) { .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stage.next { grid-column: 1 / -1; } }
+
+/* 星・一言・自己ベスト */
+.stage .stars { color: var(--yellow); font-size: 13px; letter-spacing: 0.1em; }
+.r-stars { display: grid; gap: 2px; font-size: 13px; }
+.r-stars .big { font-size: 34px; color: var(--yellow); letter-spacing: 0.15em; line-height: 1.1; text-shadow: 0 2px 0 var(--paprika); }
+.r-stars .ok { color: var(--leaf); }
+.r-stars .ng { color: var(--muted); }
+.tip.advice { color: var(--text); background: var(--panel); border-left: 4px solid var(--yellow); border-radius: 8px; padding: 8px 12px; }
+.tbl-wrap { overflow-x: auto; }
+.best-tbl { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.best-tbl th, .best-tbl td { text-align: left; padding: 5px 8px; border-bottom: 1px dashed var(--line); white-space: nowrap; }
+.best-tbl th { color: var(--muted); font-weight: 500; }
+.best-tbl td:nth-child(2) { color: var(--yellow); letter-spacing: 0.1em; }
+.opts input[type="range"] { width: 110px; accent-color: var(--yellow); }
+@media (min-width: 721px) { .stages { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* スマホの「食べる」ボタンのまわりの、がっつきゲージの輪 */
+.tbtn.big { position: relative; }
+.tbtn.big::before {
+  content: ""; position: absolute; inset: -9px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  background:
+    conic-gradient(var(--ring, var(--leaf)) calc(var(--g, 0) * 360deg), transparent 0),
+    conic-gradient(transparent 0 198deg, rgba(109, 186, 69, 0.55) 198deg 306deg, rgba(246, 236, 217, 0.18) 306deg 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
+}
+.tbtn.big.eating::before { opacity: 1; }
+.tbtn.big.hot { --ring: var(--warn); }
+.tbtn.big.max { --ring: var(--danger); }
+/* 音の波紋（足音・鈴） */
+#ripples { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.ripple { position: absolute; left: 0; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; border: 3px solid var(--text); opacity: 0; animation: rip 0.9s ease-out forwards; }
+.ripple.bell { border-color: var(--yellow); border-style: dotted; }
+@keyframes rip { 0% { transform: var(--pos) scale(0.3); opacity: var(--op, 0.8); } 100% { transform: var(--pos) scale(1.6); opacity: 0; } }

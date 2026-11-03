@@ -13,7 +13,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     const out = [];
     const check = (name, cond, info = '') => out.push(`${cond ? 'OK  ' : 'FAIL'} ${name} ${info}`);
     const idle = (gg, i) => { i.mx = 0; i.mz = 0; i.actionHeld = false; };
-    const freezeFarmer = () => { g.farmer.state = 'WORK'; g.farmer.phase = 'idle'; g.farmer.timer = 999; g.farmer.x = 19; g.farmer.z = 12; g.farmer.h = Math.PI / 2; };
+    const freezeFarmer = () => { g.farmer.state = 'WORK'; g.farmer.phase = 'idle'; g.farmer.timer = 999; g.farmer.act = null; g.farmer.susp = 0; g.farmer.x = 19; g.farmer.z = 12; g.farmer.h = Math.PI / 2; };
 
     // 1. 食べるとコンテナが減り、栄養がたまり、0でダメになる
     g.start('normal', 11); freezeFarmer();
@@ -92,7 +92,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('台から落ちて床に戻る', g.player.surface === -1 && g.player.y === 0, `s=${g.player.surface} y=${g.player.y.toFixed(2)}`);
 
     // 8. 殺虫剤の霧でダメージ・仲間に乗りかわり
-    g.start('normal', 17); freezeFarmer();
+    g.start('s5', 17); freezeFarmer();
     g.nutrition = 100; inp.press('egg');
     RH.sim(11, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
     const before = g.nymphs.length;
@@ -273,13 +273,15 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('45匹でも異常なく動く', badMany.length === 0 && g.state === 'play', badMany.join());
     check('45匹でも計算が軽い（1コマ8ms未満）', msPer < 8, `${msPer.toFixed(2)}ms`);
 
-    // 26. 5つのステージ：だんだん難しくなり、クリアで次が開く
-    const STG = RH.stages;
-    check('ステージは5つ', STG.length === 5);
-    check('先へ進むほど目標の箱が増える', STG.every((st, k) => k === 0 || st.target > STG[k - 1].target), STG.map((x) => x.target).join(','));
-    check('先へ進むほど農場主が速く鋭い', STG.every((st, k) => k === 0 || (st.fSpeed >= STG[k - 1].fSpeed && st.susp >= STG[k - 1].susp)));
+    // 26. 6つのステージ：1〜5はだんだん難しくなり、6は夜の特別ステージ。クリアで次が開く
+    const STG = RH.stages, S5 = STG.slice(0, 5);
+    check('ステージは6つ', STG.length === 6);
+    check('先へ進むほど目標の箱が増える（1〜5）', S5.every((st, k) => k === 0 || st.target > S5[k - 1].target), S5.map((x) => x.target).join(','));
+    check('先へ進むほど農場主が速く鋭い（1〜5）', S5.every((st, k) => k === 0 || (st.fSpeed >= S5[k - 1].fSpeed && st.susp >= S5[k - 1].susp)));
+    check('ステージ6は夜', !!STG[5].night && S5.every((x) => !x.night));
+    check('どのステージにも開始時の一言がある', STG.every((x) => typeof x.tip === 'string' && x.tip.length > 5));
     const btns = [...document.querySelectorAll('#stages .stage')];
-    check('はじめはステージ1だけ遊べる', btns.length === 5 && !btns[0].disabled && btns.slice(1).every((b) => b.disabled));
+    check('はじめはステージ1だけ遊べる', btns.length === 6 && !btns[0].disabled && btns.slice(1).every((b) => b.disabled));
     const r1 = F.applyResult(F.normalizeRecords(null), { win: true, diff: 's1', alive: 0 }, st, [], '2026-11-03');
     check('ステージ1クリアでステージ2が開く', r1.rec.cleared === 1 && r1.unlockedStage === 2);
     const r2 = F.applyResult(r1.rec, { win: false, diff: 's2', alive: 0 }, st, [], '2026-11-03');
@@ -289,6 +291,90 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('以前の記録（むずかしいで勝ち）はステージ5まで開いた扱い', F.normalizeRecords({ winHard: true }).cleared === 5);
     g.start('s4', 60);
     check('ステージ4の目標は9箱・出荷の限度は8箱', g.diff.target === 9 && g.shipLeft() === 8, `${g.diff.target}/${g.shipLeft()}`);
+
+    // 27. 星3つと自己ベスト
+    const stA = { ...st, shipped: 2, chased: 1, deaths: 0 };
+    const s3 = F.starsOf({ win: true }, stA);
+    check('出荷少なく見つからずに勝てば星3つ', s3.count === 3);
+    check('負けたら星0', F.starsOf({ win: false }, stA).count === 0);
+    check('出荷が多いと星2つめはつかない', F.starsOf({ win: true }, { ...stA, shipped: 6 }).each[1] === false);
+    const rb1 = F.applyResult(F.normalizeRecords(null), { win: true, diff: 's1', alive: 0, elapsed: 300 }, stA, [], '2026-11-03');
+    check('星が記録される', rb1.rec.stars.s1 === 3);
+    check('自己ベストが記録される', rb1.rec.bests.s1.time === 300 && rb1.rec.bests.s1.shipped === 2 && rb1.newBest.time);
+    const rb2 = F.applyResult(rb1.rec, { win: true, diff: 's1', alive: 0, elapsed: 400 }, { ...stA, shipped: 5 }, [], '2026-11-03');
+    check('遅い記録でベストは上書きされない', rb2.rec.bests.s1.time === 300 && rb2.rec.bests.s1.shipped === 2 && !rb2.newBest.time && rb2.rec.stars.s1 === 3);
+    check('本の自己ベスト表がある', !!document.getElementById('bookBest'));
+
+    // 28. 負けたときの一言：記録された理由に合わせる
+    g.start('s1', 70);
+    g.lastDeathCause = 'trap';
+    check('ホイホイでやられたらホイホイの助言', /ホイホイ/.test(g.advice(false, 'dead')));
+    g.lastDeathCause = 'cat';
+    check('ネコでやられたらネコの助言', /ネコ/.test(g.advice(false, 'dead')));
+    g.stats.attacks = 0;
+    check('出荷されて負け・突撃なしなら突撃をすすめる', /突撃/.test(g.advice(false, 'shipped')));
+
+    // 29. ネコ（ステージ4以降）
+    g.start('s1', 71);
+    check('ステージ1にネコはいない', !g.cat);
+    g.start('s4', 72); freezeFarmer();
+    check('ステージ4にはネコがいる', !!g.cat);
+    {
+      const C = g.cat, P = g.player;
+      Object.assign(P, { x: -8, z: 3, surface: -1, y: 0, hp: 100 });
+      Object.assign(C, { x: -8, z: 0.2, h: 0, st: 'wander', cd: 0, t: 0, pesterT: 999 });
+      g.toast = () => {};
+      let pounced = false;
+      RH.sim(6, 1 / 30, (gg, i, k) => { idle(gg, i); i.mz = k % 20 < 10 ? 0.3 : -0.3; freezeFarmer(); if (gg.cat.st === 'pounce') pounced = true; });
+      check('床のゴキブリにネコがとびかかる', pounced, `st=${C.st} hp=${P.hp.toFixed(0)}`);
+      g.start('s4', 73); freezeFarmer();
+      const C2 = g.cat, P2 = g.player, sf = RH.world ? null : null;
+      const tb = g.crates.find((c) => c.table >= 0);
+      Object.assign(P2, { x: tb.x, z: tb.z + 0.6, surface: tb.table, y: 1, hp: 100 });
+      P2.y = 0.9;
+      Object.assign(C2, { x: tb.x, z: tb.z - 2, st: 'wander', cd: 0, pesterT: 999 });
+      RH.sim(4, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('台の上ならネコにねらわれない', C2.st !== 'pounce' && C2.st !== 'stalk' && P2.hp === 100, `st=${C2.st}`);
+      let bells = 0;
+      g.cat.pesterT = 999;
+      RH.sim(5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); bells += gg.soundPings.filter((s) => s.kind === 'bell').length; gg.soundPings.length = 0; });
+      check('ネコが動くと鈴が鳴る（波紋も出る）', bells > 0, `n=${bells}`);
+    }
+
+    // 30. JAの検品
+    g.start('s1', 74);
+    check('ステージ1に検品はない', !g.diff.inspect);
+    g.start('s3', 75); freezeFarmer();
+    g.shipped = 3;
+    RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    check('出荷3箱で検品の予告が出る', g.inspector && g.inspector.st === 'coming');
+    Object.assign(g.player, { x: -18, z: -12, surface: -1, y: 0 });
+    RH.sim(11, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+    check('10秒後に検品員が入ってくる', g.inspector && g.inspector.st !== 'coming' && !!g.inspector.m);
+    if (g.inspector && g.inspector.m) {
+      const I = g.inspector;
+      Object.assign(g.player, { x: I.x + Math.sin(I.h) * 2.5, z: I.z + Math.cos(I.h) * 2.5, surface: -1, y: 0 });
+      g.farmer.timer = 0;
+      RH.sim(0.5, 1 / 30, (gg, i) => { idle(gg, i); i.mx = 0.2; });
+      check('検品員の前に出ると農場主が飛んでくる', I.spotted && g.farmer.state === 'CHASE', `st=${g.farmer.state}`);
+    }
+
+    // 31. 夜のステージ：懐中電灯
+    RH.startGame('s6');
+    check('ステージ6は夜になる', RH.world.night === true && g.diff.key === 's6');
+    check('夜は農場主が懐中電灯を持つ', !!g.flashlight && g.flashlight.visible && g.flashlight.intensity > 0);
+    RH.startGame('s1');
+    check('ほかのステージは昼にもどる', RH.world.night === false);
+
+    // 32. 燻煙剤の煙の中の逃げ道の線
+    g.start('s2', 78);
+    g.startFumigation();
+    RH.sim(1, 1 / 30, (gg, i) => { idle(gg, i); });
+    check('燻煙剤のとき逃げ道の線が出る', !!g.safeLine && g.safeLine.visible !== false);
+
+    // 33. 音：かじる音は同時に4つまで、音量のつまみ
+    check('音量のつまみがある', !!document.getElementById('optVolume'));
+    check('音の大きさを変えられる', typeof g.sfx.setVolume === 'function');
     return out;
   });
   console.log(results.join('\n'));

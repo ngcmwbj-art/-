@@ -10,7 +10,7 @@ import { FX, AutoQuality, LEVELS } from './fx.js';
 import { setTextureSize } from './textures.js';
 import { WING_COLORS } from './models.js';
 import {
-  todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings,
+  todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings, STAR_RULES,
 } from './features.js';
 
 const $ = (id) => document.getElementById(id);
@@ -156,7 +156,12 @@ function startGame(diff) {
   $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}`;
   $('orderMini').hidden = false;
   const D = game.diff;
-  if (!tutorial) ui.toast(`${D.label}「${D.name}」 コンテナを${D.target}箱ダメにしろ！`, 'info');
+  world.setNight(!!D.night);
+  renderer.toneMappingExposure = D.night ? 1.5 : 0.95;
+  if (!tutorial) {
+    ui.toast(`${D.label}「${D.name}」 コンテナを${D.target}箱ダメにしろ！`, 'info');
+    if (D.tip) setTimeout(() => { if (screen === 'play') ui.toast(`ヒント：${D.tip}`, 'info'); }, 1800);
+  }
   hints.reset();
   camState.yaw = game.camYaw;
   camState.pitch = 0.36;
@@ -188,6 +193,8 @@ function resumeGame() {
 }
 function toTitle() {
   calmScreen();
+  world.setNight(false);
+  renderer.toneMappingExposure = 0.95;
   sfx.stopRadio();
   game.state = 'title';
   setScreen('title');
@@ -223,6 +230,12 @@ function renderBook() {
     ['パニックにした', `${r.attacks} 回`], ['ホイホイ脱出', `${r.escapes} 回`], ['ナイス！', `${r.nice} 回`], ['風に乗った', `${r.winds} 回`],
     ['落とした実', `${r.fruits} 個`], ['こなした注文', `${r.orders} 個`]];
   $('bookRec').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+  const mmb = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  $('bookBest').innerHTML = `<tr><th>ステージ</th><th>星</th><th>最速クリア</th><th>最少出荷</th></tr>` + STAGES.map((st) => {
+    const b = records.bests[st.key] || {};
+    const n = records.stars[st.key] || 0;
+    return `<tr><td>${st.label}</td><td>${'★'.repeat(n)}${'☆'.repeat(3 - n)}</td><td>${b.time ? mmb(b.time) : '－'}</td><td>${b.shipped !== undefined ? b.shipped + '箱' : '－'}</td></tr>`;
+  }).join('');
 }
 $('btnBook').addEventListener('click', () => { renderBook(); setScreen('book'); });
 $('btnBookBack').addEventListener('click', () => { setScreen('title'); renderOrders(); });
@@ -243,13 +256,14 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 // ステージ選び：クリアした次のステージまで遊べる
 function renderStages() {
   const best = store.get('best', {});
-  const open = Math.min(5, (records.cleared || 0) + 1);
+  const open = Math.min(STAGES.length, (records.cleared || 0) + 1);
   $('stages').innerHTML = STAGES.map((st) => {
     const ok = st.no <= open;
     const b = best[st.key];
     const cleared = st.no <= (records.cleared || 0);
     return `<button class="stage ${st.no === open && !cleared ? 'next' : ''}" data-diff="${st.key}" ${ok ? '' : 'disabled'}>
       <span class="no">${st.label}${cleared ? '　✓クリア' : ''}</span><b>${ok ? st.name : '？？？'}</b>
+      <span class="stars">${'★'.repeat(records.stars[st.key] || 0)}${'☆'.repeat(3 - (records.stars[st.key] || 0))}</span>
       <span>${ok ? `${st.target}箱ダメにする。${st.desc}` : `ステージ${st.no - 1}をクリアすると遊べる`}</span>
       <em>${b ? `最高 ${b.rank}・${b.score}点` : ''}</em></button>`;
   }).join('');
@@ -269,6 +283,14 @@ $('btnTitle2').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pauseGame);
 $('optSound').addEventListener('change', (e) => { soundOn = e.target.checked; store.set('sound', soundOn); sfx.setMuted(!soundOn); });
 $('optQuality').value = qualityPref;
+// 音量と、音の波紋
+let rippleOn = store.get('ripple', true);
+$('optRipple').checked = rippleOn;
+$('optRipple').addEventListener('change', (e) => { rippleOn = e.target.checked; store.set('ripple', rippleOn); });
+const vol0 = store.get('volume', 100);
+$('optVolume').value = vol0;
+sfx.setVolume(vol0 / 100);
+$('optVolume').addEventListener('input', (e) => { const v = Number(e.target.value); sfx.setVolume(v / 100); store.set('volume', v); });
 $('optQuality').addEventListener('change', (e) => applyQuality(e.target.value));
 $('optHints').addEventListener('change', (e) => { hintsOn = e.target.checked; store.set('hints', hintsOn); });
 document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', (e) => {
@@ -324,6 +346,11 @@ function showResult(res) {
   const ol = orders.map((o) => (out.cleared.includes(o.id) ? `<span class="ok">✓ ${o.text}</span>` : `<span class="ng">・${o.text}</span>`));
   const news = [...out.newTitles.map((t) => `<span class="new">★ 称号「${t.name}」を手に入れた！</span>`),
     ...out.newWings.map((k) => `<span class="new">羽の色「${WING_COLORS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`)];
+  const st3 = out.stars;
+  $('rStars').innerHTML = `<div class="big">${st3.each.map((b) => (b ? '★' : '☆')).join('')}</div>` +
+    STAR_RULES.map((r, i) => `<div class="${st3.each[i] ? 'ok' : 'ng'}">${st3.each[i] ? '★' : '☆'} ${r.text}</div>`).join('');
+  if (out.newBest.time) news.push(`<span class="new">最速クリアを更新！（${mm(res.elapsed)}）</span>`);
+  if (out.newBest.shipped) news.push(`<span class="new">いちばん少ない出荷数を更新！（${s.shipped}箱）</span>`);
   if (out.unlockedStage) news.unshift(`<span class="new">${STAGES[out.unlockedStage - 1].label}「${STAGES[out.unlockedStage - 1].name}」が遊べるようになった！</span>`);
   const cur = DIFFS[res.diff];
   const nxt = cur ? STAGES[cur.no] : null;
@@ -338,7 +365,8 @@ function showResult(res) {
     ['ナイス！', `${s.nice} 回`], ['落とした実', `${s.fruits} 個`],
   ];
   $('rStats').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
-  $('rTip').textContent = res.win ? (res.rank === 'S' ? '完璧な作戦でした。むずかしいにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`) : `ヒント：${pick(TIPS)}`;
+  $('rTip').textContent = res.advice ? `次はこうしてみよう：${res.advice}` : (res.win ? '完璧な作戦でした。次のステージにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`);
+  $('rTip').classList.toggle('advice', !!res.advice);
   setScreen('result');
 }
 
@@ -505,6 +533,13 @@ function updateHud(dt) {
   const label = ctx ? (ctx.urgent ? '連打！' : ctx.text.replace('長押しで', '').replace('台に', '')) : '食べる';
   if (tA.textContent !== label) tA.textContent = label;
   tA.classList.toggle('off', !ctx);
+  const eatingNow = !!(p.eatingCrate || p.eatingFruit) || p.greed > 3;
+  tA.classList.toggle('eating', eatingNow);
+  if (eatingNow) {
+    tA.style.setProperty('--g', (p.greed / 100).toFixed(3));
+    tA.classList.toggle('hot', p.greed > 65);
+    tA.classList.toggle('max', p.greed > 88);
+  }
   document.querySelector('.t-attack').classList.toggle('ready', g.canAttackNow());
   document.querySelector('.t-attack').classList.toggle('off', g.attackCD > 0);
   document.querySelector('.t-egg').classList.toggle('ready', g.nutrition >= 100);
@@ -559,6 +594,11 @@ function updateLabels() {
       else if (f.state === 'INVESTIGATE') place(label('mark q', '?'), s);
       else if (f.state === 'CHASE') place(label('mark x', '!'), s);
     }
+    const I = g.inspector;
+    if (I && I.m && I.speechT > 0) {
+      const si = project(I.x, 5.6, I.z);
+      if (si && si.on) place(label('speech', escapeHtml(I.speech)), si);
+    }
     const p = g.player;
     for (const c of g.crates) {
       if (c.rotten || c.shipped || c.carried) continue;
@@ -583,6 +623,34 @@ function updateLabels() {
 }
 // 画面の外にある物の向きを、画面の端の矢印で出す（always=画面内でも頭上に出す）
 const v3b = new THREE.Vector3();
+// 足音・鈴の「波紋」：画面の中ならその場所、外なら画面の端に出す
+const ripplesEl = $('ripples');
+function screenPos(x, y, z) {
+  v3b.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
+  const behind = v3b.z > 0;
+  v3b.applyMatrix4(camera.projectionMatrix);
+  let nx = v3b.x, ny = v3b.y;
+  if (behind) { nx = -nx; ny = -ny; }
+  const inside = !behind && Math.abs(nx) < 0.95 && Math.abs(ny) < 0.95;
+  if (!inside) { const k = 1 / Math.max(Math.abs(nx) / 0.9, Math.abs(ny) / 0.85, 1e-3); nx *= k; ny *= k; }
+  return { x: (nx * 0.5 + 0.5) * window.innerWidth, y: (-ny * 0.5 + 0.5) * window.innerHeight };
+}
+function showPings() {
+  const list = game.soundPings || [];
+  if (!list.length) return;
+  const pings = list.splice(0);
+  if (!rippleOn || screen !== 'play') return;
+  for (const pg of pings.slice(-3)) {
+    if (ripplesEl.children.length > 8) ripplesEl.firstChild.remove();
+    const sp = screenPos(pg.x, 0.2, pg.z);
+    const el = document.createElement('div');
+    el.className = `ripple ${pg.kind === 'bell' ? 'bell' : ''}`;
+    el.style.setProperty('--pos', `translate(${sp.x.toFixed(0)}px, ${sp.y.toFixed(0)}px)`);
+    el.style.setProperty('--op', String(Math.min(0.9, 0.25 + pg.v * 0.7)));
+    ripplesEl.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+  }
+}
 function edgeArrow(el, pos, state, dist, always = false) {
   if (!pos) { el.hidden = true; return; }
   v3b.set(pos.x, pos.y, pos.z).applyMatrix4(camera.matrixWorldInverse);
@@ -656,6 +724,8 @@ function drawMinimap(dt) {
     const x = mx(t.x), y = mz(t.z);
     mctx.beginPath(); mctx.moveTo(x - 4, y - 4); mctx.lineTo(x + 4, y + 4); mctx.moveTo(x + 4, y - 4); mctx.lineTo(x - 4, y + 4); mctx.stroke();
   }
+  if (g.cat && g.cat.m.root.visible) { mctx.fillStyle = '#ffae4a'; mctx.beginPath(); mctx.arc(mx(g.cat.x), mz(g.cat.z), 4.5, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#000'; mctx.lineWidth = 1; mctx.stroke(); }
+  if (g.inspector && g.inspector.m) { mctx.fillStyle = '#3ad65a'; mctx.beginPath(); mctx.arc(mx(g.inspector.x), mz(g.inspector.z), 5.5, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#fff'; mctx.lineWidth = 1.5; mctx.stroke(); }
   for (const b of g.baits) { if (!b.alive) continue; mctx.fillStyle = '#111'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 4, 0, 6.29); mctx.fill(); mctx.fillStyle = '#f2c31b'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 1.6, 0, 6.29); mctx.fill(); }
   mctx.strokeStyle = 'rgba(190,232,255,0.9)'; mctx.lineWidth = 1.5;
   for (const L of WIND_LANES) { mctx.beginPath(); mctx.arc(mx(L.x0), mz(L.z), 4, 0, 6.29); mctx.stroke(); mctx.beginPath(); mctx.setLineDash([3, 3]); mctx.moveTo(mx(L.x0) + 4, mz(L.z)); mctx.lineTo(mx(L.x1), mz(L.z)); mctx.stroke(); mctx.setLineDash([]); }
@@ -723,6 +793,7 @@ function frame(now) {
     updateCamera(dt);
     if (screen !== 'title') { updateHud(dt); drawMinimap(dt); }
     updateLabels();
+    showPings();
     const tNow = now / 1000;
     world.update(tNow, camera);
     world.setNearFade(screen === 'title' || !game.player ? 0.6 : camState.dist - 0.3);

@@ -795,3 +795,155 @@ export function disposeObject(obj) {
     if (o.userData.ownGeometry && o.geometry) o.geometry.dispose();
   });
 }
+
+// ---------------- ハウスのネコ（茶トラ・首に鈴） ----------------
+export function makeCat() {
+  const root = new THREE.Group();
+  const fur = new THREE.MeshStandardMaterial({ color: 0xd98a3c, roughness: 0.85 });
+  const furDark = new THREE.MeshStandardMaterial({ color: 0xa8612a, roughness: 0.85 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xf3ead8, roughness: 0.85 });
+  const eyeM = new THREE.MeshPhysicalMaterial({ color: 0x9ccf3a, roughness: 0.1, clearcoat: 1 });
+  const pupil = new THREE.MeshBasicMaterial({ color: 0x050505 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xf2c31b, metalness: 0.9, roughness: 0.25 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xc8312b, roughness: 0.6 });
+  const body = new THREE.Group();
+  root.add(body);
+  const torso = mesh(SPH, fur);
+  torso.scale.set(0.3, 0.27, 0.62);
+  torso.position.y = 0.62;
+  const belly = mesh(SPH, white, false);
+  belly.scale.set(0.24, 0.2, 0.5);
+  belly.position.set(0, 0.5, 0.02);
+  body.add(torso, belly);
+  for (let i = 0; i < 4; i++) {
+    const st = mesh(new THREE.TorusGeometry(0.29, 0.03, 4, 16, Math.PI), furDark, false);
+    st.rotation.set(0, Math.PI / 2, 0);
+    st.position.set(0, 0.64, -0.35 + i * 0.2);
+    body.add(st);
+  }
+  const head = new THREE.Group();
+  head.position.set(0, 0.92, 0.6);
+  const skull = mesh(SPH, fur);
+  skull.scale.set(0.27, 0.24, 0.24);
+  const muzzle = mesh(SPH, white, false);
+  muzzle.scale.set(0.14, 0.1, 0.1);
+  muzzle.position.set(0, -0.07, 0.19);
+  const nose = mesh(SPH_LO, new THREE.MeshStandardMaterial({ color: 0xd97b84 }), false);
+  nose.scale.setScalar(0.03);
+  nose.position.set(0, -0.03, 0.29);
+  head.add(skull, muzzle, nose);
+  for (const s of [-1, 1]) {
+    const ear = mesh(new THREE.ConeGeometry(0.09, 0.16, 4), fur);
+    ear.position.set(s * 0.15, 0.22, -0.02);
+    ear.rotation.z = -s * 0.25;
+    const e = mesh(SPH_LO, eyeM, false);
+    e.scale.set(0.05, 0.055, 0.03);
+    e.position.set(s * 0.1, 0.04, 0.2);
+    const p = mesh(SPH_LO, pupil, false);
+    p.scale.set(0.012, 0.045, 0.02);
+    p.position.set(s * 0.1, 0.04, 0.225);
+    head.add(ear, e, p);
+  }
+  // 首輪と鈴
+  const collar = mesh(new THREE.TorusGeometry(0.17, 0.025, 6, 20), red, false);
+  collar.rotation.x = Math.PI / 2 - 0.5;
+  collar.position.set(0, -0.15, -0.04);
+  const bell = mesh(SPH_LO, gold, false);
+  bell.scale.setScalar(0.05);
+  bell.position.set(0, -0.24, 0.1);
+  head.add(collar, bell);
+  body.add(head);
+  // 脚
+  const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.42, 8);
+  legGeo.translate(0, -0.21, 0);
+  const legs = [];
+  for (const [x, z] of [[-0.15, 0.38], [0.15, 0.38], [-0.15, -0.38], [0.15, -0.38]]) {
+    const L = new THREE.Group();
+    L.position.set(x, 0.45, z);
+    L.add(mesh(legGeo, fur));
+    const paw = mesh(SPH_LO, white, false);
+    paw.scale.set(0.07, 0.04, 0.09);
+    paw.position.set(0, -0.42, 0.02);
+    L.add(paw);
+    body.add(L);
+    legs.push(L);
+  }
+  // しっぽ（2つの節）
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.72, -0.58);
+  const tg = new THREE.CylinderGeometry(0.045, 0.06, 0.45, 8);
+  tg.translate(0, 0.22, 0);
+  const t1 = mesh(tg, fur);
+  const tail2 = new THREE.Group();
+  tail2.position.y = 0.44;
+  const t2 = mesh(tg, furDark);
+  tail2.add(t2);
+  t1.add(tail2);
+  tail.add(t1);
+  tail.rotation.x = -0.9;
+  body.add(tail);
+  root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return { root, body, head, legs, tail, tail2 };
+}
+
+// ---------------- JAの検品員（緑の帽子とベスト、バインダー） ----------------
+export function makeInspector() {
+  const root = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe0b08a, roughness: 0.6 });
+  const shirt = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.8 });
+  const vest = new THREE.MeshStandardMaterial({ color: 0x2e8b3e, roughness: 0.7 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x3b3f46, roughness: 0.8 });
+  const shoe = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.5 });
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const L = new THREE.Group();
+    L.position.set(s * 0.28, 2.2, 0);
+    const g = new THREE.CylinderGeometry(0.22, 0.2, 2.1, 10);
+    g.translate(0, -1.05, 0);
+    L.add(mesh(g, pants));
+    const sh = mesh(new THREE.BoxGeometry(0.34, 0.18, 0.62), shoe);
+    sh.position.set(0, -2.12, 0.12);
+    L.add(sh);
+    root.add(L);
+    legs.push(L);
+  }
+  const torso = mesh(new THREE.CylinderGeometry(0.6, 0.52, 1.9, 14), shirt);
+  torso.scale.z = 0.7;
+  torso.position.y = 3.15;
+  const vestM = mesh(new THREE.CylinderGeometry(0.63, 0.55, 1.5, 14, 1, true), vest);
+  vestM.scale.z = 0.72;
+  vestM.position.y = 3.3;
+  root.add(torso, vestM);
+  const head = mesh(SPH, skin);
+  head.scale.set(0.42, 0.5, 0.45);
+  head.position.y = 4.65;
+  const cap = mesh(new THREE.SphereGeometry(0.46, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), vest);
+  cap.position.y = 4.85;
+  const visor = mesh(new THREE.BoxGeometry(0.6, 0.04, 0.35), vest);
+  visor.position.set(0, 4.86, 0.5);
+  root.add(head, cap, visor);
+  for (const s of [-1, 1]) {
+    const e = mesh(SPH_LO, new THREE.MeshBasicMaterial({ color: 0x111111 }), false);
+    e.scale.set(0.05, 0.06, 0.03);
+    e.position.set(s * 0.15, 4.72, 0.42);
+    root.add(e);
+  }
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const A = new THREE.Group();
+    A.position.set(s * 0.72, 3.95, 0);
+    const g = new THREE.CylinderGeometry(0.17, 0.14, 1.7, 8);
+    g.translate(0, -0.85, 0);
+    A.add(mesh(g, shirt));
+    root.add(A);
+    arms.push(A);
+  }
+  // バインダー
+  const board = mesh(new THREE.BoxGeometry(0.5, 0.65, 0.04), new THREE.MeshStandardMaterial({ color: 0x8a5a2b }));
+  board.position.set(0.2, -1.5, 0.35);
+  board.rotation.x = -0.9;
+  arms[0].add(board);
+  arms[0].rotation.x = -0.8;
+  root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return { root, legs, arms };
+}

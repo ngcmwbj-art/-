@@ -3,6 +3,8 @@ export class Sfx {
   constructor() {
     this.ctx = null;
     this.muted = false;
+    this.volume = 1;
+    this.crunchT = [];
     this.amb = null;
   }
   unlock() {
@@ -12,7 +14,7 @@ export class Sfx {
         if (!AC) return;
         this.ctx = new AC();
         this.master = this.ctx.createGain();
-        this.master.gain.value = this.muted ? 0 : 0.6;
+        this.master.gain.value = this.muted ? 0 : 0.6 * this.volume;
         this.master.connect(this.ctx.destination);
         const len = this.ctx.sampleRate;
         this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -24,7 +26,12 @@ export class Sfx {
   }
   setMuted(m) {
     this.muted = m;
-    if (this.master) this.master.gain.value = m ? 0 : 0.6;
+    if (this.master) this.master.gain.value = m ? 0 : 0.6 * this.volume;
+  }
+  // 全体の音量（0〜1）
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.6 * this.volume;
   }
   get ok() { return !!this.ctx && this.ctx.state === 'running'; }
 
@@ -60,7 +67,13 @@ export class Sfx {
     o.start(t); o.stop(t + dur + 0.05);
   }
 
-  crunch(v = 0.3) { this.noise(0.07 + Math.random() * 0.05, 'bandpass', 1800 + Math.random() * 1600, v, 1.4); }
+  crunch(v = 0.3) {
+    if (!this.ok) return;
+    const now = this.ctx.currentTime;
+    this.crunchT = this.crunchT.filter((t) => t > now);
+    if (this.crunchT.length >= 4) return;
+    this.crunchT.push(now + 0.12);
+    this.noise(0.07 + Math.random() * 0.05, 'bandpass', 1800 + Math.random() * 1600, v, 1.4); }
   crunchLoud() {
     for (let i = 0; i < 4; i++) this.noise(0.12, 'bandpass', 1200 + i * 500, 0.6, 1.2, 0.003, i * 0.05);
   }
@@ -109,7 +122,26 @@ export class Sfx {
     q.frequency.setValueAtTime(f0, t + 0.05); q.frequency.exponentialRampToValueAtTime(f0 * 1.5, t + 0.12);
     const qg = c.createGain(); qg.gain.setValueAtTime(0.0001, t + 0.05); qg.gain.exponentialRampToValueAtTime(0.12, t + 0.07); qg.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
     q.connect(qg); qg.connect(out); q.start(t + 0.05); q.stop(t + 0.16);
+    // 小さなスピーカーでも聞こえる高めの「コツッ」
+    const n = c.createBufferSource(); n.buffer = this.noiseBuf;
+    const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1500 + Math.random() * 300; nf.Q.value = 2.5;
+    const ng = c.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.45, t + 0.004); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    n.connect(nf); nf.connect(ng); ng.connect(out); n.start(t, Math.random() * 0.5); n.stop(t + 0.09);
   }
+  // ネコの首の鈴（高い音なのでスマホでも聞こえる）
+  bell(v, pan = 0) {
+    if (!this.ok || v < 0.02) return;
+    const c = this.ctx, t = c.currentTime;
+    const out = this.panOut(pan, Math.min(0.6, v));
+    for (const f of [2637, 3520, 4186]) {
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f * (0.98 + Math.random() * 0.04);
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.4);
+    }
+  }
+  meow() { this.tone(700, 0.35, 'sawtooth', 0.05, 300); this.tone(1000, 0.3, 'triangle', 0.06, -400, 0.15); }
+  hiss2() { this.noise(0.4, 'highpass', 3000, 0.25, 0.8, 0.02); }
+  chime() { [784, 988, 1175].forEach((f, i) => this.tone(f, 0.4, 'sine', 0.12, 0, i * 0.18)); }
   nice() { this.tone(880, 0.08, 'triangle', 0.18); this.tone(1320, 0.14, 'triangle', 0.18, 0, 0.07); }
   thud() { this.tone(90, 0.3, 'sine', 0.7, -40); this.noise(0.15, 'lowpass', 400, 0.5); }
   poison() { this.tone(300, 0.5, 'sawtooth', 0.08, -150); this.tone(310, 0.5, 'sawtooth', 0.06, -160, 0.05); }
@@ -140,11 +172,19 @@ export class Sfx {
   updateRadio(vol, pan) {
     if (!this.radio || !this.ok) return;
     const c = this.ctx, R = this.radio, t = c.currentTime;
-    R.bus.gain.setTargetAtTime(vol * 0.5, t, 0.08);
+    R.bus.gain.setTargetAtTime(vol * vol * 0.55, t, 0.08);
+    // 画面を裏に回して戻ったとき、たまった分をまとめて鳴らさない
+    if (R.next < t - 0.5) R.next = t + 0.05;
     if (R.pan) R.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), t, 0.08);
     // 先の0.3秒ぶんの音を予約する
     const SCALE = [0, 2, 4, 7, 9, 12, 14]; // 民謡っぽい五音
-    const TUNE = [4, 4, 3, 2, 3, 4, 5, 4, 3, 2, 1, 2, 3, 3, -1, -1, 2, 3, 4, 3, 2, 1, 0, 1, 2, 2, 1, 0, 0, 0, -1, -1];
+    const TUNES = [
+      [4, 4, 3, 2, 3, 4, 5, 4, 3, 2, 1, 2, 3, 3, -1, -1, 2, 3, 4, 3, 2, 1, 0, 1, 2, 2, 1, 0, 0, 0, -1, -1],
+      [2, 3, 4, 4, 5, 4, 3, -1, 4, 3, 2, 1, 2, -1, 2, 2, 3, 2, 1, 0, 1, 2, 3, -1, 2, 1, 0, 0, -1, 0, -1, -1],
+      [5, 5, 6, 5, 4, 3, 4, -1, 3, 4, 5, 4, 3, 2, 3, -1, 3, 3, 2, 1, 2, 3, 2, 1, 0, 1, 2, -1, 1, 0, -1, -1],
+      [0, 1, 2, 4, 3, 2, 1, -1, 2, 3, 4, 5, 4, 3, 2, -1, 4, 4, 3, 2, 1, 2, 3, 2, 1, 0, 1, 0, 0, -1, -1, -1],
+    ];
+    const TUNE = TUNES[Math.floor(R.step / 32) % TUNES.length];
     while (R.next < t + 0.3) {
       const beat = 0.26;
       if (R.talk > 0) {
@@ -171,7 +211,7 @@ export class Sfx {
           }
         }
         R.step++;
-        if (R.step % 64 === 0) R.talk = 14 + Math.floor(Math.random() * 10);
+        if (R.step % 128 === 0) R.talk = 14 + Math.floor(Math.random() * 10);
       }
       R.next += beat;
     }
