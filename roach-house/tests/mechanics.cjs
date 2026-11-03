@@ -115,7 +115,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('目標達成で勝ち', g.state === 'over' && g.result.win);
     // 11. 出荷されすぎで負け
     g.start('hard', 20);
-    for (let k = 0; k < 7; k++) g.crates[k].shipped = true;
+    for (let k = 0; k < g.shipLimit; k++) g.crates[k].shipped = true;
     RH.sim(0.1, 1 / 30, (gg, i) => idle(gg, i));
     check('出荷されすぎで負け', g.state === 'over' && g.result.reason === 'shipped');
     // 12. 道さがし：どの置き場所にも農場主がたどり着ける
@@ -247,7 +247,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
 
     // 23. 出荷が終わるまでの勝負：残りの出荷数
     g.start('normal', 46);
-    check('最初は「あと9箱」', g.shipLeft() === 9, g.shipLeft());
+    check('最初は「あと10箱」（ステージ3）', g.shipLeft() === 10, g.shipLeft());
 
     // 24. 今日の注文・称号・羽の色
     const F = RH.features;
