@@ -19,9 +19,9 @@ const out = process.argv[2] || '.';
   // 毒エサと端の矢印
   await page.evaluate(() => {
     const g = window.__rh.game; g.endTutorial(false);
-    const bt = g.baits[0]; Object.assign(g.player, { x: bt.x - 0.9, z: bt.z, surface: -1, y: 0, h: Math.PI / 2 });
+    const bt = g.baits[0]; Object.assign(g.player, { x: bt.x - 0.5, z: bt.z, surface: -1, y: 0, h: Math.PI / 2 });
     window.__rh.cam.yaw = Math.PI / 2; window.__rh.cam.init = true;
-    g.farmer.x = -15; g.farmer.z = 12.5; g.farmer.state = 'CHASE'; g.farmer.target = g.player;
+    g.farmer.x = -15; g.farmer.z = 12.5; g.startChase(g.player);
   });
   await shot('bait-arrow');
   // ナイス

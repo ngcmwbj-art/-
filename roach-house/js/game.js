@@ -1468,6 +1468,7 @@ export class Game {
         return;
       }
     }
+    if (!f.lastSeen) f.lastSeen = { x: t.x, y: t.y, z: t.z };
     const L = f.lastSeen;
     const ld = Math.hypot(L.x - f.x, L.z - f.z);
     const underTable = t.y < 0.4 && tableAt(t.x, t.z, 0.1) >= 0;
