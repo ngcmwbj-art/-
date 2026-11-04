@@ -526,7 +526,7 @@ export class Game {
       p.greed += 34 * dt;
       const rate = 3.5 + 12.5 * (p.greed / 100);
       if (crate) this.bite(crate, rate * dt, p); else this.biteFruit(fruit, rate * dt);
-      this.nutrition = Math.min(100, this.nutrition + rate * 0.6 * dt * (crate ? 1 : ripeOf(fruit)));
+      this.addNutrition(rate * dt * (crate ? 0.6 : 0.3 * ripeOf(fruit)));
       p.hp = Math.min(p.maxHp, p.hp + rate * 0.3 * dt);
       p.h = dampAngle(p.h, Math.atan2(food.x - p.x, food.z - p.z), 6, dt);
       p.crunchT -= dt;
@@ -545,7 +545,7 @@ export class Game {
       if (wasEating && prevGreed >= NICE_LO && prevGreed <= NICE_HI) {
         const target = wasEating;
         if (target.kind === 'fruit') this.biteFruit(target, 6); else if (!target.rotten && !target.carried && !target.shipped) this.bite(target, 7, p);
-        this.nutrition = Math.min(100, this.nutrition + 6);
+        this.addNutrition(6);
         this.stats.nice++;
         this.niceT = 0.9;
         this.sfx.nice();
@@ -563,7 +563,7 @@ export class Game {
         p.eatingBento = true;
         p.h = dampAngle(p.h, Math.atan2(bento.x - p.x, bento.z - p.z), 6, dt);
         bento.eaten += dt;
-        this.nutrition = Math.min(100, this.nutrition + 9 * dt);
+        this.addNutrition(9 * dt);
         p.crunchT -= dt;
         if (p.crunchT <= 0) { this.sfx.crunch(0.12); p.crunchT = 0.22; }
         this.noise(p, 3.5, 5 * dt);
@@ -731,10 +731,10 @@ export class Game {
     m.position.set(f.x, f.y, f.z);
     m.castShadow = true;
     this.root.add(m);
-    this.fallers.push({ m, vy: 0, x: f.x, y: f.y, z: f.z, landed: false, t: 0, spin: (rand() - 0.5) * 6 });
+    this.fallers.push({ m, vy: 0, x: f.x, y: f.y, z: f.z, fromY: f.y, landed: false, t: 0, spin: (rand() - 0.5) * 6 });
     // 熟した実ほど栄養たっぷり。緑の実は少しだけ
     const rp = ripeOf(f);
-    this.nutrition = Math.min(100, this.nutrition + Math.round(35 * rp));
+    this.addNutrition(30 * rp);
     if (this.player) this.player.hp = Math.min(this.player.maxHp, this.player.hp + 15 * rp);
     this.stats.fruits++;
     if (rp >= 1) this.stats.ripeFruits++;
@@ -758,7 +758,8 @@ export class Game {
           const dp = this.player ? Math.hypot(this.player.x - f.x, this.player.z - f.z) : 99;
           this.sfx.thud();
           if (dp < 8) this.shake = Math.max(this.shake, 0.3);
-          this.noise({ x: f.x, y: 0, z: f.z }, 11, 55);
+          // 落ちた音：農場主は落ちた床だけでなく、実がなっていた株の上も見る
+          this.noise({ x: f.x, y: f.fromY > 1 ? TROUGH_TOP : 0, z: f.z }, 11, 55);
         }
         f.m.position.set(f.x, f.y, f.z);
       }
@@ -840,6 +841,15 @@ export class Game {
     this.toast(`コンテナを1箱ダメにした！（${this.ruined} / ${this.diff.target}）`, 'good');
     this.events.push('ruin');
     for (const r of this.roaches) if (r.eatingCrate === c) r.eatingCrate = null;
+  }
+
+  // 栄養：仲間（と卵）が多いほどたまりにくい（大家族ほど食べ物が要る）。数に上限はない
+  colonyFactor() {
+    const n = this.nymphs.length + this.eggs.filter((e) => e.alive).length * 3;
+    return 1 / (1 + n / (this.diff.assist ? 16 : 10));
+  }
+  addNutrition(v) {
+    this.nutrition = Math.min(100, this.nutrition + v * this.colonyFactor());
   }
 
   tryLayEgg(p) {
@@ -2465,7 +2475,7 @@ export class Game {
     // 株の見回り：短い間に何個も実を落とすと、農場主がさいばい槽の上を見に来る
     this.plantHits = this.plantHits.filter((h) => this.clock - h.t < 45);
     const need = this.diff.assist ? PLANT_CHECK_N_ASSIST : PLANT_CHECK_N;
-    if (!f.plantCheck && this.plantHits.length >= need && f.state === 'WORK' && !f.carry && !f.hidden) {
+    if (!f.plantCheck && this.plantHits.length >= need && (f.state === 'WORK' || f.state === 'INVESTIGATE') && !f.hidden) {
       const h = this.plantHits[this.plantHits.length - 1];
       f.plantCheck = { x: h.x, z: h.z, t: 3 };
       this.plantHits = [];
@@ -2475,7 +2485,7 @@ export class Game {
     if (f.plantCheck) {
       const P = f.plantCheck;
       P.t -= dt;
-      if (P.t <= 0 && f.state === 'WORK' && !f.carry && !f.act) {
+      if (P.t <= 0 && (f.state === 'WORK' || f.state === 'INVESTIGATE') && !f.act) {
         const row = rowAt(P.x, P.z, 0.6) || ROWS.reduce((a, r) => (Math.abs(r.z - P.z) < Math.abs(a.z - P.z) ? r : a), ROWS[0]);
         const sz = row.z + (f.z < row.z ? -(row.hw + 0.45) : row.hw + 0.45);
         this.startInvestigate({ x: clamp(P.x, row.minX + 0.3, row.maxX - 0.3), y: 0, z: sz }, true);
