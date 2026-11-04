@@ -226,7 +226,7 @@ export class Game {
       const ns = D.no >= 4 ? 4 : D.no >= 2 ? 3 : 0;
       for (let i = 0; i < ns; i++) {
         const sp = spotOnTrough(used); used.push(sp);
-        const m = makeSheet(); m.position.set(sp.x, TROUGH_TOP + 0.012, sp.z); m.rotation.y = (lr() - 0.5) * 0.4;
+        const m = makeSheet(); m.position.set(sp.x, TROUGH_TOP + 0.07, sp.z); m.rotation.y = (lr() - 0.5) * 0.4;
         this.root.add(m);
         this.sheets.push({ x: sp.x, z: sp.z, sheet: true, model: m });
       }
@@ -235,7 +235,7 @@ export class Game {
     if (D.no >= 3 && !this.tour) {
       for (let i = 0; i < 2; i++) {
         const sp = spotOnTrough(used); used.push(sp);
-        const m = makeSpider(); m.root.position.set(sp.x, TROUGH_TOP, sp.z);
+        const m = makeSpider(); m.root.position.set(sp.x, TROUGH_TOP + 0.05, sp.z);
         this.root.add(m.root);
         this.spiders.push({ x: sp.x, z: sp.z, m, st: 'wait', t: 0, cd: 0, target: null });
       }
@@ -3044,6 +3044,10 @@ export class Game {
     if (pr && pr.kind === 'box') return { key: 'action', text: '段ボールにもぐる', first: 'box' };
     if (pr && pr.kind === 'drain') return { key: 'action', text: '排水溝に入る', first: 'drain' };
     if (pr && pr.kind === 'trap') return this.helpersFor(p).length >= 2 ? { key: 'action', text: '仲間とホイホイを運ぶ', first: 'trap' } : { key: 'action', text: 'ホイホイ（運ぶには仲間2匹）', warn: true, first: 'trap' };
+    if (this.onTrough(p)) {
+      if ((this.sheets || []).some((s) => Math.abs(s.x - p.x) < 1.7 && Math.abs(s.z - p.z) < 0.6)) return { key: 'action', text: 'この先に黄色い粘着シート！', warn: true, first: 'sheet' };
+      if ((this.spiders || []).some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 2.4)) return { key: 'action', text: 'クモの巣が近い！', warn: true, first: 'spider' };
+    }
     if (this.windLaneAt(p)) return { key: 'action', text: '風に乗る' };
     if (this.canClimb(p)) return { key: 'action', text: '登る' };
     return null;

@@ -671,6 +671,8 @@ const FIRST_TIPS = {
   bento: '農場主のお弁当。長押しでかじると、いたずら成功',
   trap: '仲間2匹と農場主の通り道に運ぶと、長靴がくっつく',
   drain: '中を通って、別の排水溝から出られる。逃げ道にも',
+  sheet: 'さわるとくっつく。食べるボタンの連打で抜け出せる。よけて通ろう',
+  spider: '白く光る巣のそばに近づくと、クモがとびかかってくる',
 };
 const firstSeen = store.get('firstSeen', []);
 const firstT = {};

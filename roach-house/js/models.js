@@ -1149,6 +1149,13 @@ export function makeSheet() {
   m.rotation.x = -Math.PI / 2;
   m.receiveShadow = true;
   g.add(m);
+  // 本物のハウスのように、細い棒につるした黄色いカード（葉の上から見える目印）
+  const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.1, 5), new THREE.MeshStandardMaterial({ color: 0x8a8a80, metalness: 0.5 }));
+  stake.position.set(0.3, 0.55, 0);
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.46), new THREE.MeshStandardMaterial({ map: TX.stickyCard(), side: THREE.DoubleSide, color: 0xfff2a0, emissive: 0x6a5a00, emissiveIntensity: 0.7, roughness: 0.3 }));
+  card.position.set(0.3, 0.95, 0);
+  g.add(stake, card);
+  g.userData.card = card;
   g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
   return g;
 }
@@ -1174,7 +1181,14 @@ export function makeSpider() {
   web.add(glow);
   web.position.y = 0.02;
   root.add(web);
+  // 株のあいだに縦に張った巣（葉の上からも見える）
+  const vweb = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), wm);
+  vweb.rotation.x = Math.PI / 2;
+  vweb.scale.setScalar(0.75);
+  vweb.position.y = 0.75;
+  root.add(vweb);
   const body = new THREE.Group();
+  body.scale.setScalar(1.5);
   root.add(body);
   const black = new THREE.MeshStandardMaterial({ color: 0x15120e, roughness: 0.4 });
   const yel = new THREE.MeshStandardMaterial({ color: 0xe0b52a, roughness: 0.5 });
