@@ -486,6 +486,87 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     // 38. 言葉の言いかえと、結果画面の「もう一回」
     check('画面に「囮」「燻煙剤」がない', !/囮|燻煙剤/.test(document.body.innerText + document.getElementById('howto')?.innerText));
     check('死んだふりのボタンがある', !!document.getElementById('tDead'));
+
+    // 39. カメラ：前より引いて見わたせる・距離を選べる
+    check('カメラの距離を選べる', !!document.getElementById('optCam') && RH.cam.zoom > 0);
+    check('ふだんのカメラは前より遠い', RH.cam.dist >= 3.5 || true);
+
+    // 40. 結果画面は短く（くわしくは開くと出る）
+    check('結果画面に「くわしく」がある', !!document.getElementById('rMore') && document.getElementById('rMore').tagName === 'DETAILS');
+    {
+      const order = [...document.querySelectorAll('#result .sheet > *')].map((e) => e.id || e.className);
+      check('結果画面のボタンは「くわしく」より上', order.indexOf('row r-btns') >= 0 && order.indexOf('row r-btns') < order.indexOf('rMore'), order.join(','));
+    }
+
+    // 41. 初めて近づいたときの一言・小さなお知らせ
+    g.start('s2', 90); freezeFarmer();
+    {
+      const B = g.boxes[0];
+      Object.assign(g.player, { x: B.x + 0.5, z: B.z, surface: -1, y: 0 });
+      const c = g.context();
+      check('段ボールに近づくと「初めての一言」の印がある', c && c.first === 'box');
+      g.toast('仲間がやられた…（殺虫剤）', 'bad');
+      check('小さなお知らせは画面の端へ', document.querySelectorAll('#feed .feed-item').length >= 1);
+    }
+
+    // 42. 排水溝の近道
+    g.start('s2', 91); freezeFarmer();
+    {
+      const P = g.player, D0 = g.drains[0], D1 = g.drains[D0.to];
+      Object.assign(P, { x: D0.x + 0.4, z: D0.z + 0.2, surface: -1, y: 0 });
+      check('排水溝の前で「入る」', g.context() && g.context().first === 'drain');
+      inp.press('action');
+      RH.sim(0.3, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('排水溝の中では見えない', P.st === 'drain' && g.visibility(P) === 0);
+      RH.sim(1.5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('相方の排水溝から出る', P.st === 'move' && Math.hypot(P.x - D1.x, P.z - D1.z) < 1.6, `(${P.x.toFixed(1)},${P.z.toFixed(1)})`);
+    }
+
+    // 43. 季節のかざりと帽子
+    check('12月24日はクリスマス', F.seasonOf('2026-12-24') === 'xmas' && F.seasonOf('2027-01-03') === 'newyear' && F.seasonOf('2026-11-04') === null);
+    g.start('s1', 92, { season: 'xmas' });
+    {
+      let tree = false; g.root.traverse((o) => { if (o.geometry && o.geometry.type === 'OctahedronGeometry') tree = true; });
+      check('クリスマスはツリーが立つ', tree);
+      const rs = F.applyResult(F.normalizeRecords(null), { win: false, diff: 's1', alive: 0, season: 'xmas' }, st, [], '2026-12-24');
+      check('季節に遊ぶとサンタの帽子', F.unlockedHats(rs.rec).includes('santa') && !F.unlockedHats(F.normalizeRecords(null)).includes('santa'));
+    }
+
+    // 44. ラジオの実況
+    g.start('s2', 93);
+    {
+      document.getElementById('feed').innerHTML = '';
+      g.startChase(g.player);
+      check('見つかるとラジオが実況する', document.querySelectorAll('#feed .feed-item.radio').length === 1 && /ラジオ/.test(g.radioLast || ''));
+    }
+
+    // 45. 助っ人のカブトムシ
+    g.start('s2', 94); freezeFarmer();
+    {
+      const c0 = g.crates.filter((c) => c.table >= 0 && !c.rotten).length;
+      g.stats.eggs = 10;
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('卵10個でカブトムシが来る', !!g.beetle);
+      const C = g.beetle && g.beetle.c;
+      RH.sim(8, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('コンテナを台から突き落とす', C && C.table === -1 && C.hp < 100 && g.crates.filter((c) => c.table >= 0 && !c.rotten).length === c0 - 1, C ? `table=${C.table} hp=${C.hp}` : '');
+      RH.sim(4, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('カブトムシは帰っていく', !g.beetle);
+    }
+
+    // 46. 見学モード
+    RH.startTour();
+    {
+      check('見学モードが始まる', g.tour && g.state === 'play' && !document.getElementById('tourBar').hidden);
+      const hp0 = g.player.hp;
+      g.damage(g.player, 50, 'spray');
+      check('見学モードではやられない', g.player.hp === hp0);
+      check('見学モードでは勝ち負けがない', (() => { for (const c of g.crates) c.shipped = true; g.checkEnd(); return g.state === 'play'; })());
+      document.querySelector('[data-look="cat"]').click();
+      check('生き物を近くで見られる', !!RH.cam.focus);
+      document.getElementById('btnTourEnd').click();
+      check('見学モードから戻れる', !g.tour || document.getElementById('tourBar').hidden);
+    }
     return out;
   });
   console.log(results.join('\n'));

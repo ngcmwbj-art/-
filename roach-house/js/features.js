@@ -119,9 +119,19 @@ export const HATS = {
   straw: { label: '麦わら帽子', need: 6 },
   jacap: { label: 'JAの帽子', need: 10 },
   towel: { label: 'ねじりはちまき', need: 14 },
+  santa: { label: 'サンタの帽子', need: 0, season: 'xmas' },
+  mochi: { label: '鏡もち', need: 0, season: 'newyear' },
 };
+// 季節：12月1〜25日はクリスマス、12月26日〜1月15日は正月
+export function seasonOf(key) {
+  const [, m, d] = String(key).split('-').map(Number);
+  if (m === 12 && d <= 25) return 'xmas';
+  if ((m === 12 && d >= 26) || (m === 1 && d <= 15)) return 'newyear';
+  return null;
+}
+export const SEASON_LABEL = { xmas: 'クリスマス', newyear: 'お正月' };
 export function totalStars(r) { return Object.values(r.stars || {}).reduce((a, b) => a + (b || 0), 0); }
-export function unlockedHats(r) { const n = totalStars(r); return Object.keys(HATS).filter((k) => n >= HATS[k].need); }
+export function unlockedHats(r) { const n = totalStars(r); const sh = r.seasonHats || []; return Object.keys(HATS).filter((k) => (HATS[k].season ? sh.includes(k) : n >= HATS[k].need)); }
 // おたすけ：同じステージで3回続けて負けたらすすめる
 export const ASSIST_AFTER = 3;
 
@@ -177,6 +187,11 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   for (const id of newPranks) pd.add(id);
   r.pranks[key] = [...pd];
   r.revenge = (r.revenge || 0) + (stats.revenge || 0);
+  // 季節の帽子：その季節に1回遊ぶと手に入る
+  if (res.season) {
+    r.seasonHats = Array.isArray(r.seasonHats) ? r.seasonHats : [];
+    for (const k of Object.keys(HATS)) if (HATS[k].season === res.season && !r.seasonHats.includes(k)) r.seasonHats.push(k);
+  }
   const newHats = unlockedHats(r).filter((k) => !before.hats.includes(k));
   return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest, offerAssist, newPranks, newHats };
 }

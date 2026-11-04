@@ -142,6 +142,8 @@ export class Sfx {
   meow() { this.tone(700, 0.35, 'sawtooth', 0.05, 300); this.tone(1000, 0.3, 'triangle', 0.06, -400, 0.15); }
   hiss2() { this.noise(0.4, 'highpass', 3000, 0.25, 0.8, 0.02); }
   chime() { [784, 988, 1175].forEach((f, i) => this.tone(f, 0.4, 'sine', 0.12, 0, i * 0.18)); }
+  // ラジオのお知らせ：ポーン↑と、短いしゃべり風の音
+  radioNews() { this.tone(660, 0.25, 'sine', 0.1); this.tone(990, 0.35, 'sine', 0.1, 0, 0.16); for (let i = 0; i < 5; i++) this.tone(260 + (i % 3) * 40, 0.07, 'square', 0.025, 0, 0.45 + i * 0.09); }
   nice() { this.tone(880, 0.08, 'triangle', 0.18); this.tone(1320, 0.14, 'triangle', 0.18, 0, 0.07); }
   thud() { this.tone(90, 0.3, 'sine', 0.7, -40); this.noise(0.15, 'lowpass', 400, 0.5); }
   poison() { this.tone(300, 0.5, 'sawtooth', 0.08, -150); this.tone(310, 0.5, 'sawtooth', 0.06, -160, 0.05); }

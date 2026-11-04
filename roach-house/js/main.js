@@ -11,7 +11,7 @@ import { setTextureSize } from './textures.js';
 import { WING_COLORS } from './models.js';
 import {
   todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings, STAR_RULES,
-  HATS, unlockedHats, totalStars,
+  HATS, unlockedHats, totalStars, seasonOf, SEASON_LABEL,
 } from './features.js';
 import { PRANKS } from './game.js';
 
@@ -93,8 +93,30 @@ $('optSound').checked = soundOn;
 $('optHints').checked = hintsOn;
 sfx.setMuted(!soundOn);
 
+// 小さなお知らせは画面の端に、丸い印つきでまとめる（大事なものだけ真ん中）
+const MINOR = [
+  [/仲間がやられた/, '仲', 'bad'], [/卵がかえ|仲間が生まれ|仲間が.*匹ふえ/, '卵', 'good'], [/仲間に指示/, '指', 'info'],
+  [/産卵|卵を産/, '卵', 'good'], [/助け出した/, '助', 'good'], [/段ボール|軍手から|軍手にもぐ/, '隠', 'good'],
+  [/いたずら成功/, '★', 'good'], [/検品が終わった|煙が晴れ/, '済', 'info'], [/仲間がホイホイを運/, '運', 'good'],
+  [/農場主がコンテナを(床に置いた|落とした)/, '箱', 'good'], [/排水溝/, '溝', 'good'], [/カブトムシ/, '虫', 'good'],
+];
+function feed(text, glyph, kind) {
+  const box = $('feed');
+  const el = document.createElement('div');
+  el.className = `feed-item ${kind || ''}`;
+  el.innerHTML = `<i>${glyph}</i><span></span>`;
+  el.lastChild.textContent = text;
+  box.appendChild(el);
+  while (box.children.length > 4) box.removeChild(box.firstChild);
+  setTimeout(() => el.classList.add('out'), 3600);
+  setTimeout(() => el.remove(), 4100);
+}
 const ui = {
+  feed,
+  radio(text) { feed(text, '♪', 'radio'); sfx.radioNews && sfx.radioNews(); },
   toast(text, kind) {
+    const m = MINOR.find(([re]) => re.test(text));
+    if (m) { feed(text, m[1], m[2]); return; }
     const box = $('toasts');
     const el = document.createElement('div');
     el.className = `toast ${kind || ''}`;
@@ -131,16 +153,19 @@ function updateTouchVisibility() {
 
 // ---------- 記録・今日の注文 ----------
 let records = normalizeRecords(store.get('records', null));
-let dayKey = todayKey();
+// テスト用：?date=2026-12-24 で日付を変えられる（季節のかざりの確認）
+const urlDate = (() => { try { const d = new URLSearchParams(location.search).get('date'); return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : null; } catch (_) { return null; } })();
+let dayKey = urlDate || todayKey();
 let orders = todaysOrders(dayKey);
 function refreshDay() {
-  const k = todayKey();
+  const k = urlDate || todayKey();
   if (k !== dayKey) { dayKey = k; orders = todaysOrders(dayKey); }
 }
 function renderOrders() {
   refreshDay();
   const done = records.ordersDone[dayKey] || [];
-  $('orderCard').innerHTML = `<h3>今日の注文（${todayLabel()}）</h3><ul>${orders.map((o) => `<li class="${done.includes(o.id) ? 'done' : ''}">${done.includes(o.id) ? '✓ ' : ''}${o.text}</li>`).join('')}</ul>`;
+  const sn = seasonOf(dayKey);
+  $('orderCard').innerHTML = `${sn ? `<p class="season-note">${SEASON_LABEL[sn]}の期間中！ ハウスに季節のかざり。1回遊ぶと期間限定の帽子がもらえる</p>` : ''}<h3>今日の注文（${todayLabel()}）</h3><ul>${orders.map((o) => `<li class="${done.includes(o.id) ? 'done' : ''}">${done.includes(o.id) ? '✓ ' : ''}${o.text}</li>`).join('')}</ul>`;
 }
 renderOrders();
 $('optTutor').checked = !store.get('tutorialDone', false);
@@ -154,7 +179,8 @@ function startGame(diff) {
   refreshDay();
   const tutorial = $('optTutor').checked;
   const assist = !!(records.assist && records.assist[diff]);
-  game.start(diff, undefined, { tutorial, wing: records.wing, hat: records.hat, assist, layoutSeed: dailySeed(dayKey) });
+  endTourUi();
+  game.start(diff, undefined, { tutorial, wing: records.wing, hat: records.hat, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
   renderOrderMini();
   $('orderMini').hidden = false;
@@ -167,7 +193,7 @@ function startGame(diff) {
   }
   hints.reset();
   camState.yaw = game.camYaw;
-  camState.pitch = 0.36;
+  camState.pitch = 0.42;
   camState.init = true;
   $('target').textContent = game.diff.target;
   const pips = $('pips');
@@ -177,6 +203,59 @@ function startGame(diff) {
   setScreen('play');
   updateCmdButtons();
 }
+
+// ---------- 見学モード：遊ばずにハウスを見て回る（家族に見せる用） ----------
+let touring = false;
+function startTour() {
+  sfx.unlock();
+  sfx.startAmbience();
+  sfx.startRadio();
+  refreshDay();
+  touring = true;
+  game.start('s1', undefined, { tour: true, wing: records.wing, hat: records.hat, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
+  world.setNight(false);
+  renderer.toneMappingExposure = 0.95;
+  document.body.classList.add('tour');
+  $('tourBar').hidden = false;
+  $('orderMini').hidden = true;
+  hints.reset();
+  camState.yaw = game.camYaw; camState.pitch = 0.42; camState.init = true; camState.focus = null;
+  $('toasts').innerHTML = '';
+  setScreen('play');
+  ui.toast('見学モード：だれにも見つからない。上のボタンで生き物を近くから見られる', 'info');
+}
+function endTourUi() {
+  touring = false;
+  document.body.classList.remove('tour');
+  $('tourBar').hidden = true;
+  camState.focus = null;
+}
+// 見る相手：位置と、カメラの距離
+function lookTarget(key) {
+  const g = game;
+  if (key === 'roach') return () => ({ x: g.player.x, y: g.player.y + 0.15, z: g.player.z, d: 1.3 });
+  if (key === 'farmer') return () => ({ x: g.farmer.x, y: 3.2, z: g.farmer.z, d: 7.5 });
+  if (key === 'cat' && g.cat) return () => ({ x: g.cat.x, y: 0.6, z: g.cat.z, d: 3 });
+  const sc = (g.showcase || []).find((o) => o.key === key);
+  if (sc) return () => ({ x: sc.obj.position.x, y: sc.h, z: sc.obj.position.z, d: sc.d });
+  if (key === 'paprika') {
+    const p = g.player;
+    let best = null, bd = 1e9;
+    for (const f of PLANT_FRUITS) { if (!f.alive) continue; const d = Math.hypot(f.x - p.x, f.z - p.z); if (d < bd) { bd = d; best = f; } }
+    if (best) return () => ({ x: best.x, y: best.y, z: best.z, d: 1.1 });
+  }
+  return null;
+}
+$('btnTour').addEventListener('click', startTour);
+$('btnTourEnd').addEventListener('click', toTitle);
+document.querySelectorAll('[data-look]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.look;
+  camState.focus = k === 'free' ? null : lookTarget(k);
+  if (camState.focus) camState.pitch = Math.max(camState.pitch, 0.35);
+  document.querySelectorAll('[data-look]').forEach((x) => x.classList.toggle('on', x === b));
+  sfx.click();
+  b.blur();
+}));
 
 // 今日の注文といたずらリスト（遊んでいる間の小窓）
 let miniKey = '';
@@ -189,6 +268,26 @@ function renderOrderMini() {
   $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}` +
     `<br><b>いたずら ${PRANKS.filter((x) => pr[x.id]).length}/${PRANKS.length}</b>　${PRANKS.map((x) => `<span class="${pr[x.id] ? 'ok' : done.includes(x.id) ? 'was' : ''}" title="${x.text}">${pr[x.id] ? '✓' : '・'}${x.short}</span>`).join(' ')}`;
 }
+
+// なめらかさを残す（設定に「前回は1秒に○コマ」と出す。スマホ実機での確認用）
+const playFps = { t: 0, n: 0, worst: 0 };
+function saveFps() {
+  if (playFps.t < 10) return;
+  const rec = { fps: Math.round(playFps.n / playFps.t), slow: Math.round(1 / Math.max(playFps.worst, 1e-3)), level: fx.level, scale: Math.round((fx.dprScale || 1) * 100), touch: isTouchDevice, at: todayKey() };
+  store.set('fpsLast', rec);
+  const log = store.get('fpsLog', []);
+  log.push(rec);
+  while (log.length > 20) log.shift();
+  store.set('fpsLog', log);
+  playFps.t = 0; playFps.n = 0; playFps.worst = 0;
+  showFps();
+}
+function showFps() {
+  const r = store.get('fpsLast', null);
+  const LV = { high: '高', medium: '中', low: '低' };
+  $('fpsNote').textContent = r ? `前回のなめらかさ：1秒に${r.fps}コマ（いちばん重い所で${r.slow}コマ・画質「${LV[r.level] || r.level}」）${r.fps < 30 ? '　→ 画質「低」がおすすめ' : r.fps >= 50 ? '　→ 快適です' : ''}` : '';
+}
+showFps();
 
 function calmScreen() {
   ui.hurtLevel = 0;
@@ -207,6 +306,8 @@ function resumeGame() {
   setScreen('play');
 }
 function toTitle() {
+  saveFps();
+  endTourUi();
   calmScreen();
   world.setNight(false);
   renderer.toneMappingExposure = 0.95;
@@ -303,7 +404,7 @@ $('btnNext').addEventListener('click', () => {
   if (nx) startGame(nx.key);
 });
 $('btnResume').addEventListener('click', resumeGame);
-$('btnRetry').addEventListener('click', () => startGame(lastDiff));
+$('btnRetry').addEventListener('click', () => (touring ? startTour() : startGame(lastDiff)));
 $('btnTitle').addEventListener('click', toTitle);
 $('btnAgain').addEventListener('click', () => startGame(lastDiff));
 $('btnAssist').addEventListener('click', (e) => {
@@ -353,6 +454,7 @@ const REASONS = {
 };
 function showResult(res) {
   if (game.state !== 'over' || game.result !== res) return;
+  saveFps();
   calmScreen();
   const stR = DIFFS[res.diff];
   $('rTitle').textContent = res.win ? `${stR ? stR.label + ' ' : ''}クリア！` : '作戦失敗…';
@@ -407,10 +509,15 @@ function showResult(res) {
   // いたずら
   const prs = res.pranks || [];
   const prDone = records.pranks[res.diff] || [];
-  news.push(`<b>いたずら</b>　${PRANKS.map((x) => `<span class="${prs.includes(x.id) ? 'ok' : 'ng'}">${prs.includes(x.id) ? '✓' : '・'}${x.text}${!prs.includes(x.id) && prDone.includes(x.id) ? '（前にやった）' : ''}</span>`).join('　')}`);
+  const prankLine = (`<b>いたずら</b>　${PRANKS.map((x) => `<span class="${prs.includes(x.id) ? 'ok' : 'ng'}">${prs.includes(x.id) ? '✓' : '・'}${x.text}${!prs.includes(x.id) && prDone.includes(x.id) ? '（前にやった）' : ''}</span>`).join('　')}`);
+  if (prs.length) news.push(`<span class="new">いたずら成功 ${prs.length}/${PRANKS.length}</span>`);
   if ((s.revenge || 0) > 0) news.push(`<span class="new">ホイホイの仕返し ${s.revenge} 回成功！</span>`);
   for (const k of out.newHats || []) news.push(`<span class="new">帽子「${HATS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`);
-  $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}${news.length ? '<br>' + news.join('<br>') : ''}`;
+  // 結果画面は短く：大事なお知らせだけ上に、ほかは「くわしく」の中へ
+  $('rNews').innerHTML = news.join('<br>');
+  $('rNews').hidden = !news.length;
+  $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}<br>${prankLine}`;
+  $('rMore').open = false;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
     ['かかった時間', mm(res.elapsed)], ['産んだ卵', `${s.eggs} 個`],
@@ -465,7 +572,17 @@ const hints = {
 hints.reset();
 
 // ---------- カメラ ----------
-const camState = { yaw: 0, pitch: 0.36, dist: 3.3, pos: new THREE.Vector3(), look: new THREE.Vector3(), init: true };
+const camState = { yaw: 0, pitch: 0.42, dist: 4.6, zoom: 1, pos: new THREE.Vector3(), look: new THREE.Vector3(), init: true, focus: null };
+// カメラの距離（設定と、マウスホイール・2本指で変えられる）
+camState.zoom = Number(store.get('camZoom', 1)) || 1;
+$('optCam').value = String(camState.zoom);
+$('optCam').addEventListener('change', (e) => { camState.zoom = Number(e.target.value); store.set('camZoom', camState.zoom); });
+canvas.addEventListener('wheel', (e) => {
+  if (screen !== 'play') return;
+  e.preventDefault();
+  camState.zoom = clamp(camState.zoom * (e.deltaY > 0 ? 1.08 : 1 / 1.08), 0.7, 1.8);
+  store.set('camZoom', Math.round(camState.zoom * 100) / 100);
+}, { passive: false });
 window.__rh.cam = camState;
 function updateCamera(dt) {
   if (game.state === 'title' || !game.player) {
@@ -477,27 +594,36 @@ function updateCamera(dt) {
     camera.lookAt(x - 8, 3.4, -2.5 + Math.sin(t * 0.11) * 0.6);
     return;
   }
-  const info = game.camInfo();
+  let info = game.camInfo();
+  if (camState.focus) {
+    // 見学モード：選んだ生き物のまわりをゆっくり回る
+    const F = camState.focus();
+    info = { x: F.x, y: F.y - 0.32, z: F.z, focusDist: F.d };
+    if (screen === 'play' && !input.camDX) camState.yaw += dt * 0.18;
+  }
   if (screen === 'play') {
     camState.yaw -= input.camDX * 0.0065 + input.keyRot * 2.2 * dt;
     camState.pitch = clamp(camState.pitch + input.camDY * 0.004, 0.08, 1.15);
   }
   game.camYaw = camState.yaw;
-  let pitch = camState.pitch, dist = 3.3;
-  if (info.underTable) { pitch = Math.min(pitch, 0.2); dist = 2.4; }
-  else if (info.onTrough) { dist = 2.3; pitch = Math.max(pitch, 0.75); }
-  else if (info.underRow) { pitch = Math.min(pitch, 0.24); dist = 1.7; }
-  if (info.flying) { dist = 4.5; pitch = 0.25; }
+  // 周りを見わたせるよう、少し引いて高めから（設定とホイールで調整できる）
+  const Z = camState.zoom;
+  let pitch = camState.pitch, dist = 4.6 * Z;
+  if (info.underTable) { pitch = Math.min(pitch, 0.24); dist = 3.2 * Z; }
+  else if (info.onTrough) { dist = 3.4 * Z; pitch = Math.max(pitch, 0.75); }
+  else if (info.underRow) { pitch = Math.min(pitch, 0.28); dist = 2.3 * Math.min(Z, 1.2); }
+  if (info.flying) { dist = 5.5 * Z; pitch = 0.3; }
   if (game.state === 'over') { camState.yaw += dt * 0.25; dist = 5; pitch = 0.5; }
+  if (info.focusDist) { dist = info.focusDist; pitch = Math.min(Math.max(camState.pitch, 0.2), 0.9); }
   camState.dist = damp(camState.dist, dist, 5, dt);
   const fx = Math.sin(camState.yaw), fz = Math.cos(camState.yaw);
-  const ty = info.y + 0.22;
+  const ty = info.y + 0.32;
   const d = camState.dist;
   let cx = info.x - fx * Math.cos(pitch) * d;
   let cz = info.z - fz * Math.cos(pitch) * d;
   let cy = ty + Math.sin(pitch) * d;
   // 株の中にカメラが入らないよう、近づけるか葉の下まで下げる
-  if (!info.underRow && !info.onTrough) {
+  if (!info.underRow && !info.onTrough && !info.focusDist) {
     let dd = d;
     while (dd > 0.9 && rowAt(cx, cz, 0.35) && cy > 0.75) {
       dd -= 0.15;
@@ -535,6 +661,16 @@ const cache = {};
 function setText(id, v) { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } }
 function setW(el, k) { const v = `${Math.round(clamp(k, 0, 1) * 1000) / 10}%`; if (el.style.width !== v) el.style.width = v; }
 
+// 初めて近づいたときの一言（一度見たら出さない）
+const FIRST_TIPS = {
+  box: 'かぶるとゆっくり歩けて、見つかりにくい。もう一度押すと出る',
+  glove: '中にもぐると、まず見つからない。いたずらの1つ',
+  bento: '農場主のお弁当。長押しでかじると、いたずら成功',
+  trap: '仲間2匹と農場主の通り道に運ぶと、長靴がくっつく',
+  drain: '中を通って、別の排水溝から出られる。逃げ道にも',
+};
+const firstSeen = store.get('firstSeen', []);
+const firstT = {};
 let niceShown = false;
 function updateHud(dt) {
   const g = game;
@@ -584,12 +720,20 @@ function updateHud(dt) {
   const ctx = g.context();
   const pr = $('prompt');
   const touch = document.body.classList.contains('touch');
+  // 初めて近づいたものには、案内の字を一度だけ長くする
+  let firstTxt = '';
+  if (ctx && ctx.first && !firstSeen.includes(ctx.first) && FIRST_TIPS[ctx.first]) {
+    firstTxt = FIRST_TIPS[ctx.first];
+    firstT[ctx.first] = (firstT[ctx.first] || 0) + dt;
+    if (firstT[ctx.first] > 5) { firstSeen.push(ctx.first); store.set('firstSeen', firstSeen); }
+  }
   if (ctx && screen === 'play') {
     const key = touch ? '' : 'Space';
-    const html = `${key ? `<kbd>${key}</kbd>` : ''}${ctx.text}`;
+    const html = `${key ? `<kbd>${key}</kbd>` : ''}${ctx.text}${firstTxt ? `<small class="first-tip">${firstTxt}</small>` : ''}`;
     if (cache.prompt !== html) { cache.prompt = html; pr.innerHTML = html; }
     pr.hidden = false;
     pr.classList.toggle('urgent', !!ctx.urgent);
+    pr.classList.toggle('first', !!firstTxt);
   } else pr.hidden = true;
   const tA = $('tAction');
   const label = ctx ? (ctx.urgent ? '連打！' : ctx.text.replace('長押しで', '').replace('台に', '')) : '食べる';
@@ -798,6 +942,11 @@ function drawMinimap(dt) {
   }
   if (g.cat && g.cat.m.root.visible) { mctx.fillStyle = '#ffae4a'; mctx.beginPath(); mctx.arc(mx(g.cat.x), mz(g.cat.z), 4.5, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#000'; mctx.lineWidth = 1; mctx.stroke(); }
   if (g.inspector && g.inspector.m) { mctx.fillStyle = '#3ad65a'; mctx.beginPath(); mctx.arc(mx(g.inspector.x), mz(g.inspector.z), 5.5, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#fff'; mctx.lineWidth = 1.5; mctx.stroke(); }
+  // お弁当・軍手・段ボール・排水溝の小さな印（いたずらと隠れ場所）
+  if (g.bento && !g.bento.done) { mctx.fillStyle = '#3a6fb0'; mctx.fillRect(mx(g.bento.x) - 4, mz(g.bento.z) - 3, 8, 6); mctx.fillStyle = '#f2c94a'; mctx.fillRect(mx(g.bento.x) - 1.5, mz(g.bento.z) - 1.5, 3, 3); }
+  if (g.glove) { mctx.fillStyle = '#9a9a9a'; mctx.beginPath(); mctx.arc(mx(g.glove.x), mz(g.glove.z), 3.5, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#c8342a'; mctx.lineWidth = 1.5; mctx.stroke(); }
+  for (const B of g.boxes || []) { mctx.fillStyle = '#c9a26b'; mctx.fillRect(mx(B.x) - 4, mz(B.z) - 3.5, 8, 7); mctx.strokeStyle = '#5a3b1c'; mctx.lineWidth = 1; mctx.strokeRect(mx(B.x) - 4, mz(B.z) - 3.5, 8, 7); }
+  for (const D of g.drains || []) { mctx.strokeStyle = '#cfd6dc'; mctx.lineWidth = 1.5; mctx.beginPath(); mctx.arc(mx(D.x), mz(D.z), 3.5, 0, 6.29); mctx.stroke(); mctx.beginPath(); mctx.moveTo(mx(D.x) - 3, mz(D.z)); mctx.lineTo(mx(D.x) + 3, mz(D.z)); mctx.stroke(); }
   for (const b of g.baits) { if (!b.alive) continue; mctx.fillStyle = '#111'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 4, 0, 6.29); mctx.fill(); mctx.fillStyle = '#f2c31b'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 1.6, 0, 6.29); mctx.fill(); }
   mctx.strokeStyle = 'rgba(190,232,255,0.9)'; mctx.lineWidth = 1.5;
   for (const L of WIND_LANES) { mctx.beginPath(); mctx.arc(mx(L.x0), mz(L.z), 4, 0, 6.29); mctx.stroke(); mctx.beginPath(); mctx.setLineDash([3, 3]); mctx.moveTo(mx(L.x0) + 4, mz(L.z)); mctx.lineTo(mx(L.x1), mz(L.z)); mctx.stroke(); mctx.setLineDash([]); }
@@ -841,6 +990,7 @@ window.__rh.fps = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = (now - last) / 1000;
+  const rawDt = dt;
   last = now;
   if (!(dt > 0)) dt = 0.016;
   dt = Math.min(dt, 0.05);
@@ -892,6 +1042,8 @@ function frame(now) {
       }
     }
     autoQ.sample(dt, screen === 'play');
+    // なめらかさの記録：遊んでいる間の1秒あたりのコマ数
+    if (screen === 'play' && rawDt > 0 && rawDt < 1) { playFps.t += rawDt; playFps.n++; if (rawDt > playFps.worst) playFps.worst = rawDt; }
   } catch (e) {
     showError(e && e.stack ? e.stack : String(e));
     throw e;
@@ -926,6 +1078,7 @@ window.__rh.sim = (seconds, step = 1 / 30, bot) => {
   return game.sanity();
 };
 window.__rh.startGame = startGame;
+window.__rh.startTour = startTour;
 Object.assign(window.__rh, { stages: STAGES, plantFruits: PLANT_FRUITS, rows: ROWS, windLanes: WIND_LANES, safeSpots: SAFE_SPOTS, features: FEATURES });
 window.__rh.MAX_NYMPHS = MAX_NYMPHS;
 window.__rh.DOOR = DOOR;

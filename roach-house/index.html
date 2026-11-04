@@ -54,6 +54,13 @@
     <div id="struggle" hidden>ホイホイから脱出！<div class="bar"><i></i></div></div>
     <div id="hint" hidden></div>
     <div id="toasts"></div>
+    <div id="feed"></div>
+    <div id="tourBar" hidden>
+      <span class="tour-ttl">見学モード</span>
+      <button class="btn" data-look="roach">ゴキブリ</button><button class="btn" data-look="farmer">農場主</button><button class="btn" data-look="cat">ネコ</button>
+      <button class="btn" data-look="inspector">JAの人</button><button class="btn" data-look="beetle">カブトムシ</button><button class="btn" data-look="paprika">パプリカ</button>
+      <button class="btn" data-look="free">自分で歩く</button><button class="btn" id="btnTourEnd">タイトルへ</button>
+    </div>
     <div id="ripples"></div>
     <button id="pauseBtn" aria-label="一時停止">II</button>
   </div>
@@ -83,8 +90,12 @@
         <label>画質 <select id="optQuality">
           <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
         </select></label>
+        <label>カメラ <select id="optCam">
+          <option value="0.8">近い</option><option value="1" selected>ふつう</option><option value="1.3">遠い</option><option value="1.6">とても遠い</option>
+        </select></label>
+        <span class="fps-note" id="fpsNote"></span>
       </div>
-      <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button></div>
+      <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button><button class="btn" id="btnTour">見学モード（遊ばずに見て回る）</button></div>
       <details class="howto" id="howto">
         <summary>遊びかた</summary>
         <div class="body">
@@ -173,16 +184,20 @@
       <div class="rank"><div class="r" id="rRank">A</div><div class="s">スコア<br><b id="rScore">0</b><br><span id="rBest"></span></div></div>
       <div class="r-stars" id="rStars"></div>
       <blockquote class="grumble" id="rGrumble"></blockquote>
-      <div class="highlights" id="rHigh"></div>
-      <div class="r-orders" id="rOrders"></div>
-      <dl class="rstats" id="rStats"></dl>
       <p class="tip" id="rTip"></p>
-      <div class="row">
+      <div class="row r-btns">
         <button class="btn primary" id="btnNext" hidden>次のステージへ</button>
         <button class="btn" id="btnAgain">もう一度</button>
         <button class="btn" id="btnTitle2">タイトルへ</button>
       </div>
       <div class="row"><button class="btn assist" id="btnAssist" hidden>おたすけ</button></div>
+      <p class="r-news" id="rNews"></p>
+      <details class="r-more" id="rMore">
+        <summary>くわしく（名場面の写真・今日の注文・いたずら・記録）</summary>
+        <div class="highlights" id="rHigh"></div>
+        <div class="r-orders" id="rOrders"></div>
+        <dl class="rstats" id="rStats"></dl>
+      </details>
     </div>
   </section>
 

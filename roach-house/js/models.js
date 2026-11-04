@@ -890,7 +890,8 @@ export function makeBento() {
 // 落ちている軍手（白に、手のひらの赤いゴム）
 export function makeGlove() {
   const g = new THREE.Group();
-  const knit = new THREE.MeshStandardMaterial({ color: 0xefece2, roughness: 1, map: TX.knit().map, normalMap: TX.knit().normal });
+  // 白い床にとけこまないよう、使いこんだ灰色の軍手に
+  const knit = new THREE.MeshStandardMaterial({ color: 0x8d8a82, roughness: 1, map: TX.knit().map, normalMap: TX.knit().normal });
   const rubber = new THREE.MeshStandardMaterial({ color: 0xc8342a, roughness: 0.6 });
   const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.34, 6, 14), knit);
   palm.scale.set(1, 0.32, 1); palm.rotation.x = Math.PI / 2; palm.position.y = 0.075;
@@ -971,6 +972,20 @@ export function makeHat(key) {
     const badge = new THREE.Mesh(new THREE.CircleGeometry(0.018, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     badge.position.set(0, 0.035, 0.058); badge.rotation.x = -0.5;
     g.add(cap, visor, badge);
+  } else if (key === 'santa') {
+    const red = new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.7 });
+    const white = new THREE.MeshStandardMaterial({ color: 0xf8f6f0, roughness: 0.9 });
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.13, 16), red);
+    cone.position.set(0, 0.06, -0.01); cone.rotation.x = -0.35;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.016, 8, 20), white);
+    rim.rotation.x = Math.PI / 2;
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 8), white);
+    ball.position.set(0, 0.12, -0.045);
+    g.add(cone, rim, ball);
+  } else if (key === 'mochi') {
+    const mo = makeKagamiMochi(0.32);
+    mo.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    g.add(mo);
   } else if (key === 'towel') {
     const m = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.9 });
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.014, 6, 20), m);
@@ -981,4 +996,148 @@ export function makeHat(key) {
   }
   g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; o.castShadow = true; } });
   return g;
+}
+
+// 床の排水溝（丸い鉄のふた）
+export function makeDrain() {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x6d7175, metalness: 0.8, roughness: 0.45 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 6, 28), metal);
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.02;
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.4, 28), new THREE.MeshBasicMaterial({ color: 0x0c0a08 }));
+  hole.rotation.x = -Math.PI / 2; hole.position.y = 0.008;
+  g.add(ring, hole);
+  for (let i = -3; i <= 3; i++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, Math.sqrt(Math.max(0.01, 0.16 - (i * 0.11) ** 2)) * 2), metal);
+    bar.position.set(i * 0.11, 0.02, 0);
+    g.add(bar);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; o.receiveShadow = true; } });
+  return g;
+}
+
+// 季節のかざり
+export function makeXmasTree() {
+  const g = new THREE.Group();
+  const green = new THREE.MeshStandardMaterial({ color: 0x1f5a2c, roughness: 0.8 });
+  for (let i = 0; i < 4; i++) {
+    const c = new THREE.Mesh(new THREE.ConeGeometry(1.05 - i * 0.22, 1.1, 14), green);
+    c.position.y = 0.9 + i * 0.6; c.castShadow = true;
+    g.add(c);
+  }
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.5, 10), new THREE.MeshStandardMaterial({ color: 0x5a3a1e }));
+  trunk.position.y = 0.25;
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.28, 0.4, 14), new THREE.MeshStandardMaterial({ color: 0xb0302a, roughness: 0.5 }));
+  pot.position.y = 0.2;
+  const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.2), new THREE.MeshStandardMaterial({ color: 0xffd34a, emissive: 0xffb000, emissiveIntensity: 0.8, metalness: 0.6 }));
+  star.position.y = 3.25;
+  g.add(trunk, pot, star);
+  const cols = [0xd8342a, 0xf2c31b, 0x3a7bd5, 0xf5f5f5];
+  for (let i = 0; i < 22; i++) {
+    const y = 0.7 + Math.random() * 2.2, r = (1 - (y - 0.4) / 2.9) * 0.95 + 0.05, a = Math.random() * Math.PI * 2;
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshStandardMaterial({ color: cols[i % 4], metalness: 0.5, roughness: 0.25, emissive: cols[i % 4], emissiveIntensity: 0.25 }));
+    b.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+    g.add(b);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+export function makeKadomatsu() {
+  const g = new THREE.Group();
+  const bamboo = new THREE.MeshStandardMaterial({ color: 0x4f8a3a, roughness: 0.5 });
+  const cut = new THREE.MeshStandardMaterial({ color: 0xd8e2b0 });
+  [[0, 1.5], [0.18, 1.2], [-0.18, 1.0]].forEach(([x, h]) => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, h, 12), bamboo);
+    b.position.set(x, h / 2 + 0.3, x * 0.4);
+    const top = new THREE.Mesh(new THREE.CircleGeometry(0.09, 12), cut);
+    top.position.set(x, h + 0.31, x * 0.4); top.rotation.x = -Math.PI / 2 + 0.6;
+    b.castShadow = true;
+    g.add(b, top);
+  });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0xc9a46b, roughness: 0.9, map: TX.straw().map }));
+  base.position.y = 0.3;
+  const pine = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), new THREE.MeshStandardMaterial({ color: 0x2e5a2a, roughness: 0.9 }));
+  pine.scale.set(1.2, 0.6, 1.2); pine.position.y = 0.68;
+  g.add(base, pine);
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+export function makeKagamiMochi(scale = 1) {
+  const g = new THREE.Group();
+  const mochi = new THREE.MeshStandardMaterial({ color: 0xfbf8f0, roughness: 0.6 });
+  const low = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 12), mochi); low.scale.set(1, 0.45, 1); low.position.y = 0.1;
+  const up = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 12), mochi); up.scale.set(1, 0.5, 1); up.position.y = 0.22;
+  const orange = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), new THREE.MeshStandardMaterial({ color: 0xf08a1a, roughness: 0.5 }));
+  orange.position.y = 0.33;
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: 0x2e7a2e }));
+  leaf.scale.set(1.4, 0.3, 0.7); leaf.position.set(0.04, 0.4, 0);
+  g.add(low, up, orange, leaf);
+  g.scale.setScalar(scale);
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; o.castShadow = true; } });
+  return g;
+}
+
+// 助っ人のカブトムシ（つやのある黒茶色・大きな角）
+export function makeBeetle() {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const shell = new THREE.MeshPhysicalMaterial({ color: 0x2a1408, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.15 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x120804, roughness: 0.5 });
+  const elytra = [];
+  for (const s of [-1, 1]) {
+    const e = new THREE.Group();
+    e.position.set(s * 0.005, 0.13, -0.02);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14, 0, Math.PI), shell);
+    m.scale.set(0.11, 0.1, 0.24);
+    m.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+    m.position.x = s * 0.0;
+    m.castShadow = true;
+    e.add(m);
+    body.add(e);
+    elytra.push(e);
+  }
+  const under = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), dark);
+  under.scale.set(0.11, 0.07, 0.23); under.position.set(0, 0.1, -0.02);
+  const pron = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), shell);
+  pron.scale.set(0.1, 0.08, 0.09); pron.position.set(0, 0.13, 0.2); pron.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), dark);
+  head.scale.set(0.055, 0.045, 0.05); head.position.set(0, 0.1, 0.29);
+  // 角：根もとから上へそり、先が二またに
+  const hornPts = [];
+  for (let i = 0; i <= 8; i++) { const t = i / 8; hornPts.push(new THREE.Vector3(0, 0.1 + t * t * 0.22, 0.3 + t * 0.2)); }
+  const horn = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hornPts), 16, 0.018, 8), shell);
+  for (const s of [-1, 1]) {
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.07, 8), shell);
+    tip.position.set(s * 0.025, 0.33, 0.51); tip.rotation.set(0.6, 0, s * 0.5);
+    body.add(tip);
+  }
+  const horn2 = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.1, 8), shell);
+  horn2.position.set(0, 0.2, 0.25); horn2.rotation.x = 0.9;
+  body.add(under, pron, head, horn, horn2);
+  // 透明な後ろばね（飛ぶときだけ）
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0xd8c8a0, transparent: true, opacity: 0.45, side: THREE.DoubleSide, roughness: 0.3 });
+  const wings = new THREE.Group();
+  for (const s of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), wingMat);
+    w.position.set(s * 0.17, 0.2, -0.02); w.rotation.x = -Math.PI / 2;
+    w.userData.s = s;
+    wings.add(w);
+  }
+  wings.visible = false;
+  body.add(wings);
+  const legs = [];
+  for (const z of [0.16, 0.02, -0.12]) for (const s of [-1, 1]) {
+    const L = new THREE.Group();
+    L.position.set(s * 0.09, 0.08, z);
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.01, 0.16, 6), dark);
+    a.position.set(s * 0.06, -0.03, 0); a.rotation.z = s * 1.1;
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.007, 0.14, 6), dark);
+    b.position.set(s * 0.14, -0.07, 0); b.rotation.z = s * -0.4;
+    L.add(a, b);
+    body.add(L);
+    legs.push(L);
+  }
+  root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return { root, body, elytra, wings, legs };
 }

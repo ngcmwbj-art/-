@@ -49,6 +49,16 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
           steer(p.x - C.x, p.z - C.z);
           return;
         }
+        // 新しい技：あやしまれて近づかれたら死んだふり。追われたら近くの排水溝へ
+        if (style === 'smart' && p.surface < 0 && f.state === 'INVESTIGATE' && (p.deadUses || 0) > 0 && !(p.playDead > 0) && Math.hypot(f.x - p.x, f.z - p.z) < 6) { inp.press('dead'); return; }
+        if (p.playDead > 0) return;
+        if (style === 'smart' && f.state === 'CHASE' && f.target === p && p.surface < 0 && g.drains) {
+          const D = g.drains.find((d) => Math.hypot(d.x - p.x, d.z - p.z) < 3);
+          if (D) {
+            if (Math.hypot(D.x - p.x, D.z - p.z) < 0.6) { inp.press('action'); return; }
+            steer(D.x - p.x, D.z - p.z); return;
+          }
+        }
         const danger = (f.act && !f.act.done && Math.hypot(f.act.x - p.x, f.act.z - p.z) < f.act.radius + 0.6) ||
           g.clouds.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < c.r + 0.4 && Math.abs(c.y - p.y) < 1.5);
         if (style === 'smart' && ((f.state === 'CHASE' && f.target === p) || danger)) {

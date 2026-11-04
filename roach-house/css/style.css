@@ -403,3 +403,33 @@ body.touch .order-mini { display: none; }
 #orderMini .was { opacity: 0.6; }
 .tbtn small { display: block; font-size: 10px; opacity: 0.8; }
 #tutor { z-index: 6; }
+/* 第4回会議：結果画面を短く */
+.r-news { margin: 6px 0; font-size: 14px; line-height: 1.6; }
+.r-news .new { color: var(--yellow); font-weight: 700; }
+.r-more { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.r-more summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); padding: 6px 0; }
+.r-more[open] summary { color: var(--text); }
+#result .r-stars .ok, #result .r-stars .ng { font-size: 12px; }
+.fps-note { font-size: 12px; color: var(--muted); display: block; margin-top: 4px; }
+#prompt .first-tip { display: block; font-size: 12px; font-weight: 500; white-space: normal; max-width: min(80vw, 380px); margin-top: 2px; color: var(--yellow); }
+#prompt.first { white-space: normal; text-align: center; border-color: var(--yellow); }
+body.touch #prompt.first { display: block; }
+/* 小さなお知らせ（画面の端） */
+#feed { position: absolute; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: calc(132px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 4px; pointer-events: none; max-width: min(46vw, 300px); }
+body.touch #feed { bottom: auto; top: calc(118px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); align-items: center; }
+.feed-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; background: rgba(22, 15, 10, 0.62); border-radius: 999px; padding: 3px 10px 3px 3px; animation: feedin 0.25s ease-out; }
+.feed-item i { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; background: var(--text); color: var(--ink); }
+.feed-item.good i { background: var(--leaf); }
+.feed-item.bad i { background: var(--danger); color: #fff; }
+.feed-item.radio i { background: var(--yellow); }
+.feed-item.radio { color: #ffe9a6; }
+.feed-item.out { opacity: 0; transition: opacity 0.4s; }
+@keyframes feedin { from { transform: translateX(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* 見学モード */
+#tourBar { position: absolute; left: 50%; transform: translateX(-50%); top: calc(10px + env(safe-area-inset-top, 0px)); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; width: min(96vw, 820px); pointer-events: auto; z-index: 7; }
+#tourBar .btn { padding: 6px 12px; font-size: 13px; }
+#tourBar .btn.on { background: var(--yellow); color: var(--ink); }
+#tourBar .tour-ttl { font-family: var(--font-display); color: var(--yellow); font-size: 16px; margin-right: 4px; }
+body.tour .hud-tl, body.tour .farmer-card, body.tour .hud-bl, body.tour .cmds, body.tour #orderMini, body.tour .t-egg, body.tour .t-attack, body.tour .t-dead, body.tour #greed, body.tour #pauseBtn, body.tour #tutor { display: none !important; }
+body.tour #minimap { margin-top: 64px; }
+.season-note { margin: 0 0 6px; color: var(--yellow); font-weight: 700; font-size: 13px; }
