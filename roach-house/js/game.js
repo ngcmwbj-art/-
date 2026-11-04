@@ -759,7 +759,9 @@ export class Game {
           this.sfx.thud();
           if (dp < 8) this.shake = Math.max(this.shake, 0.3);
           // 落ちた音：農場主は落ちた床だけでなく、実がなっていた株の上も見る
-          this.noise({ x: f.x, y: f.fromY > 1 ? TROUGH_TOP : 0, z: f.z }, 11, 55);
+          // 株に薬をまいたあとは、実の落ちる音に慣れて出荷を優先する
+          const wary = this.farmer && this.farmer.plantWary > this.clock;
+          this.noise({ x: f.x, y: f.fromY > 1 ? TROUGH_TOP : 0, z: f.z }, 11, wary ? 10 : 55);
         }
         f.m.position.set(f.x, f.y, f.z);
       }
@@ -1839,6 +1841,8 @@ export class Game {
       this.startAct('spray', I.plant.x, I.plant.y, I.plant.z);
       this.sprayPlants(I.plant.x, I.plant.z);
       this.say('株にも薬まいとくか。…これでしばらく収穫できねえな');
+      f.plantWary = this.clock + 40;
+      f.focusT = Math.max(f.focusT || 0, 12);
       return;
     }
     if (I.look > 3) {
