@@ -611,7 +611,7 @@ function updateCamera(dt) {
   let pitch = camState.pitch, dist = 4.6 * Z;
   if (info.underTable) { pitch = Math.min(pitch, 0.24); dist = 3.2 * Z; }
   else if (info.onTrough) { dist = 3.4 * Z; pitch = Math.max(pitch, 0.75); }
-  else if (info.underRow) { pitch = Math.min(pitch, 0.28); dist = 2.3 * Math.min(Z, 1.2); }
+  else if (info.underRow) { pitch = Math.min(pitch, 0.26); dist = 1.8; } // 株の下：さいばい槽のはしにカメラがかくれないよう近め
   if (info.flying) { dist = 5.5 * Z; pitch = 0.3; }
   if (game.state === 'over') { camState.yaw += dt * 0.25; dist = 5; pitch = 0.5; }
   if (info.focusDist) { dist = info.focusDist; pitch = Math.min(Math.max(camState.pitch, 0.2), 0.9); }
@@ -804,11 +804,19 @@ function updateLabels() {
         mk = label(`mark q ${k > 0.6 ? 'hot' : ''}`, '？');
         mk.style.setProperty('--k', k.toFixed(2));
       }
-      if (f.speechT > 0 && f.speech) {
+      // 突撃中・すぐそばでは、顔の前にふきだしを出さず、画面の上に字幕として出す（動きが見えるように）
+      const pp = g.player;
+      const close = pp.st === 'fly' || f.state === 'PANIC' || Math.hypot(pp.x - f.x, pp.z - f.z) < 3.5;
+      if (close) mk = null;
+      if (f.speechT > 0 && f.speech && !close) {
         place(label('speech', escapeHtml(f.speech)), s);
         if (mk) { const s0 = project(f.x, 8.4, f.z); if (s0 && s0.on) place(mk, s0); }
       } else if (mk) place(mk, s);
     }
+    const subOn = !!(f.speechT > 0 && f.speech && (g.player.st === 'fly' || f.state === 'PANIC' || Math.hypot(g.player.x - f.x, g.player.z - f.z) < 3.5));
+    const sub = $('subtitle');
+    if (subOn) { const t = `農場主「${f.speech}」`; if (sub.textContent !== t) sub.textContent = t; }
+    sub.hidden = !subOn || screen !== 'play';
     const I = g.inspector;
     if (I && I.m && I.speechT > 0) {
       const si = project(I.x, 5.6, I.z);
@@ -831,6 +839,7 @@ function updateLabels() {
     const gt = g.guideTarget();
     edgeArrow($('guideArrow'), screen === 'play' ? gt : null, 'guide', 0, true);
   } else {
+    $('subtitle').hidden = true;
     $('farmerArrow').hidden = true;
     $('guideArrow').hidden = true;
   }
