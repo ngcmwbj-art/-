@@ -1141,3 +1141,91 @@ export function makeBeetle() {
   root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
   return { root, body, elytra, wings, legs };
 }
+
+// 株の上の黄色い粘着シート（触ると動けなくなる）
+export function makeSheet() {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshStandardMaterial({ map: TX.stickyCard(), roughness: 0.25, metalness: 0.05, color: 0xfff2a0, emissive: 0x3a3000, emissiveIntensity: 0.6 }));
+  m.rotation.x = -Math.PI / 2;
+  m.receiveShadow = true;
+  g.add(m);
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
+// 天敵のクモ（ジョロウグモのような黄色いしま）と、白く光る巣
+export function makeSpider() {
+  const root = new THREE.Group();
+  const web = new THREE.Group();
+  const wm = new THREE.LineBasicMaterial({ color: 0xf4f8ff, transparent: true, opacity: 0.85 });
+  const pts = [];
+  const R = 0.85;
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; pts.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R)); }
+  for (let k = 1; k <= 5; k++) {
+    const r = (k / 5) * R;
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 1) / 12) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a0) * r, 0, Math.sin(a0) * r), new THREE.Vector3(Math.cos(a1) * r, 0, Math.sin(a1) * r));
+    }
+  }
+  web.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), wm));
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(R, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, depthWrite: false }));
+  glow.rotation.x = -Math.PI / 2;
+  web.add(glow);
+  web.position.y = 0.02;
+  root.add(web);
+  const body = new THREE.Group();
+  root.add(body);
+  const black = new THREE.MeshStandardMaterial({ color: 0x15120e, roughness: 0.4 });
+  const yel = new THREE.MeshStandardMaterial({ color: 0xe0b52a, roughness: 0.5 });
+  const abd = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), yel);
+  abd.scale.set(0.09, 0.07, 0.15); abd.position.set(0, 0.1, -0.12); abd.castShadow = true;
+  for (let i = 0; i < 3; i++) {
+    const st = new THREE.Mesh(new THREE.TorusGeometry(0.075 - i * 0.012, 0.012, 4, 16), black);
+    st.rotation.y = Math.PI / 2; st.position.set(0, 0.1, -0.06 - i * 0.07); st.scale.set(1, 0.85, 1);
+    body.add(st);
+  }
+  const ceph = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), black);
+  ceph.position.set(0, 0.08, 0.04);
+  body.add(abd, ceph);
+  const legs = [];
+  for (let i = 0; i < 4; i++) for (const s of [-1, 1]) {
+    const L = new THREE.Group();
+    L.position.set(s * 0.04, 0.08, 0.06 - i * 0.03);
+    L.rotation.y = s * (0.5 - i * 0.35) + (s > 0 ? 0 : Math.PI);
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 5), black);
+    a.rotation.z = -1.0; a.position.set(0.09, 0.05, 0);
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.004, 0.26, 5), black);
+    b.rotation.z = 0.55; b.position.set(0.25, 0.02, 0);
+    L.add(a, b);
+    body.add(L);
+    legs.push(L);
+  }
+  root.traverse((o) => { if (o.isMesh || o.isLine) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return { root, body, web, legs };
+}
+
+// 害虫駆除の業者（白い防護服・マスク・背中のタンクとノズル）
+export function makeExterminator() {
+  const m = makeInspector();
+  const white = new THREE.MeshStandardMaterial({ color: 0xf1f1ee, roughness: 0.85 });
+  m.root.traverse((o) => {
+    if (o.isMesh && o.material && o.material.color) {
+      const c = o.material.color.getHex();
+      if (c === 0xf2f2ee || c === 0x2e8b3e || c === 0x3b3f46) o.material = white;
+    }
+  });
+  const hood = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), white);
+  hood.scale.set(1, 1.05, 1); hood.position.y = 4.7;
+  const mask = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.2), new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.5 }));
+  mask.position.set(0, 4.55, 0.42);
+  const goggles = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.08), new THREE.MeshStandardMaterial({ color: 0x9fd0e8, roughness: 0.1, metalness: 0.3 }));
+  goggles.position.set(0, 4.78, 0.44);
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.1, 14), new THREE.MeshStandardMaterial({ color: 0xd8342a, roughness: 0.4, metalness: 0.3 }));
+  tank.position.set(0, 3.4, -0.62);
+  const wand = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.7 }));
+  wand.rotation.x = 1.2; wand.position.set(0.7, 3.0, 0.6);
+  m.root.add(hood, mask, goggles, tank, wand);
+  m.root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; o.castShadow = true; } });
+  return m;
+}

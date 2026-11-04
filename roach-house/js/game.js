@@ -3,14 +3,15 @@ import * as THREE from 'three';
 import {
   BOUNDS, ROWS, TABLES, TABLE_TOP, CRATE, CRATE_SPOTS, DOOR, PATROL_POINTS, INITIAL_TRAPS,
   PLAYER_START, FARMER_START, rowAt, tableAt, truckSlot,
-  SURFACES, PLANT_FRUITS, dropPlantFruit, resetPlantFruits, WIND_LANES, SAFE_SPOTS,
+  SURFACES, PLANT_FRUITS, dropPlantFruit, resetPlantFruits, WIND_LANES, SAFE_SPOTS, TROUGH_TOP,
 } from './world.js';
 import {
   makeRoach, animateRoach, makeFarmer, makeCrate, setCrateRot, animateFlies, makeTrap, makeEgg,
   makeCloud, makeRing, makeCone, disposeObject, makeBait, makeFogger, VEG_COLORS, makeCat, makeInspector,
   makeBento, makeGlove, makeBox, makeHat, makeDrain, makeXmasTree, makeKadomatsu, makeKagamiMochi, makeBeetle,
+  makeSheet, makeSpider, makeExterminator,
 } from './models.js';
-import { paprikaMaterial } from './paprika.js';
+import { paprikaMaterial, PAPRIKA_COLORS } from './paprika.js';
 import { seededRand } from './features.js';
 import { Grid } from './pathfind.js';
 import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectDist, inRect, setSeed } from './util.js';
@@ -61,6 +62,16 @@ export const PRANKS = [
   { id: 'playdead', text: '死んだふりで農場主に見のがしてもらう', short: '死んだふり' },
 ];
 const PLAYDEAD_USES = 3;
+// 実の熟し具合：熟した実（赤・黄・橙）は栄養たっぷり、色づきかけは中くらい、緑は少し
+const RIPE = { [PAPRIKA_COLORS.red]: 1, [PAPRIKA_COLORS.yellow]: 1, [PAPRIKA_COLORS.orange]: 1, [PAPRIKA_COLORS.turning]: 0.5, [PAPRIKA_COLORS.green]: 0.22 };
+const ripeOf = (f) => RIPE[f.hex] ?? 0.5;
+// 1つのコンテナを同時にかじれる仲間の数（おたすけ中は多め）
+const EATERS_MAX = 4, EATERS_MAX_ASSIST = 6;
+// 仲間がこの数をこえると「注意報」「大発生」
+const ALERT_N = 15, OUTBREAK_N = 25;
+// 株の見回り：短い間にこれだけ実を落とすと、農場主が株を見に来る
+const PLANT_CHECK_N = 3, PLANT_CHECK_N_ASSIST = 5;
+const SPRAY_WAIT = 60; // 殺虫剤をまいた株の実は、しばらく食べられない（本物の「収穫まで待つ日数」）
 // おたすけ：農場主を少しのんびりに
 export function assistDiff(D) {
   return { ...D, fSpeed: D.fSpeed * 0.88, susp: D.susp * 0.78, loadT: D.loadT * 1.3, sprayDmg: D.sprayDmg * 0.85, assist: true };
@@ -115,6 +126,7 @@ export class Game {
     this.stats = {
       ruined: 0, shipped: 0, born: 0, lost: 0, attacks: 0, deaths: 0, eggs: 0, chased: 0, ate: 0,
       ruinedColor: [0, 0, 0], stuck: 0, escapes: 0, nice: 0, fruits: 0, winds: 0, baits: 0, smokeSurvived: 0, seen: [],
+      phones: 0, byPlayer: 0, byNymph: 0, byOther: 0, ripeFruits: 0, maxNymphs: 0,
     };
     this.baits = [];
     this.fallers = [];
@@ -134,6 +146,9 @@ export class Game {
     this.lastDeathCause = null;
     this.pranks = { bento: false, glove: false, playdead: false };
     this.radioT = -99; this.radioLast = null;
+    this.plantHits = [];
+    this.alertLv = 0;
+    for (const f of PLANT_FRUITS) if (f.sprayed) { f.sprayed = 0; f.mesh.setColorAt(f.idx, new THREE.Color(f.hex)); f.mesh.instanceColor.needsUpdate = true; }
     this.night = !!D.night;
     this.wing = opts.wing || 'normal';
     this.tour = !!opts.tour;
@@ -194,6 +209,39 @@ export class Game {
     }
     this.beetle = null;
     this.beetleDue = BEETLE_EVERY;
+    // 株の上の黄色い粘着シート（ステージ2〜）と天敵のクモ（ステージ3〜）。場所は日替わり
+    const spotOnTrough = (avoid) => {
+      for (let k = 0; k < 40; k++) {
+        const row = ROWS[Math.floor(lr() * ROWS.length)];
+        const x = row.minX + 1.5 + lr() * (row.maxX - row.minX - 3);
+        if (Math.hypot(x - PLAYER_START.x, row.z - PLAYER_START.z) < 4) continue;
+        if (avoid.some((o) => Math.abs(o.x - x) < 2.5 && Math.abs(o.z - row.z) < 1)) continue;
+        return { x, z: row.z };
+      }
+      return { x: -6, z: ROWS[0].z };
+    };
+    const used = [];
+    this.sheets = [];
+    if (!this.tour) {
+      const ns = D.no >= 4 ? 4 : D.no >= 2 ? 3 : 0;
+      for (let i = 0; i < ns; i++) {
+        const sp = spotOnTrough(used); used.push(sp);
+        const m = makeSheet(); m.position.set(sp.x, TROUGH_TOP + 0.012, sp.z); m.rotation.y = (lr() - 0.5) * 0.4;
+        this.root.add(m);
+        this.sheets.push({ x: sp.x, z: sp.z, sheet: true, model: m });
+      }
+    }
+    this.spiders = [];
+    if (D.no >= 3 && !this.tour) {
+      for (let i = 0; i < 2; i++) {
+        const sp = spotOnTrough(used); used.push(sp);
+        const m = makeSpider(); m.root.position.set(sp.x, TROUGH_TOP, sp.z);
+        this.root.add(m.root);
+        this.spiders.push({ x: sp.x, z: sp.z, m, st: 'wait', t: 0, cd: 0, target: null });
+      }
+    }
+    this.exterm = null;
+    this.extermDone = false;
     this.boxes = BOX_SPOTS.map((b) => {
       const m = makeBox();
       m.position.set(b.x, 0, b.z);
@@ -366,6 +414,11 @@ export class Game {
     this.updateInspector(dt);
     this.updateSafeLine();
     this.updateBeetle(dt);
+    this.updateAlert(dt);
+    this.updateSheets();
+    this.updateSpiders(dt);
+    this.updateExterm(dt);
+    this.updatePhone(dt);
     const p = this.player;
     if (p && p.alive && p.hp < this.minHp - 8 && p.hp < 45) {
       this.minHp = p.hp;
@@ -473,7 +526,7 @@ export class Game {
       p.greed += 34 * dt;
       const rate = 3.5 + 12.5 * (p.greed / 100);
       if (crate) this.bite(crate, rate * dt, p); else this.biteFruit(fruit, rate * dt);
-      this.nutrition = Math.min(100, this.nutrition + rate * 0.6 * dt);
+      this.nutrition = Math.min(100, this.nutrition + rate * 0.6 * dt * (crate ? 1 : ripeOf(fruit)));
       p.hp = Math.min(p.maxHp, p.hp + rate * 0.3 * dt);
       p.h = dampAngle(p.h, Math.atan2(food.x - p.x, food.z - p.z), 6, dt);
       p.crunchT -= dt;
@@ -650,7 +703,7 @@ export class Game {
     if (!this.onTrough(r)) return null;
     let best = null, bd = 0.6;
     for (const f of PLANT_FRUITS) {
-      if (!f.alive) continue;
+      if (!f.alive || f.sprayed > this.clock) continue;
       const dy = f.y - r.y;
       if (dy < -0.4 || dy > 1.0) continue;
       const d = Math.hypot(f.x - r.x, f.z - r.z);
@@ -679,11 +732,16 @@ export class Game {
     m.castShadow = true;
     this.root.add(m);
     this.fallers.push({ m, vy: 0, x: f.x, y: f.y, z: f.z, landed: false, t: 0, spin: (rand() - 0.5) * 6 });
-    this.nutrition = Math.min(100, this.nutrition + 35);
-    if (this.player) this.player.hp = Math.min(this.player.maxHp, this.player.hp + 15);
+    // 熟した実ほど栄養たっぷり。緑の実は少しだけ
+    const rp = ripeOf(f);
+    this.nutrition = Math.min(100, this.nutrition + Math.round(35 * rp));
+    if (this.player) this.player.hp = Math.min(this.player.maxHp, this.player.hp + 15 * rp);
     this.stats.fruits++;
+    if (rp >= 1) this.stats.ripeFruits++;
     this.seen('fruit');
-    this.toast('株の実を落とした！ 栄養たっぷり。でも床に落ちる音で気づかれるかも', 'good');
+    this.toast(rp >= 1 ? '熟した実を落とした！ 栄養たっぷり' : rp >= 0.5 ? '色づきかけの実を落とした。栄養はそこそこ' : '緑の実を落とした…まだ熟してなくて栄養は少し', rp >= 1 ? 'good' : 'info');
+    // 株の見回り：食べられた場所を覚えておく
+    this.plantHits.push({ x: f.x, z: f.z, t: this.clock });
     this.events.push('fruit');
   }
 
@@ -766,7 +824,10 @@ export class Game {
     if (c.hp <= 0) this.ruinCrate(c, who);
   }
 
-  ruinCrate(c) {
+  ruinCrate(c, who) {
+    if (who && who.isPlayer) this.stats.byPlayer++;
+    else if (who) this.stats.byNymph++;
+    else this.stats.byOther++;
     c.hp = 0;
     c.rotten = true;
     c.model.flies.visible = true;
@@ -914,7 +975,10 @@ export class Game {
     if (eatTarget) {
       r.eatingCrate = eatTarget;
       r.h = dampAngle(r.h, Math.atan2(eatTarget.x - r.x, eatTarget.z - r.z), 6, dt);
-      this.bite(eatTarget, 1.5 * dt, r);
+      // 仲間は、リーダー（自分）から遠いほど働きがにぶる
+      const dl = this.player ? Math.hypot(this.player.x - r.x, this.player.z - r.z) : 0;
+      const lead = clamp(1.2 - dl / 18, 0.35, 1);
+      this.bite(eatTarget, 1.5 * dt * lead, r);
       this.noise(r, 2.5, 4 * dt);
       r.crunchT -= dt;
       if (r.crunchT <= 0) {
@@ -960,6 +1024,7 @@ export class Game {
     for (const c of this.crates) {
       if (c.rotten || c.shipped || c.carried) continue;
       const users = this.roaches.filter((o) => o.alive && o !== r && !o.isPlayer && o.ai.target === c).length;
+      if (users >= (this.diff.assist ? EATERS_MAX_ASSIST : EATERS_MAX)) continue; // 1つの箱をかじれるのは4匹まで
       const df = Math.hypot(c.x - this.farmer.x, c.z - this.farmer.z);
       const s = Math.hypot(c.x - r.x, c.z - r.z) + users * 6 + (df < 5 ? 8 : 0) + (100 - c.hp) * -0.05;
       if (s < bs) { bs = s; best = c; }
@@ -1153,7 +1218,11 @@ export class Game {
     r.struggle = 0;
     r.stuckT = 0;
     r.trapImmune = 1.6;
-    if (t) {
+    if (t && t.sheet) {
+      // 粘着シートからは、さいばい槽の上を横にぬける
+      r.x = t.x + (r.x >= t.x ? 0.7 : -0.7);
+      this.collide(r);
+    } else if (t) {
       let dx = r.x - t.x, dz = r.z - t.z;
       let d = Math.hypot(dx, dz);
       if (d < 0.01) { dx = Math.sin(r.h); dz = Math.cos(r.h); d = 1; }
@@ -1185,7 +1254,7 @@ export class Game {
     if (r.trap) r.trap = null;
     r.model.body.rotation.z = Math.PI;
     r.model.body.position.y = 0.17;
-    const cname = { spray: '殺虫剤', whack: '叩きつぶし', trap: 'ホイホイ' }[cause] || '';
+    const cname = { spray: '殺虫剤', whack: '叩きつぶし', trap: 'ホイホイ・粘着シート', smoke: 'けむり', cat: 'ネコ', spider: 'クモ', poison: '毒エサ' }[cause] || '';
     if (!r.isPlayer) {
       this.stats.lost++;
       const dp = Math.hypot(this.player.x - r.x, this.player.z - r.z);
@@ -1378,6 +1447,13 @@ export class Game {
     f.sprayCD = Math.max(0, f.sprayCD - dt);
     f.whackCD = Math.max(0, f.whackCD - dt);
     f.coneRange = this.night ? 13 : 10 + f.anger * 1.2;
+    // 電話中：立ち止まって話しこむ。足もとしか見ていない（気づきにくい）
+    if (f.phone && f.state === 'WORK') {
+      f.moveSpeed = 0;
+      f.view = f.h;
+      if (!this.calm) { const s0 = f.susp; this.sense(dt); f.susp = s0 + (f.susp - s0) * 0.25; }
+      if (f.state === 'WORK') return;
+    }
     // ネコが足にじゃれている間は動けない
     if (f.catHold > 0 && f.state !== 'PANIC' && f.state !== 'FUMIGATE') {
       f.catHold -= dt;
@@ -1434,7 +1510,10 @@ export class Game {
     }
     // 出荷に集中しているあいだは気づきにくい
     f.focusT = Math.max(0, (f.focusT || 0) - dt);
-    const mul = this.diff.susp * (1 + 0.3 * f.anger) * (f.focusT > 0 ? 0.35 : 1);
+    // 仲間が増えるほど農場主の警戒が上がる（おたすけ中はゆるめ）
+    const nN = this.nymphs.length;
+    const crowd = 1 + Math.min(0.8, Math.max(0, nN - 10) * 0.025) * (this.diff.assist ? 0.5 : 1);
+    const mul = this.diff.susp * (1 + 0.3 * f.anger) * (f.focusT > 0 ? 0.35 : 1) * crowd;
     if (best && bs > 0.04) {
       f.susp = Math.min(100, f.susp + 58 * bs * mul * dt);
       if (f.state !== 'CHASE') {
@@ -1665,7 +1744,7 @@ export class Game {
         f.timer -= dt;
         f.h = dampAngle(f.h, Math.PI / 2, 4, dt);
         if (f.timer <= 0) {
-          if (rand() < this.diff.patrolP) this.startPatrol();
+          if (rand() < this.diff.patrolP + this.alertLv * 0.12) this.startPatrol();
           else { f.phase = 'idle'; f.timer = 1.2; f.baseH = f.h; }
         }
         break;
@@ -1744,8 +1823,16 @@ export class Game {
     }
     I.look += dt;
     f.h = f.baseH + Math.sin(I.look * 1.6) * 1.0;
+    if (I.plant && I.look > 0.8 && !I.plantSprayed) {
+      // さいばい槽の上を見上げて、株に薬をまく
+      I.plantSprayed = true;
+      this.startAct('spray', I.plant.x, I.plant.y, I.plant.z);
+      this.sprayPlants(I.plant.x, I.plant.z);
+      this.say('株にも薬まいとくか。…これでしばらく収穫できねえな');
+      return;
+    }
     if (I.look > 3) {
-      if (I.spray && f.anger >= 1 && f.sprayCD <= 0) {
+      if (I.spray && !I.plant && f.anger >= 1 && f.sprayCD <= 0) {
         this.startAct('spray', I.x, I.y, I.z);
         this.say('念のため、まいとくぞ。くたばれ');
       } else if (rand() < 0.5) this.say('…チッ、気のせいか');
@@ -2361,6 +2448,229 @@ export class Game {
     }
   }
 
+  // ---------------- 仲間の数で警戒・株の見回り ----------------
+  updateAlert(dt) {
+    if (this.calm) return;
+    const n = this.nymphs.length;
+    if (n > this.stats.maxNymphs) this.stats.maxNymphs = n;
+    const lv = n >= OUTBREAK_N ? 2 : n >= ALERT_N ? 1 : 0;
+    if (lv > this.alertLv) {
+      if (lv === 1) this.radio('ラジオ「ハウスにゴキブリ注意報。農場主さん、見回りが増えそうです」', true);
+      else { this.radio('ラジオ「ゴキブリ大発生警報！ 農場主さんが本気になります」', true); this.say('なんだこの数は…！ 大発生じゃねえか！'); }
+    }
+    this.alertLv = lv;
+    const f = this.farmer;
+    // 大発生でけむり玉が早く来る
+    if (lv === 2 && n >= OUTBREAK_N + 5 && !this.fumigated && f.anger >= 2 && f.state === 'WORK' && !f.carry && !this.diff.assist) this.startFumigation();
+    // 株の見回り：短い間に何個も実を落とすと、農場主がさいばい槽の上を見に来る
+    this.plantHits = this.plantHits.filter((h) => this.clock - h.t < 45);
+    const need = this.diff.assist ? PLANT_CHECK_N_ASSIST : PLANT_CHECK_N;
+    if (!f.plantCheck && this.plantHits.length >= need && f.state === 'WORK' && !f.carry && !f.hidden) {
+      const h = this.plantHits[this.plantHits.length - 1];
+      f.plantCheck = { x: h.x, z: h.z, t: 3 };
+      this.plantHits = [];
+      this.say(pick(['ん？ さっきから実が落ちる音が…株がやられてんのか？', 'おい、株の実がかじられてるぞ…見回るか']));
+      this.radio('ラジオ「株の実が食べられているとの情報。株の見回りにご注意」');
+    }
+    if (f.plantCheck) {
+      const P = f.plantCheck;
+      P.t -= dt;
+      if (P.t <= 0 && f.state === 'WORK' && !f.carry && !f.act) {
+        const row = rowAt(P.x, P.z, 0.6) || ROWS.reduce((a, r) => (Math.abs(r.z - P.z) < Math.abs(a.z - P.z) ? r : a), ROWS[0]);
+        const sz = row.z + (f.z < row.z ? -(row.hw + 0.45) : row.hw + 0.45);
+        this.startInvestigate({ x: clamp(P.x, row.minX + 0.3, row.maxX - 0.3), y: 0, z: sz }, true);
+        f.inv.plant = { x: P.x, y: TROUGH_TOP, z: row.z };
+        f.susp = Math.max(f.susp, 45);
+        f.plantCheck = null;
+      } else if (P.t < -20) f.plantCheck = null;
+    }
+  }
+  // ---------------- 粘着シート：さいばい槽の上で触るとくっつく ----------------
+  updateSheets() {
+    for (const r of this.roaches) {
+      if (!r.alive || r.st !== 'move' || r.trapImmune > 0 || r.surface < TROUGH0 || r.y < 1) continue;
+      for (const s of this.sheets) {
+        if (Math.abs(r.x - s.x) < 0.42 && Math.abs(r.z - s.z) < 0.3) {
+          r.st = 'stuck'; r.trap = s; r.struggle = 0; r.stuckT = 0; r.eatingFruit = null;
+          if (r.isPlayer) {
+            this.sfx.stuck();
+            this.stats.stuck++;
+            this.seen('sheet');
+            this.toast('黄色い粘着シートにくっついた！ 食べるボタンを連打して脱出！', 'bad');
+            this.events.push('stuck');
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // ---------------- 天敵のクモ：さいばい槽の上の巣で待ちぶせ ----------------
+  updateSpiders(dt) {
+    for (const S of this.spiders) {
+      S.cd = Math.max(0, S.cd - dt);
+      const m = S.m;
+      m.web.children[1].material.opacity = 0.1 + Math.sin(this.clock * 2 + S.x) * 0.05;
+      if (S.st === 'wait') {
+        m.body.position.set(0, 0, 0);
+        m.body.rotation.y += dt * 0.3;
+        if (S.cd > 0) continue;
+        const prey = this.roaches.find((r) => r.alive && r.st === 'move' && r.surface >= TROUGH0 && !(r.playDead > 0) && Math.hypot(r.x - S.x, r.z - S.z) < 1.3);
+        if (prey) {
+          S.st = 'aim'; S.t = 0; S.target = prey; S.tx = prey.x; S.tz = prey.z;
+          S.ring = makeRing(0xff3b30, 0.38, 0.5, 0.75);
+          S.ring.position.set(prey.x, TROUGH_TOP + 0.04, prey.z);
+          this.root.add(S.ring);
+          if (prey.isPlayer) { this.seen('spider'); this.toast('クモの巣だ！ 赤い輪から逃げろ！', 'bad'); }
+        }
+      } else if (S.st === 'aim') {
+        S.t += dt;
+        m.body.lookAt && (m.body.rotation.y = Math.atan2(S.tx - S.x, S.tz - S.z));
+        m.body.position.y = Math.sin(this.clock * 30) * 0.01;
+        if (S.t > 0.7) {
+          // とびかかる
+          const k = Math.min(1, (S.t - 0.7) / 0.18);
+          m.body.position.set((S.tx - S.x) * k, 0, (S.tz - S.z) * k);
+          if (k >= 1) {
+            for (const r of this.roaches) {
+              if (!r.alive || r.surface < TROUGH0 || r.playDead > 0) continue;
+              if (Math.hypot(r.x - S.tx, r.z - S.tz) < 0.45) this.damage(r, r.isPlayer ? 35 : 999, 'spider');
+            }
+            this.sfx.hiss2 && this.sfx.hiss2();
+            if (S.ring) { this.root.remove(S.ring); disposeObject(S.ring); S.ring = null; }
+            S.st = 'back'; S.t = 0;
+          }
+        }
+      } else if (S.st === 'back') {
+        S.t += dt;
+        const k = Math.max(0, 1 - S.t / 1.2);
+        m.body.position.set((S.tx - S.x) * k, 0, (S.tz - S.z) * k);
+        if (k <= 0) { S.st = 'wait'; S.cd = 6; }
+      }
+    }
+  }
+
+  // ---------------- 害虫駆除の業者（ステージ5〜、仲間が大発生すると1回来る） ----------------
+  updateExterm(dt) {
+    if (this.calm || this.extermDone || this.diff.no < 5) return;
+    if (!this.exterm) {
+      if (this.alertLv < 2) return;
+      this.extermDone = false;
+      // さいばい槽の上に仲間（と自分）が多い列を2つ選ぶ
+      const score = ROWS.map((row) => ({ row, n: this.roaches.filter((r) => r.alive && r.surface >= TROUGH0 && Math.abs(r.z - row.z) < 1).length }));
+      score.sort((a, b) => b.n - a.n);
+      const rows = score.slice(0, 2).map((s) => s.row);
+      this.exterm = { st: 'warn', t: 0, rows, wp: [], wi: 0, sprayT: 0, x: DOOR.x, z: DOOR.z, h: -Math.PI / 2, phase: 0 };
+      this.toast('害虫駆除の業者が来る！ 8秒後、さいばい槽の上に薬をまく。台の下か排水溝へ！', 'warn');
+      this.radio('ラジオ「ゴキブリ大発生につき、駆除業者さんが到着しました」', true);
+      this.say('もう手に負えねえ…業者さん呼んだからな！');
+      this.sfx.siren();
+      this.seen('exterm');
+      return;
+    }
+    const E = this.exterm;
+    E.t += dt;
+    if (E.st === 'warn') {
+      if (E.t < 8) return;
+      E.m = makeExterminator();
+      this.root.add(E.m.root);
+      // 選んだ列の横を、端から端まで歩く
+      for (const row of E.rows) {
+        const sz = row.z + row.hw + 0.5;
+        E.wp.push({ x: row.maxX - 0.5, z: sz, spray: false }, { x: row.minX + 0.5, z: sz, spray: true, row });
+      }
+      E.wp.push({ x: DOOR.x, z: DOOR.z, spray: false });
+      E.st = 'walk'; E.path = this.grid.find(E.x, E.z, E.wp[0].x, E.wp[0].z); E.pi = 0;
+      return;
+    }
+    if (E.st === 'walk') {
+      const p = E.path[E.pi];
+      const W = E.wp[E.wi];
+      let moving = false;
+      if (!p) {
+        E.wi++;
+        if (E.wi >= E.wp.length) {
+          this.root.remove(E.m.root); disposeObject(E.m.root);
+          this.exterm = { st: 'gone' }; this.extermDone = true;
+          this.toast('駆除業者が帰っていった', 'info');
+          return;
+        }
+        E.path = this.grid.find(E.x, E.z, E.wp[E.wi].x, E.wp[E.wi].z); E.pi = 0;
+      } else {
+        const dx = p.x - E.x, dz = p.z - E.z, d = Math.hypot(dx, dz);
+        if (d < 0.2) E.pi++;
+        else { const st = Math.min(d, (W && W.spray ? 1.7 : 2.8) * dt); E.x += (dx / d) * st; E.z += (dz / d) * st; E.h = dampAngle(E.h, Math.atan2(dx, dz), 6, dt); moving = true; }
+      }
+      // 列の横を歩くあいだ、さいばい槽の上に薬をまく
+      if (W && W.spray && moving) {
+        E.sprayT -= dt;
+        if (E.sprayT <= 0) {
+          E.sprayT = 1.3;
+          this.spawnCloud(E.x, TROUGH_TOP, W.row.z);
+          this.sprayPlants(E.x, W.row.z);
+          this.sfx.hiss();
+        }
+      }
+      E.phase += moving ? dt * 4.5 : 0;
+      const sw = moving ? Math.sin(E.phase) * 0.5 : 0;
+      E.m.legs[0].rotation.x = sw; E.m.legs[1].rotation.x = -sw;
+      E.m.root.position.set(E.x, 0, E.z);
+      E.m.root.rotation.y = E.h;
+    }
+  }
+
+  // ---------------- JAから電話：農場主が立ち止まって話しこむ ----------------
+  updatePhone(dt) {
+    const f = this.farmer;
+    if (this.calm || !f) return;
+    if (f.phoneNext === undefined) f.phoneNext = randRange(50, 90);
+    if (!f.phone) {
+      f.phoneNext -= dt;
+      if (f.phoneNext <= 0 && f.state === 'WORK' && !f.act && !f.catHold && !f.hidden) {
+        f.phone = { t: 0, dur: randRange(7, 10) };
+        f.phoneNext = randRange(70, 120);
+        if (!this.phoneMesh) {
+          const g = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.62, 0.05), new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.3, metalness: 0.4 }));
+          const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.29, 0.54), new THREE.MeshBasicMaterial({ color: 0x9fe0ff }));
+          scr.position.z = 0.027;
+          g.add(body, scr);
+          this.phoneMesh = g;
+        }
+        this.phoneMesh.position.set(0.5, 4.55, 0.25);
+        this.phoneMesh.rotation.set(0, -0.6, 0.1);
+        f.model.root.add(this.phoneMesh);
+        this.sfx.phone && this.sfx.phone();
+        this.say(pick(['おっ、電話だ。…はい、もしもし。あ、JAさん？', 'ちょっと待て、電話だ…はいはい、JAさん、いつもどうも']));
+        this.radio('ラジオ「農場主さん、ただいまJAさんと電話中のもようです」');
+        this.events.push('phone');
+      }
+      return;
+    }
+    const P = f.phone;
+    P.t += dt;
+    if (P.t > 1.5 && P.t - dt <= 1.5) this.say(pick(['ええ、ええ…今年のパプリカは色づきがよくて…', 'はい、出荷の箱ですね…ええ、今日の分は…', 'いやあ、虫がね、ちょっと…ハハハ']));
+    if (P.t >= P.dur || f.state !== 'WORK' || f.act) {
+      if (this.phoneMesh) f.model.root.remove(this.phoneMesh);
+      if (P.t >= P.dur) this.say('…はい、どうも。失礼しまーす。…さて、どこまでやったっけな');
+      f.phone = null;
+    }
+  }
+
+  // 殺虫剤をまいた株の実は、しばらく食べられない（白っぽく見える）
+  sprayPlants(x, z) {
+    const white = new THREE.Color(0xe8ecef);
+    let n = 0;
+    for (const fr of PLANT_FRUITS) {
+      if (!fr.alive || Math.hypot(fr.x - x, fr.z - z) > 2.4) continue;
+      fr.sprayed = this.clock + SPRAY_WAIT;
+      fr.mesh.setColorAt(fr.idx, new THREE.Color(fr.hex).lerp(white, 0.55));
+      fr.mesh.instanceColor.needsUpdate = true;
+      n++;
+    }
+    return n;
+  }
+
   // ---------------- 助っ人のカブトムシ（卵10個ごとに1回） ----------------
   updateBeetle(dt) {
     if (!this.beetle) {
@@ -2653,6 +2963,7 @@ export class Game {
         poison: '毒エサは体力が多いときだけ食べよう。毒の間は隠れて待つ',
         smoke: 'けむり玉のサイレンが鳴ったら、すぐ緑の輪（出入り口・換気口）へ。緑の線をたどろう',
         cat: 'ネコは台やさいばい槽の上には来ない。鈴の音が近づいたら高い所へ',
+        spider: 'さいばい槽の上の白く光る巣にはクモがいる。巣のそばに近づかないで、ほかの株へ',
       }[this.lastDeathCause] || '見つかったら、さいばい槽の下や台の下でじっとしよう。仲間がいれば乗りかわれる';
     }
     if (s.attacks === 0) return '出荷が早かった。農場主の足もとで「突撃」すると、運んでいるコンテナを落とさせて時間をかせげる';

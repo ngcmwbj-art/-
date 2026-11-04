@@ -523,7 +523,10 @@ function showResult(res) {
     ['かかった時間', mm(res.elapsed)], ['産んだ卵', `${s.eggs} 個`],
     ['生まれた仲間', `${s.born} 匹`], ['生き残った仲間', `${res.alive} 匹`],
     ['突撃した回数', `${s.attacks} 回`], ['見つかった回数', `${s.chased} 回`],
-    ['ナイス！', `${s.nice} 回`], ['落とした実', `${s.fruits} 個`],
+    ['ナイス！', `${s.nice} 回`], ['落とした実', `${s.fruits} 個（熟した実 ${s.ripeFruits || 0}）`],
+    // 勝ち方の内訳（作戦のふり返り）
+    ['自分でダメにした箱', `${s.byPlayer || 0} 箱`], ['仲間がダメにした箱', `${s.byNymph || 0} 箱`],
+    ['カブトムシなど', `${s.byOther || 0} 箱`], ['いちばん多かった仲間', `${s.maxNymphs || 0} 匹`],
   ];
   $('rStats').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
   $('rTip').textContent = res.advice ? `次はこうしてみよう：${res.advice}` : (res.win ? '完璧な作戦でした。次のステージにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`);
@@ -955,6 +958,9 @@ function drawMinimap(dt) {
   if (g.bento && !g.bento.done) { mctx.fillStyle = '#3a6fb0'; mctx.fillRect(mx(g.bento.x) - 4, mz(g.bento.z) - 3, 8, 6); mctx.fillStyle = '#f2c94a'; mctx.fillRect(mx(g.bento.x) - 1.5, mz(g.bento.z) - 1.5, 3, 3); }
   if (g.glove) { mctx.fillStyle = '#9a9a9a'; mctx.beginPath(); mctx.arc(mx(g.glove.x), mz(g.glove.z), 3.5, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#c8342a'; mctx.lineWidth = 1.5; mctx.stroke(); }
   for (const B of g.boxes || []) { mctx.fillStyle = '#c9a26b'; mctx.fillRect(mx(B.x) - 4, mz(B.z) - 3.5, 8, 7); mctx.strokeStyle = '#5a3b1c'; mctx.lineWidth = 1; mctx.strokeRect(mx(B.x) - 4, mz(B.z) - 3.5, 8, 7); }
+  for (const Sh of g.sheets || []) { mctx.fillStyle = '#f2d21b'; mctx.fillRect(mx(Sh.x) - 4, mz(Sh.z) - 2.5, 8, 5); }
+  for (const Sp of g.spiders || []) { mctx.strokeStyle = 'rgba(255,255,255,0.9)'; mctx.lineWidth = 1; mctx.beginPath(); mctx.arc(mx(Sp.x), mz(Sp.z), 4.5, 0, 6.29); mctx.stroke(); mctx.fillStyle = '#111'; mctx.beginPath(); mctx.arc(mx(Sp.x), mz(Sp.z), 1.8, 0, 6.29); mctx.fill(); }
+  if (g.exterm && g.exterm.m) { mctx.fillStyle = '#ffffff'; mctx.beginPath(); mctx.arc(mx(g.exterm.x), mz(g.exterm.z), 4, 0, 6.29); mctx.fill(); mctx.strokeStyle = '#d8342a'; mctx.lineWidth = 1.5; mctx.stroke(); }
   for (const D of g.drains || []) { mctx.strokeStyle = '#cfd6dc'; mctx.lineWidth = 1.5; mctx.beginPath(); mctx.arc(mx(D.x), mz(D.z), 3.5, 0, 6.29); mctx.stroke(); mctx.beginPath(); mctx.moveTo(mx(D.x) - 3, mz(D.z)); mctx.lineTo(mx(D.x) + 3, mz(D.z)); mctx.stroke(); }
   for (const b of g.baits) { if (!b.alive) continue; mctx.fillStyle = '#111'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 4, 0, 6.29); mctx.fill(); mctx.fillStyle = '#f2c31b'; mctx.beginPath(); mctx.arc(mx(b.x), mz(b.z), 1.6, 0, 6.29); mctx.fill(); }
   mctx.strokeStyle = 'rgba(190,232,255,0.9)'; mctx.lineWidth = 1.5;

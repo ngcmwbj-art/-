@@ -567,6 +567,120 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       document.getElementById('btnTourEnd').click();
       check('見学モードから戻れる', !g.tour || document.getElementById('tourBar').hidden);
     }
+
+    // 47. 熟した実と緑の実
+    g.start('s1', 100); freezeFarmer();
+    {
+      const red = RH.plantFruits.find((f) => f.alive && f.hex === 0xc0170d), green = RH.plantFruits.find((f) => f.alive && f.hex === 0x2f6e1c);
+      g.nutrition = 0; g.dropFruit(red); const nr = g.nutrition;
+      g.nutrition = 0; g.dropFruit(green); const ng = g.nutrition;
+      check('熟した実は栄養たっぷり、緑の実は少し', nr >= 30 && ng <= 10, `赤${nr} 緑${ng}`);
+    }
+
+    // 48. 株の見回り：実を何個も落とすと農場主が株を見に来て、薬をまく
+    g.start('s2', 101);
+    {
+      const F = g.farmer;
+      Object.assign(F, { state: 'WORK', phase: 'idle', timer: 999, x: 0, z: 6.5, h: 0 });
+      const row = RH.rows[2];
+      const fr = RH.plantFruits.filter((f) => f.alive && Math.abs(f.z - row.z) < 0.6 && f.x > -8 && f.x < -4).slice(0, 3);
+      for (const f of fr) g.dropFruit(f);
+      Object.assign(g.player, { x: -18.5, z: 12.5, surface: -1, y: 0 });
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.timer = 999; });
+      check('実を3個落とすと農場主が気づく', !!F.plantCheck);
+      RH.sim(16, 1 / 30, (gg, i) => { idle(gg, i); if (gg.farmer.state === 'WORK') gg.farmer.timer = 999; });
+      const sprayed = RH.plantFruits.filter((f) => f.alive && f.sprayed > g.clock).length;
+      check('株に薬をまいて、その実はしばらく食べられない', sprayed > 0, `sprayed=${sprayed} st=${F.state}`);
+    }
+
+    // 49. 1つの箱をかじれるのは4匹まで・リーダーから遠いと働きがにぶい
+    g.start('s1', 102); freezeFarmer();
+    {
+      const P = g.player;
+      Object.assign(P, { x: -10, z: 2.5, surface: -1, y: 0 });
+      for (let k = 0; k < 3; k++) { g.nutrition = 100; g.tryLayEgg(P); P.x += 0.5; }
+      for (const e of [...g.eggs]) g.hatch(e);
+      const ns = g.nymphs;
+      const c = g.crates.find((cc) => cc.table < 0);
+      for (const r of ns.slice(0, 4)) r.ai.target = c;
+      const other = g.pickCrateFor(ns[4]);
+      check('5匹目はほかの箱をさがす', other && other !== c);
+      check('仲間の数に上限はない（9匹）', ns.length === 9);
+    }
+
+    // 50. 仲間が増えるほど警戒（大発生）
+    g.start('s2', 103); freezeFarmer();
+    {
+      const P = g.player;
+      for (let k = 0; k < 9; k++) { g.nutrition = 100; g.tryLayEgg(P); P.x += 0.4; }
+      for (const e of [...g.eggs]) g.hatch(e);
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('仲間が25匹をこえると大発生', g.alertLv === 2, `n=${g.nymphs.length}`);
+    }
+
+    // 51. 勝ち方の内訳
+    g.start('s1', 104); freezeFarmer();
+    {
+      const c = g.crates.find((cc) => cc.table < 0);
+      g.bite(c, 200, g.player);
+      check('自分でダメにした箱を数える', g.stats.byPlayer === 1);
+    }
+
+    // 52. JAから電話
+    g.start('s2', 105);
+    {
+      const F = g.farmer;
+      Object.assign(F, { state: 'WORK', phase: 'idle', timer: 999 });
+      F.phoneNext = 0;
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('ときどき電話がかかってくる', !!F.phone);
+      const x0 = F.x;
+      F.phase = 'choose';
+      RH.sim(3, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('電話の間は立ち止まる', Math.abs(F.x - x0) < 0.01 && !!F.phone);
+      RH.sim(9, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('電話が終わると仕事にもどる', !F.phone);
+    }
+
+    // 53. 粘着シート
+    g.start('s2', 106); freezeFarmer();
+    {
+      const S = g.sheets[0];
+      check('ステージ2から粘着シートがある', g.sheets.length >= 3);
+      const P = g.player;
+      const row = RH.rows.find((r) => Math.abs(r.z - S.z) < 0.1);
+      Object.assign(P, { x: S.x + 0.8, z: S.z, surface: 3 + RH.rows.indexOf(row), y: 1.48, st: 'move', trapImmune: 0 });
+      RH.sim(1, 1 / 30, (gg, i) => { idle(gg, i); i.mx = 0; i.mz = 0; const fx = Math.sin(gg.camYaw), fz = Math.cos(gg.camYaw); i.mz = -fx; i.mx = fz; freezeFarmer(); });
+      check('粘着シートにくっつく', P.st === 'stuck' && P.trap && P.trap.sheet, `st=${P.st} x=${P.x.toFixed(2)} sx=${S.x.toFixed(2)}`);
+      RH.sim(3, 1 / 30, (gg, i, k) => { idle(gg, i); if (k % 3 === 0) inp.press('action'); freezeFarmer(); });
+      check('連打でぬけ出せる', P.st === 'move' && P.y > 1);
+    }
+
+    // 54. クモ
+    g.start('s3', 107); freezeFarmer();
+    {
+      check('ステージ3からクモがいる', g.spiders.length === 2);
+      const S = g.spiders[0], P = g.player;
+      const row = RH.rows.find((r) => Math.abs(r.z - S.z) < 0.1);
+      Object.assign(P, { x: S.x + 1.0, z: S.z, surface: 3 + RH.rows.indexOf(row), y: 1.48, st: 'move', hp: 100 });
+      RH.sim(1.5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('近づくとクモがとびかかる', P.hp < 100, `hp=${P.hp}`);
+    }
+
+    // 55. 害虫駆除の業者
+    g.start('s5', 108); freezeFarmer();
+    {
+      const P = g.player;
+      Object.assign(P, { x: -16, z: -12, surface: -1, y: 0 });
+      for (let k = 0; k < 9; k++) { g.nutrition = 100; g.tryLayEgg(P); P.x += 0.3; }
+      for (const e of [...g.eggs]) g.hatch(e);
+      g.farmer.anger = 0;
+      RH.sim(0.3, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('大発生で駆除業者の予告が出る', g.exterm && g.exterm.st === 'warn');
+      let hi = false;
+      RH.sim(30, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); if (gg.clouds.some((c) => c.y > 1)) hi = true; });
+      check('業者がさいばい槽の上に薬をまく', hi, `st=${g.exterm && g.exterm.st}`);
+    }
     return out;
   });
   console.log(results.join('\n'));
