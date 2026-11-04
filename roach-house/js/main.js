@@ -822,6 +822,15 @@ function updateLabels() {
     const sub = $('subtitle');
     if (subOn) { const t = `農場主「${f.speech}」`; if (sub.textContent !== t) sub.textContent = t; }
     sub.hidden = !subOn || screen !== 'play';
+    // クモの名札と、ねらわれたときの「！」
+    for (const S of g.spiders || []) {
+      const d = Math.hypot(S.x - g.player.x, S.z - g.player.z);
+      if (d > 9) continue;
+      const sp = project(S.x, 1.75, S.z);
+      if (!sp || !sp.on) continue;
+      if (S.st === 'aim') place(label('mark x', '！'), sp);
+      else place(label('tag-spider', 'クモ'), sp);
+    }
     const I = g.inspector;
     if (I && I.m && I.speechT > 0) {
       const si = project(I.x, 5.6, I.z);

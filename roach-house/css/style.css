@@ -436,3 +436,4 @@ body.tour #minimap { margin-top: 64px; }
 /* 突撃中の農場主のセリフは画面の上に字幕で */
 #subtitle { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(170px + env(safe-area-inset-bottom, 0px)); max-width: min(56vw, 520px); font-size: 14px; font-weight: 700; color: #fffaf0; background: rgba(22, 15, 10, 0.55); border-radius: 8px; padding: 4px 12px; text-align: center; pointer-events: none; text-shadow: 0 1px 2px #000; }
 body.touch #subtitle { bottom: auto; top: calc(56px + env(safe-area-inset-top, 0px)); font-size: 12px; }
+.tag-spider { font-size: 12px; font-weight: 700; color: #fff; background: rgba(200, 36, 26, 0.85); border-radius: 6px; padding: 1px 6px; }

@@ -1161,62 +1161,77 @@ export function makeSheet() {
 }
 
 // 天敵のクモ（ジョロウグモのような黄色いしま）と、白く光る巣
+// 巣は通路から見えるよう、さいばい槽のふちに縦に張る（太い糸で、葉の中でも分かるように）
 export function makeSpider() {
   const root = new THREE.Group();
   const web = new THREE.Group();
-  const wm = new THREE.LineBasicMaterial({ color: 0xf4f8ff, transparent: true, opacity: 0.85 });
-  const pts = [];
-  const R = 0.85;
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; pts.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R)); }
-  for (let k = 1; k <= 5; k++) {
-    const r = (k / 5) * R;
-    for (let i = 0; i < 12; i++) {
-      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 1) / 12) * Math.PI * 2;
-      pts.push(new THREE.Vector3(Math.cos(a0) * r, 0, Math.sin(a0) * r), new THREE.Vector3(Math.cos(a1) * r, 0, Math.sin(a1) * r));
-    }
+  const silk = new THREE.MeshBasicMaterial({ color: 0xf6faff, transparent: true, opacity: 0.9 });
+  const R = 0.62, CY = 0.7;
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, R, 4), silk);
+    sp.position.set(Math.cos(a) * R / 2, CY + Math.sin(a) * R / 2, 0);
+    sp.rotation.z = a - Math.PI / 2;
+    web.add(sp);
   }
-  web.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), wm));
-  const glow = new THREE.Mesh(new THREE.CircleGeometry(R, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, depthWrite: false }));
-  glow.rotation.x = -Math.PI / 2;
+  for (let k = 1; k <= 4; k++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry((k / 4) * R, 0.011, 4, 24), silk);
+    ring.position.y = CY;
+    web.add(ring);
+  }
+  // 巣をささえる糸（さいばい槽のふちから）
+  for (const s of [-1, 1]) {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, CY, 4), silk);
+    t.position.set(s * R * 0.7, CY / 2, 0);
+    web.add(t);
+  }
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(R * 1.05, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide }));
+  glow.position.y = CY;
   web.add(glow);
-  web.position.y = 0.02;
   root.add(web);
-  // 株のあいだに縦に張った巣（葉の上からも見える）
-  const vweb = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), wm);
-  vweb.rotation.x = Math.PI / 2;
-  vweb.scale.setScalar(0.75);
-  vweb.position.y = 0.75;
-  root.add(vweb);
+  // ぶら下がる糸（クモが降りてくるとき）
+  const thread = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 1, 4), silk);
+  thread.visible = false;
+  root.add(thread);
   const body = new THREE.Group();
-  body.scale.setScalar(1.5);
+  body.scale.setScalar(2.6);
+  body.position.y = CY;
   root.add(body);
   const black = new THREE.MeshStandardMaterial({ color: 0x15120e, roughness: 0.4 });
-  const yel = new THREE.MeshStandardMaterial({ color: 0xe0b52a, roughness: 0.5 });
+  const yel = new THREE.MeshStandardMaterial({ color: 0xf0c22a, roughness: 0.45, emissive: 0x3a2a00, emissiveIntensity: 0.4 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xc8241a, roughness: 0.5 });
   const abd = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), yel);
-  abd.scale.set(0.09, 0.07, 0.15); abd.position.set(0, 0.1, -0.12); abd.castShadow = true;
+  abd.scale.set(0.07, 0.06, 0.12); abd.position.set(0, 0.06, -0.1); abd.castShadow = true;
   for (let i = 0; i < 3; i++) {
-    const st = new THREE.Mesh(new THREE.TorusGeometry(0.075 - i * 0.012, 0.012, 4, 16), black);
-    st.rotation.y = Math.PI / 2; st.position.set(0, 0.1, -0.06 - i * 0.07); st.scale.set(1, 0.85, 1);
+    const st = new THREE.Mesh(new THREE.TorusGeometry(0.058 - i * 0.01, 0.01, 4, 16), black);
+    st.rotation.y = Math.PI / 2; st.position.set(0, 0.06, -0.05 - i * 0.055); st.scale.set(1, 0.9, 1);
     body.add(st);
   }
-  const ceph = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), black);
-  ceph.position.set(0, 0.08, 0.04);
-  body.add(abd, ceph);
+  const spot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), red);
+  spot.position.set(0, 0.03, -0.2);
+  const ceph = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), black);
+  ceph.position.set(0, 0.05, 0.03);
+  body.add(abd, ceph, spot);
+  for (const s of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.009, 6, 5), new THREE.MeshBasicMaterial({ color: 0xff3020 }));
+    eye.position.set(s * 0.014, 0.075, 0.07);
+    body.add(eye);
+  }
   const legs = [];
   for (let i = 0; i < 4; i++) for (const s of [-1, 1]) {
     const L = new THREE.Group();
-    L.position.set(s * 0.04, 0.08, 0.06 - i * 0.03);
+    L.position.set(s * 0.03, 0.05, 0.05 - i * 0.025);
     L.rotation.y = s * (0.5 - i * 0.35) + (s > 0 ? 0 : Math.PI);
-    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 5), black);
-    a.rotation.z = -1.0; a.position.set(0.09, 0.05, 0);
-    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.004, 0.26, 5), black);
-    b.rotation.z = 0.55; b.position.set(0.25, 0.02, 0);
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.17, 5), black);
+    a.rotation.z = -1.0; a.position.set(0.07, 0.04, 0);
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.004, 0.2, 5), yel);
+    b.rotation.z = 0.55; b.position.set(0.19, 0.015, 0);
     L.add(a, b);
     body.add(L);
     legs.push(L);
   }
-  root.traverse((o) => { if (o.isMesh || o.isLine) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
-  return { root, body, web, legs };
+  root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return { root, body, web, legs, thread, glow, webY: CY };
 }
 
 // 害虫駆除の業者（白い防護服・マスク・背中のタンクとノズル）

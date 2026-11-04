@@ -71,7 +71,8 @@ const EATERS_MAX = 4, EATERS_MAX_ASSIST = 6;
 const ALERT_N = 15, OUTBREAK_N = 25;
 // 株の見回り：短い間にこれだけ実を落とすと、農場主が株を見に来る
 const PLANT_CHECK_N = 3, PLANT_CHECK_N_ASSIST = 5;
-const SPRAY_WAIT = 60; // 殺虫剤をまいた株の実は、しばらく食べられない（本物の「収穫まで待つ日数」）
+const SPRAY_WAIT = 60;
+const SPIDER_BASE = 0.22; // クモの巣の下のはしの高さ（巣のまん中は さいばい槽のふちより少し下） // 殺虫剤をまいた株の実は、しばらく食べられない（本物の「収穫まで待つ日数」）
 // おたすけ：農場主を少しのんびりに
 export function assistDiff(D) {
   return { ...D, fSpeed: D.fSpeed * 0.88, susp: D.susp * 0.78, loadT: D.loadT * 1.3, sprayDmg: D.sprayDmg * 0.85, assist: true };
@@ -235,9 +236,13 @@ export class Game {
     if (D.no >= 3 && !this.tour) {
       for (let i = 0; i < 2; i++) {
         const sp = spotOnTrough(used); used.push(sp);
-        const m = makeSpider(); m.root.position.set(sp.x, TROUGH_TOP + 0.05, sp.z);
+        // 巣はさいばい槽のふち（通路がわ）に縦に張る
+        const side = lr() < 0.5 ? -1 : 1;
+        // 巣はさいばい槽の横の壁（葉の下）に張る。通路からよく見える
+        const sz = sp.z + side * 0.64;
+        const m = makeSpider(); m.root.position.set(sp.x, SPIDER_BASE, sz);
         this.root.add(m.root);
-        this.spiders.push({ x: sp.x, z: sp.z, m, st: 'wait', t: 0, cd: 0, target: null });
+        this.spiders.push({ x: sp.x, z: sz, m, st: 'wait', t: 0, cd: 0, target: null });
       }
     }
     this.exterm = null;
@@ -2523,29 +2528,38 @@ export class Game {
   updateSpiders(dt) {
     for (const S of this.spiders) {
       S.cd = Math.max(0, S.cd - dt);
-      const m = S.m;
-      m.web.children[1].material.opacity = 0.1 + Math.sin(this.clock * 2 + S.x) * 0.05;
+      const m = S.m, wy = m.webY;
+      m.glow.material.opacity = 0.16 + Math.sin(this.clock * 2 + S.x) * 0.06;
+      m.legs.forEach((L, i) => { L.rotation.x = Math.sin(this.clock * (S.st === 'wait' ? 1.5 : 14) + i) * (S.st === 'wait' ? 0.05 : 0.3); });
       if (S.st === 'wait') {
-        m.body.position.set(0, 0, 0);
-        m.body.rotation.y += dt * 0.3;
+        // 巣のまん中で待つ
+        m.body.position.set(0, wy, 0.02);
+        m.body.rotation.set(-Math.PI / 2, 0, 0);
+        m.thread.visible = false;
         if (S.cd > 0) continue;
-        const prey = this.roaches.find((r) => r.alive && r.st === 'move' && r.surface >= TROUGH0 && !(r.playDead > 0) && Math.hypot(r.x - S.x, r.z - S.z) < 1.3);
+        const prey = this.roaches.find((r) => r.alive && r.st === 'move' && r.surface >= TROUGH0 && !(r.playDead > 0) && Math.hypot(r.x - S.x, r.z - S.z) < 1.5);
         if (prey) {
           S.st = 'aim'; S.t = 0; S.target = prey; S.tx = prey.x; S.tz = prey.z;
           S.ring = makeRing(0xff3b30, 0.38, 0.5, 0.75);
-          S.ring.position.set(prey.x, TROUGH_TOP + 0.04, prey.z);
+          S.ring.position.set(prey.x, TROUGH_TOP + 0.06, prey.z);
           this.root.add(S.ring);
-          if (prey.isPlayer) { this.seen('spider'); this.toast('クモの巣だ！ 赤い輪から逃げろ！', 'bad'); }
+          if (prey.isPlayer) { this.seen('spider'); this.toast('クモが巣からおりてきた！ 赤い輪から逃げろ！', 'bad'); }
         }
       } else if (S.st === 'aim') {
+        // 糸をつたって、さいばい槽の上へおりてくる
         S.t += dt;
-        m.body.lookAt && (m.body.rotation.y = Math.atan2(S.tx - S.x, S.tz - S.z));
-        m.body.position.y = Math.sin(this.clock * 30) * 0.01;
-        if (S.t > 0.7) {
+        const k = Math.min(1, S.t / 0.7);
+        // 壁の巣から、さいばい槽のふちへよじのぼる
+        const topY = TROUGH_TOP - SPIDER_BASE + 0.02;
+        m.body.position.set(0, wy + (topY - wy) * k, -Math.sign(S.z - (S.target ? S.target.z : S.z)) * 0.4 * k);
+        m.body.rotation.set(-Math.PI / 2 * (1 - k), Math.atan2(S.tx - S.x, S.tz - S.z), 0);
+        m.thread.visible = false;
+        if (S.t > 0.9) {
           // とびかかる
-          const k = Math.min(1, (S.t - 0.7) / 0.18);
-          m.body.position.set((S.tx - S.x) * k, 0, (S.tz - S.z) * k);
-          if (k >= 1) {
+          const k2 = Math.min(1, (S.t - 0.9) / 0.18);
+          const topY2 = TROUGH_TOP - SPIDER_BASE + 0.02;
+          m.body.position.set((S.tx - S.x) * k2, topY2, (S.tz - S.z) * k2);
+          if (k2 >= 1) {
             for (const r of this.roaches) {
               if (!r.alive || r.surface < TROUGH0 || r.playDead > 0) continue;
               if (Math.hypot(r.x - S.tx, r.z - S.tz) < 0.45) this.damage(r, r.isPlayer ? 35 : 999, 'spider');
@@ -2557,9 +2571,11 @@ export class Game {
         }
       } else if (S.st === 'back') {
         S.t += dt;
-        const k = Math.max(0, 1 - S.t / 1.2);
-        m.body.position.set((S.tx - S.x) * k, 0, (S.tz - S.z) * k);
-        if (k <= 0) { S.st = 'wait'; S.cd = 6; }
+        const k = Math.min(1, S.t / 1.4);
+        const topY3 = TROUGH_TOP - SPIDER_BASE + 0.02;
+        m.body.position.set((S.tx - S.x) * (1 - k), topY3 + (wy - topY3) * k, 0.02 * k);
+        m.body.rotation.set(-Math.PI / 2 * k, 0, 0);
+        if (k >= 1) { S.st = 'wait'; S.cd = 6; }
       }
     }
   }

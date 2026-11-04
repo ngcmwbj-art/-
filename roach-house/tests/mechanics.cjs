@@ -661,8 +661,8 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     {
       check('ステージ3からクモがいる', g.spiders.length === 2);
       const S = g.spiders[0], P = g.player;
-      const row = RH.rows.find((r) => Math.abs(r.z - S.z) < 0.1);
-      Object.assign(P, { x: S.x + 1.0, z: S.z, surface: 3 + RH.rows.indexOf(row), y: 1.48, st: 'move', hp: 100 });
+      const row = RH.rows.reduce((a, r) => (Math.abs(r.z - S.z) < Math.abs(a.z - S.z) ? r : a), RH.rows[0]);
+      Object.assign(P, { x: S.x + 1.0, z: row.z, surface: 3 + RH.rows.indexOf(row), y: 1.48, st: 'move', hp: 100 });
       RH.sim(1.5, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
       check('近づくとクモがとびかかる', P.hp < 100, `hp=${P.hp}`);
     }
