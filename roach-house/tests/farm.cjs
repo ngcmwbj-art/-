@@ -10,7 +10,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   await page.waitForFunction(() => window.__rh && window.__rh.game);
   const runs = process.env.RUNS ? JSON.parse(process.env.RUNS) : [['s1', 1], ['s3', 1], ['s5', 1]];
   for (const [diff, seed] of runs) {
-    const r = await page.evaluate(({ diff, seed }) => {
+    const r = await page.evaluate(({ diff, seed, process_trace }) => {
       const RH = window.__rh, g = RH.game;
       g.start(diff, seed * 7919);
       g.setMode('search');
@@ -37,16 +37,17 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
         let best = null, bd = 1e9;
         for (const f of RH.plantFruits) {
           if (!f.alive || (f.sprayed && f.sprayed > gg.clock)) continue;
-          if (Math.abs(f.z - p.z) > 0.7) continue;
-          const d = Math.abs(f.x - p.x);
+          if (Math.abs(f.z - p.z) > 0.7 || f.y - p.y < -0.4 || f.y - p.y > 1.0) continue;
+          const d = Math.abs(f.x - p.x) + Math.abs(f.z - p.z);
           if (d < bd) { bd = d; best = f; }
         }
         if (best) steer(best.x - p.x, best.z - p.z);
       };
-      const res = RH.sim(900, 1 / 30, (gg, inp) => step(gg, inp));
+      const trace = [];
+      const res = RH.sim(900, 1 / 30, (gg, inp, i) => { step(gg, inp); if (process_trace && i % 150 === 0) { const p = gg.player; trace.push([Math.round(i / 30), p.x.toFixed(1), p.z.toFixed(1), p.y.toFixed(1), p.st, gg.farmer.state, Math.round(gg.nutrition), gg.nymphs.length, (gg.context() || {}).text]); } });
       const s = g.stats;
-      return { diff, seed, res: g.result ? { win: g.result.win, reason: g.result.reason, time: Math.round(g.result.elapsed) } : null, ruined: g.ruined, shipped: g.shipped, maxNymphs: s.maxNymphs, byNymph: s.byNymph, byPlayer: s.byPlayer, fruits: s.fruits, deaths: s.deaths, issues: res };
-    }, { diff, seed });
+      return { diff, seed, res: g.result ? { win: g.result.win, reason: g.result.reason, time: Math.round(g.result.elapsed) } : null, ruined: g.ruined, shipped: g.shipped, maxNymphs: s.maxNymphs, byNymph: s.byNymph, byPlayer: s.byPlayer, fruits: s.fruits, deaths: s.deaths, issues: res, trace: trace.slice(0, 14) };
+    }, { diff, seed, process_trace: !!process.env.TRACE });
     console.log(JSON.stringify(r));
   }
   await browser.close();
