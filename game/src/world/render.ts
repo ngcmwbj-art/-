@@ -907,7 +907,7 @@ export class Renderer {
     // one (screen is associative: a ⊕ b ⊕ c), masked once and screened once;
     // the small ones (the canal, the stream, the paddy) touch only their rects.
     const [mc, mctx] = this.skyMask;
-    const dk = f.light.hasDark ? f.light.darkK() : -1;
+    const dk = f.light.hasDark ? f.light.darkShade() : -1;
     const vKey = `${cx},${cy},${dk}`;
     if (this.skyMaskKey !== vKey) {
       this.skyMaskKey = vKey;

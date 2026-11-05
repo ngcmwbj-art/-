@@ -14,7 +14,9 @@
 //     重ならない。平ら：通り抜けられる。調べないと 何も 起きない）。群れの 真下に 立って 調べる → 〔下から〕、
 //     となりの マスから 向いて 調べる → 〔横から〕（はじめての〔横から〕で 1ぴきの 前に 回りこむ）。
 //   ・大写し「群れ」MurePanel：会話の あと ←→ で 上から・下から・横からを 見くらべる。まだ 見て いない 見え方は
-//     「どこに 立てば 見えるか」の 字（会議 10-31：横から 見るのに 立つ 所が 分かる ように）。けってい・もどる で 閉じる。
+//     「どこに 立てば 見えるか」の 字（会議 10-31：横から 見るのに 立つ 所が 分かる ように）。もどる だけで 閉じる
+//     （会議 11-02 の 1：見え方の 札は 切りかえだけ〈TouchPick.switchOnly〉。2回 さわっても けってい で 閉じない。
+//     札は ボタンらしく、ふちを 太く、押すと 色が 変わる）。
 //   ・見え方が 3つ そろうと グソっ君「ツリノに 言いに 行こ」、ツリノに もう一度「！」→ 背中と 腹 → 朱肉 +2、
 //     みました帳③の すみ（flag_mr_done）。
 //   ・かくし：図鑑『みずべ』（flag_mizube_book／2）→ 背中と 腹の あと 地の文（flag_mr_zukan）／来た おぴぃ（防波堤 (19,32)）
@@ -172,10 +174,16 @@ const CH = PH - 8;
 /** 右の 列（数・見え方の 札・キー）。 */
 const RX = SX + 206;
 const SW = RX - SX - 4;
-const TAB_Y = 34;
-const TAB_H = 14;
-const KEYS_Y = 80;
+const TAB_Y = 30;
+const TAB_H = 18;
+const KEYS_Y = 84;
 const INK = '#2A2236';
+/** 見え方の 札を 押した 色の 時間（ms）。 */
+const TAB_PRESS_MS = 220;
+/** 見え方の 札 i の 四角（ボタン。さわる 当たりも 同じ）。 */
+function tabBox(i: number, oy: number): [number, number, number, number] {
+  return [RX - 2, oy + TAB_Y + i * TAB_H - 1, SX + CW - RX - 2, TAB_H - 1];
+}
 
 /** 群れの 魚の 並び（scene の 中の 割合 0〜1）。大きさで 数が ちがう（数は 言わない）。 */
 const LAYOUT: Record<Size, [number, number][]> = {
@@ -199,31 +207,39 @@ export class MurePanel implements Widget {
   one = false;
   /** ←→ で 見くらべる あいだ（会話の あと）。 */
   active = false;
-  /** けってい・もどる で 閉じた（台本が 読む）。 */
+  /** もどる で 閉じた（台本が 読む）。 */
   closed = false;
-  private armT = 0;
   private autoT = 0;
+  /** 最後に 押した 札と その 時（this.t。押した 色を 少し 出す）。 */
+  private pressI = -1;
+  private pressT = -1e9;
 
   constructor(view: View, size: Size) {
     this.view = view;
     this.size = size;
   }
 
-  /** 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：右の 3つの 見え方の 札。 */
+  /**
+   * 指で さわって 選ぶ（改善会議 2026-10-30 の1、ui/closeup.ts）：右の 3つの 見え方の 札。
+   * 切りかえだけ（11-02 の 1）：2回 さわっても けってい に しない（前は けってい＝閉じる に なって いた）。
+   */
   touchPick: TouchPick = {
-    spots: () => (!this.active || this.auto || this.open < 1 ? null : pickRows(3, (i) => [RX - 2, SY + TAB_Y + i * TAB_H - 1, SX + CW - RX, TAB_H])),
+    spots: () => (!this.active || this.auto || this.open < 1 ? null : pickRows(3, (i) => tabBox(i, SY))),
     cursor: () => VIEW_ORDER.indexOf(this.view),
     moveTo: (i) => this.go(i),
+    switchOnly: true,
   };
 
   private go(i: number): void {
     const n = Math.max(0, Math.min(VIEW_ORDER.length - 1, i));
+    this.pressI = n;
+    this.pressT = this.t;
     if (VIEW_ORDER[n] === this.view) return;
     this.view = VIEW_ORDER[n];
     se('se_cursor', { vol: 0.4 });
   }
 
-  /** もどる＝閉じる（見くらべは いつ やめても よい。台本は ふつうに 続く）。 */
+  /** もどる＝閉じる（見くらべは いつ やめても よい。台本は ふつうに 続く。閉じるのは これ だけ）。 */
   quittable(): boolean {
     return this.active;
   }
@@ -235,11 +251,7 @@ export class MurePanel implements Widget {
 
   update(dt: number, input: Input): void {
     this.t += dt;
-    if (!this.active) {
-      this.armT = 0;
-      return;
-    }
-    this.armT += dt;
+    if (!this.active) return;
     if (this.auto) {
       this.autoT += dt;
       if (this.autoT > 500) this.closed = true;
@@ -247,10 +259,7 @@ export class MurePanel implements Widget {
     }
     const lr = (input.pressed('right') ? 1 : 0) - (input.pressed('left') ? 1 : 0);
     if (lr) this.go(VIEW_ORDER.indexOf(this.view) + lr);
-    if (this.armT > 400 && input.pressed('confirm')) {
-      this.closed = true;
-      se('se_cancel', { vol: 0.3 });
-    }
+    // (けってい では 閉じない：さわった 札の けってい と 重なって 閉じて しまった〈11-02 の 1〉。閉じるのは もどる)
   }
 
   draw(g: Gfx): void {
@@ -365,13 +374,22 @@ export class MurePanel implements Widget {
   private drawSide(g: Gfx, oy: number): void {
     g.text(MR_UI.mie(mrViewCount()), RX, oy + 2, { color: '#F4ECD8' });
     g.text(MR_UI.mure(mrMureCount()), RX, oy + 16, { color: '#F4ECD8' });
+    // 見え方の 札：ボタンらしく（ふち 2 px、押すと 一瞬 明るい 色に 変わって 1 px 沈む。11-02 の 1）
     VIEW_ORDER.forEach((v, i) => {
-      const y = oy + TAB_Y + i * TAB_H;
+      const [bx, by, bw, bh] = tabBox(i, oy);
       const on = v === this.view;
       const seen = flag(VIEW_F[v]) > 0;
-      if (on) for (let r = 0; r < 4; r++) g.rect(RX + r, y + 3 + r, 1, 9 - r * 2, '#FFE7A3');
-      g.text(MR_UI.view[v], RX + 8, y, { color: on ? '#FFE7A3' : seen ? '#F4ECD8' : '#8A84A0' });
-      if (!seen) g.text('？', RX + 8 + g.measure(MR_UI.view[v]) + 2, y, { color: '#8A84A0' });
+      const pressed = this.active && i === this.pressI && this.t - this.pressT < TAB_PRESS_MS;
+      const sink = pressed ? 1 : 0;
+      if (!pressed) g.rect(bx, by + bh, bw, 1, '#12101C');
+      g.rect(bx, by + sink, bw, bh, pressed ? '#FFE7A3' : on ? '#4A4058' : '#2E2A40');
+      g.frame(bx, by + sink, bw, bh, pressed ? '#FFF6D8' : on ? '#FFE7A3' : seen ? '#8A84A0' : '#5A5472');
+      g.frame(bx + 1, by + 1 + sink, bw - 2, bh - 2, pressed ? '#FFF6D8' : on ? '#FFE7A3' : seen ? '#8A84A0' : '#5A5472');
+      const ty = by + 2 + sink;
+      const col = pressed ? INK : on ? '#FFE7A3' : seen ? '#F4ECD8' : '#8A84A0';
+      if (on) for (let r = 0; r < 4; r++) g.rect(RX + 2 + r, ty + 2 + r, 1, 9 - r * 2, col);
+      g.text(MR_UI.view[v], RX + 8, ty, { color: col });
+      if (!seen) g.text('？', RX + 8 + g.measure(MR_UI.view[v]) + 2, ty, { color: pressed ? INK : '#8A84A0' });
     });
     if (!this.active) return;
     MR_UI.keys.forEach((l, i) => g.text(l, RX, oy + KEYS_Y + i * 14, { color: i === 0 ? '#FFE7A3' : '#8A84A0' }));

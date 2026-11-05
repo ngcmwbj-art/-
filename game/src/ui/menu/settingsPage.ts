@@ -19,7 +19,8 @@ import { clearLeft, clearRight, drawHeader, LP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
 // しるし（あり・なし）：調べられる物の きらりと、ヒントの行き先の「！」（改善会議 2026-10-20、world/marks.ts）
-// 明るさ（ふつう・あかるい）：夜・建物の中など 暗い所の 持ち上げ（改善会議 2026-10-22、hd2d/view.ts darkLift）
+// 明るさ（ふつう・あかるい）：夜・建物の中など 暗い所の 持ち上げ（改善会議 2026-10-22、hd2d/view.ts darkLift）。
+// 旧水族館の 暗い部屋も 少し うすく（改善会議 2026-11-02 の2、world/lantern.ts darkShade）
 // ひらがな（なし・あり）：会話の むずかしい 言葉を ひらがなに（改善会議 2026-10-28 の 4、ui/kana.ts）。
 // （7行目。1回の 会議で ふやす 行は 1行まで。行が 7つに なったので、はじめの 行を 4px 上げ、下の 説明を 6px 下げ、
 //   行の 間を 17px に つめた：テープ 18px の 下の 1px が 次の 行に かかる だけ）
@@ -208,7 +209,7 @@ export class SettingsPage implements MenuPage {
       g.text('調べられる 物と、', nx, ny, { color: UI.pencil });
       g.text('行き先の 上に「！」を 出す。', nx, ny + 17, { color: UI.pencil });
     } else if (row === 5) {
-      g.text('夜や 建物の 中が 暗いときは、', nx, ny, { color: UI.pencil });
+      g.text('夜や 建物の 中、暗い 部屋も、', nx, ny, { color: UI.pencil });
       g.text('あかるい に すると 見やすい。', nx, ny + 17, { color: UI.pencil });
     } else if (row === 6) {
       g.text('むずかしい 言葉を、', nx, ny, { color: UI.pencil });

@@ -721,6 +721,16 @@ registerScript('obj_fb_funa', function* (): Co {
   f.refreshPresence();
 });
 
+// 軍手は こすらずに 窓が 閉じたら（段階2・ナリオサメの あと・クリア後）、何も 言わずに 箱へ もどる
+// （ゴロウが 1人で こする 船揚げ場の 箱。改善会議 2026-11-02 の5、docs/game/key_items.md）
+registerWorldFx({
+  map: '',
+  update() {
+    if (!state.inventory.includes(GUNTE)) return;
+    if (c3Stage() >= 2 || flag('flag_ch3_nariosame_beaten') || !inCh3()) while (state.inventory.includes(GUNTE)) removeItem(GUNTE);
+  },
+});
+
 /** 4 落ちた 殻（すんだ あと）。 */
 registerScript('obj_fb_kara', function* (): Co {
   se('se_examine');

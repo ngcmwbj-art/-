@@ -18,7 +18,8 @@
 //   3 3枚（どの 順でも）：2枚目の あと グソっ君「わいも、目、大きい ほうやで」、3枚目の あと「待っとったら、…」。
 //   4 部屋の 出口の 戸の 前（(1,2) か (21,16)）に 歩いて 来ると グソっ君の 決めゼリフ → 目を 開ける（flag_me_on 0）
 //   5 ごほうび：朱肉 +2、みました帳③の すみ（flag_me_done）。
-//   部屋を 出ると flag_me_on は 0（目を 開ける）。入りなおすと「また、目 つむっとくわ」から 続き。
+//   部屋を 出ると flag_me_on は 0（目を 開ける）。入りなおすと 短い 1行「また 目 つむっとくわ。手 引いて。」から 続き
+//   （会議 11-02 の 4：2回目からの 前置きは 1行だけ）。
 //   かくし（どれも 1回）：第2章の 天文台で すばるまで 見た（flag_kanbo_n 3）→ 2枚目の あと（flag_me_dome）／
 //     回廊の 伝票で 丸い 字を 読んだ（flag_c3_ji_marui）→ 3枚目の あと（flag_me_ji）／部屋を 出ずに 3枚 続けて
 //     読んだ → 3枚目の あと「ええ 先頭や」（flag_me_sentou）／飼育日誌 6枚（flag_ch3_nisshi_n 6）→ 4 の あと（flag_me_nisshi）。
@@ -290,7 +291,7 @@ function* start(): Co {
     f.player.dir = dirTo(f.player.tileX, f.player.tileY, kn.tileX, kn.tileY);
   }
   if (!knWith()) {
-    yield* say3(T.ME_A_SOLO);
+    yield* say3(first ? T.ME_A_SOLO : T.ME_A_SOLO_AGAIN);
     setFlag(MF.on, 1);
     return;
   }
@@ -426,6 +427,7 @@ for (let i = 0; i < 3; i++)
  * QA: __game.cmd.kurayami(step = 'enter')（段階3、S18 の あと。jump('ch3:esa') の 状態から）
  *   'enter'  えさの 部屋の 戸から 入りなおす（〔me〕が すぐ）
  *   'curtain' ジオラマの 部屋の カーテンから 入りなおす
+ *   'again'  始まった あと、部屋を 出て えさの 部屋の 戸から 入りなおす（2回目からの 短い 1行。会議 11-02 の 4）
  *   'board'  S18 の すぐ あと、入りなおさずに 1枚目の 板の 前 (14,8) 上向き（1歩 上で 始まる）
  *   'ita1'〜'ita3' 始まった あと、その 板の 前（待つと 読める）
  *   'exit'   3枚 読んだ あと、出口の 戸の 1歩 手前 (2,2)
@@ -458,6 +460,7 @@ if (import.meta.env.DEV) {
     if (step === 'curtain') return go(21, 16, 'up', 'map_c3_aq_diorama');
     if (step === 'board') return go(14, 8, 'up');
     setFlag(MF.start, 1);
+    if (step === 'again') return go(1, 2, 'right', 'map_c3_aq_esa');
     setFlag(MF.on, 1);
     if (step === 'ita1') return go(14, 8, 'up');
     if (step === 'ita2') return go(5, 9, 'right');

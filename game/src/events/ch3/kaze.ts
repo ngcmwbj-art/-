@@ -260,6 +260,16 @@ function* kado(): Co {
   }
 }
 
+// 干し網は ③に つるさずに 窓が 閉じたら（S14 の トラック・段階3・クリア後）、何も 言わずに 店へ もどる
+// （アジの開きは みやげ：持ち続ける。改善会議 2026-11-02 の5、docs/game/key_items.md）
+registerWorldFx({
+  map: '',
+  update() {
+    if (!state.inventory.includes(KZ_AMI)) return;
+    if (c3Stage() >= 3 || flag('flag_ch3_truck_trap') || !inCh3()) while (state.inventory.includes(KZ_AMI)) removeItem(KZ_AMI);
+  },
+});
+
 registerScript('obj_kz_sentaku', function* (): Co {
   se('se_examine');
   yield* say3(c3Stage() >= 2 ? T.KZ_SENTAKU_C2 : T.KZ_SENTAKU_C1);

@@ -224,7 +224,7 @@ export const MR_UI = {
   } as Record<View, [string, string]>,
   mie: (n: number) => `見え方 ${n}/3`,
   mure: (n: number) => `群れ ${n}/3`,
-  keys: ['←→ 見くらべる', 'けってい とじる'],
+  keys: ['←→ 見くらべる', 'もどる とじる'],
 };
 
 /** 大写しの はじめの カード（1行 全角 15字くらい まで。ui/closeup.ts）。 */

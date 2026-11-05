@@ -1,6 +1,6 @@
 # 大事なものの点検（改善会議 2026-10-31 の 5）
 
-`src/data/battle/items.ts` の大事なもの（`key: true`）59 個を、どこで渡す（addItem・giveKey・getKeyItem）・使う（hasItem・inventory.includes）・消す（removeItem・takeItem・章の切りかえの filter）かで調べた一覧。debug・QA の命令だけで使う所は数えていない。
+`src/data/battle/items.ts` の大事なもの（`key: true`）62 個（2026-11-05 に 10-31 の寄り道の 3 個を足した）を、どこで渡す（addItem・giveKey・getKeyItem）・使う（hasItem・inventory.includes）・消す（removeItem・takeItem・章の切りかえの filter）かで調べた一覧。debug・QA の命令だけで使う所は数えていない。
 
 - **扱い**：
   - **本筋**＝章の本筋で使う・本筋の決まりで持ち続ける（50 1.5・60 1.5 の「大事なもの」）。
@@ -81,6 +81,11 @@
 | item_c3_tengusa | 天草 | ch3/tokoro.ts | 段階3で外す | 自分で消す |
 | item_c3_enpitsu | ペンギンのえんぴつ | ch3/shita.ts | 段階4で外す | 自分で消す |
 | item_c3_amibari | 古い網針 | ch3/amigoya.ts | 外さない（使い道はない） | 残す（ゴロウからもらった記念） |
+| item_fb_gunte | 軍手 | ch3/funaba.ts（船揚げ場の箱、段階1） | 船の底を3つこすると箱へもどす（obj_fb_funa）。こすらずに窓が閉じたら（ナリオサメのあと・段階2・クリア後）何も言わずに箱へ（funaba.ts の registerWorldFx、11-05） | 自分で消す |
+| item_kz_ami | 干し網 | ch3/kaze.ts（ホシミ、段階2） | ③の角につるすと外す（kado）。つるさずに窓が閉じたら（S14 のトラック・段階3・クリア後）何も言わずに店へ（kaze.ts の registerWorldFx、11-05） | 自分で消す |
+| item_kz_hiraki | アジの開き | ch3/kaze.ts（さわってみたあとのみやげ） | 外さない（戦闘の「もちもの」で見せる1行あり） | 残す（ホシミからのみやげ。網針と同じく記念としてエンディング・クリア後まで持つ。S32 の荷台の1行は足していない） |
+
+確かめ方（2026-11-05、改善会議 11-02 の5）：`__game.cmd.funaba('gunte', true)`→こする→軍手 0。`funaba('gunte')`→`flag('flag_ch3_nariosame_beaten', 1)` または `flag('flag_ch3_stage', 2)`→軍手 0。`kaze('k2')`→③につるす→干し網 0。`kaze('k0')`→`flag('flag_ch3_truck_trap', 1)` または `flag('flag_ch3_stage', 3)`→干し網 0。`kaze('gift')`→さわってみて→アジの開き 1（段階3・クリア後も 1）。10-31 のほかの寄り道（ukimachi・mure・kurayami）は大事なものを足していない（addItem なし）。
 
 ## 気になる所（次の点検へ）
 

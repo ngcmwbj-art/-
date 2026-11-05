@@ -32,7 +32,8 @@ import { ease } from '../engine/tween';
 import { flag } from '../game/state';
 import type { Actor } from './actor';
 import type { FieldScene, PropInst } from './field';
-import { condOk, currentStage, isCh2Map, type LoadedMap } from './maps';
+import { condOk, currentStage, isCh2Map, isCh3Map, type LoadedMap } from './maps';
+import { settings } from '../ui/settings';
 import { pgLantern, pgOn } from './postgame';
 import type { DarkLight, ExamineObj, StarlightSpot, TileRect } from './types';
 import { lanternOf } from '../art/chars/nightlight';
@@ -454,6 +455,19 @@ export class LightState {
     return currentStage() <= 2 ? 1 : 0;
   }
 
+  /**
+   * How dark the dark is painted (0..1): darkK, and in the old aquarium
+   * (chapter 3) a step lighter with せってい「明るさ」あかるい (2026-11-02
+   * 改善会議 2) — less than the HD-2D finish lifts the other places
+   * (hd2d/view.ts darkLift 0.34 → 0.62), so the black house stays black
+   * enough for 「暗さに なれる」(kurayami) and the 朱 and グソっ君's eyes,
+   * which keep darkK's strength (c3dark.ts), stand out as before. ふつう: darkK.
+   */
+  darkShade(): number {
+    const k = this.darkK();
+    return settings.bright && isCh3Map(this.f.map.def) ? k * C3_BRIGHT_DARK : k;
+  }
+
   /** fx_h_lantern_on: the circle opens 24 → 72px over 0.8 s (ease-out) with a light ring running once. */
   lightUp(ms = 800): void {
     this.held = false;
@@ -714,7 +728,7 @@ export class LightState {
   paint(lx: CanvasRenderingContext2D, cx: number, cy: number, star: string, W: number, H: number): void {
     const m = this.f.map;
     const dc = this.hasDark ? darkCanvas(m) : null;
-    const dk = dc ? this.darkK() : 0;
+    const dk = dc ? this.darkShade() : 0;
     lx.save();
     lx.globalAlpha = 1;
     lx.globalCompositeOperation = 'source-over';
@@ -804,10 +818,13 @@ export function eraseDark(ctx: CanvasRenderingContext2D, f: FieldScene, cx: numb
   ctx.globalCompositeOperation = 'destination-out';
   // the dark is a step darker than the night, not black: the sky still
   // shows in its puddles, a little more than half gone
-  ctx.globalAlpha = 0.6 * Math.min(1, f.light.darkK());
+  ctx.globalAlpha = 0.6 * Math.min(1, f.light.darkShade());
   blitRegion(ctx, dc, cx, cy, 0, 0, W, H);
   ctx.restore();
 }
+
+/** The old aquarium's dark with 「明るさ あかるい」: this much of it (darkShade). */
+const C3_BRIGHT_DARK = 0.88;
 
 /** Is the dark switched off by a script (the barn's lights at 5:00)? */
 function darkOffFlag(): boolean {

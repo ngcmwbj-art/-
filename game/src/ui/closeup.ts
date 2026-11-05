@@ -353,6 +353,8 @@ game.overlays.push(drawTag);
 //   1回目の タッチ：カーソルが その 物へ（パネルの moveTo。音も パネルの カーソルの 音）。
 //   2回目（同じ 物）：けってい（いつもの けってい と 同じ：パネルは input.pressed('confirm') で 受ける）。
 //   物の ない 所を さわっても 何も しない（選んで いる あいだは、絵の 外の 黒い 所も けってい に しない）。
+//   切りかえだけの 札（TouchPick.switchOnly、改善会議 2026-11-02 の 1）：2回目も けってい に せず、さわる たびに
+//   その 物へ（群れの 見え方の 札）。閉じるのは もどる だけ。
 // 改善会議 2026-10-31 の 1・10・2：大写しで ない 画面にも 広げた。聞く 先は「いちばん 上の 画面」＝
 // いちばん 上の モーダルの Widget（選択肢 ui/dialog.ts の ChoiceBox・大写しの パネル）、それが なければ
 // いちばん 上の 場面（タイトル ui/title.ts・戦闘の コマンド battle/menu.ts）。どれも touchPick を 置くだけ。
@@ -394,6 +396,12 @@ export interface TouchPick {
   frame?(i: number): [number, number, number, number] | null;
   /** 「もう一度 さわると けってい」の 左上（大写しで ない 画面。なければ かぎの 左）。 */
   againAt?(tw: number, th: number): [number, number] | null;
+  /**
+   * 切りかえだけ（改善会議 2026-11-02 の 1）：見え方の 札のように、さわると 見せる 物が 変わる だけの 札。
+   * 2回 さわっても けってい に しない（さわる たびに moveTo。同じ 物でも 呼ぶ：パネルが 押した 色を 出せる）。
+   * 「もう一度 さわると けってい」も 出さない。閉じるのは もどる だけ に する パネルで 使う。
+   */
+  switchOnly?: boolean;
 }
 
 /** n 個の 物の 四角を まとめて（f(i) = [x, y, w, h]、null は さわれない 物）。 */
@@ -476,6 +484,19 @@ function pickTap(x: number, y: number): PickTapResult {
   if (i < 0) return log('eat');
   pickUsed.add(p.w);
   const cur = p.tp.cursor();
+  if (p.tp.switchOnly) {
+    // (切りかえだけ：さわる たびに その 物へ。2回目でも けってい に しない)
+    pickArmed = null;
+    if (p.closeup) pickPending = { w: p.w as Widget, i };
+    else {
+      try {
+        p.tp.moveTo(i);
+      } catch (e) {
+        console.warn('touchPick', e);
+      }
+    }
+    return log('eat');
+  }
   if (pickArmed && pickArmed.w === p.w && pickArmed.i === i && cur === i) {
     pickArmed = null;
     return log('confirm');

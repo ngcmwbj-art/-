@@ -43,11 +43,12 @@ export const ME_A = `@narr
 だんだん 暗さに なれる。{w=300}
 ……じっと 待つと、読めそう。`;
 
-/** 始まった あと、部屋を 出て 入りなおした とき（3枚 読む 前）。 */
+/**
+ * 始まった あと、部屋を 出て 入りなおした とき（3枚 読む 前）。短い 1行だけ（改善会議 11-02 の 4：えさの 部屋から
+ * もどる たびに 前置きが 出て くり返しに なって いた）。
+ */
 export const ME_A_AGAIN = `@npc_kanenari
-……また、目
-つむっとくわ。{w=300}
-しゅん、手 引いて。`;
+また 目 つむっとくわ。手 引いて。`;
 
 /** グソっ君が いない とき（ふつうは ない）。 */
 export const ME_A_SOLO = `@narr
@@ -56,6 +57,10 @@ export const ME_A_SOLO = `@narr
 /
 じっと 待つと、
 読めそう。`;
+
+/** グソっ君が いない とき、2回目から（1行）。 */
+export const ME_A_SOLO_AGAIN = `@narr
+目が なれるまで、じっと 待つ。`;
 
 /** 歩くと、うしろから（3回まで。吹き出し）。 */
 export const ME_WALK = ['段差 ないか？', 'ケースに ぶつかってへん？', 'まだ 着かへん？'];
@@ -190,6 +195,6 @@ export const ME_BOOK = {
 };
 
 export const ME_TEXTS: Record<string, unknown> = {
-  ME_A, ME_A_AGAIN, ME_A_SOLO, ME_ITA3_PRE, ME_MADA, ME_ITA2_KN, ME_DOME, ME_ITA3_JI, got: meGot(3),
+  ME_A, ME_A_AGAIN, ME_A_SOLO, ME_A_SOLO_AGAIN, ME_ITA3_PRE, ME_MADA, ME_ITA2_KN, ME_DOME, ME_ITA3_JI, got: meGot(3),
   ME_ZENBU, ME_SENTOU, ME_EXIT, ME_EXIT_B, ME_NISSHI, ME_REWARD, ME_KURAI, again: [0, 1, 2].map(meAgain), ME_PG_DONE, ME_PG,
 };
