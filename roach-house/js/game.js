@@ -63,6 +63,7 @@ export const PRANKS = [
 ];
 const PLAYDEAD_USES = 3;
 const _v3 = new THREE.Vector3();
+const _red = new THREE.Color(0xd8442e);
 // 実の熟し具合：熟した実（赤・黄・橙）は栄養たっぷり、色づきかけは中くらい、緑は少し
 const RIPE = { [PAPRIKA_COLORS.red]: 1, [PAPRIKA_COLORS.yellow]: 1, [PAPRIKA_COLORS.orange]: 1, [PAPRIKA_COLORS.turning]: 0.5, [PAPRIKA_COLORS.green]: 0.22 };
 const ripeOf = (f) => RIPE[f.hex] ?? 0.5;
@@ -738,6 +739,7 @@ export class Game {
       this.prankDone('glove');
     } else if (pr.kind === 'box') {
       p.box = pr.o; pr.o.rider = p;
+      this.stats.boxes = (this.stats.boxes || 0) + 1;
       p.x = pr.o.x; p.z = pr.o.z;
       this.sfx.click();
       this.toast('段ボールにもぐった！ ゆっくりなら見つかりにくい（食べるボタンで出る）', 'good');
@@ -762,6 +764,7 @@ export class Game {
     if (p.box || p.inGlove || p.st !== 'move') return false;
     if ((p.deadUses || 0) <= 0) { this.toast('死んだふりはもう使えない（1回のプレイで3回まで）', 'warn'); return false; }
     p.deadUses--;
+    this.stats.playdeads = (this.stats.playdeads || 0) + 1;
     p.playDead = 4; p.playDeadT = 0; p.fooled = 0; p.moving = false;
     p.eatingCrate = null; p.eatingFruit = null;
     this.sfx.click();
@@ -1817,6 +1820,7 @@ export class Game {
         if (f.timer <= 0) {
           f.carry = c;
           c.carried = true;
+          if (!c.stowed) this.events.push('carrystart');
           for (const r of this.roaches) if (r.eatingCrate === c) r.eatingCrate = null;
           f.model.root.attach(c.model.group);
           c.model.group.position.set(0, 2.85, 1.15);
@@ -2301,6 +2305,20 @@ export class Game {
       e.e.scale.y = f.state === 'PANIC' ? 0.12 : 0.08;
     }
     m.mouth.scale.set(f.state === 'PANIC' ? 0.8 : 1, f.state === 'PANIC' || f.state === 'CHASE' ? 3 : 1, 1);
+    // 顔：怒るほど赤く、汗をかき、パニックでは目が回る
+    if (m.skin) {
+      const heat = Math.min(1, f.anger / 3 * 0.75 + (f.state === 'CHASE' ? 0.3 : 0) + (f.state === 'PANIC' ? 0.4 : 0));
+      f.heat = (f.heat || 0) + (heat - (f.heat || 0)) * Math.min(1, dt * 2);
+      m.skin.color.copy(m.skin0).lerp(_red, f.heat * 0.55);
+      const sweating = f.anger >= 2 || f.state === 'CHASE' || f.state === 'PANIC';
+      m.sweat.forEach((d, i) => {
+        d.visible = sweating;
+        if (sweating) { const ph = (t * 0.8 + i * 0.37) % 1; d.position.y = d.userData.y0 - ph * 0.35; d.scale.y = 0.055 * (1 - ph * 0.4); }
+      });
+      const dz = f.state === 'PANIC';
+      for (const D of m.dizzy) { D.visible = dz; if (dz) D.rotation.z = t * 9; }
+      for (const e of m.eyes) e.e.visible = !dz;
+    }
     // ホイホイに長靴がくっついている：足を引っぱる
     if (f.bootStuck > 0) {
       f.bootStuck -= dt;
@@ -2500,6 +2518,7 @@ export class Game {
       if (Math.hypot(f.x - C.x, f.z - C.z) < 1.4 && !C.hit) {
         C.hit = true;
         f.catHold = 4;
+        this.stats.catPest = (this.stats.catPest || 0) + 1;
         this.say(pick(['こら、ミケ！ 足にじゃれるな！', 'うおっ、ミケ！ 今いそがしいんだよ！']));
         this.sfx.meow();
       }
@@ -2762,6 +2781,7 @@ export class Game {
       f.phoneNext -= dt;
       if (f.phoneNext <= 0 && f.state === 'WORK' && !f.act && !f.catHold && !f.hidden) {
         f.phone = { t: 0, dur: randRange(7, 10) };
+        this.stats.phones = (this.stats.phones || 0) + 1;
         f.phoneNext = randRange(70, 120);
         if (!this.phoneMesh) {
           const g = new THREE.Group();
@@ -2816,6 +2836,7 @@ export class Game {
       const m = makeBeetle();
       this.root.add(m.root);
       this.beetle = { m, c, st: 'fly', t: 0, sx: 27, sy: 4.5, sz: 3, x: 27, y: 4.5, z: 3 };
+      this.stats.beetles = (this.stats.beetles || 0) + 1;
       this.toast('卵が10個に！ 外から助っ人のカブトムシが飛んできた！', 'good');
       this.radio('ラジオ「ハウスに大きなカブトムシが入ったとの情報です」', true);
       this.sfx.wind && this.sfx.wind();
@@ -2941,6 +2962,7 @@ export class Game {
         if (dot < 0.6) continue;
         if (this.visibility(r) * (1 - d / 9) > 0.25) {
           I.spotted = true;
+          this.stats.inspectSpotted = 1;
           I.speech = 'ちょっと！ ゴキブリいますよ！'; I.speechT = 3;
           this.farmer.anger = Math.min(3, this.farmer.anger + 1);
           if (this.farmer.state !== 'FUMIGATE' && this.farmer.state !== 'PANIC') this.startChase(r);
@@ -3070,6 +3092,7 @@ export class Game {
       win, reason, score: Math.max(0, score), rank, alive, elapsed: this.elapsed, diff: this.diff.key,
       stats: { ...this.stats, ruinedColor: [...this.stats.ruinedColor], seen: [...this.stats.seen] },
       grumble: this.grumble(win, reason),
+      diary: this.diary(win, reason),
       advice: this.advice(win, reason),
       highlights: this.highlights,
       pranks: PRANKS.filter((x) => this.pranks[x.id]).map((x) => x.id),
@@ -3103,6 +3126,28 @@ export class Game {
     if (s.attacks === 0) return '出荷が早かった。農場主の足もとで「突撃」すると、運んでいるコンテナを落とさせて時間をかせげる';
     if (s.born < 3) return '仲間をふやそう。栄養が満タンになったらすぐ産卵し、「探索」で同時に何箱もかじらせる';
     return '「おとり」の仲間で農場主を引きつけ、そのすきに台の上のコンテナを一気にかじろう';
+  }
+
+  // 農場主の日記：今日の出来事を3行（記録された出来事だけを使う）
+  diary(win, reason) {
+    const s = this.stats, L = [];
+    const add = (cond, text) => { if (cond && L.length < 3) L.push(text); };
+    add(s.stowaway > 0, `出荷した箱からゴキブリが出てきた。${s.stowaway > 1 ? `しかも${s.stowaway}回も。` : ''}JAさんに平謝りだ。`);
+    add(this.pranks && this.pranks.bento, '昼に食べようと思ってた弁当を、ゴキブリにかじられた。卵焼きが…。');
+    add(s.revenge > 0, '自分で置いたホイホイに長靴がくっついた。誰が動かしたんだ。');
+    add(s.inspectSpotted, 'JAの検品の人の前でゴキブリが出た。恥ずかしくて顔から火が出た。');
+    add(this.pranks && this.pranks.playdead, '死んでると思ったゴキブリが、あとで歩いてた。だまされた。');
+    add(s.beetles > 0, 'でかいカブトムシが箱を台から落としていった。なんでだ。');
+    add(s.smokeSurvived, 'けむり玉をたいたのに、まだ生きてるやつがいた。しぶとい。');
+    add(s.phones > 0, `JAさんから電話。${s.phones > 1 ? `${s.phones}回も。` : ''}長話してる間に、なんか増えてた気がする。`);
+    add(s.catPest > 0, 'ミケが足にじゃれてきて仕事にならん。かわいいけど。');
+    add(s.attacks >= 2, `ゴキブリに顔に${s.attacks}回も飛びつかれた。夢に出そうだ。`);
+    add(s.fruits >= 5, `株になってる実を${s.fruits}個も落とされた。まだ育ててたのに。`);
+    add(s.chased >= 8, `今日は${s.chased}回もゴキブリを追いかけた。足がパンパンだ。`);
+    add(s.maxNymphs >= 15, `ゴキブリが${s.maxNymphs}匹くらいいた。もう大発生だ。`);
+    add(true, win ? `ダメにされた箱は${s.ruined}箱。出荷は${s.shipped}箱しかできなかった。` : `出荷は${s.shipped}箱。ゴキブリには${s.ruined}箱やられた。`);
+    add(true, win ? 'ちくしょう。明日こそ全部出荷してやる。' : '今日はおれの勝ちだ。ざまあみろ。');
+    return L;
   }
 
   // 結果画面の農場主のぼやき（強めの口調）

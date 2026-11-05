@@ -55,6 +55,7 @@
     <div id="hint" hidden></div>
     <div id="toasts"></div>
     <div id="feed"></div>
+    <div id="stowView" aria-hidden="true"><span>かごの中</span></div>
     <div id="subtitle" hidden></div>
     <div id="tourBar" hidden>
       <span class="tour-ttl">見学モード</span>
@@ -80,29 +81,22 @@
     <div class="sheet">
       <h1 class="logo"><span class="k1">パプリカハウス</span><span class="k2">侵略のG</span></h1>
       <p class="lead">夜明けのパプリカハウス。収穫したパプリカのコンテナをかじってダメにしろ。農場主は殺虫剤とホイホイ、毒エサで待ちかまえている。食べて、卵を産んで、仲間と力を合わせ、出荷が終わる前に勝負をつけよう。</p>
-      <div class="card order-card" id="orderCard"></div>
-      <div class="stages" id="stages"></div>
-      <div class="opts">
-        <label><input type="checkbox" id="optTutor"> 練習から始める</label>
-        <label><input type="checkbox" id="optHints" checked> ヒントを出す</label>
-        <label><input type="checkbox" id="optSound" checked> 音を鳴らす</label>
-        <label>音量 <input type="range" id="optVolume" min="0" max="100" step="5" value="100"></label>
-        <label><input type="checkbox" id="optRipple" checked> 音の波紋を出す</label>
-        <label>画質 <select id="optQuality">
-          <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
-        </select></label>
-        <label>カメラ <select id="optCam">
-          <option value="0.8">近い</option><option value="1" selected>ふつう</option><option value="1.3">遠い</option><option value="1.6">とても遠い</option>
-        </select></label>
-        <span class="fps-note" id="fpsNote"></span>
+      <div class="tabs" id="titleTabs" role="tablist"><button class="tab on" data-tab="play">あそぶ</button><button class="tab" data-tab="see">みる</button><button class="tab" data-tab="set">せってい</button></div>
+      <div class="tab-pane" data-pane="play">
+        <div class="row"><button class="btn primary" id="btnLast" hidden>前回のステージをもう一度</button></div>
+        <div class="stages" id="stages"></div>
+        <div class="opts"><label><input type="checkbox" id="optTutor"> 練習から始める</label></div>
+        <div class="card order-card" id="orderCard"></div>
+        <div class="row"><button class="btn run-btn" id="btnRun">おまけ：にげろ！田んぼ道</button></div>
+        <div class="row"><button class="btn run-btn" id="btnRunDusk" hidden>おまけ：夕方の農道</button></div>
       </div>
-      <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button><button class="btn" id="btnTour">見学モード（遊ばずに見て回る）</button></div>
-      <div class="row"><button class="btn run-btn" id="btnRun">おまけ：にげろ！田んぼ道</button></div>
-      <details class="howto" id="howto">
+      <div class="tab-pane" data-pane="see" hidden>
+        <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button><button class="btn" id="btnTour">見学モード（遊ばずに見て回る）</button></div>
+      <details class="howto" id="howto" open>
         <summary>遊びかた</summary>
         <div class="body">
           <div><h3>勝ち負け</h3><ul>
-            <li>ステージは5つ。クリアすると次のステージが遊べるようになる。先に進むほど、ダメにする箱が増え、わなや毒エサが増え、農場主も手ごわくなる。</li>
+            <li>ステージは6つ。クリアすると次のステージが遊べるようになる。先に進むほど、ダメにする箱が増え、わなや毒エサが増え、農場主も手ごわくなる。</li>
             <li>目標の数のコンテナをかじりつくしたら勝ち。時間制限はない。</li>
             <li>農場主は1箱ずつ出荷していく。出荷されすぎて目標に届かなくなったら負け（左上に「あと何箱」）。</li>
           </ul></div>
@@ -150,6 +144,22 @@
           <p class="touch-only">左下を指でなぞって移動（端まで倒すとダッシュ）、右側をなぞって視点を回します。</p>
         </div>
       </details>
+      </div>
+      <div class="tab-pane" data-pane="set" hidden>
+      <div class="opts">
+        <label><input type="checkbox" id="optHints" checked> ヒントを出す</label>
+        <label><input type="checkbox" id="optSound" checked> 音を鳴らす</label>
+        <label>音量 <input type="range" id="optVolume" min="0" max="100" step="5" value="100"></label>
+        <label><input type="checkbox" id="optRipple" checked> 音の波紋を出す</label>
+        <label>画質 <select id="optQuality">
+          <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
+        </select></label>
+        <label>カメラ <select id="optCam">
+          <option value="0.8">近い</option><option value="1" selected>ふつう</option><option value="1.3">遠い</option><option value="1.6">とても遠い</option>
+        </select></label>
+        <span class="fps-note" id="fpsNote"></span>
+      </div>
+      </div>
       <p class="credit">3D描画：three.js（MIT License）</p>
     </div>
   </section>
@@ -169,13 +179,20 @@
   <section id="book" class="screen" hidden>
     <div class="sheet">
       <h2 class="rtitle">図鑑・称号・着せかえ</h2>
+      <div class="tabs" id="bookTabs"><button class="tab on" data-btab="dress">着せかえ</button><button class="tab" data-btab="ency">図鑑・称号</button><button class="tab" data-btab="rec">記録</button></div>
+      <div class="tab-pane" data-bpane="dress">
       <div class="book-sec"><h3>羽の色</h3><div class="wings" id="bookWings"></div></div>
       <div class="book-sec"><h3>羽のもよう</h3><div class="wings" id="bookPatterns"></div></div>
       <div class="book-sec"><h3>帽子（星を集めると増える）</h3><div class="wings" id="bookHats"></div></div>
+      </div>
+      <div class="tab-pane" data-bpane="ency" hidden>
       <div class="book-sec"><h3>称号</h3><ul class="titles" id="bookTitles"></ul></div>
       <div class="book-sec"><h3>図鑑</h3><ul class="ency" id="bookEncy"></ul></div>
+      </div>
+      <div class="tab-pane" data-bpane="rec" hidden>
       <div class="book-sec"><h3>自己ベスト</h3><div class="tbl-wrap"><table class="best-tbl" id="bookBest"></table></div></div>
       <div class="book-sec"><h3>これまでの記録</h3><dl class="rstats" id="bookRec"></dl></div>
+      </div>
       <div class="row"><button class="btn primary" id="btnBookBack">もどる</button></div>
     </div>
   </section>
@@ -206,7 +223,7 @@
 
   <div id="runHud" hidden>
     <div class="run-top">
-      <div class="run-prog"><i id="runProg"></i><span class="run-me" id="runMe"></span><span class="run-goal">ゴール</span></div>
+      <div class="run-prog"><i id="runProg"></i><span class="run-truck" id="runTruck">軽トラ</span><span class="run-me" id="runMe"></span><span class="run-goal">ゴール</span></div>
       <div class="run-gap" id="runGap">軽トラまで 10m</div>
     </div>
     <div class="run-say" id="runSay" hidden></div>

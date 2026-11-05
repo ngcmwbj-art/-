@@ -163,6 +163,22 @@ export function weekState(r, key) {
   return r.week;
 }
 
+// まだ使っていない技のすすめ（ステージで出てくるものだけ）
+export const TECHS = [
+  { id: 'attack', from: 1, text: '農場主の足もとで「突撃」。顔に飛びついてパニックにでき、運んでいる箱も落とす' },
+  { id: 'wind', from: 1, text: '通路の入口の渦で「風に乗る」。通路の先まで一気に飛べる近道' },
+  { id: 'playdead', from: 1, text: '「死んだふり」（X・左上のボタン）。農場主の頭が「？」の間なら見のがしてもらえる' },
+  { id: 'box', from: 1, text: '落ちている段ボールをかぶる。ゆっくりなら見つからずに歩ける' },
+  { id: 'drain', from: 1, text: '床の排水溝に入ると、相方の排水溝から出られる。逃げ道に' },
+  { id: 'stow', from: 1, text: '台のコンテナのそばで死んだふりボタン＝「かごにもぐる」。そのまま出荷されると、その箱は虫入りでダメに' },
+  { id: 'revenge', from: 1, text: '仲間2匹とホイホイを運んで、農場主の通り道に。長靴がくっついて動けなくなる' },
+];
+export function unusedTech(r, stageNo, seed = 0) {
+  const used = (r && r.used) || {};
+  const list = TECHS.filter((t) => !used[t.id] && stageNo >= t.from);
+  return list.length ? list[Math.abs(seed) % list.length] : null;
+}
+
 // おたすけ：同じステージで3回続けて負けたらすすめる
 export const ASSIST_AFTER = 3;
 
@@ -231,6 +247,10 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   if (weekNow) { wk.done = true; r.weeksDone = (r.weeksDone || 0) + 1; }
   r.week = wk;
   if (stats.stowaway) r.stowaway = (r.stowaway || 0) + stats.stowaway;
+  // 使ったことのある技（「次はこうしてみよう」で、まだの技をすすめる）
+  r.used = r.used && typeof r.used === 'object' ? r.used : {};
+  const usedNow = { attack: stats.attacks, playdead: stats.playdeads, stow: stats.stowaway, revenge: stats.revenge, drain: stats.drains, box: stats.boxes, wind: stats.winds };
+  for (const k of Object.keys(usedNow)) if (usedNow[k] > 0) r.used[k] = true;
   const newPatterns = unlockedPatterns(r).filter((k) => !before.patterns.includes(k));
   const newHats = unlockedHats(r).filter((k) => !before.hats.includes(k));
   return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest, offerAssist, newPranks, newHats, newPatterns, weekNow, week: wk };

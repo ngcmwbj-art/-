@@ -12,7 +12,7 @@ import { setTextureSize } from './textures.js';
 import { WING_COLORS, WING_PATTERNS } from './models.js';
 import {
   todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings, STAR_RULES,
-  HATS, unlockedHats, totalStars, seasonOf, SEASON_LABEL, PATTERN_UNLOCK, unlockedPatterns, WEEK_GOALS, weekKey, weekState,
+  HATS, unlockedHats, totalStars, seasonOf, SEASON_LABEL, unusedTech, PATTERN_UNLOCK, unlockedPatterns, WEEK_GOALS, weekKey, weekState,
 } from './features.js';
 import { PRANKS } from './game.js';
 
@@ -145,9 +145,17 @@ function renderRunBtn() {
   const b = $('btnRun');
   const ok = runUnlocked();
   b.disabled = !ok;
-  b.textContent = ok ? `おまけ：にげろ！田んぼ道${records.runBest ? `（ベスト ${records.runBest.toFixed(1)}秒）` : ''}` : 'おまけ：にげろ！田んぼ道（「かごにもぐって出荷ジャック」を1回成功させると遊べる）';
+  b.textContent = ok ? `おまけ：にげろ！田んぼ道（夜明け）${records.runBest ? `　ベスト ${records.runBest.toFixed(1)}秒` : ''}` : 'おまけ：にげろ！田んぼ道（「かごにもぐって出荷ジャック」を1回成功させると遊べる）';
+  // 夕方の農道：夜明けのコースを1回逃げきると遊べる
+  const b2 = $('btnRunDusk');
+  b2.hidden = !ok;
+  const ok2 = (records.runClears || 0) >= 1;
+  b2.disabled = !ok2;
+  b2.textContent = ok2 ? `おまけ：夕方の農道（ため池の橋とコンバイン）${records.runBestDusk ? `　ベスト ${records.runBestDusk.toFixed(1)}秒` : ''}` : 'おまけ：夕方の農道（夜明けのコースを1回逃げきると遊べる）';
 }
-function startRun() {
+let runCourse = 'dawn';
+function startRun(course) {
+  runCourse = course === 'dusk' ? 'dusk' : 'dawn';
   sfx.unlock();
   endTourUi();
   sfx.stopRadio();
@@ -156,7 +164,7 @@ function startRun() {
   world.group.visible = false;
   if (game.root) game.root.visible = false;
   game.state = 'title';
-  runner.start({ wing: records.wing, pattern: records.pattern, hat: records.hat, seed: dailySeed(dayKey) % 100000 + 7 });
+  runner.start({ wing: records.wing, pattern: records.pattern, hat: records.hat, seed: dailySeed(dayKey) % 100000 + 7, course: runCourse });
   $('runSay').hidden = true;
   setScreen('run');
 }
@@ -170,8 +178,11 @@ function showRunResult(res) {
   records.runPlays = (records.runPlays || 0) + 1;
   let best = '';
   if (res.win) {
-    records.runClears = (records.runClears || 0) + 1;
-    if (!records.runBest || res.time < records.runBest) { best = records.runBest ? `ベスト更新！（前は ${records.runBest.toFixed(1)}秒）` : '初クリア！'; records.runBest = Math.round(res.time * 10) / 10; }
+    const bk = res.course === 'dusk' ? 'runBestDusk' : 'runBest';
+    const firstDawn = res.course !== 'dusk' && !(records.runClears > 0);
+    if (res.course !== 'dusk') records.runClears = (records.runClears || 0) + 1;
+    if (!records[bk] || res.time < records[bk]) { best = records[bk] ? `ベスト更新！（前は ${records[bk].toFixed(1)}秒）` : '初クリア！'; records[bk] = Math.round(res.time * 10) / 10; }
+    if (firstDawn) best += '　2つ目のコース「夕方の農道」が遊べるようになった！';
   }
   store.set('records', records);
   $('runTitle').textContent = res.win ? 'にげきった！' : 'つかまった…';
@@ -180,8 +191,9 @@ function showRunResult(res) {
   $('runNews').innerHTML = best ? `<span class="new">${best}</span>` : '';
   setScreen('runover');
 }
-$('btnRun').addEventListener('click', startRun);
-$('btnRunAgain').addEventListener('click', () => { endRun(); startRun(); });
+$('btnRun').addEventListener('click', () => startRun('dawn'));
+$('btnRunDusk').addEventListener('click', () => startRun('dusk'));
+$('btnRunAgain').addEventListener('click', () => { endRun(); startRun(runCourse); });
 $('btnRunTitle').addEventListener('click', () => { endRun(); toTitle(); });
 window.__rh = { game, input, THREE, scene, camera, renderer, fx, world };
 
@@ -234,6 +246,7 @@ function startGame(diff) {
   sfx.startAmbience();
   sfx.startRadio();
   lastDiff = diff;
+  store.set('lastStage', diff);
   refreshDay();
   const tutorial = $('optTutor').checked;
   const assist = !!(records.assist && records.assist[diff]);
@@ -376,6 +389,7 @@ function toTitle() {
   renderBest();
   renderOrders();
   renderRunBtn();
+  renderLast();
 }
 
 // ---------- 図鑑・称号・着せかえ ----------
@@ -437,6 +451,25 @@ function renderBook() {
   }).join('');
 }
 $('btnBook').addEventListener('click', () => { renderBook(); setScreen('book'); });
+// タブ（タイトル：あそぶ／みる／せってい、図鑑：着せかえ／図鑑・称号／記録）
+function setTab(group, attr, paneAttr, key) {
+  document.querySelectorAll(`#${group} [${attr}]`).forEach((b) => b.classList.toggle('on', b.getAttribute(attr) === key));
+  document.querySelectorAll(`[${paneAttr}]`).forEach((p) => { p.hidden = p.getAttribute(paneAttr) !== key; });
+  sfx.click();
+}
+document.querySelectorAll('#titleTabs [data-tab]').forEach((b) => b.addEventListener('click', () => setTab('titleTabs', 'data-tab', 'data-pane', b.dataset.tab)));
+document.querySelectorAll('#bookTabs [data-btab]').forEach((b) => b.addEventListener('click', () => setTab('bookTabs', 'data-btab', 'data-bpane', b.dataset.btab)));
+window.__rh.setTab = (k) => setTab('titleTabs', 'data-tab', 'data-pane', k);
+// 前回のステージをもう一度（1回おすだけで）
+function renderLast() {
+  const k = store.get('lastStage', null);
+  const st = k && DIFFS[k];
+  const b = $('btnLast');
+  b.hidden = !st;
+  if (st) b.textContent = `前回のステージをもう一度：${st.label}「${st.name}」`;
+}
+$('btnLast').addEventListener('click', () => { const k = store.get('lastStage', null); if (k && DIFFS[k]) startGame(k); });
+renderLast();
 $('btnBookBack').addEventListener('click', () => { setScreen('title'); renderOrders(); });
 $('btnSkipTutor').addEventListener('click', (e) => { e.preventDefault(); game.endTutorial(false); store.set('tutorialDone', true); e.currentTarget.blur(); });
 
@@ -543,7 +576,11 @@ function showResult(res) {
   const s = res.stats;
   const mm = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   // 農場主のぼやき
-  $('rGrumble').innerHTML = res.grumble.map((g) => `<p>「${escapeHtml(g)}」</p>`).join('') + '<cite>―― 農場主</cite>';
+  // 農場主の日記（今日の出来事を3行）。ぼやきの代わりに
+  const [dy, dm, dd] = dayKey.split('-').map(Number);
+  const dl = res.diary && res.diary.length ? res.diary : res.grumble;
+  $('rGrumble').className = 'grumble diary';
+  $('rGrumble').innerHTML = `<div class="diary-h">農場主の日記　${dm}月${dd}日</div>` + dl.map((g) => `<p>${escapeHtml(g)}</p>`).join('');
   // 名場面
   const hl = (res.highlights || []).filter((h) => h.img);
   $('rHigh').innerHTML = hl.length ? hl.map((h) => `<figure><img src="${h.img}" alt=""><figcaption>${mm(h.t)}　${escapeHtml(h.text)}</figcaption></figure>`).join('') : '';
@@ -605,7 +642,9 @@ function showResult(res) {
     ['カブトムシなど', `${s.byOther || 0} 箱`], ['いちばん多かった仲間', `${s.maxNymphs || 0} 匹`],
   ];
   $('rStats').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
-  $('rTip').textContent = res.advice ? `次はこうしてみよう：${res.advice}` : (res.win ? '完璧な作戦でした。次のステージにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`);
+  const tech = unusedTech(records, (DIFFS[res.diff] || {}).no || 1, records.games || 0);
+  const tipMain = res.advice ? `次はこうしてみよう：${res.advice}` : (res.win ? '完璧な作戦でした。次のステージにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`);
+  $('rTip').textContent = tech ? `${tipMain}\nまだ試していない技：${tech.text}` : tipMain;
   $('rTip').classList.toggle('advice', !!res.advice);
   setScreen('result');
 }
@@ -773,6 +812,7 @@ function updateHud(dt) {
   tD.classList.toggle('using', !!(pd && pd.playDead > 0));
   tD.classList.toggle('off', !!(pd && (pd.deadUses || 0) <= 0 && !(pd.playDead > 0)));
   const ctxD = g.context();
+  document.body.classList.toggle('stowed', !!(pd && pd.stow));
   const dl = pd && pd.stow ? 'かごから<br>出る' : ctxD && ctxD.stow ? 'かごに<br>もぐる' : `死んだ<br>ふり<small>${pd ? pd.deadUses || 0 : 0}</small>`;
   tD.classList.toggle('ready', !!(ctxD && ctxD.stow) || !!(pd && pd.stow));
   if (tD.dataset.l !== dl) { tD.dataset.l = dl; tD.innerHTML = dl; }
@@ -1113,6 +1153,7 @@ function frame(now) {
         const g2 = runner.gap;
         $('runProg').style.width = `${(runner.progress * 100).toFixed(1)}%`;
         $('runMe').style.left = `${(runner.progress * 100).toFixed(1)}%`;
+        $('runTruck').style.left = `${(runner.truckProgress * 100).toFixed(1)}%`;
         $('runGap').textContent = runner.count > 0 ? '' : `軽トラまで ${Math.max(0, g2).toFixed(0)}m`;
         $('runGap').classList.toggle('near', g2 < 4);
         $('runStam').style.width = `${runner.stam.toFixed(0)}%`;
@@ -1132,6 +1173,12 @@ function frame(now) {
       if (game.mode !== prevMode) updateCmdButtons();
       if (screen === 'play') {
         hints.update(dt, game);
+        // 出荷ジャックの気づき：農場主が箱を運ぶのを初めて見たときだけ
+        if (game.events.includes('carrystart') && !firstSeen.includes('stowHint') && !game.tutorial && game.farmer && game.player &&
+            Math.hypot(game.farmer.x - game.player.x, game.farmer.z - game.player.z) < 16) {
+          firstSeen.push('stowHint'); store.set('firstSeen', firstSeen);
+          ui.toast('農場主が箱を運んでいく…あの箱にもぐれたら？ 台のコンテナのそばで死んだふりボタン＝「かごにもぐる」。そのまま出荷されると箱は虫入りでダメに！', 'warn');
+        }
         game.events.length = 0;
         if (game.state === 'over') setScreen('over');
       }

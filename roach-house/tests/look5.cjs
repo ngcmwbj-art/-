@@ -38,7 +38,7 @@ const out = process.argv[2] || '.';
   await frames(8);
   await shot('result-short');
   await page.click('#btnTitle2');
-  await page.click('#btnTour');
+  await page.evaluate(() => window.__rh.setTab('see')); await page.click('#btnTour');
   await frames(10);
   await page.click('[data-look="cat"]');
   await frames(25);

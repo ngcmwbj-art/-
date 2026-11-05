@@ -71,7 +71,7 @@ const out = process.argv[2] || '.';
   await shot('result');
   // 図鑑の自己ベスト
   await page.evaluate(() => { document.getElementById('btnToTitle') && 0; });
-  await page.click('#btnTitle2'); await page.click('#btnBook');
+  await page.click('#btnTitle2'); await page.evaluate(() => window.__rh.setTab('see')); await page.click('#btnBook');
   await frames(5);
   await page.evaluate(() => { const el = document.getElementById('bookBest'); if (el) el.scrollIntoView(); });
   await shot('book');

@@ -523,6 +523,32 @@ export function makeFarmer() {
   const mouth = mesh(new THREE.BoxGeometry(0.2, 0.04, 0.04), M.lip, false);
   mouth.position.set(0, -0.22, 0.01);
   face.add(nose, mouth);
+  // 怒ったときの汗と、パニックの目回し（今の丸い形にそろえた、かんたんな形）
+  const sweatMat = new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, roughness: 0.05, transmission: 0.3, transparent: true, opacity: 0.85, clearcoat: 1 });
+  const sweat = [];
+  for (const [x, y] of [[-0.36, 0.22], [0.38, 0.12], [0.3, 0.3]]) {
+    const d = mesh(SPH_LO, sweatMat, false);
+    d.scale.set(0.035, 0.055, 0.03);
+    d.position.set(x, y, -0.02);
+    d.visible = false;
+    d.userData.y0 = y;
+    face.add(d);
+    sweat.push(d);
+  }
+  const dizzyMat = new THREE.MeshBasicMaterial({ color: 0x2a1c14 });
+  const dizzy = [];
+  for (const s of [-1, 1]) {
+    const g = new THREE.Group();
+    g.position.set(s * 0.17, 0.07, 0.05);
+    for (let k = 0; k < 2; k++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.03 + k * 0.03, 0.008, 4, 16, Math.PI * 1.6), dizzyMat);
+      ring.rotation.z = k * 2;
+      g.add(ring);
+    }
+    g.visible = false;
+    face.add(g);
+    dizzy.push(g);
+  }
   headG.add(face);
   root.add(headG);
   // 首のタオル
@@ -534,7 +560,7 @@ export function makeFarmer() {
   tail.rotation.z = 0.15;
   root.add(towel, tail);
 
-  return { root, legs, arms, headG, face, eyes, mouth, can };
+  return { root, legs, arms, headG, face, eyes, mouth, can, sweat, dizzy, skin: M.skin, skin0: M.skin.color.clone() };
 }
 
 // ---------------- 収穫コンテナ ----------------

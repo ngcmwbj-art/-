@@ -182,6 +182,38 @@ export function buildWorld(scene, renderer, q) {
   }
   const day = { bg: scene.background, fogColor: scene.fog.color.clone(), fogDensity: scene.fog.density, env: scene.environmentIntensity, hemi: hemi.intensity, sun: sun.intensity, sunColor: sun.color.clone(), bounce: bounce.intensity };
   let isNight = false;
+  // 夜（ステージ6）だけの、ほたると月
+  const night = { flies: null, moon: null, base: null };
+  function buildNightExtras() {
+    const N = 70, pos = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      const side = i % 3;
+      let x, z;
+      if (side === 0) { x = -26 + Math.random() * 50; z = 15.5 + Math.random() * 6; }
+      else if (side === 1) { x = -26 + Math.random() * 50; z = -15.5 - Math.random() * 6; }
+      else { x = -24 - Math.random() * 6; z = -12 + Math.random() * 24; }
+      pos[i * 3] = x; pos[i * 3 + 1] = 0.6 + Math.random() * 2.4; pos[i * 3 + 2] = z;
+    }
+    night.base = pos.slice();
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const x = c.getContext('2d');
+    const gr = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gr.addColorStop(0, 'rgba(220,255,140,1)'); gr.addColorStop(0.35, 'rgba(170,240,90,0.6)'); gr.addColorStop(1, 'rgba(120,200,60,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 32, 32);
+    // 懐中電灯の白っぽい光とまちがえないよう、小さく黄緑に
+    night.flies = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.28, map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xc8ff7a }));
+    night.flies.frustumCulled = false;
+    g.add(night.flies);
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(9, 24, 16), new THREE.MeshBasicMaterial({ color: 0xf4f1dc, fog: false }));
+    moon.position.set(-110, 95, -150);
+    const halo = new THREE.Mesh(new THREE.CircleGeometry(22, 32), new THREE.MeshBasicMaterial({ color: 0xbfd0ff, transparent: true, opacity: 0.12, fog: false, depthWrite: false }));
+    halo.position.copy(moon.position); halo.lookAt(0, 0, 0);
+    moon.add(halo); halo.position.set(0, 0, 0);
+    night.moon = moon;
+    g.add(moon);
+  }
   return {
     group: g, sun,
     setNearFade,
@@ -201,6 +233,8 @@ export function buildWorld(scene, renderer, q) {
       if (shafts) shafts.forEach((m) => { m.visible = !on; });
       if (dust) dust.pts.visible = !on;
       for (const l of lamps) { l.L.intensity = on ? 30 : 0; l.bulb.visible = on; }
+      if (on && !night.flies) buildNightExtras();
+      if (night.flies) { night.flies.visible = on; night.moon.visible = on; }
     },
     setShadow(size) {
       if (sun.shadow.mapSize.x === size) return;
@@ -209,6 +243,15 @@ export function buildWorld(scene, renderer, q) {
     },
     update(t, cam) {
       windUniform.value = t;
+      // ほたる：ハウスの外（田んぼ側）だけを、ゆっくり光りながら飛ぶ
+      if (isNight && night.flies) {
+        const p = night.flies.geometry.attributes.position, b = night.base;
+        for (let i = 0; i < p.count; i++) {
+          p.setXYZ(i, b[i * 3] + Math.sin(t * 0.4 + i * 1.3) * 0.8, b[i * 3 + 1] + Math.sin(t * 0.7 + i) * 0.35, b[i * 3 + 2] + Math.cos(t * 0.33 + i * 0.7) * 0.8);
+        }
+        p.needsUpdate = true;
+        night.flies.material.opacity = 0.55 + Math.sin(t * 2.2) * 0.3;
+      }
       if (shafts) shafts.forEach((s, i) => { s.material.opacity = s.userData.base * (0.75 + 0.25 * Math.sin(t * 0.4 + i * 1.7)); });
       if (dust) dust.update(t, cam);
       wind.update(t);

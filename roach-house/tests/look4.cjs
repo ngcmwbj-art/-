@@ -64,7 +64,7 @@ const out = process.argv[2] || '.';
   await page.evaluate(() => document.getElementById('btnAssist').scrollIntoView({ block: 'end' }));
   await shot('result-lose');
   await page.click('#btnTitle2');
-  await page.click('#btnBook');
+  await page.evaluate(() => window.__rh.setTab('see')); await page.click('#btnBook');
   await frames(5);
   await shot('book');
   console.log('ERRORS', errors.length, errors.join('\n'));

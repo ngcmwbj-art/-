@@ -742,6 +742,56 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
 
     // 59. わなが見える（近くの葉を透かす）
     check('わなのまわりの葉を透かす仕組みがある', typeof RH.world.setReveal === 'function');
+
+    // 60. 第8回：画面のタブ・前回のステージ・技のすすめ
+    check('タイトルが「あそぶ・みる・せってい」', document.querySelectorAll('#titleTabs [data-tab]').length === 3);
+    check('図鑑が「着せかえ・図鑑・記録」', document.querySelectorAll('#bookTabs [data-btab]').length === 3);
+    check('遊びかたの説明は「ステージは6つ」', /ステージは6つ/.test(document.getElementById('howto').innerHTML));
+    check('前回のステージをもう一度のボタンがある', !!document.getElementById('btnLast'));
+    {
+      const t0 = F.unusedTech(F.normalizeRecords(null), 1, 0);
+      const rr = F.normalizeRecords({ used: { attack: true, wind: true, playdead: true, box: true, drain: true, revenge: true } });
+      check('まだ使っていない技をすすめる', t0 && F.unusedTech(rr, 1, 0).id === 'stow');
+    }
+
+    // 61. かごの中の見え方
+    g.start('s1', 120);
+    {
+      const P = g.player, c = g.crates.find((cc) => cc.table >= 0);
+      g.farmer.timer = 999;
+      Object.assign(P, { x: c.x, z: c.z + 0.75, surface: c.table, y: 2.2, st: 'move' });
+      g.startStow(P, c);
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.timer = 999; });
+      check('かごの中の見え方の画面がある', !!document.getElementById('stowView'));
+    }
+
+    // 62. 農場主の顔（怒ると赤く・汗・パニックで目が回る）
+    g.start('s2', 121);
+    {
+      const F2 = g.farmer, m2 = F2.model;
+      const c0 = m2.skin.color.r - m2.skin.color.b;
+      F2.anger = 3; F2.state = 'CHASE'; F2.target = g.player;
+      RH.sim(2, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.anger = 3; });
+      check('怒ると顔が赤くなる', m2.skin.color.r - m2.skin.color.b > c0 + 0.05);
+      check('怒ると汗をかく', m2.sweat.some((d) => d.visible));
+      g.farmerPanic();
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('パニックでは目が回る', m2.dizzy.every((d) => d.visible) && m2.eyes.every((e) => !e.e.visible));
+    }
+
+    // 63. 農場主の日記
+    g.start('s1', 122);
+    {
+      g.pranks.bento = true; g.stats.phones = 1;
+      g.endGame(true, 'ruined');
+      const d = g.result.diary;
+      check('農場主の日記が3行', d.length === 3 && d.some((l) => /弁当/.test(l)), d.join('／'));
+    }
+
+    // 64. 夜のほたると月
+    RH.startGame('s6');
+    check('夜はほたるが飛ぶ', RH.world.night === true);
+    RH.startGame('s1');
     return out;
   });
   console.log(results.join('\n'));

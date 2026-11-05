@@ -7,6 +7,9 @@ import * as TX from './textures.js';
 const L = 230;          // ゴールまでの長さ
 const HALF = 1.7;       // 道の半分の幅（ゴキブリが動ける所）
 const BASE = 5.2, DASH = 7.8;
+// 夕方の農道：ため池の橋（道がせまい）と、道の半分をふさぐコンバイン
+const BRIDGE = { x0: 108, x1: 126, half: 0.95 };
+const COMBINE = { x: 172, len: 6.5 };
 
 export class Runner {
   constructor({ scene, camera, sfx, ui }) {
@@ -104,6 +107,25 @@ export class Runner {
     truck.add(cab, bed, glass, head, beam, beam.target);
     g.add(truck);
     this.truck = truck;
+    // うしろ見：軽トラのライトが道を照らし、ゴキブリの影が前へ長くのびる（近づくほど強く）
+    const gc = document.createElement('canvas'); gc.width = 64; gc.height = 256;
+    const gx = gc.getContext('2d');
+    const gr = gx.createLinearGradient(0, 256, 0, 0);
+    gr.addColorStop(0, 'rgba(255,244,200,0.9)'); gr.addColorStop(1, 'rgba(255,244,200,0)');
+    gx.fillStyle = gr; gx.fillRect(0, 0, 64, 256);
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    gl.rotation.x = -Math.PI / 2; gl.rotation.z = -Math.PI / 2; gl.position.y = 0.02;
+    g.add(gl);
+    this.glow = gl;
+    const shadowC = document.createElement('canvas'); shadowC.width = 32; shadowC.height = 128;
+    const sx = shadowC.getContext('2d');
+    const sg = sx.createLinearGradient(0, 128, 0, 0);
+    sg.addColorStop(0, 'rgba(0,0,0,0.75)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+    sx.fillStyle = sg; sx.beginPath(); sx.ellipse(16, 64, 14, 64, 0, 0, Math.PI * 2); sx.fill();
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shadowC), transparent: true, depthWrite: false }));
+    sh.rotation.x = -Math.PI / 2; sh.rotation.z = -Math.PI / 2; sh.position.y = 0.03;
+    g.add(sh);
+    this.longShadow = sh;
     // ゴールまでの目じるしの旗
     for (let x = 50; x < L; x += 50) {
       const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.4), new THREE.MeshBasicMaterial({ color: 0xe0412b, side: THREE.DoubleSide }));
@@ -112,6 +134,51 @@ export class Runner {
       st.position.set(x - 0.3, 0.9, 2.4);
       g.add(fl, st);
     }
+    // 夕方のコース用：空の色（大きな丸天井）・ため池の橋・コンバイン
+    const sc = document.createElement('canvas'); sc.width = 4; sc.height = 256;
+    const sx2 = sc.getContext('2d');
+    const sgr = sx2.createLinearGradient(0, 0, 0, 256);
+    sgr.addColorStop(0, '#2c2f63'); sgr.addColorStop(0.45, '#c8607a'); sgr.addColorStop(0.62, '#f29a4a'); sgr.addColorStop(0.75, '#f8d08a'); sgr.addColorStop(1, '#6a4a3a');
+    sx2.fillStyle = sgr; sx2.fillRect(0, 0, 4, 256);
+    const skyT = new THREE.CanvasTexture(sc); skyT.colorSpace = THREE.SRGBColorSpace;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(260, 24, 16), new THREE.MeshBasicMaterial({ map: skyT, side: THREE.BackSide, fog: false, depthWrite: false }));
+    dome.position.set(L / 2, 0, 0);
+    const sunset = new THREE.DirectionalLight(0xffa060, 1.6);
+    sunset.position.set(L + 60, 25, -40);
+    sunset.target.position.set(L / 2, 0, 0);
+    const pond = new THREE.Mesh(new THREE.PlaneGeometry(BRIDGE.x1 - BRIDGE.x0 + 10, 40), new THREE.MeshStandardMaterial({ color: 0x3c5a68, roughness: 0.05, metalness: 0.5 }));
+    pond.rotation.x = -Math.PI / 2; pond.position.set((BRIDGE.x0 + BRIDGE.x1) / 2, -0.05, 0);
+    const wood = new THREE.MeshStandardMaterial({ color: 0x7a5534, roughness: 0.9 });
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.x1 - BRIDGE.x0, 0.2, BRIDGE.half * 2 + 0.4), wood);
+    deck.position.set((BRIDGE.x0 + BRIDGE.x1) / 2, 0.0, 0); deck.receiveShadow = true;
+    const bridge = new THREE.Group();
+    bridge.add(pond, deck);
+    for (const s of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.x1 - BRIDGE.x0, 0.08, 0.08), wood);
+      rail.position.set((BRIDGE.x0 + BRIDGE.x1) / 2, 0.7, s * (BRIDGE.half + 0.2));
+      bridge.add(rail);
+      for (let x = BRIDGE.x0; x <= BRIDGE.x1; x += 2) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.75, 0.1), wood);
+        post.position.set(x, 0.37, s * (BRIDGE.half + 0.2));
+        bridge.add(post);
+      }
+    }
+    const comb = new THREE.Group();
+    const red = new THREE.MeshStandardMaterial({ color: 0xc8241a, roughness: 0.45, metalness: 0.3 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(COMBINE.len, 2.2, 2.0), red); body.position.set(0, 1.5, -1.0); body.castShadow = true;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 1.4), new THREE.MeshStandardMaterial({ color: 0x9fc0d0, roughness: 0.1, metalness: 0.5, transparent: true, opacity: 0.7 }));
+    cabin.position.set(-1.6, 3.2, -1.0);
+    const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 2.4, 12, 1, false), new THREE.MeshStandardMaterial({ color: 0xf2c31b, roughness: 0.5 }));
+    reel.rotation.x = Math.PI / 2; reel.position.set(-COMBINE.len / 2 - 0.4, 0.8, -1.0);
+    const tread = new THREE.Mesh(new THREE.BoxGeometry(COMBINE.len, 0.7, 2.1), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 }));
+    tread.position.set(0, 0.35, -1.0);
+    comb.add(body, cabin, reel, tread);
+    comb.position.set(COMBINE.x, 0, 0);
+    this.reel = reel;
+    this.dusk = new THREE.Group();
+    this.dusk.add(dome, sunset, sunset.target, bridge, comb);
+    this.dusk.visible = false;
+    g.add(this.dusk);
     g.visible = false;
     this.scene.add(g);
     this.items = new THREE.Group();
@@ -150,6 +217,7 @@ export class Runner {
       this.obs.push({ kind, x, z, m, hit: false, ...extra });
     };
     for (let x = 18; x < L - 8; x += 5.5 + r() * 4) {
+      if (this.course === 'dusk' && ((x > BRIDGE.x0 - 4 && x < BRIDGE.x1 + 3) || Math.abs(x - COMBINE.x) < COMBINE.len)) continue;
       const t = r();
       const z = (r() * 2 - 1) * (HALF - 0.3);
       if (t < 0.32) add('puddle', x, z);
@@ -162,7 +230,9 @@ export class Runner {
 
   start(opts = {}) {
     if (!this.root) this.build();
-    this.layout(opts.seed || 20261105);
+    this.course = opts.course === 'dusk' ? 'dusk' : 'dawn';
+    this.dusk.visible = this.course === 'dusk';
+    this.layout((opts.seed || 20261105) + (this.course === 'dusk' ? 77 : 0));
     this.opts = opts;
     if (this.roach) { this.root.remove(this.roach.root); }
     this.roach = makeRoach(false, opts.wing || 'normal', opts.pattern || 'none');
@@ -202,8 +272,15 @@ export class Runner {
       // 左右（カメラはいつも走る向きの後ろなので、スティックの左右がそのまま左右）
       const side = -(inp.mx || 0);
       this.vz += (side * 3.4 - this.vz) * Math.min(1, dt * 10);
-      this.z = Math.max(-HALF, Math.min(HALF, this.z + this.vz * dt));
+      // ため池の橋の上は道がせまい
+      const half = this.course === 'dusk' && this.x > BRIDGE.x0 && this.x < BRIDGE.x1 ? BRIDGE.half : HALF;
+      this.z = Math.max(-half, Math.min(half, this.z + this.vz * dt));
       this.x += this.speed * dt;
+      // 道の左半分をふさぐコンバイン：ぶつかるとつまずいて、右へはじかれる
+      if (this.course === 'dusk' && Math.abs(this.x - COMBINE.x) < COMBINE.len / 2 + 0.3 && this.z < 0.15 && this.stunT <= 0) {
+        this.stunT = 0.6; this.z = 0.5; this.x -= 0.6;
+        this.sfx.thud(); this.ui.feed('コンバインにぶつかった！ 右へよけよう', '！', 'bad');
+      }
       // 軽トラ：だんだん速くなる
       const tv = Math.min(5.9, 4.5 + this.t * 0.03);
       this.truckX += tv * dt;
@@ -244,6 +321,18 @@ export class Runner {
     animateRoach(m, this.phase, this.speed > 0.3 ? 1 : 0, this.t, false);
     m.body.rotation.z = this.stunT > 0 ? Math.sin(this.t * 40) * 0.2 : 0;
     this.truck.position.set(this.truckX, Math.sin(this.t * 18) * 0.02, this.z * 0.3);
+    if (this.reel) this.reel.rotation.y += dt * 3;
+    // ライトの光（軽トラの前からゴキブリの足もとまで）と、前へのびる影
+    const gapNow = this.x - (this.truckX + 1.7);
+    const k = Math.max(0, Math.min(1, 1 - gapNow / 12));
+    const len = Math.max(0.5, gapNow + 2.5);
+    this.glow.scale.set(len, 2.6, 1);
+    this.glow.position.set(this.truckX + 1.7 + len / 2, 0.02, this.z * 0.3);
+    this.glow.material.opacity = 0.15 + k * 0.75;
+    const sl = 0.4 + k * 3.2;
+    this.longShadow.scale.set(sl, 0.42, 1);
+    this.longShadow.position.set(this.x + sl / 2 + 0.1, 0.03, this.z);
+    this.longShadow.material.opacity = 0.2 + k * 0.7;
     // カメラ：ゴキブリのうしろ少し上から、行く先を見る
     const gap = this.x - (this.truckX + 1.7);
     const shake = gap < 4 ? (4 - gap) * 0.02 : 0;
@@ -260,10 +349,11 @@ export class Runner {
     this.doneT = 0;
     if (win) { this.sfx.win(); this.ui.say('くそぉ…となりのハウスに逃げこまれた！'); } else { this.sfx.lose(); this.ui.say('つかまえたぞ！ ざまあみろ！'); }
     this.sfx.stopEngine && this.sfx.stopEngine();
-    this.result = { win, time: this.t, bits: this.bits, dist: Math.min(L, this.x) };
+    this.result = { win, time: this.t, bits: this.bits, dist: Math.min(L, this.x), course: this.course };
     setTimeout(() => this.ui.runOver && this.ui.runOver(this.result), 1300);
   }
 
   get progress() { return Math.max(0, Math.min(1, this.x / L)); }
+  get truckProgress() { return Math.max(0, Math.min(1, (this.truckX + 1.7) / L)); }
 }
 function pickOne(a) { return a[Math.floor(Math.random() * a.length)]; }
