@@ -97,6 +97,7 @@
         <span class="fps-note" id="fpsNote"></span>
       </div>
       <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button><button class="btn" id="btnTour">見学モード（遊ばずに見て回る）</button></div>
+      <div class="row"><button class="btn run-btn" id="btnRun">おまけ：にげろ！田んぼ道</button></div>
       <details class="howto" id="howto">
         <summary>遊びかた</summary>
         <div class="body">
@@ -169,6 +170,7 @@
     <div class="sheet">
       <h2 class="rtitle">図鑑・称号・着せかえ</h2>
       <div class="book-sec"><h3>羽の色</h3><div class="wings" id="bookWings"></div></div>
+      <div class="book-sec"><h3>羽のもよう</h3><div class="wings" id="bookPatterns"></div></div>
       <div class="book-sec"><h3>帽子（星を集めると増える）</h3><div class="wings" id="bookHats"></div></div>
       <div class="book-sec"><h3>称号</h3><ul class="titles" id="bookTitles"></ul></div>
       <div class="book-sec"><h3>図鑑</h3><ul class="ency" id="bookEncy"></ul></div>
@@ -202,6 +204,24 @@
     </div>
   </section>
 
+  <div id="runHud" hidden>
+    <div class="run-top">
+      <div class="run-prog"><i id="runProg"></i><span class="run-me" id="runMe"></span><span class="run-goal">ゴール</span></div>
+      <div class="run-gap" id="runGap">軽トラまで 10m</div>
+    </div>
+    <div class="run-say" id="runSay" hidden></div>
+    <div class="run-count" id="runCount"></div>
+    <div class="run-bl card"><div>ダッシュ</div><div class="bar"><i id="runStam"></i></div><div>パプリカのかけら <b id="runBits">0</b></div></div>
+    <p class="run-help" id="runHelp">左右でよける・ダッシュで加速（Shift・食べるボタン）。水たまり・石・カエルに気をつけて、となりのハウスへ逃げこめ！</p>
+  </div>
+  <section id="runResult" class="screen" hidden>
+    <div class="sheet">
+      <h2 class="rtitle" id="runTitle"></h2>
+      <p class="lead" id="runText"></p>
+      <p class="r-news" id="runNews"></p>
+      <div class="row r-btns"><button class="btn primary big-again" id="btnRunAgain">もう一回！</button><button class="btn" id="btnRunTitle">タイトルへ</button></div>
+    </div>
+  </section>
   <div id="err" hidden></div>
 </div>
 <script type="module" src="js/main.js"></script>

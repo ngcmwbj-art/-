@@ -51,17 +51,58 @@ export const WING_COLORS = {
   paprika: { label: 'パプリカ赤', color: 0xff5a45 },
   leaf: { label: '若葉', color: 0x9cff8a },
 };
-const wingCache = {};
-function wingMat(key) {
-  const M = roachMats();
-  if (!key || key === 'normal' || !WING_COLORS[key]) return M.wing;
-  if (!wingCache[key]) {
-    wingCache[key] = M.wing.clone();
-    wingCache[key].color.setHex(WING_COLORS[key].color);
+// 羽のもよう（色とは別に選べる）
+export const WING_PATTERNS = {
+  none: { label: 'なし' },
+  dots: { label: '水玉' },
+  stripes: { label: 'しま' },
+  stars: { label: '星' },
+};
+function patternTexture(base, pat) {
+  const src = base.image;
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  const x = c.getContext('2d');
+  x.drawImage(src, 0, 0);
+  const w = c.width, h = c.height;
+  x.fillStyle = 'rgba(255, 238, 190, 0.85)';
+  x.strokeStyle = 'rgba(255, 238, 190, 0.85)';
+  if (pat === 'dots') {
+    for (let j = 0; j < 9; j++) for (let i = 0; i < 4; i++) {
+      x.beginPath(); x.arc((i + 0.5 + (j % 2) * 0.5) * w / 4, (j + 0.5) * h / 9, w * 0.07, 0, Math.PI * 2); x.fill();
+    }
+  } else if (pat === 'stripes') {
+    x.lineWidth = h / 22;
+    for (let j = 1; j < 10; j++) { x.beginPath(); x.moveTo(0, j * h / 10); x.lineTo(w, j * h / 10 + h * 0.03); x.stroke(); }
+  } else if (pat === 'stars') {
+    const star = (cx, cy, r) => {
+      x.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+      x.closePath(); x.fill();
+    };
+    x.fillStyle = 'rgba(255, 214, 90, 0.95)';
+    for (let j = 0; j < 6; j++) for (let i = 0; i < 3; i++) star((i + 0.5 + (j % 2) * 0.4) * w / 3, (j + 0.5) * h / 6, w * 0.11);
   }
-  return wingCache[key];
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = base.colorSpace; t.wrapS = base.wrapS; t.wrapT = base.wrapT; t.anisotropy = base.anisotropy;
+  return t;
 }
-export function makeRoach(nymph = false, wingKey = 'normal') {
+const wingCache = {};
+function wingMat(key, pat = 'none') {
+  const M = roachMats();
+  const noColor = !key || key === 'normal' || !WING_COLORS[key];
+  const noPat = !pat || pat === 'none' || !WING_PATTERNS[pat];
+  if (noColor && noPat) return M.wing;
+  const ck = `${noColor ? 'normal' : key}|${noPat ? 'none' : pat}`;
+  if (!wingCache[ck]) {
+    const mt = M.wing.clone();
+    if (!noColor) mt.color.setHex(WING_COLORS[key].color);
+    if (!noPat && M.wing.map && M.wing.map.image) mt.map = patternTexture(M.wing.map, pat);
+    wingCache[ck] = mt;
+  }
+  return wingCache[ck];
+}
+export function makeRoach(nymph = false, wingKey = 'normal', pattern = 'none') {
   const M = roachMats();
   const root = new THREE.Group();
   const body = new THREE.Group();
@@ -81,7 +122,7 @@ export function makeRoach(nymph = false, wingKey = 'normal') {
   // 前の翅（成虫だけ）：左右2枚が背中をおおう
   if (!nymph) {
     for (const s of [-1, 1]) {
-      const w = mesh(SPH_Z, wingMat(wingKey));
+      const w = mesh(SPH_Z, wingMat(wingKey, pattern));
       w.scale.set(0.088, 0.03, 0.285);
       w.position.set(s * 0.043, 0.148, -0.085);
       w.rotation.set(0.04, s * 0.03, s * -0.12);

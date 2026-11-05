@@ -58,6 +58,7 @@ export const ENCYCLOPEDIA = [
   { id: 'fogger', name: 'けむり玉', text: '農場主が本気で怒ると、ハウスを煙でいっぱいにする。出入り口か換気口へ逃げろ。卵だけは煙に強い。' },
   { id: 'wind', name: '循環扇の風', text: '入口の渦で「風に乗る」と、通路の先まで一気に飛べる。' },
   { id: 'fruit', name: '株の実', text: 'さいばい槽に登るとかじれる。熟した赤・黄・橙の実は栄養たっぷり、緑の実は少しだけ。たくさん落とすと農場主が株を見回りに来て、薬をまいた株はしばらく食べられない。' },
+  { id: 'stow', name: '収穫かごにもぐる', text: 'コンテナのそばで死んだふりボタン。もぐったまま出荷されると、出荷先で虫入りになってその箱はダメに。運ばれている間にゆらすと見つかる。' },
   { id: 'sheet', name: '黄色い粘着シート', text: 'さいばい槽の上に置いてある。触るとくっつく。ホイホイと同じく食べるボタンの連打で抜け出せる。' },
   { id: 'spider', name: 'クモ', text: 'さいばい槽の上に白く光る巣を張って待ちぶせ。近づくと赤い輪の所へとびかかる。' },
   { id: 'exterm', name: '害虫駆除の業者', text: 'ステージ5から。仲間が大発生すると呼ばれて、さいばい槽の上に薬をまいて回る。台の下や排水溝へ逃げろ。' },
@@ -96,7 +97,7 @@ export function emptyRecords() {
   return {
     games: 0, wins: 0, ruined: 0, eggs: 0, attacks: 0, escapes: 0, nice: 0, winds: 0, fruits: 0, baits: 0, smoke: 0,
     orders: 0, cleared: 0, stars: {}, bests: {}, titles: [], seen: [], ordersDone: {}, wing: 'normal',
-    losses: {}, assist: {}, pranks: {}, hat: 'none', revenge: 0,
+    losses: {}, assist: {}, pranks: {}, hat: 'none', revenge: 0, pattern: 'none', week: null, weeksDone: 0, stowaway: 0, runBest: 0,
   };
 }
 export function normalizeRecords(r) {
@@ -112,6 +113,7 @@ export function normalizeRecords(r) {
   if (!out.bests || typeof out.bests !== 'object') out.bests = {};
   for (const k of ['losses', 'assist', 'pranks']) if (!out[k] || typeof out[k] !== 'object') out[k] = {};
   if (typeof out.hat !== 'string') out.hat = 'none';
+  if (typeof out.pattern !== 'string') out.pattern = 'none';
   return out;
 }
 
@@ -135,13 +137,39 @@ export function seasonOf(key) {
 export const SEASON_LABEL = { xmas: 'クリスマス', newyear: 'お正月' };
 export function totalStars(r) { return Object.values(r.stars || {}).reduce((a, b) => a + (b || 0), 0); }
 export function unlockedHats(r) { const n = totalStars(r); const sh = r.seasonHats || []; return Object.keys(HATS).filter((k) => (HATS[k].season ? sh.includes(k) : n >= HATS[k].need)); }
+// 羽のもようの手に入れ方
+export const PATTERN_UNLOCK = {
+  none: { desc: '最初から', check: () => true },
+  dots: { desc: 'ステージ2をクリア', check: (r) => (r.cleared || 0) >= 2 },
+  stripes: { desc: '「ナイス！」を合計20回', check: (r) => (r.nice || 0) >= 20 },
+  stars: { desc: '週のチャレンジを1回達成', check: (r) => (r.weeksDone || 0) >= 1 },
+};
+export function unlockedPatterns(r) { return Object.keys(PATTERN_UNLOCK).filter((k) => PATTERN_UNLOCK[k].check(r)); }
+
+// 週のチャレンジ（このスマホ・パソコンだけの記録。月曜に新しくなる。やらなくても何も失わない）
+export function weekKey(d = new Date()) {
+  const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = (t.getDay() + 6) % 7; // 月曜=0
+  t.setDate(t.getDate() - day);
+  return todayKey(t);
+}
+export const WEEK_GOALS = [
+  { id: 'ruined', text: 'コンテナを合計30箱ダメにする', need: 30, of: (s) => s.ruined || 0 },
+  { id: 'eggs', text: '卵を合計15個産む', need: 15, of: (s) => s.eggs || 0 },
+  { id: 'pranks', text: 'いたずらを合計5回成功させる', need: 5, of: (s, res) => (res.pranks || []).length },
+];
+export function weekState(r, key) {
+  if (!r.week || r.week.key !== key) return { key, prog: { ruined: 0, eggs: 0, pranks: 0 }, done: false };
+  return r.week;
+}
+
 // おたすけ：同じステージで3回続けて負けたらすすめる
 export const ASSIST_AFTER = 3;
 
 // 1ゲームの結果を記録に足す。新しく取った称号・羽の色を返す
 export function applyResult(rec, res, stats, orders, dayKey) {
   const r = normalizeRecords(rec);
-  const before = { titles: new Set(r.titles), wings: unlockedWings(r), hats: unlockedHats(r) };
+  const before = { titles: new Set(r.titles), wings: unlockedWings(r), hats: unlockedHats(r), patterns: unlockedPatterns(r) };
   r.games++;
   if (res.win) {
     r.wins++;
@@ -195,8 +223,17 @@ export function applyResult(rec, res, stats, orders, dayKey) {
     r.seasonHats = Array.isArray(r.seasonHats) ? r.seasonHats : [];
     for (const k of Object.keys(HATS)) if (HATS[k].season === res.season && !r.seasonHats.includes(k)) r.seasonHats.push(k);
   }
+  // 週のチャレンジ
+  const [yy, mm, dd] = String(dayKey).split('-').map(Number);
+  const wk = weekState(r, weekKey(yy ? new Date(yy, mm - 1, dd) : new Date()));
+  for (const gl of WEEK_GOALS) wk.prog[gl.id] = (wk.prog[gl.id] || 0) + gl.of(stats, res);
+  const weekNow = !wk.done && WEEK_GOALS.every((gl) => wk.prog[gl.id] >= gl.need);
+  if (weekNow) { wk.done = true; r.weeksDone = (r.weeksDone || 0) + 1; }
+  r.week = wk;
+  if (stats.stowaway) r.stowaway = (r.stowaway || 0) + stats.stowaway;
+  const newPatterns = unlockedPatterns(r).filter((k) => !before.patterns.includes(k));
   const newHats = unlockedHats(r).filter((k) => !before.hats.includes(k));
-  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest, offerAssist, newPranks, newHats };
+  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest, offerAssist, newPranks, newHats, newPatterns, weekNow, week: wk };
 }
 export function unlockedWings(r) {
   return Object.keys(WING_UNLOCK).filter((k) => WING_UNLOCK[k].check(r));

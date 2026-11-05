@@ -62,6 +62,7 @@ export const PRANKS = [
   { id: 'playdead', text: '死んだふりで農場主に見のがしてもらう', short: '死んだふり' },
 ];
 const PLAYDEAD_USES = 3;
+const _v3 = new THREE.Vector3();
 // 実の熟し具合：熟した実（赤・黄・橙）は栄養たっぷり、色づきかけは中くらい、緑は少し
 const RIPE = { [PAPRIKA_COLORS.red]: 1, [PAPRIKA_COLORS.yellow]: 1, [PAPRIKA_COLORS.orange]: 1, [PAPRIKA_COLORS.turning]: 0.5, [PAPRIKA_COLORS.green]: 0.22 };
 const ripeOf = (f) => RIPE[f.hex] ?? 0.5;
@@ -255,7 +256,8 @@ export class Game {
       return { x: b.x, z: b.z, h: b.h, model: m, rider: null };
     });
 
-    this.player = this.spawnRoach(PLAYER_START.x, PLAYER_START.z, false, 0, -1, this.wing);
+    this.pattern = opts.pattern || 'none';
+    this.player = this.spawnRoach(PLAYER_START.x, PLAYER_START.z, false, 0, -1, this.wing, this.pattern);
     this.player.isPlayer = true;
     this.player.h = Math.PI / 2;
     this.player.deadUses = PLAYDEAD_USES;
@@ -340,8 +342,8 @@ export class Game {
     c.model.group.rotation.set(0, 0, 0);
   }
 
-  spawnRoach(x, z, nymph, y = 0, surface = -1, wing = 'normal') {
-    const m = makeRoach(nymph, wing);
+  spawnRoach(x, z, nymph, y = 0, surface = -1, wing = 'normal', pattern = 'none') {
+    const m = makeRoach(nymph, wing, pattern);
     if (nymph) m.root.scale.setScalar(0.62);
     this.root.add(m.root);
     const r = {
@@ -487,6 +489,39 @@ export class Game {
     // 死んだふり・軍手の中：じっとしている
     const deadPress = inp.consume('dead');
     const mvIn = Math.hypot(inp.mx, inp.mz);
+    // 収穫かごの中：かごといっしょに動く。動いたりかじったりすると、かごがゆれる
+    if (p.stow) {
+      const c = p.stow;
+      if (c.rotten || c.shipped) { this.leaveStow(p); }
+      else {
+        c.model.group.getWorldPosition(_v3);
+        p.x = _v3.x; p.z = _v3.z; p.y = Math.max(0, _v3.y); p.moving = false;
+        inp.consume('action');
+        if (deadPress) { this.leaveStow(p); return; }
+        const chew = inp.actionHeld;
+        if (chew) {
+          this.bite(c, 2.2 * dt, p);
+          this.addNutrition(1.2 * dt);
+          p.crunchT -= dt;
+          if (p.crunchT <= 0) { this.sfx.crunch(0.05); p.crunchT = 0.35; }
+        }
+        if (chew || mvIn > 0.4) {
+          c.wiggle = 0.35;
+          const f = this.farmer;
+          if (c.carried) {
+            // 運ばれている間にゆれると、農場主が気づく
+            f.stowSus = (f.stowSus || 0) + dt * (chew ? 1.1 : 0.8);
+            if (f.stowSus > 1.3) this.stowFound(p, c);
+          } else this.noise(c, 2.5, 6 * dt);
+        }
+        p.greed = Math.max(0, p.greed - 60 * dt);
+        return;
+      }
+    }
+    if (deadPress && !p.box && !p.inGlove) {
+      const sc = this.stowTarget(p);
+      if (sc) { this.startStow(p, sc); return; }
+    }
     if (p.playDead > 0) {
       p.playDead -= dt; p.playDeadT += dt;
       if (p.playDead <= 0 || deadPress || (p.playDeadT > 0.5 && mvIn > 0.35) || inp.consume('action')) { p.playDead = 0; p.fooled = 0; }
@@ -612,6 +647,66 @@ export class Game {
     if (inp.consume('attack')) { if (p.box) this.leaveHiding(p); this.tryAttack(p); }
   }
 
+  // ---------------- 収穫かごにもぐる（出荷されるかごに入って、出荷を台無しにする） ----------------
+  stowTarget(p) {
+    if (p.st !== 'move' || p.playDead > 0) return null;
+    const c = this.crateInReach(p);
+    return c && !c.rotten && !c.shipped && !c.carried && !c.stowed ? c : null;
+  }
+  startStow(p, c) {
+    p.stow = c; c.stowed = p;
+    p.model.root.visible = false;
+    p.eatingCrate = null;
+    this.farmer.stowSus = 0;
+    this.sfx.click();
+    this.toast('収穫かごにもぐりこんだ！ このまま出荷されれば、出荷先で「虫入り」になって台無しに。ゆらすと気づかれる', 'good');
+    this.seen('stow');
+    this.events.push('stow');
+  }
+  leaveStow(p, x, z) {
+    const c = p.stow;
+    if (!c) return;
+    p.stow = null; c.stowed = null;
+    p.model.root.visible = true;
+    if (x !== undefined) { p.x = x; p.z = z; }
+    else { p.x = c.x + (c.z >= 0 ? 0.1 : -0.1); p.z = c.z + (p.z >= c.z ? 0.7 : -0.7); }
+    if (c.carried || c.shipped) { p.y = 0; p.surface = -1; }
+    p.trapImmune = 1;
+    this.collide(p);
+  }
+  // 運ばれている途中でゆらして見つかった
+  stowFound(p, c) {
+    const f = this.farmer;
+    f.stowSus = 0;
+    this.say('ん？ 箱が動いた…うわっ！ 中にゴキブリが！');
+    this.dropCarry('農場主がかごを放り出した！');
+    this.leaveStow(p, f.x + Math.sin(f.h) * 1.6, f.z + Math.cos(f.h) * 1.6);
+    this.startChase(p);
+  }
+  // 出荷のときに中にいた：出荷先で虫入り → その箱はダメに
+  stowShipped(p, c) {
+    const f = this.farmer;
+    f.carry = null;
+    c.carried = false; c.stowed = null;
+    c.table = -1; c.baseY = 0;
+    c.x = DOOR.x - 1.4; c.z = DOOR.z - 1.2;
+    this.root.attach(c.model.group);
+    this.placeCrate(c);
+    this.ruinCrate(c, p);
+    p.stow = null;
+    p.model.root.visible = true;
+    p.x = DOOR.x - 1.2; p.z = DOOR.z + 0.6; p.y = 0; p.surface = -1; p.trapImmune = 1.5;
+    this.collide(p);
+    f.catHold = 2.5;
+    this.stats.stowaway = (this.stats.stowaway || 0) + 1;
+    this.say('うわぁっ！ 積んだ箱からゴキブリが！ こんなの出荷できるか！');
+    this.toast('出荷ジャック成功！ トラックの荷台から飛びおりた。その箱は虫入りでダメに！', 'good');
+    this.radio('ラジオ「出荷の箱にゴキブリが入っていたとの情報です」', true);
+    this.snap('stowaway', '出荷されるかごにもぐりこんで、出荷を台無しに！');
+    this.sfx.scream();
+    this.events.push('stowaway');
+  }
+
   // ---------------- 隠れる・いたずら ----------------
   nearBento(p) {
     const b = this.bento;
@@ -660,6 +755,7 @@ export class Game {
     if (!r) return;
     if (r.box) { r.box.rider = null; r.box = null; }
     if (r.inGlove) { r.inGlove = false; r.model.root.visible = true; }
+    if (r.stow) this.leaveStow(r);
     r.playDead = 0;
   }
   startPlayDead(p) {
@@ -1396,6 +1492,7 @@ export class Game {
     if (t.kind === 'egg') return t.alive ? this.hideFactor(t) * 0.75 : 0;
     if (!t.alive || t.st === 'fly' || t.st === 'glide' || t.st === 'dead') return 0;
     if (t.inGlove) return 0.02;
+    if (t.stow) return t.stow.wiggle > 0 ? 0.25 : 0.01;
     if (t.st === 'drain') return 0;
     let v = this.hideFactor(t);
     if (t.box) v = Math.min(v, t.moving ? 0.5 : 0.1);
@@ -1737,6 +1834,7 @@ export class Game {
         if (!f.carry) { f.phase = 'choose'; break; }
         if (this.walk(dt, this.farmerSpeed('carry'))) {
           const c = f.carry;
+          if (c.stowed && c.stowed.alive && c.stowed.stow === c) { this.stowShipped(c.stowed, c); f.phase = 'choose'; break; }
           f.carry = null;
           c.carried = false;
           c.shipped = true;
@@ -2069,7 +2167,13 @@ export class Game {
     }
   }
 
-  updateCrates() {
+  updateCrates(dt = 0) {
+    for (const c of this.crates) {
+      if (c.wiggle > 0) {
+        c.wiggle = Math.max(0, c.wiggle - dt);
+        c.model.group.rotation.z = Math.sin(this.clock * 40) * 0.05 * (c.wiggle / 0.35);
+      } else if (c.model.group.rotation.z && !c.fall) c.model.group.rotation.z = 0;
+    }
     for (const c of this.crates) {
       if (c.rotten || c.shipped) continue;
       setCrateRot(c.model, Math.min(0.85, 1 - c.hp / 100));
@@ -2342,7 +2446,7 @@ export class Game {
       if (C.cd <= 0 && !this.tour) {
         let best = null, bd = 5;
         for (const r of this.roaches) {
-          if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide' || r.inGlove || r.box || r.playDead > 0 || r.st === 'drain') continue;
+          if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide' || r.inGlove || r.box || r.stow || r.playDead > 0 || r.st === 'drain') continue;
           const d = Math.hypot(r.x - C.x, r.z - C.z);
           const ang = Math.abs(angleDiff(C.h, Math.atan2(r.x - C.x, r.z - C.z)));
           if (d < bd && ang < 0.9 && (this.hideFactor(r) > 0.5 || r.moving) && (r.isPlayer || rand() < 0.5)) { bd = d; best = r; }
@@ -3044,12 +3148,13 @@ export class Game {
     if (p.st === 'stuck') return { key: 'action', text: '連打で脱出！', urgent: true, struggle: p.struggle };
     if (p.st !== 'move') return null;
     if (p.playDead > 0) return { key: 'action', text: '死んだふり中（動くと起きる）' };
+    if (p.stow) return { key: 'action', text: p.stow.carried ? '運ばれている！ じっとして出荷を待て（ゆらすとバレる）' : 'かごの中（長押しで中からかじる・死んだふりボタンで出る）', first: 'stowIn' };
     if (p.inGlove) return { key: 'action', text: '軍手から出る' };
     if (p.box) return { key: 'action', text: '段ボールから出る' };
     const stuckMate = this.roaches.find((r) => r.alive && r !== p && r.st === 'stuck' && Math.hypot(r.x - p.x, r.z - p.z) < 1.3);
     if (stuckMate) return { key: 'action', text: '仲間を助ける' };
     const c = this.crateInReach(p);
-    if (c) return { key: 'action', text: '長押しで食べる', hold: true, crate: c };
+    if (c) return { key: 'action', text: '長押しで食べる', hold: true, crate: c, stow: !!this.stowTarget(p), first: this.stowTarget(p) ? 'stow' : undefined };
     const f = this.fruitInReach(p);
     if (f) return { key: 'action', text: '長押しで実を食べる', hold: true, fruit: f };
     const b = this.baitInReach(p);

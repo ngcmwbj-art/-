@@ -154,6 +154,32 @@ export class Sfx {
   siren() { for (let i = 0; i < 4; i++) { this.tone(660, 0.25, 'square', 0.07, 0, i * 0.5); this.tone(520, 0.25, 'square', 0.07, 0, i * 0.5 + 0.25); } }
 
   // 農場主の腰のラジオ：民謡風のメロディと、ときどきのしゃべり。音の大きさと左右で居場所が分かる
+  // 軽トラのエンジン音（にげろ！田んぼ道）：近いほど大きく低くうなる
+  startEngine() {
+    if (!this.ok || this.engine) return;
+    const c = this.ctx;
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 52;
+    const o2 = c.createOscillator(); o2.type = 'square'; o2.frequency.value = 26;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+    const g = c.createGain(); g.gain.value = 0;
+    o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(this.master);
+    o.start(); o2.start();
+    this.engine = { o, o2, g };
+  }
+  updateEngine(k) {
+    const E = this.engine;
+    if (!E) return;
+    const t = this.ctx.currentTime;
+    E.g.gain.setTargetAtTime(0.05 + k * 0.22, t, 0.1);
+    E.o.frequency.setTargetAtTime(48 + k * 30, t, 0.2);
+  }
+  stopEngine() {
+    const E = this.engine;
+    if (!E) return;
+    try { E.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1); E.o.stop(this.ctx.currentTime + 0.5); E.o2.stop(this.ctx.currentTime + 0.5); } catch (_) { /* 無視 */ }
+    this.engine = null;
+  }
+
   startRadio() {
     if (!this.ok || this.radio) return;
     const c = this.ctx;

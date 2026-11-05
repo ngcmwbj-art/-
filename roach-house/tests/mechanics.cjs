@@ -681,6 +681,67 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       RH.sim(30, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); if (gg.clouds.some((c) => c.y > 1)) hi = true; });
       check('業者がさいばい槽の上に薬をまく', hi, `st=${g.exterm && g.exterm.st}`);
     }
+
+    // 56. 収穫かごにもぐる（出荷ジャック）
+    g.start('s1', 110);
+    {
+      const F = g.farmer, P = g.player;
+      Object.assign(F, { state: 'WORK', phase: 'idle', timer: 999, x: 19, z: 12 });
+      const c = g.crates.find((cc) => cc.table >= 0);
+      const T = RH.rows ? null : null;
+      Object.assign(P, { x: c.x, z: c.z + 0.75, surface: c.table, y: 2.2, st: 'move' });
+      const ctx = g.context();
+      check('コンテナのそばで「もぐる」ができる', ctx && ctx.stow === true, ctx && ctx.text);
+      inp.press('dead');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.timer = 999; });
+      check('かごにもぐれる', P.stow === c && g.visibility(P) < 0.05 && !P.model.root.visible);
+      // 農場主が運ぶ
+      Object.assign(F, { state: 'WORK', phase: 'pack', crate: c, timer: 0, x: c.x, z: c.z + 1.6 });
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('農場主がそのかごを運ぶ', F.carry === c && Math.hypot(P.x - F.x, P.z - F.z) < 2.5);
+      const r0 = g.ruined, s0 = g.shipped;
+      F.x = 20.4; F.z = 10.9; F.path = []; F.pi = 0; F.phase = 'toDoor';
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('出荷されると、その箱は虫入りでダメに', c.rotten && !c.shipped && g.ruined === r0 + 1 && g.shipped === s0 && g.stats.stowaway === 1, `rot=${c.rotten} ship=${c.shipped}`);
+      check('出荷ジャックのあとは外に出ている', !P.stow && P.model.root.visible && P.alive);
+      // 運ばれている途中でゆらすと見つかる
+      g.start('s1', 111);
+      const F2 = g.farmer, P2 = g.player;
+      const c2 = g.crates.find((cc) => cc.table >= 0);
+      Object.assign(P2, { x: c2.x, z: c2.z + 0.75, surface: c2.table, y: 2.2, st: 'move' });
+      inp.press('dead');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.timer = 999; });
+      Object.assign(F2, { state: 'WORK', phase: 'pack', crate: c2, timer: 0, x: c2.x, z: c2.z + 1.6 });
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); });
+      RH.sim(2.5, 1 / 30, (gg, i) => { idle(gg, i); i.actionHeld = true; });
+      check('運ばれている途中でかじると見つかる', !P2.stow && F2.state === 'CHASE' && !F2.carry, `st=${F2.state}`);
+    }
+
+    // 57. 羽のもよう
+    {
+      const M = window.__rh.game.player.model;
+      check('羽のもようは最初は「なし」だけ', F.unlockedPatterns(F.normalizeRecords(null)).join() === 'none');
+      const rr = F.normalizeRecords({ cleared: 2, nice: 25, weeksDone: 1 });
+      check('条件で水玉・しま・星が手に入る', ['dots', 'stripes', 'stars'].every((k) => F.unlockedPatterns(rr).includes(k)));
+      g.start('s1', 112, { pattern: 'dots' });
+      let patMap = null; g.player.model.body.traverse((o) => { if (o.material && o.material.map && o.material.map.isCanvasTexture && o.scale.z > 0.2) patMap = o.material.map; });
+      check('もようの羽になる', !!patMap);
+    }
+
+    // 58. 週のチャレンジ
+    {
+      let rec = F.normalizeRecords(null);
+      const sw = { ...st, ruined: 16, eggs: 8 };
+      const a1 = F.applyResult(rec, { win: true, diff: 's1', alive: 0, elapsed: 100, pranks: ['bento', 'glove', 'playdead'] }, sw, [], '2026-11-05');
+      check('週のチャレンジが数えられる', a1.week.prog.ruined === 16 && a1.week.prog.eggs === 8 && a1.week.prog.pranks === 3 && !a1.weekNow);
+      const a2 = F.applyResult(a1.rec, { win: true, diff: 's1', alive: 0, elapsed: 100, pranks: ['bento', 'glove'] }, sw, [], '2026-11-06');
+      check('ぜんぶそろうと週のチャレンジ達成', a2.weekNow && a2.rec.weeksDone === 1 && a2.newPatterns.includes('stars'));
+      const a3 = F.applyResult(a2.rec, { win: true, diff: 's1', alive: 0, elapsed: 100 }, sw, [], '2026-11-10');
+      check('月曜に新しい週になる', a3.week.key === '2026-11-09' && a3.week.prog.ruined === 16 && !a3.week.done);
+    }
+
+    // 59. わなが見える（近くの葉を透かす）
+    check('わなのまわりの葉を透かす仕組みがある', typeof RH.world.setReveal === 'function');
     return out;
   });
   console.log(results.join('\n'));

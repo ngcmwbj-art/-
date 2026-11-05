@@ -3,15 +3,16 @@ import * as THREE from 'three';
 import { buildWorld, ROWS, TABLES, DOOR, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
 import * as FEATURES from './features.js';
 import { Game, DIFFS, STAGES, MAX_NYMPHS } from './game.js';
+import { Runner } from './runner.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
 import { clamp, damp, inRect } from './util.js';
 import { FX, AutoQuality, LEVELS } from './fx.js';
 import { setTextureSize } from './textures.js';
-import { WING_COLORS } from './models.js';
+import { WING_COLORS, WING_PATTERNS } from './models.js';
 import {
   todayKey, todayLabel, dailySeed, todaysOrders, normalizeRecords, applyResult, TITLES, WING_UNLOCK, ENCYCLOPEDIA, unlockedWings, STAR_RULES,
-  HATS, unlockedHats, totalStars, seasonOf, SEASON_LABEL,
+  HATS, unlockedHats, totalStars, seasonOf, SEASON_LABEL, PATTERN_UNLOCK, unlockedPatterns, WEEK_GOALS, weekKey, weekState,
 } from './features.js';
 import { PRANKS } from './game.js';
 
@@ -132,6 +133,56 @@ const ui = {
 };
 
 const game = new Game({ scene, sfx, ui });
+// ---------- おまけステージ「にげろ！田んぼ道」 ----------
+let runSayT = 0;
+const runner = new Runner({ scene, camera, sfx, ui: {
+  say(t) { const el = $('runSay'); el.textContent = `農場主「${t}」`; el.hidden = false; runSayT = 2.6; },
+  feed,
+  runOver(res) { showRunResult(res); },
+} });
+function runUnlocked() { return (records.stowaway || 0) >= 1; }
+function renderRunBtn() {
+  const b = $('btnRun');
+  const ok = runUnlocked();
+  b.disabled = !ok;
+  b.textContent = ok ? `おまけ：にげろ！田んぼ道${records.runBest ? `（ベスト ${records.runBest.toFixed(1)}秒）` : ''}` : 'おまけ：にげろ！田んぼ道（「かごにもぐって出荷ジャック」を1回成功させると遊べる）';
+}
+function startRun() {
+  sfx.unlock();
+  endTourUi();
+  sfx.stopRadio();
+  world.setNight(false);
+  renderer.toneMappingExposure = 0.95;
+  world.group.visible = false;
+  if (game.root) game.root.visible = false;
+  game.state = 'title';
+  runner.start({ wing: records.wing, pattern: records.pattern, hat: records.hat, seed: dailySeed(dayKey) % 100000 + 7 });
+  $('runSay').hidden = true;
+  setScreen('run');
+}
+function endRun() {
+  runner.stop();
+  world.group.visible = true;
+  if (game.root) game.root.visible = true;
+}
+function showRunResult(res) {
+  if (screen !== 'run') return;
+  records.runPlays = (records.runPlays || 0) + 1;
+  let best = '';
+  if (res.win) {
+    records.runClears = (records.runClears || 0) + 1;
+    if (!records.runBest || res.time < records.runBest) { best = records.runBest ? `ベスト更新！（前は ${records.runBest.toFixed(1)}秒）` : '初クリア！'; records.runBest = Math.round(res.time * 10) / 10; }
+  }
+  store.set('records', records);
+  $('runTitle').textContent = res.win ? 'にげきった！' : 'つかまった…';
+  $('runTitle').className = `rtitle ${res.win ? 'win' : 'lose'}`;
+  $('runText').textContent = res.win ? `${res.time.toFixed(1)}秒で、となりのハウスへ逃げこんだ。パプリカのかけら ${res.bits} 個` : `ゴールまであと ${Math.round(230 - res.dist)}m。パプリカのかけら ${res.bits} 個。ダッシュはかけらで回復するよ`;
+  $('runNews').innerHTML = best ? `<span class="new">${best}</span>` : '';
+  setScreen('runover');
+}
+$('btnRun').addEventListener('click', startRun);
+$('btnRunAgain').addEventListener('click', () => { endRun(); startRun(); });
+$('btnRunTitle').addEventListener('click', () => { endRun(); toTitle(); });
 window.__rh = { game, input, THREE, scene, camera, renderer, fx, world };
 
 // ---------- 画面切りかえ ----------
@@ -142,13 +193,16 @@ function setScreen(s) {
   $('pause').hidden = s !== 'pause';
   $('result').hidden = s !== 'result';
   $('book').hidden = s !== 'book';
+  $('runHud').hidden = s !== 'run';
+  $('runResult').hidden = s !== 'runover';
+  document.body.classList.toggle('run', s === 'run');
   $('hud').hidden = !(s === 'play' || s === 'pause' || s === 'over');
   updateTouchVisibility();
 }
 function updateTouchVisibility() {
   const touch = input.touchMode || isTouchDevice;
   document.body.classList.toggle('touch', !!touch);
-  $('touch').hidden = !(touch && screen === 'play');
+  $('touch').hidden = !(touch && (screen === 'play' || screen === 'run'));
 }
 
 // ---------- 記録・今日の注文 ----------
@@ -165,9 +219,13 @@ function renderOrders() {
   refreshDay();
   const done = records.ordersDone[dayKey] || [];
   const sn = seasonOf(dayKey);
-  $('orderCard').innerHTML = `${sn ? `<p class="season-note">${SEASON_LABEL[sn]}の期間中！ ハウスに季節のかざり。1回遊ぶと期間限定の帽子がもらえる</p>` : ''}<h3>今日の注文（${todayLabel()}）</h3><ul>${orders.map((o) => `<li class="${done.includes(o.id) ? 'done' : ''}">${done.includes(o.id) ? '✓ ' : ''}${o.text}</li>`).join('')}</ul>`;
+  const [wy, wm, wd] = dayKey.split('-').map(Number);
+  const wk = weekState(records, weekKey(new Date(wy, wm - 1, wd)));
+  const weekHtml = `<h3>週のチャレンジ${wk.done ? '　<span class="ok">✓達成！</span>' : ''}</h3><ul class="week">${WEEK_GOALS.map((gl) => { const v = Math.min(gl.need, wk.prog[gl.id] || 0); return `<li class="${v >= gl.need ? 'done' : ''}">${gl.text}<span class="wbar"><i style="width:${(v / gl.need * 100).toFixed(0)}%"></i></span><b>${v}/${gl.need}</b></li>`; }).join('')}</ul><p class="week-note">月曜に新しくなる。このスマホ（パソコン）の中だけの記録。やらなくても何も失わない</p>`;
+  $('orderCard').innerHTML = `${sn ? `<p class="season-note">${SEASON_LABEL[sn]}の期間中！ ハウスに季節のかざり。1回遊ぶと期間限定の帽子がもらえる</p>` : ''}<h3>今日の注文（${todayLabel()}）</h3><ul>${orders.map((o) => `<li class="${done.includes(o.id) ? 'done' : ''}">${done.includes(o.id) ? '✓ ' : ''}${o.text}</li>`).join('')}</ul>` + weekHtml;
 }
 renderOrders();
+renderRunBtn();
 $('optTutor').checked = !store.get('tutorialDone', false);
 
 let lastDiff = 's1';
@@ -180,7 +238,7 @@ function startGame(diff) {
   const tutorial = $('optTutor').checked;
   const assist = !!(records.assist && records.assist[diff]);
   endTourUi();
-  game.start(diff, undefined, { tutorial, wing: records.wing, hat: records.hat, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
+  game.start(diff, undefined, { tutorial, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
   renderOrderMini();
   $('orderMini').hidden = false;
@@ -212,7 +270,7 @@ function startTour() {
   sfx.startRadio();
   refreshDay();
   touring = true;
-  game.start('s1', undefined, { tour: true, wing: records.wing, hat: records.hat, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
+  game.start('s1', undefined, { tour: true, wing: records.wing, hat: records.hat, pattern: records.pattern, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   world.setNight(false);
   renderer.toneMappingExposure = 0.95;
   document.body.classList.add('tour');
@@ -306,6 +364,7 @@ function resumeGame() {
   setScreen('play');
 }
 function toTitle() {
+  if (runner.active) endRun();
   saveFps();
   endTourUi();
   calmScreen();
@@ -316,6 +375,7 @@ function toTitle() {
   setScreen('title');
   renderBest();
   renderOrders();
+  renderRunBtn();
 }
 
 // ---------- 図鑑・称号・着せかえ ----------
@@ -329,6 +389,17 @@ function renderBook() {
   }).join('');
   $('bookWings').querySelectorAll('[data-wing]').forEach((b) => b.addEventListener('click', () => {
     records.wing = b.dataset.wing;
+    store.set('records', records);
+    sfx.click();
+    renderBook();
+  }));
+  const patOk = unlockedPatterns(records);
+  $('bookPatterns').innerHTML = Object.entries(WING_PATTERNS).map(([k, p]) => {
+    const ok = patOk.includes(k);
+    return `<button class="wing ${records.pattern === k ? 'on' : ''}" data-pat="${k}" ${ok ? '' : 'disabled'}><span class="sw pat-${k}"></span>${p.label}${ok ? '' : `<small>${PATTERN_UNLOCK[k].desc}</small>`}</button>`;
+  }).join('');
+  $('bookPatterns').querySelectorAll('[data-pat]').forEach((b) => b.addEventListener('click', () => {
+    records.pattern = b.dataset.pat;
     store.set('records', records);
     sfx.click();
     renderBook();
@@ -512,11 +583,16 @@ function showResult(res) {
   const prankLine = (`<b>いたずら</b>　${PRANKS.map((x) => `<span class="${prs.includes(x.id) ? 'ok' : 'ng'}">${prs.includes(x.id) ? '✓' : '・'}${x.text}${!prs.includes(x.id) && prDone.includes(x.id) ? '（前にやった）' : ''}</span>`).join('　')}`);
   if (prs.length) news.push(`<span class="new">いたずら成功 ${prs.length}/${PRANKS.length}</span>`);
   if ((s.revenge || 0) > 0) news.push(`<span class="new">ホイホイの仕返し ${s.revenge} 回成功！</span>`);
+  for (const k of out.newPatterns || []) news.push(`<span class="new">羽のもよう「${WING_PATTERNS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`);
+  if (out.weekNow) news.push('<span class="new">週のチャレンジ達成！ おめでとう！</span>');
+  if ((s.stowaway || 0) > 0) news.push(`<span class="new">出荷ジャック ${s.stowaway} 回成功！${records.stowaway === s.stowaway ? '　おまけステージ「にげろ！田んぼ道」が遊べるようになった！（タイトル画面）' : ''}</span>`);
   for (const k of out.newHats || []) news.push(`<span class="new">帽子「${HATS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`);
   // 結果画面は短く：大事なお知らせだけ上に、ほかは「くわしく」の中へ
   $('rNews').innerHTML = news.join('<br>');
   $('rNews').hidden = !news.length;
-  $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}<br>${prankLine}`;
+  const wkr = out.week;
+  const weekLine = wkr ? `<b>週のチャレンジ</b>　${WEEK_GOALS.map((gl) => `${gl.text.replace('合計', '')} ${Math.min(gl.need, wkr.prog[gl.id] || 0)}/${gl.need}`).join('　')}` : '';
+  $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}<br>${prankLine}${weekLine ? '<br>' + weekLine : ''}`;
   $('rMore').open = false;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
@@ -671,6 +747,8 @@ const FIRST_TIPS = {
   bento: '農場主のお弁当。長押しでかじると、いたずら成功',
   trap: '仲間2匹と農場主の通り道に運ぶと、長靴がくっつく',
   drain: '中を通って、別の排水溝から出られる。逃げ道にも',
+  stow: '死んだふりボタン（Xキー）で、このかごにもぐれる。運ばれて出荷されると、その箱は虫入りでダメに！',
+  stowIn: 'じっとしていれば、農場主が出荷まで運んでくれる。長押しで中からかじれるけど、ゆれるとバレる',
   sheet: 'さわるとくっつく。食べるボタンの連打で抜け出せる。よけて通ろう',
   spider: '白く光る巣のそばに近づくと、クモがとびかかってくる',
 };
@@ -694,7 +772,9 @@ function updateHud(dt) {
   const tD = $('tDead');
   tD.classList.toggle('using', !!(pd && pd.playDead > 0));
   tD.classList.toggle('off', !!(pd && (pd.deadUses || 0) <= 0 && !(pd.playDead > 0)));
-  const dl = `死んだ<br>ふり<small>${pd ? pd.deadUses || 0 : 0}</small>`;
+  const ctxD = g.context();
+  const dl = pd && pd.stow ? 'かごから<br>出る' : ctxD && ctxD.stow ? 'かごに<br>もぐる' : `死んだ<br>ふり<small>${pd ? pd.deadUses || 0 : 0}</small>`;
+  tD.classList.toggle('ready', !!(ctxD && ctxD.stow) || !!(pd && pd.stow));
   if (tD.dataset.l !== dl) { tD.dataset.l = dl; tD.innerHTML = dl; }
   // ナイス！
   if (g.niceT > 0.85 && !niceShown) {
@@ -1027,6 +1107,25 @@ function frame(now) {
     if (input.consume('mute')) { soundOn = !soundOn; $('optSound').checked = soundOn; sfx.setMuted(!soundOn); store.set('sound', soundOn); ui.toast(soundOn ? '音：オン' : '音：オフ', 'info'); }
     if (input.consume('pause')) { if (screen === 'play') pauseGame(); else if (screen === 'pause') resumeGame(); }
     updateTouchVisibility();
+    if (screen === 'run' || screen === 'runover') {
+      runner.update(dt, input);
+      if (screen === 'run') {
+        const g2 = runner.gap;
+        $('runProg').style.width = `${(runner.progress * 100).toFixed(1)}%`;
+        $('runMe').style.left = `${(runner.progress * 100).toFixed(1)}%`;
+        $('runGap').textContent = runner.count > 0 ? '' : `軽トラまで ${Math.max(0, g2).toFixed(0)}m`;
+        $('runGap').classList.toggle('near', g2 < 4);
+        $('runStam').style.width = `${runner.stam.toFixed(0)}%`;
+        $('runBits').textContent = runner.bits;
+        $('runCount').textContent = runner.count > 0 ? String(Math.ceil(runner.count)) : runner.t < 0.8 ? 'にげろ！' : '';
+        $('runHelp').hidden = runner.t > 6;
+        runSayT -= dt; if (runSayT <= 0) $('runSay').hidden = true;
+        const tA = $('tAction'); if (tA.textContent !== 'ダッシュ') tA.textContent = 'ダッシュ';
+      }
+      world.update(now / 1000, camera);
+      fx.render(dt, 4.2, now / 1000);
+      return;
+    }
     if (screen === 'play' || screen === 'result' || screen === 'title') {
       const prevMode = game.mode;
       game.update(screen === 'play' ? dt : (game.state === 'over' ? dt : 0), input);
@@ -1042,6 +1141,13 @@ function frame(now) {
     if (screen !== 'title') { updateHud(dt); drawMinimap(dt); }
     updateLabels();
     showPings();
+    // わなが見える：自分から6より近い粘着シート・クモの巣のまわりの葉を透かす
+    if (game.player && screen === 'play') {
+      let best = null, bd = 6;
+      for (const o of [...(game.sheets || []), ...(game.spiders || [])]) { const d = Math.hypot(o.x - game.player.x, o.z - game.player.z); if (d < bd) { bd = d; best = o; } }
+      if (best) world.setReveal(best.x, 1.48 + (best.sheet ? 0.3 : 0.1), best.z, 1.5); else world.setReveal(0, 0, 0, 0);
+      for (const sh of game.sheets || []) { const c = sh.model.userData.card; const near = Math.hypot(sh.x - game.player.x, sh.z - game.player.z) < 6; if (c) c.material.emissiveIntensity = near ? 0.9 + Math.sin(performance.now() / 160) * 0.5 : 0.7; }
+    } else world.setReveal(0, 0, 0, 0);
     if (game.cat && game.cat.m.setFuzz) game.cat.m.setFuzz(camera.position.distanceTo(game.cat.m.root.position) < 6);
     const tNow = now / 1000;
     world.update(tNow, camera);
@@ -1105,6 +1211,8 @@ window.__rh.sim = (seconds, step = 1 / 30, bot) => {
 };
 window.__rh.startGame = startGame;
 window.__rh.startTour = startTour;
+window.__rh.startRun = startRun;
+window.__rh.runner = runner;
 Object.assign(window.__rh, { stages: STAGES, plantFruits: PLANT_FRUITS, rows: ROWS, windLanes: WIND_LANES, safeSpots: SAFE_SPOTS, features: FEATURES });
 window.__rh.MAX_NYMPHS = MAX_NYMPHS;
 window.__rh.DOOR = DOOR;

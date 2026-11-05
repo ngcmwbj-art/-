@@ -64,13 +64,17 @@ const windUniform = { value: 0 };
 // カメラからゴキブリまでの距離（これより手前の葉だけを透かす）
 const fadeUniform = { value: 2.0 };
 export function setNearFade(d) { fadeUniform.value = Math.max(0.6, d); }
+// わな（粘着シート・クモの巣）のまわりの葉を透かす：近くにあるときだけ
+const revealUniform = { value: new THREE.Vector4(0, 0, 0, 0) };
+export function setReveal(x, y, z, r) { revealUniform.value.set(x, y, z, r); }
 // 株の素材に「そよぎ」と「カメラに近い所を細かく抜いて透かす」を足す
 function patchPlantMat(mat, amount = 0, fade = true) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = windUniform;
     sh.uniforms.uFade = fadeUniform;
+    sh.uniforms.uReveal = revealUniform;
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying float vNearDist;')
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying float vNearDist;\nvarying vec3 vRevealW;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
           vec4 ip = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
@@ -78,17 +82,28 @@ function patchPlantMat(mat, amount = 0, fade = true) {
           transformed.y += sw * ${amount.toFixed(3)} * max(position.x, 0.0);
           transformed.z += sw * ${(amount * 0.5).toFixed(3)} * max(position.x, 0.0);
         #endif`)
-      .replace('#include <project_vertex>', '#include <project_vertex>\n  vNearDist = -mvPosition.z;');
+      .replace('#include <project_vertex>', `#include <project_vertex>
+  vNearDist = -mvPosition.z;
+  #ifdef USE_INSTANCING
+    vRevealW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+  #else
+    vRevealW = (modelMatrix * vec4(transformed, 1.0)).xyz;
+  #endif`);
     if (fade) {
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vNearDist;\nuniform float uFade;')
+        .replace('#include <common>', '#include <common>\nvarying float vNearDist;\nuniform float uFade;\nvarying vec3 vRevealW;\nuniform vec4 uReveal;')
         .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
           float nf = smoothstep(uFade * 0.72, uFade * 0.92, vNearDist);
           float hh = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
-          if (hh > nf) discard;`);
+          if (hh > nf) discard;
+          if (uReveal.w > 0.0) {
+            float rd = distance(vRevealW, uReveal.xyz);
+            float rk = smoothstep(uReveal.w * 0.5, uReveal.w, rd);
+            if (hh > 0.12 + 0.88 * rk) discard;
+          }`);
     }
   };
-  mat.customProgramCacheKey = () => `plant${amount}${fade}`;
+  mat.customProgramCacheKey = () => `plant2${amount}${fade}`;
 }
 
 // ---------- 世界を組み立てる ----------
@@ -170,6 +185,7 @@ export function buildWorld(scene, renderer, q) {
   return {
     group: g, sun,
     setNearFade,
+    setReveal,
     get night() { return isNight; },
     setNight(on) {
       if (on === isNight) return;
