@@ -22,12 +22,12 @@ FR.Art = {
     sapling: 'sapling.png', fruittree: 'fruittree.svg', mikantree: 'mikantree.png', lemontree: 'lemontree.png',
     yuzutree: 'yuzutree.png', dekopontree: 'dekopontree.png', mikanbox: 'mikanbox.svg', jar: 'jar.svg',
     // 道具・作業・機械
-    weeding: 'weeding.svg', mulch: 'mulch.svg', seeds: 'seeds.svg', basket: 'basket.svg', water: 'water.svg',
-    net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.svg',
-    greenhouse: 'greenhouse.svg', sprayer: 'sprayer.svg', tractor: 'tractor.svg', feed: 'feed.svg',
-    vaccine: 'vaccine.svg', fence: 'fence.svg', truck: 'truck.svg', hay: 'hay.svg', shears: 'shears.svg',
-    firework: 'firework.svg', fan: 'fan.svg', stonewall: 'stonewall.svg', cowbell: 'cowbell.svg',
-    sunrise: 'sunrise.svg', coin: 'coin.svg'
+    weeding: 'weeding.svg', mulch: 'mulch.svg', seeds: 'seeds.svg', basket: 'basket.png', water: 'water.png',
+    net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.png',
+    greenhouse: 'greenhouse.svg', sprayer: 'sprayer.svg', tractor: 'tractor.svg', feed: 'feed.png',
+    vaccine: 'vaccine.png', fence: 'fence.svg', truck: 'truck.svg', hay: 'hay.svg', shears: 'shears.png',
+    firework: 'firework.svg', fan: 'fan.svg', stonewall: 'stonewall.svg', cowbell: 'cowbell.png',
+    sunrise: 'sunrise.png', coin: 'coin.png'
   },
   // 敵の絵（いただいた絵から切り出し、背景を透明にした PNG）
   ENEMY_BASE: 'assets/img/enemies/',
