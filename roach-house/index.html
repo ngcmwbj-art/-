@@ -65,6 +65,7 @@
     <div id="ripples"></div>
     <button id="pauseBtn" aria-label="一時停止">II</button>
     <button id="introSkip" class="btn" hidden>とばす ▶</button>
+    <div id="introHaz" hidden></div>
     <div id="jackOffer" class="card" hidden>
       <b>荷台から飛びおりた！</b>
       <div class="row"><button class="btn primary" id="btnJackRun">田んぼ道へにげる</button><button class="btn" id="btnJackStay">ハウスにもどる</button></div>
@@ -74,9 +75,9 @@
   <div id="touch" hidden>
     <div class="joy-zone"><div class="joy-base"><div class="joy-knob"></div></div></div>
     <div class="tbtns">
-      <button class="tbtn t-dead" data-act="dead" id="tDead" tabindex="-1">死んだ<br>ふり</button>
-      <button class="tbtn t-egg" data-act="egg" tabindex="-1">産卵</button>
-      <button class="tbtn t-attack" data-act="attack" tabindex="-1">突撃</button>
+      <button class="tbtn t-dead" data-act="dead" id="tDead" tabindex="-1" aria-label="死んだふり"><svg class="ic" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="17" r="11" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M9.5 16q2.5 2.5 5 0M17.5 16q2.5 2.5 5 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M13 22.5h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M22 3h5l-5 5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span class="tl">ふり</span><small id="tDeadN">3</small></button>
+      <button class="tbtn t-egg" data-act="egg" tabindex="-1" aria-label="産卵"><svg class="ic" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4C10 4 6.5 13 6.5 19a9.5 9.5 0 0 0 19 0C25.5 13 22 4 16 4z" fill="currentColor"/></svg><span class="tl">産卵</span></button>
+      <button class="tbtn t-attack" data-act="attack" tabindex="-1" aria-label="突撃"><svg class="ic" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="10" width="20" height="14" rx="5" fill="currentColor"/><path d="M11 10v6M16 10v6M21 10v6" stroke="rgba(22,15,10,0.7)" stroke-width="1.6"/><rect x="4" y="15" width="7" height="6" rx="3" fill="currentColor"/></svg><span class="tl">突撃</span></button>
       <button class="tbtn big" data-act="action" id="tAction" tabindex="-1">食べる</button>
     </div>
   </div>
@@ -87,9 +88,9 @@
       <p class="lead">出荷される前に、コンテナをかじってダメにしろ！</p>
       <div class="tabs" id="titleTabs" role="tablist"><button class="tab on" data-tab="play">あそぶ</button><button class="tab" data-tab="see">みる</button><button class="tab" data-tab="set">せってい</button></div>
       <div class="tab-pane" data-pane="play">
-        <div class="row"><button class="btn primary" id="btnLast" hidden>前回のステージをもう一度</button></div>
+        <div class="row"><button class="btn primary big-today" id="btnToday">きょうの1回 ▶</button><button class="btn" id="btnLast" hidden>前回</button></div>
         <div class="stages" id="stages"></div>
-        <div class="opts"><label><input type="checkbox" id="optTutor"> 練習から始める</label></div>
+        <div class="opts"><label><input type="checkbox" id="optTutor"> 練習から始める</label><label><input type="checkbox" id="optEasy"> かんたん（わな・敵なし）</label></div>
         <div class="card order-card" id="orderCard"></div>
         <div class="row"><button class="btn run-btn" id="btnRun">おまけ：にげろ！田んぼ道</button></div>
         <div class="row"><button class="btn run-btn" id="btnRunDusk" hidden>おまけ：夕方の農道</button></div>
@@ -161,6 +162,7 @@
         <label><input type="checkbox" id="optSound" checked> 音を鳴らす</label>
         <label>音量 <input type="range" id="optVolume" min="0" max="100" step="5" value="100"></label>
         <label><input type="checkbox" id="optRipple" checked> 音の波紋を出す</label>
+        <label><input type="checkbox" id="optVoice" checked> 農場主の声（読み上げ）</label>
         <label>画質 <select id="optQuality">
           <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
         </select></label>
@@ -214,6 +216,7 @@
       <p class="lead" id="rReason"></p>
       <div class="rank"><div class="r" id="rRank">A</div><div class="s">スコア<br><b id="rScore">0</b><br><span id="rBest"></span></div></div>
       <div class="r-stars" id="rStars"></div>
+      <figure class="r-photo" id="rPhoto" hidden></figure>
       <blockquote class="grumble" id="rGrumble"></blockquote>
       <p class="tip" id="rTip"></p>
       <div class="row r-btns">

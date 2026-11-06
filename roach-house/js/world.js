@@ -161,7 +161,7 @@ export function buildWorld(scene, renderer, q) {
   buildHouse(g);
   buildTables(g);
   buildProps(g);
-  buildTruck(g);
+  const truck = buildTruck(g);
   buildOutside(g);
   const shafts = q.shafts ? buildShafts(g) : null;
   const dust = buildDust(g, q.dust);
@@ -215,7 +215,7 @@ export function buildWorld(scene, renderer, q) {
     g.add(moon);
   }
   return {
-    group: g, sun,
+    group: g, sun, truck,
     setNearFade,
     setReveal,
     get night() { return isNight; },
@@ -850,6 +850,7 @@ function buildTruck(g) {
   t.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   t.position.set(TRUCK.x, 0, TRUCK.z);
   g.add(t);
+  return t;
 }
 
 function buildOutside(g) {

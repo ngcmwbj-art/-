@@ -18,19 +18,21 @@ import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectD
 
 // 6つのステージ（だんだん難しくなる）
 export const STAGES = [
-  { key: 's1', no: 1, label: 'ステージ1', name: 'はじめての夜明け', desc: '農場主はのんびり屋。まずはかじって、隠れて、慣れよう', target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20, fumAt: 0.5,
+  { key: 's1', no: 1, label: 'ステージ1', name: 'はじめての夜明け', desc: '農場主はのんびり屋。まずはかじって、隠れて、慣れよう', haz: ['trap'], target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20, fumAt: 0.5,
     tip: 'まずはコンテナを1箱かじってみよう。見つかったらさいばい槽の下へ' },
-  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'わなが増え、見回りも多くなる。足もとに気をつけろ', target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
+  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'ホイホイ・粘着シート・暖房機', haz: ['trap', 'sheet', 'heater'], target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
     tip: 'ホイホイ（黄色い家）が多い。地図の×印を見て、通り道を選ぼう' },
-  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: '黒い容器の毒エサが置かれる。JAの検品も来る', target: 7, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true,
+  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: 'ホイホイ・毒エサ・JAの検品', haz: ['trap', 'bait', 'inspect'], target: 7, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true,
     tip: '黒い丸い容器は毒エサ。JAの検品員が来たら、近づかずに待とう' },
-  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: '足も目も速い。ハウスのネコもうろつく', target: 7, baits: 1, fSpeed: 0.97, susp: 0.88, patrol: [5, 8], patrolP: 0.6, loadT: 11, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true, cat: true,
+  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: 'ネコ・クモ・暖房機', haz: ['cat', 'spider', 'heater'], target: 7, baits: 1, fSpeed: 0.97, susp: 0.88, patrol: [5, 8], patrolP: 0.6, loadT: 11, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true, cat: true,
     tip: '鈴の音はネコ。ネコは台やさいばい槽の上には来ない' },
-  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: '8箱をダメにしろ。わなも毒エサも最大。農場主は本気だ', target: 8, baits: 2, fSpeed: 0.98, susp: 0.9, patrol: [5, 7], patrolP: 0.65, loadT: 13, traps: 3, hatch: 11, sprayDmg: 22, fumAt: 0.5, inspect: true, cat: true,
-    tip: '仲間をたくさん増やして、探索とおとりで一気に攻めよう' },
-  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗なハウス。農場主の懐中電灯の光だけに気をつけろ', target: 8, baits: 2, fSpeed: 0.97, susp: 0.95, patrol: [4, 7], patrolP: 0.55, loadT: 11, traps: 4, hatch: 11, sprayDmg: 23, fumAt: 0.5, inspect: false, cat: true, night: true,
+  { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: 'ホイホイ・毒エサ・駆除業者。8箱をダメにしろ', haz: ['trap', 'bait', 'exterm'], target: 8, baits: 2, fSpeed: 0.98, susp: 0.9, patrol: [5, 7], patrolP: 0.65, loadT: 13, traps: 3, hatch: 11, sprayDmg: 22, fumAt: 0.5, inspect: true, cat: true,
+    tip: '仲間をたくさん増やして、「まかせた」で一気に攻めよう' },
+  { key: 's6', no: 6, label: 'ステージ6', name: '夜なべの選果場', desc: '真っ暗。ネコ・クモ・ホイホイ', haz: ['cat', 'spider', 'trap'], target: 8, baits: 2, fSpeed: 0.97, susp: 0.95, patrol: [4, 7], patrolP: 0.55, loadT: 11, traps: 4, hatch: 11, sprayDmg: 23, fumAt: 0.5, inspect: false, cat: true, night: true,
     tip: '暗いので光の外なら見つかりにくい。懐中電灯の光の輪に入るな' },
 ];
+// ステージに出るわな・敵（ステージごとに3種類まで。殺虫剤・叩き・けむり玉は農場主の技なので数えない）
+export const HAZ_NAMES = { trap: 'ホイホイ', bait: '毒エサ', sheet: '粘着シート', spider: 'クモ', inspect: 'JAの検品', cat: 'ネコ', exterm: '駆除業者', heater: '暖房機' };
 export const DIFFS = Object.fromEntries(STAGES.map((st) => [st.key, st]));
 // 以前の呼び名（テスト用）
 DIFFS.easy = STAGES[0];
@@ -161,6 +163,8 @@ export class Game {
     this.night = !!D.night;
     this.wing = opts.wing || 'normal';
     this.tour = !!opts.tour;
+    // かんたんモード：わな・敵なし（農場主と箱だけ）
+    this.easyMode = !!opts.easy && !this.tour;
     this.calm = !!opts.tutorial || this.tour;
     this.tutorial = opts.tutorial ? { step: 0, t: 0, sx: PLAYER_START.x, sz: PLAYER_START.z, yaw: Math.PI / 2, hideT: 0 } : null;
     resetPlantFruits();
@@ -193,8 +197,8 @@ export class Game {
       return c;
     });
     const trapList = [...INITIAL_TRAPS].sort(() => lr() - 0.5);
-    trapList.slice(0, D.traps).forEach((t) => this.addTrap(t.x, t.z, t.r));
-    BAIT_SPOTS.slice(0, D.baits).forEach((b) => this.addBait(b.x, b.z));
+    trapList.slice(0, this.has('trap') ? D.traps : 0).forEach((t) => this.addTrap(t.x, t.z, t.r));
+    BAIT_SPOTS.slice(0, this.has('bait') ? Math.max(1, D.baits) : 0).forEach((b) => this.addBait(b.x, b.z));
     // いたずらの小物と段ボール箱
     this.bento = { ...BENTO_SPOT, model: makeBento(), eaten: 0, done: false };
     this.bento.model.position.set(BENTO_SPOT.x, 0, BENTO_SPOT.z);
@@ -217,7 +221,7 @@ export class Game {
       this.radioObj = { ...RADIO_SPOT, model: m, on: true, bite: 0, cd: 0, fixT: 0 };
     }
     // 暖房機：ステージ2から
-    this.heater = (D.no || 1) >= 2 && !opts.tutorial && !this.tour ? { next: randRange(45, 70), on: 0, clicked: false } : null;
+    this.heater = this.has('heater') && !opts.tutorial && !this.tour ? { next: randRange(45, 70), on: 0, clicked: false } : null;
     this.drains = DRAIN_SPOTS.map((d) => {
       const m = makeDrain();
       m.position.set(d.x, 0, d.z);
@@ -248,7 +252,7 @@ export class Game {
     const used = [];
     this.sheets = [];
     if (!this.tour) {
-      const ns = D.no >= 4 ? 4 : D.no >= 2 ? 3 : 0;
+      const ns = this.has('sheet') ? 3 : 0;
       for (let i = 0; i < ns; i++) {
         const sp = spotOnTrough(used); used.push(sp);
         const m = makeSheet(); m.position.set(sp.x, TROUGH_TOP + 0.07, sp.z); m.rotation.y = (lr() - 0.5) * 0.4;
@@ -257,7 +261,7 @@ export class Game {
       }
     }
     this.spiders = [];
-    if (D.no >= 3 && !this.tour) {
+    if (this.has('spider') && !this.tour) {
       for (let i = 0; i < 2; i++) {
         const sp = spotOnTrough(used); used.push(sp);
         // 巣はさいばい槽のふち（通路がわ）に縦に張る
@@ -320,7 +324,7 @@ export class Game {
     }
     this.flashlight.intensity = this.night ? 140 : 0;
     this.flashlight.visible = this.night;
-    if (D.cat || this.tour) this.spawnCat();
+    if (this.has('cat') || this.tour) this.spawnCat();
     // 見学モード：検品員とカブトムシも置いておく（動かない）
     this.showcase = [];
     if (this.tour) {
@@ -357,6 +361,8 @@ export class Game {
     return b;
   }
 
+  // このステージに出るわな・敵か（見学モードは全部）
+  has(k) { return this.tour || (!this.easyMode && (!this.diff.haz || this.diff.haz.includes(k))); }
   seen(id) { if (!this.stats.seen.includes(id)) this.stats.seen.push(id); }
 
   // 名場面の写真を頼む（main.js が描いた直後に撮る）
@@ -410,6 +416,8 @@ export class Game {
   say(text) {
     this.farmer.speech = text;
     this.farmer.speechT = 2.6;
+    // 農場主のセリフを声でも（設定でオン・オフ）
+    if (!this.tour && this.ui.speak) this.ui.speak(text);
   }
   toast(text, kind = '') { this.ui.toast(text, kind); }
 
@@ -529,15 +537,9 @@ export class Game {
       else {
         c.model.group.getWorldPosition(_v3);
         p.x = _v3.x; p.z = _v3.z; p.y = Math.max(0, _v3.y); p.moving = false;
-        inp.consume('action');
-        if (deadPress) { this.leaveStow(p); return; }
-        const chew = inp.actionHeld;
-        if (chew) {
-          this.bite(c, 2.2 * dt, p);
-          this.addNutrition(1.2 * dt);
-          p.crunchT -= dt;
-          if (p.crunchT <= 0) { this.sfx.crunch(0.05); p.crunchT = 0.35; }
-        }
+        // かごの中：食べるボタンで出る（死んだふりボタンは使わない）
+        if (inp.consume('action')) { this.leaveStow(p); return; }
+        const chew = false;
         if (chew || mvIn > 0.4) {
           c.wiggle = 0.35;
           const f = this.farmer;
@@ -551,10 +553,7 @@ export class Game {
         return;
       }
     }
-    if (deadPress && !p.box && !p.inGlove) {
-      const sc = this.stowTarget(p);
-      if (sc) { this.startStow(p, sc); return; }
-    }
+
     if (p.playDead > 0) {
       p.playDead -= dt; p.playDeadT += dt;
       if (p.playDead <= 0 || deadPress || (p.playDeadT > 0.5 && mvIn > 0.35) || inp.consume('action')) { p.playDead = 0; p.fooled = 0; }
@@ -581,6 +580,8 @@ export class Game {
     const bento = crate || fruit || bait || p.box ? null : this.nearBento(p);
     const radioN = crate || fruit || bait || p.box || bento ? null : this.nearRadio(p);
     const actionPressed = inp.consume('action');
+    // 農場主が取りに来る箱：食べるボタンで「もぐる」
+    if (actionPressed && !p.box) { const sc = this.stowTarget(p); if (sc) { this.startStow(p, sc); return; } }
 
     // 捕まった仲間を助ける
     let rescued = false;
@@ -625,7 +626,9 @@ export class Game {
         this.niceT = 0.9;
         // ナイスの連続：3回目から、おまけの栄養
         this.niceCombo = (this.niceCombo || 0) + 1;
-        if (this.niceCombo >= 3) { this.addNutrition(8); this.stats.niceCombo = Math.max(this.stats.niceCombo || 0, this.niceCombo); }
+        // おまけは連続3〜5回目の3回まで（上手な人だけが楽をしすぎないように）
+        if (this.niceCombo >= 3) this.stats.niceCombo = Math.max(this.stats.niceCombo || 0, this.niceCombo);
+        if (this.niceCombo >= 3 && this.niceCombo <= 5) this.addNutrition(8);
         this.sfx.nice();
         if (this.niceCombo >= 3) this.sfx.chime();
         this.events.push('nice');
@@ -697,10 +700,13 @@ export class Game {
   }
 
   // ---------------- 収穫かごにもぐる（出荷されるかごに入って、出荷を台無しにする） ----------------
+  // かごにもぐれるのは、農場主が取りに来る箱だけ（食べるボタンが「もぐる」に変わる）
   stowTarget(p) {
     if (p.st !== 'move' || p.playDead > 0) return null;
     const c = this.crateInReach(p);
-    return c && !c.rotten && !c.shipped && !c.carried && !c.stowed ? c : null;
+    const f = this.farmer;
+    if (!c || c.rotten || c.shipped || c.carried || c.stowed) return null;
+    return f && f.crate === c && (f.phase === 'toCrate' || f.phase === 'pack') ? c : null;
   }
   startStow(p, c) {
     p.stow = c; c.stowed = p;
@@ -1070,6 +1076,7 @@ export class Game {
     this.stats.ruined = this.ruined;
     this.stats.ruinedColor[c.colorIdx || 0]++;
     if (this.ruined >= this.diff.target) this.snap('last', '最後のコンテナをかじりつくした！');
+    else if (this.ruined === this.diff.target - 1 && this.state === 'play' && !this.tutorial) this.say('もう限界だ…あと1箱でもやられたら…');
     this.sfx.ruin();
     this.toast(`1箱ダメにした！ ${this.ruined}/${this.diff.target}`, 'good');
     this.events.push('ruin');
@@ -1824,6 +1831,7 @@ export class Game {
 
   queueTrapNear(x, z) {
     const f = this.farmer;
+    if (!this.has('trap')) return;
     if (this.traps.length + f.trapQueue.length >= 9) return;
     for (let k = 0; k < 24; k++) {
       const a = rand() * Math.PI * 2, d = 1.2 + rand() * 1.6;
@@ -1932,7 +1940,7 @@ export class Game {
         break;
       case 'choose': {
         f.baseH = f.h;
-        if (!this.fumigated && f.anger >= 3 && this.ruined >= Math.ceil(this.diff.target * (this.diff.fumAt || 0.5)) && !f.carry) {
+        if (!this.fumigated && !this.easyMode && f.anger >= 3 && this.ruined >= Math.ceil(this.diff.target * (this.diff.fumAt || 0.5)) && !f.carry) {
           this.startFumigation();
           break;
         }
@@ -2871,7 +2879,7 @@ export class Game {
 
   // ---------------- 害虫駆除の業者（ステージ5〜、仲間が大発生すると1回来る） ----------------
   updateExterm(dt) {
-    if (this.calm || this.extermDone || this.diff.no < 5) return;
+    if (this.calm || this.extermDone || !this.has('exterm')) return;
     if (!this.exterm) {
       if (this.alertLv < 2) return;
       this.extermDone = false;
@@ -3070,7 +3078,7 @@ export class Game {
 
   // ---------------- JAの検品（ステージ3〜5で1回） ----------------
   updateInspector(dt) {
-    if (!this.diff.inspect || this.inspectDone || this.calm) return;
+    if (!this.has('inspect') || this.inspectDone || this.calm) return;
     const I = this.inspector;
     if (!I) {
       if ((this.shipped >= 3 || this.elapsed > 160) && (!this.fog || this.fog.cleared) && this.farmer.state !== 'FUMIGATE') {
@@ -3255,7 +3263,7 @@ export class Game {
     if (win) rank = this.stats.shipped <= 2 ? 'S' : this.stats.shipped <= 4 ? 'A' : 'B';
     else if (this.ruined >= Math.ceil(this.diff.target / 2)) rank = 'C';
     this.result = {
-      win, reason, score: Math.max(0, score), rank, alive, elapsed: this.elapsed, diff: this.diff.key,
+      win, reason, score: Math.max(0, score), rank, alive, elapsed: this.elapsed, diff: this.diff.key, easy: this.easyMode,
       stats: { ...this.stats, ruinedColor: [...this.stats.ruinedColor], seen: [...this.stats.seen] },
       grumble: this.grumble(win, reason),
       diary: this.diary(win, reason),
@@ -3265,7 +3273,7 @@ export class Game {
       assist: !!this.diff.assist,
       season: this.season,
     };
-    if (win) { this.sfx.win(); this.say('ふざけんな！ 今日の出荷どうしてくれんだ！'); }
+    if (win) { this.sfx.win(); this.say('もう限界だ…'); }
     else { this.sfx.lose(); this.say(reason === 'dead' ? 'ざまあみろ！ 二度と来んな！' : '見たか虫けら！ 全部出荷してやったぞ！'); }
     this.ui.gameOver(this.result);
   }
@@ -3314,7 +3322,9 @@ export class Game {
     add(s.chased >= 8, `今日は${s.chased}回もゴキブリを追いかけた。足がパンパンだ。`);
     add(s.maxNymphs >= 15, `ゴキブリが${s.maxNymphs}匹くらいいた。もう大発生だ。`);
     add(true, win ? `ダメにされた箱は${s.ruined}箱。出荷は${s.shipped}箱しかできなかった。` : `出荷は${s.shipped}箱。ゴキブリには${s.ruined}箱やられた。`);
-    add(true, win ? 'ちくしょう。明日こそ全部出荷してやる。' : '今日はおれの勝ちだ。ざまあみろ。');
+    add(true, win ? 'もう限界だ…。' : '今日はおれの勝ちだ。ざまあみろ。');
+    // ゴキブリが勝った日は、日記のしめくくりも口癖で
+    if (win && L[L.length - 1] !== 'もう限界だ…。') { L.length = Math.min(L.length, 2); L.push('もう限界だ…。'); }
     return L;
   }
 
@@ -3322,10 +3332,11 @@ export class Game {
   grumble(win, reason) {
     const s = this.stats, L = [];
     if (win) {
+      // ゴキブリが勝ったときの口癖は「もう限界だ…」
       L.push(pick([
-        'ふざけんな！ 今日の出荷どうしてくれんだ！ JAになんて言やいいんだよ！',
-        'ちくしょう…一年かけて育てたパプリカだぞ。虫けらにパーにされてたまるか！',
-        'また単価下がったってのに、この上ゴキブリかよ！ やってらんねえ！',
+        'もう限界だ…。今日の出荷どうしてくれんだ…',
+        'もう限界だ…。一年かけて育てたパプリカだぞ…',
+        'もう限界だ…。また単価下がったってのに、この上ゴキブリかよ…',
       ]));
     } else if (reason === 'dead') {
       L.push(pick(['ざまあみろ！ ゴキブリなんざ、こうだ！', '見たか！ うちのハウスで好き勝手はさせねえ！']));
@@ -3360,18 +3371,18 @@ export class Game {
     if (!p || !p.alive || this.state !== 'play') return null;
     if (p.st === 'stuck') return { key: 'action', text: '連打で脱出！', urgent: true, struggle: p.struggle };
     if (p.st !== 'move') return null;
-    if (p.playDead > 0) return { key: 'action', text: '死んだふり中（動くと起きる）' };
-    if (p.stow) return { key: 'action', text: p.stow.carried ? '運ばれている！ じっとして出荷を待て（ゆらすとバレる）' : 'かごの中（長押しで中からかじる・死んだふりボタンで出る）', first: 'stowIn' };
+    if (p.playDead > 0) return { key: 'action', text: '起きる' };
+    if (p.stow) return { key: 'action', text: p.stow.carried ? 'じっと！' : 'かごから出る', first: 'stowIn' };
     if (p.inGlove) return { key: 'action', text: p.inBoot ? '長靴から出る' : '軍手から出る' };
     if (p.box) return { key: 'action', text: '段ボールから出る' };
     const stuckMate = this.roaches.find((r) => r.alive && r !== p && r.st === 'stuck' && Math.hypot(r.x - p.x, r.z - p.z) < 1.3);
     if (stuckMate) return { key: 'action', text: '仲間を助ける' };
     const c = this.crateInReach(p);
-    if (c) return { key: 'action', text: '長押しで食べる', hold: true, crate: c, stow: !!this.stowTarget(p), first: this.stowTarget(p) ? 'stow' : undefined };
+    if (c) return this.stowTarget(p) ? { key: 'action', text: 'もぐる', crate: c, stow: true, first: 'stow' } : { key: 'action', text: '長押しで食べる', hold: true, crate: c };
     const f = this.fruitInReach(p);
     if (f) return { key: 'action', text: '長押しで実を食べる', hold: true, fruit: f };
     const b = this.baitInReach(p);
-    if (b) return { key: 'action', text: '毒エサ（長押しで食べる・毒あり）', hold: true, bait: b, warn: true };
+    if (b) return { key: 'action', text: '長押しで毒エサ', hold: true, bait: b, warn: true };
     if (this.nearBento(p)) return { key: 'action', text: '長押しでお弁当をかじる', hold: true, first: 'bento' };
     const pr = this.propAt(p);
     if (pr && pr.kind === 'glove') return { key: 'action', text: '軍手にもぐる', first: 'glove' };
@@ -3379,10 +3390,10 @@ export class Game {
     if (this.nearRadio(p)) return { key: 'action', text: '長押しでラジオをかじる', hold: true, first: 'radio' };
     if (pr && pr.kind === 'box') return { key: 'action', text: '段ボールにもぐる', first: 'box' };
     if (pr && pr.kind === 'drain') return { key: 'action', text: '排水溝に入る', first: 'drain' };
-    if (pr && pr.kind === 'trap') return this.helpersFor(p).length >= 2 ? { key: 'action', text: '仲間とホイホイを運ぶ', first: 'trap' } : { key: 'action', text: 'ホイホイ（運ぶには仲間2匹）', warn: true, first: 'trap' };
+    if (pr && pr.kind === 'trap') return this.helpersFor(p).length >= 2 ? { key: 'action', text: 'ホイホイを運ぶ', first: 'trap' } : { key: 'action', text: 'ホイホイ（仲間2匹で運ぶ）', warn: true, first: 'trap' };
     if (this.onTrough(p)) {
-      if ((this.sheets || []).some((s) => Math.abs(s.x - p.x) < 1.7 && Math.abs(s.z - p.z) < 0.6)) return { key: 'action', text: 'この先に黄色い粘着シート！', warn: true, first: 'sheet' };
-      if ((this.spiders || []).some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 2.4)) return { key: 'action', text: 'クモの巣が近い！', warn: true, first: 'spider' };
+      if ((this.sheets || []).some((s) => Math.abs(s.x - p.x) < 1.7 && Math.abs(s.z - p.z) < 0.6)) return { key: 'action', text: 'シート注意！', warn: true, first: 'sheet' };
+      if ((this.spiders || []).some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 2.4)) return { key: 'action', text: 'クモ注意！', warn: true, first: 'spider' };
     }
     if (this.windLaneAt(p)) return { key: 'action', text: '風に乗る' };
     if (this.canClimb(p)) return { key: 'action', text: '登る' };

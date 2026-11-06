@@ -88,6 +88,20 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   });
   check('遊んでいる画面の表示の文字が少ない（40字以下）', chars <= 40, `${chars}字`);
 
+  // 第11回：きょうの1回・かんたん・ボタンの絵・今日の1枚・しょんぼりトラック
+  check('タイトルに「きょうの1回」', await page.evaluate(() => /きょうの1回/.test(document.getElementById('btnToday').textContent)));
+  check('かんたんモードのチェック', await page.evaluate(() => !!document.getElementById('optEasy')));
+  check('スマホのボタンは絵＋短い言葉', await page.evaluate(() => [...document.querySelectorAll('.t-dead .tl, .t-egg .tl, .t-attack .tl')].every((e) => e.textContent.length <= 2) && document.querySelectorAll('.tbtn svg.ic').length === 3));
+  await page.evaluate(() => { const g = window.__rh.game; g.snap('close', 'テスト'); });
+  await frames(3);
+  await page.evaluate(() => { const g = window.__rh.game; g.endGame(true, 'ruined'); });
+  await frames(4);
+  check('勝つとトラックがしょんぼり出発', await page.evaluate(() => !!window.__rh.cam.ending));
+  await page.waitForSelector('#result', { state: 'visible', timeout: 120000 }).catch(() => {});
+  check('結果に今日の1枚', await page.isVisible('#rPhoto'));
+  await frames(30);
+  check('トラックが走り出す', await page.evaluate(() => window.__rh.world.truck.position.x > 27.2));
+
   console.log(out.join('\n'));
   console.log('ERRORS', errors.length, errors.join('\n'));
   await browser.close();

@@ -1,8 +1,8 @@
 // 起動・描画・画面の表示
 import * as THREE from 'three';
-import { buildWorld, ROWS, TABLES, DOOR, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
+import { buildWorld, ROWS, TABLES, DOOR, TRUCK, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
 import * as FEATURES from './features.js';
-import { Game, DIFFS, STAGES, MAX_NYMPHS } from './game.js';
+import { Game, DIFFS, STAGES, MAX_NYMPHS, HAZ_NAMES } from './game.js';
 import { Runner } from './runner.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
@@ -89,6 +89,7 @@ resize();
 const sfx = new Sfx();
 const input = new Input(canvas, $('touch'));
 let soundOn = store.get('sound', true);
+let voiceOn = store.get('voice', true);
 let hintsOn = store.get('hints', true);
 $('optSound').checked = soundOn;
 $('optHints').checked = hintsOn;
@@ -127,9 +128,31 @@ const ui = {
     setTimeout(() => el.classList.add('out'), 2400);
     setTimeout(() => el.remove(), 3100);
   },
+  // 農場主の声（スマホ・パソコンの読み上げ。低めの声で。新しいセリフが来たら前のは止める）
+  speak(text) {
+    if (!voiceOn || !soundOn || !('speechSynthesis' in window) || (screen !== 'play' && screen !== 'over')) return;
+    try {
+      const S = window.speechSynthesis;
+      S.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/[！？]/g, '。'));
+      u.lang = 'ja-JP'; u.rate = 1.05; u.pitch = 0.6; u.volume = 0.9;
+      const v = S.getVoices().find((x) => /ja/i.test(x.lang));
+      if (v) u.voice = v;
+      S.speak(u);
+    } catch (_) { /* 読み上げが使えない機種は字だけ */ }
+  },
   hurtLevel: 0,
   hurt(k) { this.hurtLevel = Math.min(1, this.hurtLevel + k * 0.6 + 0.1); },
-  gameOver(res) { setTimeout(() => showResult(res), 1400); },
+  // 勝ったとき：空っぽの出荷トラックがしょんぼり出発（4秒ほど見せてから結果）
+  gameOver(res) {
+    if (res.win && !game.tutorial && !game.tour) {
+      camState.ending = { t: 0 };
+      // しょんぼりしたクラクション「プッ…プー…」
+      setTimeout(() => { sfx.tone(330, 0.18, 'square', 0.06); sfx.tone(262, 0.6, 'square', 0.06, -40, 0.25); }, 900);
+      setTimeout(() => showResult(res), 4200);
+    }
+    else setTimeout(() => showResult(res), 1400);
+  },
 };
 
 const game = new Game({ scene, sfx, ui });
@@ -275,8 +298,14 @@ function renderOrders() {
   const sn = seasonOf(dayKey);
   const [wy, wm, wd] = dayKey.split('-').map(Number);
   const wk = weekState(records, weekKey(new Date(wy, wm - 1, wd)));
-  const weekHtml = `<h3>週のチャレンジ${wk.done ? '　<span class="ok">✓達成！</span>' : ''}</h3><ul class="week">${WEEK_GOALS.map((gl) => { const v = Math.min(gl.need, wk.prog[gl.id] || 0); return `<li class="${v >= gl.need ? 'done' : ''}">${gl.text}<span class="wbar"><i style="width:${(v / gl.need * 100).toFixed(0)}%"></i></span><b>${v}/${gl.need}</b></li>`; }).join('')}</ul><p class="week-note">月曜に新しくなる。このスマホ（パソコン）の中だけの記録。やらなくても何も失わない</p>`;
-  $('orderCard').innerHTML = `${sn ? `<p class="season-note">${SEASON_LABEL[sn]}の期間中！ ハウスに季節のかざり。1回遊ぶと期間限定の帽子がもらえる</p>` : ''}<h3>今日の注文（${todayLabel()}）</h3><ul>${orders.map((o) => `<li class="${done.includes(o.id) ? 'done' : ''}">${done.includes(o.id) ? '✓ ' : ''}${o.text}</li>`).join('')}</ul>` + weekHtml;
+  // 今日のお題：お題1つ＋週のチャレンジは1本の棒だけ
+  const wNeed = WEEK_GOALS.reduce((a2, gl) => a2 + gl.need, 0);
+  const wHave = WEEK_GOALS.reduce((a2, gl) => a2 + Math.min(gl.need, wk.prog[gl.id] || 0), 0);
+  const o = orders[0];
+  const ok = o && done.includes(o.id);
+  $('orderCard').innerHTML = `${sn ? `<p class="season-note">${SEASON_LABEL[sn]}のかざり（期間限定の帽子）</p>` : ''}<h3>今日のお題</h3>` +
+    `<p class="odai ${ok ? 'done' : ''}">${ok ? '✓ ' : ''}${o ? o.text : ''}</p>` +
+    `<div class="week1"><span>週</span><span class="wbar"><i style="width:${(wHave / wNeed * 100).toFixed(0)}%"></i></span>${wk.done ? '<b class="ok">✓</b>' : ''}</div>`;
 }
 renderOrders();
 renderRunBtn();
@@ -285,6 +314,7 @@ $('optTutor').checked = !store.get('tutorialDone', false);
 let lastDiff = 's1';
 function startGame(diff, opt = {}) {
   closeJack();
+  resetTruck();
   sfx.heaterStop && sfx.heaterStop();
   $('heatBadge').hidden = true;
   sfx.unlock();
@@ -296,7 +326,7 @@ function startGame(diff, opt = {}) {
   const tutorial = $('optTutor').checked;
   const assist = !!(records.assist && records.assist[diff]);
   endTourUi();
-  game.start(diff, undefined, { tutorial, boss: (records.eggs || 0) >= 50, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
+  game.start(diff, undefined, { tutorial, easy: !tutorial && $('optEasy').checked, boss: (records.eggs || 0) >= 50, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
   renderOrderMini();
   $('orderMini').hidden = false;
@@ -326,14 +356,22 @@ function startGame(diff, opt = {}) {
     introSeen.push(diff); store.set('introSeen', introSeen);
     camState.intro = { t: 0, dur: 3.4 };
     $('introSkip').hidden = false;
+    // このステージに出るもの（3つまで）を、ぐるっと見せる間だけ紹介
+    $('introHaz').innerHTML = `<b>このステージ</b>${(D.haz || []).map((k) => `<i>${HAZ_NAMES[k]}</i>`).join('')}`;
+    $('introHaz').hidden = false;
     document.body.classList.add('intro');
   } else endIntro();
+}
+function resetTruck() {
+  camState.ending = null;
+  if (world.truck) { world.truck.position.set(TRUCK.x, 0, TRUCK.z); world.truck.rotation.set(0, 0, 0); }
 }
 function endIntro() {
   if (!camState.intro && $('introSkip').hidden) return;
   camState.intro = null;
   camState.init = true;
   $('introSkip').hidden = true;
+  $('introHaz').hidden = true;
   document.body.classList.remove('intro');
 }
 $('introSkip').addEventListener('click', (e) => { e.preventDefault(); endIntro(); });
@@ -442,6 +480,8 @@ function resumeGame() {
 }
 function toTitle() {
   closeJack();
+  resetTruck();
+  if ('speechSynthesis' in window) try { window.speechSynthesis.cancel(); } catch (_) { /* 無視 */ }
   sfx.heaterStop && sfx.heaterStop();
   $('heatBadge').hidden = true;
   if (runner.active) endRun();
@@ -539,8 +579,17 @@ function renderLast() {
   const st = k && DIFFS[k];
   const b = $('btnLast');
   b.hidden = !st;
-  if (st) b.textContent = `前回のステージをもう一度：${st.label}「${st.name}」`;
+  if (st) b.textContent = `前回：${st.label}`;
+  // きょうの1回：まだクリアしていない次のステージ。全部クリアしたら日替わりで
+  const tk = todayStage();
+  $('btnToday').textContent = `きょうの1回 ▶ ${DIFFS[tk].label}`;
 }
+function todayStage() {
+  const open = Math.min(STAGES.length, (records.cleared || 0) + 1);
+  if ((records.cleared || 0) < STAGES.length) return STAGES[open - 1].key;
+  return STAGES[dailySeed(dayKey) % STAGES.length].key;
+}
+$('btnToday').addEventListener('click', () => startGame(todayStage()));
 $('btnLast').addEventListener('click', () => { const k = store.get('lastStage', null); if (k && DIFFS[k]) startGame(k); });
 renderLast();
 $('btnBookBack').addEventListener('click', () => { setScreen('title'); renderOrders(); });
@@ -570,6 +619,7 @@ function renderStages() {
       <span class="no">${st.label}${cleared ? '　✓クリア' : ''}${records.assist && records.assist[st.key] ? '　<i class="assist-tag">おたすけ中</i>' : ''}</span><b>${ok ? st.name : '？？？'}</b>
       <span class="stars">${'★'.repeat(records.stars[st.key] || 0)}${'☆'.repeat(3 - (records.stars[st.key] || 0))}</span>
       <span>${ok ? `${st.target}箱ダメにする` : `ステージ${st.no - 1}をクリアで遊べる`}</span>
+      ${ok ? `<span class="haz">${(st.haz || []).map((k) => `<i>${HAZ_NAMES[k]}</i>`).join('')}</span>` : ''}
       <em>${b ? `最高 ${b.rank}・${b.score}点` : ''}</em></button>`;
   }).join('');
   $('stages').querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => startGame(b.dataset.diff)));
@@ -601,6 +651,10 @@ $('optQuality').value = qualityPref;
 let rippleOn = store.get('ripple', true);
 $('optRipple').checked = rippleOn;
 $('optRipple').addEventListener('change', (e) => { rippleOn = e.target.checked; store.set('ripple', rippleOn); });
+$('optVoice').checked = voiceOn;
+$('optEasy').checked = !!store.get('easy', false);
+$('optEasy').addEventListener('change', (e) => store.set('easy', e.target.checked));
+$('optVoice').addEventListener('change', (e) => { voiceOn = e.target.checked; store.set('voice', voiceOn); if (!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
 const vol0 = store.get('volume', 100);
 $('optVolume').value = vol0;
 sfx.setVolume(vol0 / 100);
@@ -656,6 +710,11 @@ function showResult(res) {
   $('rGrumble').innerHTML = `<div class="diary-h">農場主の日記　${dm}月${dd}日</div>` + dl.map((g) => `<p>${escapeHtml(g)}</p>`).join('');
   // 名場面
   const hl = (res.highlights || []).filter((h) => h.img);
+  // 今日の1枚：いちばんの名場面を1枚だけ大きく（ほかは「くわしく」の中）
+  const PREF = ['stowaway', 'prank', 'close', 'last'];
+  const top = hl.slice().sort((a, b) => (PREF.indexOf(a.type) < 0 ? 9 : PREF.indexOf(a.type)) - (PREF.indexOf(b.type) < 0 ? 9 : PREF.indexOf(b.type)))[0];
+  $('rPhoto').innerHTML = top ? `<img src="${top.img}" alt=""><figcaption>${escapeHtml(top.text)}</figcaption>` : '';
+  $('rPhoto').hidden = !top;
   $('rHigh').innerHTML = hl.length ? hl.map((h) => `<figure><img src="${h.img}" alt=""><figcaption>${mm(h.t)}　${escapeHtml(h.text)}</figcaption></figure>`).join('') : '';
   $('rHigh').hidden = !hl.length;
   // 今日の注文・称号・羽の色
@@ -687,6 +746,7 @@ function showResult(res) {
   ab.dataset.diff = res.diff;
   ab.dataset.on = assistOn ? '1' : '0';
   if (res.assist) news.push('<span class="was">（おたすけ中のプレイ）</span>');
+  if (res.easy) news.unshift('<span class="was">かんたんモード（星・クリアには数えない）</span>');
   // いたずら
   const prs = res.pranks || [];
   const prDone = records.pranks[res.diff] || [];
@@ -704,7 +764,7 @@ function showResult(res) {
   const moreNews = news.slice(2);
   const wkr = out.week;
   const weekLine = wkr ? `<b>週のチャレンジ</b>　${WEEK_GOALS.map((gl) => `${gl.text.replace('合計', '')} ${Math.min(gl.need, wkr.prog[gl.id] || 0)}/${gl.need}`).join('　')}` : '';
-  $('rOrders').innerHTML = `${moreNews.length ? moreNews.join('<br>') + '<br>' : ''}<b>星</b>　${starRules}<br><b>今日の注文</b><br>${ol.join('<br>')}<br>${prankLine}${weekLine ? '<br>' + weekLine : ''}`;
+  $('rOrders').innerHTML = `${moreNews.length ? moreNews.join('<br>') + '<br>' : ''}<b>星</b>　${starRules}<br><b>今日のお題</b>　${ol.join('　')}<br>${prankLine}${weekLine ? '<br>' + weekLine : ''}`;
   $('rMore').open = false;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
@@ -817,6 +877,22 @@ function updateCamera(dt) {
     const x = 4.5 - k * 20;
     camera.position.set(x, 4.3 + Math.sin(t * 0.3) * 0.15, -2.5 + Math.sin(t * 0.17) * 0.3);
     camera.lookAt(x - 8, 3.4, -2.5 + Math.sin(t * 0.11) * 0.6);
+    return;
+  }
+  if (camState.ending && game.state === 'over') {
+    // しょんぼりトラック：うなだれて、ゆっくり走り去る
+    const E = camState.ending, T = world.truck;
+    E.t += dt;
+    const k = Math.max(0, E.t - 0.8);
+    const dx = 0.35 * k * k;
+    T.position.set(TRUCK.x + dx, 0, TRUCK.z);
+    T.rotation.z = -0.05 - Math.sin(E.t * 1.3) * 0.015; // 前のめりにうなだれる
+    T.rotation.x = Math.sin(E.t * 9) * 0.01 * Math.min(1, k);
+    // 荷台の箱もいっしょに
+    if (!E.crates) E.crates = game.crates.filter((c) => c.shipped && !c.rotten).map((c) => ({ c, x: c.model.group.position.x }));
+    for (const it of E.crates) it.c.model.group.position.x = it.x + dx;
+    camera.position.set(TRUCK.x - 4 + dx * 0.4, 3.2, TRUCK.z + 8.5);
+    camera.lookAt(TRUCK.x + dx, 1.2, TRUCK.z);
     return;
   }
   if (camState.intro) {
@@ -933,9 +1009,8 @@ function updateHud(dt) {
   tD.classList.toggle('off', !!(pd && (pd.deadUses || 0) <= 0 && !(pd.playDead > 0)));
   const ctxD = g.context();
   document.body.classList.toggle('stowed', !!(pd && pd.stow));
-  const dl = pd && pd.stow ? 'かごから<br>出る' : ctxD && ctxD.stow ? 'かごに<br>もぐる' : `死んだ<br>ふり<small>${pd ? pd.deadUses || 0 : 0}</small>`;
-  tD.classList.toggle('ready', !!(ctxD && ctxD.stow) || !!(pd && pd.stow));
-  if (tD.dataset.l !== dl) { tD.dataset.l = dl; tD.innerHTML = dl; }
+  // 死んだふりボタンは死んだふりだけ（残りの回数を小さく）
+  setText('tDeadN', String(pd ? pd.deadUses || 0 : 0));
   // ナイス！
   if (g.niceT > 0.85 && !niceShown) {
     const el = $('nicePop');
@@ -984,7 +1059,7 @@ function updateHud(dt) {
     pr.classList.toggle('first', !!firstTxt);
   } else pr.hidden = true;
   const tA = $('tAction');
-  const label = ctx ? (ctx.urgent ? '連打！' : ctx.text.replace('長押しで', '').replace('台に', '')) : '食べる';
+  const label = ctx ? (ctx.urgent ? '連打！' : ctx.text.replace('長押しで', '').replace('台に', '').replace(/（.*）/, '')) : '食べる';
   if (tA.textContent !== label) tA.textContent = label;
   tA.classList.toggle('off', !ctx);
   const eatingNow = !!(p.eatingCrate || p.eatingFruit) || p.greed > 3;

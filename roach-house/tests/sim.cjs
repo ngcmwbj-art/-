@@ -20,7 +20,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       const ok = g.kill.bind(g);
       g.kill = (r, cause) => { if (r.isPlayer) log.push([Math.round(g.elapsed), cause, g.farmer.state, r.st, r.y.toFixed(1), r.x.toFixed(1), r.z.toFixed(1), g.hideFactor(r)]); ok(r, cause); };
       const issues = new Set();
-      let eatOn = true, t = 0;
+      let eatOn = true, t = 0, relAt = 75, relN = 0;
       const bot = (g, inp, i) => {
         t = i / 30;
         const p = g.player;
@@ -85,7 +85,8 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
         }
         const reach = g.crateInReach(p);
         if (reach) {
-          if (p.greed > 82) eatOn = false;
+          // 人並みに：離すタイミングを毎回ばらつかせる（緑の帯に入るのは6割ほど、まれにバリッ）
+          if (eatOn && p.greed > relAt) { eatOn = false; relAt = 62 + (((seed * 7919 + (++relN) * 104729) % 1000) / 1000) * 40; }
           if (p.greed < 30) eatOn = true;
           inp.actionHeld = eatOn;
           return;

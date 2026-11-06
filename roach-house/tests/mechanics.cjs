@@ -252,11 +252,12 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     // 24. 今日の注文・称号・羽の色
     const F = RH.features;
     const ords = F.todaysOrders('2026-11-03');
-    check('今日の注文は2つ', ords.length === 2 && ords[0].id !== ords[1].id);
+    check('今日のお題は1つ', ords.length === 1);
     check('同じ日は同じ注文', F.todaysOrders('2026-11-03').map((o) => o.id).join() === ords.map((o) => o.id).join());
     const st = { ruined: 10, eggs: 3, attacks: 2, escapes: 0, nice: 9, winds: 2, fruits: 5, baits: 0, smokeSurvived: 0, shipped: 2, stuck: 0, chased: 0, ruinedColor: [3, 3, 4], seen: ['trap'] };
     const rs1 = F.applyResult(F.normalizeRecords(null), { win: true, diff: 'normal', alive: 6 }, st, ords, '2026-11-03');
-    check('注文をこなせる', rs1.cleared.length === 2, rs1.cleared.join());
+    const expOrd = ords.filter((o) => o.check(st, { win: true, diff: 'normal', alive: 6 })).length;
+    check('お題をこなせる', rs1.cleared.length === expOrd, rs1.cleared.join());
     check('称号が取れる', rs1.newTitles.some((t) => t.id === 'first') && rs1.newTitles.some((t) => t.id === 'win1'));
     check('羽の色が増える', rs1.newWings.includes('black') && rs1.newWings.includes('paprika'));
     const rs2 = F.applyResult(rs1.rec, { win: true, diff: 'normal', alive: 6 }, st, ords, '2026-11-03');
@@ -657,9 +658,9 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     }
 
     // 54. クモ
-    g.start('s3', 107); freezeFarmer();
+    g.start('s4', 107); freezeFarmer();
     {
-      check('ステージ3からクモがいる', g.spiders.length === 2);
+      check('ステージ4からクモがいる', g.spiders.length === 2);
       const S = g.spiders[0], P = g.player;
       const row = RH.rows.reduce((a, r) => (Math.abs(r.z - S.z) < Math.abs(a.z - S.z) ? r : a), RH.rows[0]);
       Object.assign(P, { x: S.x + 1.0, z: row.z, surface: 3 + RH.rows.indexOf(row), y: 1.48, st: 'move', hp: 100 });
@@ -690,10 +691,13 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       const c = g.crates.find((cc) => cc.table >= 0);
       const T = RH.rows ? null : null;
       Object.assign(P, { x: c.x, z: c.z + 0.75, surface: c.table, y: 2.2, st: 'move' });
+      check('ふつうの箱では「食べる」のまま', !g.context().stow);
+      // 農場主が取りに来る箱だと、食べるボタンが「もぐる」に変わる
+      Object.assign(F, { phase: 'toCrate', crate: c, path: [], x: 19, z: 12 });
       const ctx = g.context();
-      check('コンテナのそばで「もぐる」ができる', ctx && ctx.stow === true, ctx && ctx.text);
-      inp.press('dead');
-      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.timer = 999; });
+      check('農場主が取りに来る箱で「もぐる」ができる', ctx && ctx.stow === true && ctx.text === 'もぐる', ctx && ctx.text);
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.speed = 0; });
       check('かごにもぐれる', P.stow === c && g.visibility(P) < 0.05 && !P.model.root.visible);
       // 農場主が運ぶ
       Object.assign(F, { state: 'WORK', phase: 'pack', crate: c, timer: 0, x: c.x, z: c.z + 1.6 });
@@ -709,12 +713,13 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       const F2 = g.farmer, P2 = g.player;
       const c2 = g.crates.find((cc) => cc.table >= 0);
       Object.assign(P2, { x: c2.x, z: c2.z + 0.75, surface: c2.table, y: 2.2, st: 'move' });
-      inp.press('dead');
-      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.timer = 999; });
+      Object.assign(F2, { state: 'WORK', phase: 'toCrate', crate: c2, path: [], x: 19, z: 12 });
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); });
       Object.assign(F2, { state: 'WORK', phase: 'pack', crate: c2, timer: 0, x: c2.x, z: c2.z + 1.6 });
       RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); });
-      RH.sim(2.5, 1 / 30, (gg, i) => { idle(gg, i); i.actionHeld = true; });
-      check('運ばれている途中でかじると見つかる', !P2.stow && F2.state === 'CHASE' && !F2.carry, `st=${F2.state}`);
+      RH.sim(2.5, 1 / 30, (gg, i) => { idle(gg, i); i.mz = 1; });
+      check('運ばれている途中で動くと見つかる', !P2.stow && F2.state === 'CHASE' && !F2.carry, `st=${F2.state}`);
     }
 
     // 57. 羽のもよう
@@ -874,6 +879,31 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       g.noise({ x: f.x + 3, z: f.z, y: 0 }, 4, 20);
       check('暖房の間は音が届きにくい', sOn < f.susp, `on=${sOn.toFixed(1)} off=${f.susp.toFixed(1)}`);
     }
+    // 66. 第11回：ステージごとに3種類まで・かんたんモード・口癖・ナイスの上限
+    {
+      const ok3 = RH.stages.every((st) => Array.isArray(st.haz) && st.haz.length <= 3);
+      check('わな・敵はステージごとに3種類まで', ok3, RH.stages.map((st) => (st.haz || []).join('+')).join(' / '));
+      g.start('s4', 141);
+      check('ステージ4にホイホイはない', g.traps.length === 0 && !!g.cat && g.spiders.length === 2 && !!g.heater);
+      g.start('s3', 142);
+      check('ステージ3にネコ・クモ・シートはいない', !g.cat && g.spiders.length === 0 && g.sheets.length === 0 && g.baits.length >= 1);
+      g.start('s5', 143, { easy: true });
+      check('かんたんモードはわな・敵なし', g.traps.length === 0 && g.baits.length === 0 && !g.cat && g.spiders.length === 0 && g.sheets.length === 0 && !g.heater);
+      g.endGame(true, 'ruined');
+      check('かんたんモードの勝ちは記録に数えない', g.result.easy === true && F.applyResult(F.normalizeRecords(null), g.result, g.result.stats, [], '2026-11-06').rec.cleared === 0);
+      g.start('s1', 144);
+      g.endGame(true, 'ruined');
+      check('勝つと農場主の口癖「もう限界だ…」', /もう限界だ/.test(g.farmer.speech) && /もう限界だ/.test(g.result.grumble[0]) && g.result.diary[g.result.diary.length - 1] === 'もう限界だ…。', g.result.diary.join('／'));
+    }
+    g.start('normal', 145); freezeFarmer();
+    {
+      const nc3 = g.crates.find((c) => c.table < 0);
+      Object.assign(g.player, { x: nc3.x, z: nc3.z + (nc3.z > 0 ? -0.7 : 0.7), surface: -1, y: 0 });
+      let held3 = true, extra = 0, last = g.nutrition;
+      RH.sim(32, 1 / 30, (gg, i) => { idle(gg, i); if (held3 && gg.player.greed > 70) held3 = false; else if (!held3 && gg.player.greed < 1) held3 = true; i.actionHeld = held3; freezeFarmer(); gg.nutrition = Math.min(gg.nutrition, 50); });
+      check('ナイスの連続は6回以上でも続く（おまけは3回まで）', (g.stats.niceCombo || 0) >= 6, `best=${g.stats.niceCombo}`);
+    }
+
     RH.startGame('s1');
     return out;
   });

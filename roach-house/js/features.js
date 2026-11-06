@@ -45,7 +45,8 @@ export function todaysOrders(key) {
   const r = seededRand(dailySeed(key) ^ 0x5a17);
   const list = [...ORDERS];
   const out = [];
-  while (out.length < 2) out.push(list.splice(Math.floor(r() * list.length), 1)[0]);
+  // 今日のお題は1つだけ（第11回：シンプルに）
+  while (out.length < 1) out.push(list.splice(Math.floor(r() * list.length), 1)[0]);
   return out;
 }
 
@@ -79,7 +80,7 @@ export const TITLES = [
   { id: 'fruit10', name: '実落とし', desc: '株の実を合計10個落とす', check: (r) => r.fruits >= 10 },
   { id: 'bait3', name: '毒にも負けない', desc: '毒エサを合計3回食べる', check: (r) => r.baits >= 3 },
   { id: 'smoke', name: '煙をくぐりぬけた者', desc: 'けむり玉から生きのびる', check: (r) => r.smoke >= 1 },
-  { id: 'order10', name: '注文の達人', desc: '今日の注文を合計10個こなす', check: (r) => r.orders >= 10 },
+  { id: 'order10', name: '注文の達人', desc: '今日のお題を合計10個こなす', check: (r) => r.orders >= 10 },
   { id: 'allwin', name: '全ステージ制覇', desc: '6つのステージをすべてクリアする', check: (r) => r.cleared >= 6 },
   { id: 'stars', name: '星あつめ名人', desc: '星を合計12個あつめる', check: (r) => Object.values(r.stars || {}).reduce((a, b) => a + b, 0) >= 12 },
   { id: 'stage3', name: '一人前のゴキブリ', desc: 'ステージ3をクリアする', check: (r) => r.cleared >= 3 },
@@ -91,7 +92,7 @@ export const WING_UNLOCK = {
   black: { desc: '合計10箱ダメにする', check: (r) => r.ruined >= 10 },
   gold: { desc: '3回勝つ', check: (r) => r.wins >= 3 },
   paprika: { desc: '株の実を合計5個落とす', check: (r) => r.fruits >= 5 },
-  leaf: { desc: '今日の注文を合計3個こなす', check: (r) => r.orders >= 3 },
+  leaf: { desc: '今日のお題を合計3個こなす', check: (r) => r.orders >= 3 },
 };
 
 export function emptyRecords() {
@@ -190,7 +191,8 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   const r = normalizeRecords(rec);
   const before = { titles: new Set(r.titles), wings: unlockedWings(r), hats: unlockedHats(r), patterns: unlockedPatterns(r) };
   r.games++;
-  if (res.win) {
+  // かんたんモードの勝ちは、ステージのクリア・星・ベストには数えない（家族で気楽に遊ぶ用）
+  if (res.win && !res.easy) {
     r.wins++;
     const no = parseInt(String(res.diff).replace('s', ''), 10);
     if (no > (r.cleared || 0)) { r.cleared = no; r.newStage = no + 1; }
@@ -215,13 +217,13 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   const newTitles = TITLES.filter((t) => r.titles.includes(t.id) && !before.titles.has(t.id));
   const newWings = unlockedWings(r).filter((k) => !before.wings.includes(k));
   // 星と自己ベスト
-  const got = starsOf(res, stats);
+  const got = res.easy ? { count: 0, each: [false, false, false] } : starsOf(res, stats);
   const key = String(res.diff);
   const prevStars = r.stars[key] || 0;
   if (got.count > prevStars) r.stars[key] = got.count;
   const pb = r.bests[key] || {};
   const newBest = {};
-  if (res.win) {
+  if (res.win && !res.easy) {
     if (!pb.time || res.elapsed < pb.time) { pb.time = Math.round(res.elapsed); newBest.time = true; }
     if (pb.shipped === undefined || stats.shipped < pb.shipped) { pb.shipped = stats.shipped; newBest.shipped = true; }
     r.bests[key] = pb;
@@ -229,8 +231,10 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   const unlockedStage = r.newStage && r.newStage <= 6 ? r.newStage : 0;
   delete r.newStage;
   // 続けて負けた回数（おたすけをすすめる目安）
-  r.losses[key] = res.win ? 0 : (r.losses[key] || 0) + 1;
-  const offerAssist = !res.win && r.losses[key] >= ASSIST_AFTER && !r.assist[key];
+  if (!res.easy) r.losses[key] = res.win ? 0 : (r.losses[key] || 0) + 1;
+  // ステージ4から先は、おたすけを早めに（2回続けて負けたら）
+  const stNo = Number(String(key).replace(/\D/g, '')) || 1;
+  const offerAssist = !res.win && r.losses[key] >= (stNo >= 4 ? ASSIST_AFTER - 1 : ASSIST_AFTER) && !r.assist[key];
   // いたずらリスト（ステージごとに、こなしたものを残す）
   const pd = new Set(r.pranks[key] || []);
   const newPranks = (res.pranks || []).filter((id) => !pd.has(id));
