@@ -900,7 +900,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       const nc3 = g.crates.find((c) => c.table < 0);
       Object.assign(g.player, { x: nc3.x, z: nc3.z + (nc3.z > 0 ? -0.7 : 0.7), surface: -1, y: 0 });
       let held3 = true, extra = 0, last = g.nutrition;
-      RH.sim(32, 1 / 30, (gg, i) => { idle(gg, i); if (held3 && gg.player.greed > 70) held3 = false; else if (!held3 && gg.player.greed < 1) held3 = true; i.actionHeld = held3; freezeFarmer(); gg.nutrition = Math.min(gg.nutrition, 50); });
+      RH.sim(32, 1 / 30, (gg, i) => { idle(gg, i); if (held3 && gg.player.greed > 70) held3 = false; else if (!held3 && gg.player.greed < 1) held3 = true; i.actionHeld = held3; freezeFarmer(); gg.nutrition = Math.min(gg.nutrition, 50); nc3.hp = 100; nc3.rotten = false; });
       check('ナイスの連続は6回以上でも続く（おまけは3回まで）', (g.stats.niceCombo || 0) >= 6, `best=${g.stats.niceCombo}`);
     }
 
