@@ -203,7 +203,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     g.farmer.x = fr.x + 6; g.farmer.z = row.z + 2.5;
     let susp0 = g.farmer.susp;
     RH.sim(8, 1 / 30, (gg, i) => { idle(gg, i); i.actionHeld = (Math.floor(gg.elapsed * 2) % 3) !== 2; gg.farmer.state = 'WORK'; gg.farmer.phase = 'idle'; gg.farmer.timer = 999; });
-    check('実が落ちる', g.stats.fruits >= 1, `fruits=${g.stats.fruits}`);
+    check('実が落ちる', g.stats.fruits >= 1, `fruits=${g.stats.fruits} hp=${fr.hp} alive=${fr.alive} reach=${!!reachF} y=${g.player.y} st=${g.player.st} nice=${g.stats.nice} greed=${g.player.greed.toFixed(0)} hp=${g.player.hp}`);
     check('落ちた音で農場主があやしむ', g.farmer.susp > susp0 || g.farmer.state !== 'WORK', `susp=${g.farmer.susp.toFixed(0)}`);
 
     // 20. 毒エサ：栄養は満タン、でも体力が減る
@@ -791,6 +791,89 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     // 64. 夜のほたると月
     RH.startGame('s6');
     check('夜はほたるが飛ぶ', RH.world.night === true);
+    // 65. 第9回・第10回のあとで足したもの
+    // まかせた：自分が追われると、半分の仲間がおとりに
+    g.start('s1', 131); freezeFarmer();
+    for (let i = 0; i < 4; i++) g.spawnRoach(g.player.x + 0.4 * i, g.player.z + 0.4, true);
+    g.setMode('search');
+    g.farmer.x = g.player.x + 6; g.farmer.z = g.player.z;
+    RH.sim(6, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.state = 'CHASE'; gg.farmer.target = gg.player; gg.farmer.x = gg.player.x + 6; gg.farmer.z = gg.player.z; gg.farmer.speed = 0; });
+    {
+      const f = g.farmer;
+      const nearF = g.nymphs.filter((r) => Math.hypot(r.x - f.x, r.z - f.z) < 5.5).length;
+      check('まかせた：追われると仲間がおとりになる', nearF >= 1, `near=${nearF}/${g.nymphs.length}`);
+    }
+    // 田んぼ道のおみやげ
+    g.start('s1', 132); freezeFarmer();
+    { const n0 = g.nymphs.length; g.giveSouvenir(2); check('おみやげで仲間が2匹ふえる', g.nymphs.length === n0 + 2); }
+    // 出荷ジャックのごほうび：荷台の箱も虫入り
+    g.start('s5', 133); freezeFarmer();
+    {
+      const P = g.player;
+      const free = g.crates.filter((c) => !c.rotten && !c.shipped && !c.carried);
+      for (const c of free.slice(0, 2)) { c.shipped = true; c.shipNo = ++g.truckN; g.shipped++; }
+      const c = free[2];
+      const r0 = g.ruined;
+      c.carried = true; P.stow = c; c.stowed = P;
+      g.stowShipped(P, c);
+      check('出荷ジャック：荷台の箱も2箱ダメに', g.ruined === r0 + 3 && g.shipped === 0, `ruined ${r0}->${g.ruined} shipped=${g.shipped}`);
+      check('出荷ジャック：農場主のびっくりが長い', g.farmer.catHold >= 5.5);
+    }
+    // ナイスの連続
+    g.start('normal', 134); freezeFarmer();
+    {
+      const nc2 = g.crates.find((c) => c.table < 0);
+      Object.assign(g.player, { x: nc2.x, z: nc2.z + (nc2.z > 0 ? -0.7 : 0.7), surface: -1, y: 0 });
+      let held2 = true;
+      RH.sim(12, 1 / 30, (gg, i) => { idle(gg, i); if (held2 && gg.player.greed > 70) held2 = false; else if (!held2 && gg.player.greed < 1) held2 = true; i.actionHeld = held2; freezeFarmer(); });
+      check('ナイスの連続で「3連続」', (g.stats.niceCombo || 0) >= 3, `best=${g.stats.niceCombo} nice=${g.stats.nice}`);
+    }
+    // 親分ゴキブリ
+    g.start('s1', 135, { boss: true });
+    { const B = g.nymphs.find((r) => r.boss); check('親分ゴキブリが仲間にいる', !!B && B.model.root.scale.x > 1.2); }
+    // ラジオをかじる → 農場主が直しに来る → 番組が変わる
+    g.start('s3', 136);
+    {
+      const R = g.radioObj;
+      check('ステージ3にはラジオが置いてある', !!R);
+      g.farmer.state = 'WORK'; g.farmer.phase = 'idle'; g.farmer.timer = 0.1; g.farmer.act = null; g.farmer.susp = 0;
+      Object.assign(g.player, { x: R.x - 0.6, z: R.z, surface: -1, y: 0, st: 'move' });
+      RH.sim(2, 1 / 30, (gg, i) => { idle(gg, i); i.actionHeld = true; gg.farmer.susp = 0; });
+      check('ラジオをかじると止まる', R.on === false);
+      Object.assign(g.player, { x: -16, z: 0 });
+      let sawFix = false;
+      RH.sim(40, 1 / 30, (gg, i) => { idle(gg, i); gg.farmer.susp = 0; if (gg.farmer.phase === 'radio') sawFix = true; if (gg.farmer.state !== 'WORK') { gg.farmer.state = 'WORK'; gg.farmer.phase = 'choose'; } });
+      check('農場主がラジオを直しに来る', sawFix);
+      check('直すとラジオがまた鳴る', R.on === true);
+    }
+    // 長靴に入って、おどろかす
+    g.start('s1', 137);
+    {
+      const B = g.boots, P = g.player, f = g.farmer;
+      Object.assign(P, { x: B.x - 0.4, z: B.z - 0.3, surface: -1, y: 0, st: 'move' });
+      const pr = g.propAt(P);
+      check('長靴に入れる', pr && pr.kind === 'boots');
+      g.useProp(P, pr);
+      f.state = 'WORK'; f.phase = 'idle'; f.timer = 999; f.x = B.x + 1.5; f.z = B.z - 1; f.act = null;
+      RH.sim(0.3, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('長靴で農場主がおどろく', g.pranks.boot === true && !P.inGlove && f.catHold > 2);
+      g.endGame(true, 'ruined');
+      check('長靴のことが日記に書かれる', g.result.diary.some((l) => /長靴/.test(l)), g.result.diary.join('／'));
+    }
+    // 暖房機
+    g.start('s2', 138); freezeFarmer();
+    {
+      check('ステージ2から暖房機がある', !!g.heater);
+      g.heater.next = 0.05;
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('暖房機が動く', g.heaterOn);
+      const f = g.farmer; f.susp = 0;
+      g.noise({ x: f.x + 3, z: f.z, y: 0 }, 4, 20);
+      const sOn = f.susp; f.susp = 0;
+      g.heater.on = 0;
+      g.noise({ x: f.x + 3, z: f.z, y: 0 }, 4, 20);
+      check('暖房の間は音が届きにくい', sOn < f.susp, `on=${sOn.toFixed(1)} off=${f.susp.toFixed(1)}`);
+    }
     RH.startGame('s1');
     return out;
   });

@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")/.."
 export NODE_PATH="${NODE_PATH:-$(npm root -g)}"
-for t in mechanics input sim; do
+for t in mechanics simple input sim; do
   echo "== $t"
   node "tests/$t.cjs" | tee "/tmp/roach-$t.log"
   grep -q "^FAIL" "/tmp/roach-$t.log" && { echo "失敗あり: $t"; exit 1; }

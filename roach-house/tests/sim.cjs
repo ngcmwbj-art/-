@@ -28,7 +28,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
         if (!p || !p.alive) return;
         if (p.st === 'stuck') { if (i % 4 === 0) inp.press('action'); return; }
         if (style === 'smart') {
-          if (i % (30 * 35) === 0) inp.press(['cmd1', 'cmd2', 'cmd1', 'cmd3'][(i / (30 * 35)) % 4]);
+          if (i % (30 * 35) === 0) inp.press(['cmd2', 'cmd2', 'cmd2', 'cmd1'][(i / (30 * 35)) % 4]); // 2＝まかせた、1＝ついてこい
         }
         if (g.nutrition >= 100) inp.press('egg');
         if (style === 'smart' && g.canAttackNow() && (g.farmer.carry || g.farmer.state === 'CHASE')) inp.press('attack');

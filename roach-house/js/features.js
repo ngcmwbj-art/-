@@ -51,6 +51,7 @@ export function todaysOrders(key) {
 
 // 図鑑（出会ったもの）
 export const ENCYCLOPEDIA = [
+  { id: 'boss', name: '親分ゴキブリ', text: '卵を合計50個産むと仲間になる大きな親分。かじる力が強い。' },
   { id: 'farmer', name: '農場主', text: 'パーマ頭に軍手、腰にラジオ。ラジオの音と長靴の足音で、どこにいるか分かる。怒ると本気になる。' },
   { id: 'trap', name: 'ホイホイ', text: '粘着わな。くっついたら食べるボタンを連打。捕まった仲間は近くで押すと助けられる。' },
   { id: 'spray', name: '殺虫スプレー', text: '黄色い輪が予告。霧はしばらく残る。' },
@@ -108,6 +109,8 @@ export function normalizeRecords(r) {
   if (!r.cleared && (r.winEasy || r.winNormal || r.winHard)) out.cleared = r.winHard ? 5 : r.winNormal ? 3 : 1;
   delete out.winEasy; delete out.winNormal; delete out.winHard;
   for (const k of ['titles', 'seen']) if (!Array.isArray(out[k])) out[k] = [];
+  out.souvenir = Math.max(0, Math.min(2, Number(out.souvenir) || 0));
+  out.bossShown = !!out.bossShown;
   if (!out.ordersDone || typeof out.ordersDone !== 'object') out.ordersDone = {};
   if (!out.stars || typeof out.stars !== 'object') out.stars = {};
   if (!out.bests || typeof out.bests !== 'object') out.bests = {};
@@ -165,13 +168,13 @@ export function weekState(r, key) {
 
 // まだ使っていない技のすすめ（ステージで出てくるものだけ）
 export const TECHS = [
-  { id: 'attack', from: 1, text: '農場主の足もとで「突撃」。顔に飛びついてパニックにでき、運んでいる箱も落とす' },
-  { id: 'wind', from: 1, text: '通路の入口の渦で「風に乗る」。通路の先まで一気に飛べる近道' },
-  { id: 'playdead', from: 1, text: '「死んだふり」（X・左上のボタン）。農場主の頭が「？」の間なら見のがしてもらえる' },
-  { id: 'box', from: 1, text: '落ちている段ボールをかぶる。ゆっくりなら見つからずに歩ける' },
-  { id: 'drain', from: 1, text: '床の排水溝に入ると、相方の排水溝から出られる。逃げ道に' },
-  { id: 'stow', from: 1, text: '台のコンテナのそばで死んだふりボタン＝「かごにもぐる」。そのまま出荷されると、その箱は虫入りでダメに' },
-  { id: 'revenge', from: 1, text: '仲間2匹とホイホイを運んで、農場主の通り道に。長靴がくっついて動けなくなる' },
+  { id: 'attack', from: 1, name: '突撃', short: '足もとで「突撃」', text: '農場主の足もとで「突撃」。顔に飛びついてパニックにでき、運んでいる箱も落とす' },
+  { id: 'wind', from: 1, name: '風に乗る', short: '通路の渦で風に乗る', text: '通路の入口の渦で「風に乗る」。通路の先まで一気に飛べる近道' },
+  { id: 'playdead', from: 1, name: '死んだふり', short: '「？」の間に死んだふり', text: '「死んだふり」（X・左上のボタン）。農場主の頭が「？」の間なら見のがしてもらえる' },
+  { id: 'box', from: 1, name: '段ボール', short: '段ボールをかぶる', text: '落ちている段ボールをかぶる。ゆっくりなら見つからずに歩ける' },
+  { id: 'drain', from: 1, name: '排水溝', short: '床の排水溝にもぐる', text: '床の排水溝に入ると、相方の排水溝から出られる。逃げ道に' },
+  { id: 'stow', from: 1, name: '出荷ジャック', short: '箱のそばで「かごにもぐる」', text: '台のコンテナのそばで死んだふりボタン＝「かごにもぐる」。そのまま出荷されると、その箱は虫入りでダメに' },
+  { id: 'revenge', from: 1, name: '仕返し', short: '仲間とホイホイを運ぶ', text: '仲間2匹とホイホイを運んで、農場主の通り道に。長靴がくっついて動けなくなる' },
 ];
 export function unusedTech(r, stageNo, seed = 0) {
   const used = (r && r.used) || {};

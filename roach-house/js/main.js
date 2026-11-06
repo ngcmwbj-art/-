@@ -63,7 +63,7 @@ const fx = new FX(renderer, scene, camera);
 fx.setLevel(startLevel);
 const autoQ = new AutoQuality(fx, (lvl, fps) => {
   world.setShadow(LEVELS[lvl].shadow);
-  ui.toast(`動きをなめらかにするため画質を「${LEVELS[lvl].label}」にしました（${Math.round(fps)}fps）`, 'info');
+  ui.feed(`画質「${LEVELS[lvl].label}」に`, '画', 'info');
 });
 autoQ.auto = qualityPref === 'auto';
 function applyQuality(pref) {
@@ -98,8 +98,8 @@ sfx.setMuted(!soundOn);
 const MINOR = [
   [/仲間がやられた/, '仲', 'bad'], [/卵がかえ|仲間が生まれ|仲間が.*匹ふえ/, '卵', 'good'], [/仲間に指示/, '指', 'info'],
   [/産卵|卵を産/, '卵', 'good'], [/助け出した/, '助', 'good'], [/段ボール|軍手から|軍手にもぐ/, '隠', 'good'],
-  [/いたずら成功/, '★', 'good'], [/検品が終わった|煙が晴れ/, '済', 'info'], [/仲間がホイホイを運/, '運', 'good'],
-  [/農場主がコンテナを(床に置いた|落とした)/, '箱', 'good'], [/排水溝/, '溝', 'good'], [/カブトムシ/, '虫', 'good'],
+  [/いたずら成功/, '★', 'good'], [/検品が終わった|煙が晴れ/, '済', 'info'], [/ホイホイを運ぶぞ/, '運', 'good'], [/^(ついてこい|まかせた|おとり)！/, '指', 'info'],
+  [/箱を(置いた|落とした)|かごを放り出した/, '箱', 'good'], [/排水溝/, '溝', 'good'], [/カブトムシ/, '虫', 'good'],
 ];
 function feed(text, glyph, kind) {
   const box = $('feed');
@@ -108,13 +108,13 @@ function feed(text, glyph, kind) {
   el.innerHTML = `<i>${glyph}</i><span></span>`;
   el.lastChild.textContent = text;
   box.appendChild(el);
-  while (box.children.length > 4) box.removeChild(box.firstChild);
-  setTimeout(() => el.classList.add('out'), 3600);
+  while (box.children.length > 3) box.removeChild(box.firstChild);
+  setTimeout(() => el.classList.add('out'), 3000);
   setTimeout(() => el.remove(), 4100);
 }
 const ui = {
   feed,
-  radio(text) { feed(text, '♪', 'radio'); sfx.radioNews && sfx.radioNews(); },
+  radio(text) { feed(text.replace(/^ラジオ「/, '').replace(/」$/, ''), '♪', 'radio'); sfx.radioNews && sfx.radioNews(); },
   toast(text, kind) {
     const m = MINOR.find(([re]) => re.test(text));
     if (m) { feed(text, m[1], m[2]); return; }
@@ -123,8 +123,8 @@ const ui = {
     el.className = `toast ${kind || ''}`;
     el.textContent = text;
     box.appendChild(el);
-    while (box.children.length > 3) box.removeChild(box.firstChild);
-    setTimeout(() => el.classList.add('out'), 2600);
+    while (box.children.length > 2) box.removeChild(box.firstChild);
+    setTimeout(() => el.classList.add('out'), 2400);
     setTimeout(() => el.remove(), 3100);
   },
   hurtLevel: 0,
@@ -154,8 +154,11 @@ function renderRunBtn() {
   b2.textContent = ok2 ? `おまけ：夕方の農道（ため池の橋とコンバイン）${records.runBestDusk ? `　ベスト ${records.runBestDusk.toFixed(1)}秒` : ''}` : 'おまけ：夕方の農道（夜明けのコースを1回逃げきると遊べる）';
 }
 let runCourse = 'dawn';
-function startRun(course) {
+let runFromJack = null; // 出荷ジャックから来たとき：もどる先のゲームの状態
+function startRun(course, fromJack = false) {
+  sfx.heaterStop && sfx.heaterStop();
   runCourse = course === 'dusk' ? 'dusk' : 'dawn';
+  runFromJack = fromJack ? { state: game.state } : null;
   sfx.unlock();
   endTourUi();
   sfx.stopRadio();
@@ -163,7 +166,7 @@ function startRun(course) {
   renderer.toneMappingExposure = 0.95;
   world.group.visible = false;
   if (game.root) game.root.visible = false;
-  game.state = 'title';
+  if (!runFromJack) game.state = 'title';
   runner.start({ wing: records.wing, pattern: records.pattern, hat: records.hat, seed: dailySeed(dayKey) % 100000 + 7, course: runCourse });
   $('runSay').hidden = true;
   setScreen('run');
@@ -185,9 +188,18 @@ function showRunResult(res) {
     if (firstDawn) best += '　2つ目のコース「夕方の農道」が遊べるようになった！';
   }
   store.set('records', records);
+  // おみやげ：にげきると仲間がふえる（かけら10個以上で2匹）
+  const gift = res.win ? (res.bits >= 10 ? 2 : 1) : 0;
+  if (!runFromJack && gift) records.souvenir = Math.max(records.souvenir || 0, gift);
+  runGift = gift;
+  store.set('records', records);
+  $('btnRunBack').hidden = !runFromJack;
+  $('btnRunAgain').hidden = !!runFromJack;
+  $('btnRunTitle').hidden = !!runFromJack;
   $('runTitle').textContent = res.win ? 'にげきった！' : 'つかまった…';
   $('runTitle').className = `rtitle ${res.win ? 'win' : 'lose'}`;
-  $('runText').textContent = res.win ? `${res.time.toFixed(1)}秒で、となりのハウスへ逃げこんだ。パプリカのかけら ${res.bits} 個` : `ゴールまであと ${Math.round(230 - res.dist)}m。パプリカのかけら ${res.bits} 個。ダッシュはかけらで回復するよ`;
+  $('runText').textContent = res.win ? `${res.time.toFixed(1)}秒　かけら ${res.bits}` : `ゴールまで あと${Math.round(230 - res.dist)}m`;
+  if (gift) best = `おみやげ：${runFromJack ? '' : '次のステージで'}仲間 +${gift}` + (best ? '　' + best : '');
   $('runNews').innerHTML = best ? `<span class="new">${best}</span>` : '';
   setScreen('runover');
 }
@@ -195,6 +207,36 @@ $('btnRun').addEventListener('click', () => startRun('dawn'));
 $('btnRunDusk').addEventListener('click', () => startRun('dusk'));
 $('btnRunAgain').addEventListener('click', () => { endRun(); startRun(runCourse); });
 $('btnRunTitle').addEventListener('click', () => { endRun(); toTitle(); });
+let runGift = 0;
+// 出荷ジャックから田んぼ道へ行ったあと、ハウスにもどる（おみやげの仲間つき）
+$('btnRunBack').addEventListener('click', () => {
+  const back = runFromJack;
+  endRun();
+  runFromJack = null;
+  if (!back) { toTitle(); return; }
+  game.state = back.state;
+  sfx.startRadio();
+  world.setNight(!!game.diff.night);
+  renderer.toneMappingExposure = game.diff.night ? 1.5 : 0.95;
+  if (runGift) game.giveSouvenir(runGift);
+  runGift = 0;
+  camState.init = true;
+  setScreen('play');
+});
+// 出荷ジャック成功のあと：田んぼ道へにげるか、ハウスにもどるか（選ぶ間はゲームを止める）
+let jackOfferOn = false;
+let humT = 0;
+// 農場主の機嫌：hum＝鼻歌、grumble＝ぶつぶつ、null＝だまる
+function farmerMood(f) {
+  if (!f || f.hidden || f.speechT > 0) return null;
+  if (f.state === 'WORK' && (f.anger || 0) >= 2) return 'grumble';
+  if (f.state === 'WORK' && f.susp < 15 && f.phase !== 'radio') return 'hum';
+  return null;
+}
+function offerJack() { jackOfferOn = true; $('jackOffer').hidden = false; }
+function closeJack() { jackOfferOn = false; $('jackOffer').hidden = true; }
+$('btnJackRun').addEventListener('click', () => { closeJack(); startRun('dawn', true); });
+$('btnJackStay').addEventListener('click', () => { closeJack(); });
 window.__rh = { game, input, THREE, scene, camera, renderer, fx, world };
 
 // ---------- 画面切りかえ ----------
@@ -241,7 +283,10 @@ renderRunBtn();
 $('optTutor').checked = !store.get('tutorialDone', false);
 
 let lastDiff = 's1';
-function startGame(diff) {
+function startGame(diff, opt = {}) {
+  closeJack();
+  sfx.heaterStop && sfx.heaterStop();
+  $('heatBadge').hidden = true;
   sfx.unlock();
   sfx.startAmbience();
   sfx.startRadio();
@@ -251,7 +296,7 @@ function startGame(diff) {
   const tutorial = $('optTutor').checked;
   const assist = !!(records.assist && records.assist[diff]);
   endTourUi();
-  game.start(diff, undefined, { tutorial, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
+  game.start(diff, undefined, { tutorial, boss: (records.eggs || 0) >= 50, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
   renderOrderMini();
   $('orderMini').hidden = false;
@@ -259,8 +304,10 @@ function startGame(diff) {
   world.setNight(!!D.night);
   renderer.toneMappingExposure = D.night ? 1.5 : 0.95;
   if (!tutorial) {
-    ui.toast(`${D.label}「${D.name}」 コンテナを${D.target}箱ダメにしろ！`, 'info');
-    if (D.tip) setTimeout(() => { if (screen === 'play') ui.toast(`ヒント：${D.tip}`, 'info'); }, 1800);
+    ui.toast(`${D.target}箱ダメにしろ！`, 'info');
+    // 田んぼ道のおみやげ：次のステージのはじめに仲間がふえる
+    if (records.souvenir > 0) { game.giveSouvenir(records.souvenir); records.souvenir = 0; store.set('records', records); }
+    if ((records.eggs || 0) >= 50 && !records.bossShown) { records.bossShown = true; store.set('records', records); ui.toast('親分ゴキブリが仲間に！', 'good'); }
   }
   hints.reset();
   camState.yaw = game.camYaw;
@@ -273,7 +320,25 @@ function startGame(diff) {
   $('toasts').innerHTML = '';
   setScreen('play');
   updateCmdButtons();
+  // ハウスをぐるっと：そのステージの1回目だけ、始めに3秒ほど全体を見せる（おせばとばせる。やり直しでは出さない）
+  const introSeen = store.get('introSeen', []);
+  if (!tutorial && !introSeen.includes(diff) && !opt.noIntro) {
+    introSeen.push(diff); store.set('introSeen', introSeen);
+    camState.intro = { t: 0, dur: 3.4 };
+    $('introSkip').hidden = false;
+    document.body.classList.add('intro');
+  } else endIntro();
 }
+function endIntro() {
+  if (!camState.intro && $('introSkip').hidden) return;
+  camState.intro = null;
+  camState.init = true;
+  $('introSkip').hidden = true;
+  document.body.classList.remove('intro');
+}
+$('introSkip').addEventListener('click', (e) => { e.preventDefault(); endIntro(); });
+window.addEventListener('keydown', () => { if (camState.intro) endIntro(); });
+canvas.addEventListener('pointerdown', () => { if (camState.intro) endIntro(); });
 
 // ---------- 見学モード：遊ばずにハウスを見て回る（家族に見せる用） ----------
 let touring = false;
@@ -293,7 +358,7 @@ function startTour() {
   camState.yaw = game.camYaw; camState.pitch = 0.42; camState.init = true; camState.focus = null;
   $('toasts').innerHTML = '';
   setScreen('play');
-  ui.toast('見学モード：だれにも見つからない。上のボタンで生き物を近くから見られる', 'info');
+  ui.toast('見学モード', 'info');
 }
 function endTourUi() {
   touring = false;
@@ -335,9 +400,8 @@ function renderOrderMini() {
   const key = PRANKS.map((x) => (pr[x.id] ? 1 : 0)).join('');
   if (key === miniKey && $('orderMini').innerHTML) return;
   miniKey = key;
-  const done = (records.pranks && records.pranks[lastDiff]) || [];
-  $('orderMini').innerHTML = `<b>今日の注文</b><br>${orders.map((o) => `・${o.text}`).join('<br>')}` +
-    `<br><b>いたずら ${PRANKS.filter((x) => pr[x.id]).length}/${PRANKS.length}</b>　${PRANKS.map((x) => `<span class="${pr[x.id] ? 'ok' : done.includes(x.id) ? 'was' : ''}" title="${x.text}">${pr[x.id] ? '✓' : '・'}${x.short}</span>`).join(' ')}`;
+  const n = PRANKS.filter((x) => pr[x.id]).length;
+  $('orderMini').innerHTML = `いたずら <b>${n}/${PRANKS.length}</b>`;
 }
 
 // なめらかさを残す（設定に「前回は1秒に○コマ」と出す。スマホ実機での確認用）
@@ -377,6 +441,9 @@ function resumeGame() {
   setScreen('play');
 }
 function toTitle() {
+  closeJack();
+  sfx.heaterStop && sfx.heaterStop();
+  $('heatBadge').hidden = true;
   if (runner.active) endRun();
   saveFps();
   endTourUi();
@@ -434,6 +501,12 @@ function renderBook() {
     const ok = records.titles.includes(t.id);
     return `<li class="${ok ? '' : 'locked'}"><b>${ok ? '★ ' : '☆ '}${t.name}</b><small>${t.desc}</small></li>`;
   }).join('');
+  // 技の一覧：覚えた技に★、まだの技は「？」とヒント1行
+  const usedT = records.used || {};
+  $('bookTechs').innerHTML = FEATURES.TECHS.map((t) => {
+    const ok = !!usedT[t.id];
+    return `<li class="${ok ? '' : 'locked'}"><b>${ok ? '★ ' + t.name : '？'}</b><small>${t.short}</small></li>`;
+  }).join('');
   $('bookEncy').innerHTML = ENCYCLOPEDIA.map((e) => {
     const ok = records.seen.includes(e.id);
     return `<li class="${ok ? '' : 'locked'}"><b>${ok ? e.name : '？？？'}</b><small>${ok ? e.text : 'まだ出会っていない'}</small></li>`;
@@ -476,12 +549,12 @@ $('btnSkipTutor').addEventListener('click', (e) => { e.preventDefault(); game.en
 const TIPS = [
   '台の下でじっとしていれば、農場主からはほとんど見えません。',
   'がっつきゲージは緑のうちに離すと音が出ません。黄色で止めるのが一番効率がいい食べかたです。',
-  '「おとり」の仲間が追われている間に、反対側のコンテナを狙いましょう。',
+  '「まかせた」にすると、追われたとき仲間がおとりになってくれます。',
   '農場主がコンテナを運んでいる時に突撃すると、コンテナを床に落とします。',
   '卵は畝の葉の下か台の下に産むと、見つかりにくくなります。',
   'ダメになったコンテナを農場主が見つけると、怒って近くにホイホイを置きます。',
   '殺虫剤は黄色い輪、叩きつぶしは赤い輪が予告です。輪が出たらすぐ離れましょう。',
-  '「探索」の仲間は少しずつしか食べませんが、何匹もいると大きな戦力です。',
+  '「まかせた」の仲間は少しずつしか食べませんが、何匹もいると大きな戦力です。',
 ];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -496,7 +569,7 @@ function renderStages() {
     return `<button class="stage ${st.no === open && !cleared ? 'next' : ''}" data-diff="${st.key}" ${ok ? '' : 'disabled'}>
       <span class="no">${st.label}${cleared ? '　✓クリア' : ''}${records.assist && records.assist[st.key] ? '　<i class="assist-tag">おたすけ中</i>' : ''}</span><b>${ok ? st.name : '？？？'}</b>
       <span class="stars">${'★'.repeat(records.stars[st.key] || 0)}${'☆'.repeat(3 - (records.stars[st.key] || 0))}</span>
-      <span>${ok ? `${st.target}箱ダメにする。${st.desc}` : `ステージ${st.no - 1}をクリアすると遊べる`}</span>
+      <span>${ok ? `${st.target}箱ダメにする` : `ステージ${st.no - 1}をクリアで遊べる`}</span>
       <em>${b ? `最高 ${b.rank}・${b.score}点` : ''}</em></button>`;
   }).join('');
   $('stages').querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => startGame(b.dataset.diff)));
@@ -545,16 +618,16 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 window.addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
 
 function updateCmdButtons() {
-  for (const m of ['search', 'decoy', 'follow']) $(`cmd-${m}`).classList.toggle('on', game.mode === m);
+  for (const m of ['search', 'follow']) $(`cmd-${m}`).classList.toggle('on', game.mode === m);
 }
 
 function renderBest() { renderStages(); }
 
 // ---------- 結果 ----------
 const REASONS = {
-  ruined: '目標の数のコンテナをダメにした。今日の出荷はめちゃくちゃだ！',
-  shipped: '出荷が進みすぎて、もう目標に届かない。今日のパプリカは無事に市場へ…',
-  dead: '仲間も卵もいなくなってしまった…',
+  ruined: '出荷はめちゃくちゃだ！',
+  shipped: '出荷されすぎた…',
+  dead: '仲間がいなくなった…',
 };
 function showResult(res) {
   if (game.state !== 'over' || game.result !== res) return;
@@ -590,14 +663,14 @@ function showResult(res) {
   records = out.rec;
   store.set('records', records);
   const ol = orders.map((o) => (out.cleared.includes(o.id) ? `<span class="ok">✓ ${o.text}</span>` : `<span class="ng">・${o.text}</span>`));
-  const news = [...out.newTitles.map((t) => `<span class="new">★ 称号「${t.name}」を手に入れた！</span>`),
-    ...out.newWings.map((k) => `<span class="new">羽の色「${WING_COLORS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`)];
+  const news = [...out.newTitles.map((t) => `<span class="new">★ 称号「${t.name}」</span>`),
+    ...out.newWings.map((k) => `<span class="new">新しい羽の色「${WING_COLORS[k].label}」</span>`)];
   const st3 = out.stars;
-  $('rStars').innerHTML = `<div class="big">${st3.each.map((b) => (b ? '★' : '☆')).join('')}</div>` +
-    STAR_RULES.map((r, i) => `<div class="${st3.each[i] ? 'ok' : 'ng'}">${st3.each[i] ? '★' : '☆'} ${r.text}</div>`).join('');
-  if (out.newBest.time) news.push(`<span class="new">最速クリアを更新！（${mm(res.elapsed)}）</span>`);
-  if (out.newBest.shipped) news.push(`<span class="new">いちばん少ない出荷数を更新！（${s.shipped}箱）</span>`);
-  if (out.unlockedStage) news.unshift(`<span class="new">${STAGES[out.unlockedStage - 1].label}「${STAGES[out.unlockedStage - 1].name}」が遊べるようになった！</span>`);
+  $('rStars').innerHTML = `<div class="big">${st3.each.map((b) => (b ? '★' : '☆')).join('')}</div>`;
+  const starRules = STAR_RULES.map((r, i) => `<span class="${st3.each[i] ? 'ok' : 'ng'}">${st3.each[i] ? '★' : '☆'} ${r.text}</span>`).join('　');
+  if (out.newBest.time) news.push(`<span class="new">最速クリア！ ${mm(res.elapsed)}</span>`);
+  if (out.newBest.shipped) news.push(`<span class="new">出荷の少なさ ベスト！</span>`);
+  if (out.unlockedStage) news.unshift(`<span class="new">${STAGES[out.unlockedStage - 1].label}が遊べる！</span>`);
   const cur = DIFFS[res.diff];
   const nxt = cur ? STAGES[cur.no] : null;
   $('btnNext').hidden = !(res.win && nxt);
@@ -610,7 +683,7 @@ function showResult(res) {
   const ab = $('btnAssist');
   const assistOn = !!(records.assist && records.assist[res.diff]);
   ab.hidden = !(out.offerAssist || assistOn);
-  ab.textContent = assistOn ? 'おたすけをやめる（ふつうにもどす）' : `おたすけを使う？（${records.losses[res.diff]}回続けて負けたので、農場主を少しのんびりにできる）`;
+  ab.textContent = assistOn ? 'おたすけをやめる' : 'おたすけを使う？（農場主がのんびりに）';
   ab.dataset.diff = res.diff;
   ab.dataset.on = assistOn ? '1' : '0';
   if (res.assist) news.push('<span class="was">（おたすけ中のプレイ）</span>');
@@ -618,18 +691,20 @@ function showResult(res) {
   const prs = res.pranks || [];
   const prDone = records.pranks[res.diff] || [];
   const prankLine = (`<b>いたずら</b>　${PRANKS.map((x) => `<span class="${prs.includes(x.id) ? 'ok' : 'ng'}">${prs.includes(x.id) ? '✓' : '・'}${x.text}${!prs.includes(x.id) && prDone.includes(x.id) ? '（前にやった）' : ''}</span>`).join('　')}`);
-  if (prs.length) news.push(`<span class="new">いたずら成功 ${prs.length}/${PRANKS.length}</span>`);
-  if ((s.revenge || 0) > 0) news.push(`<span class="new">ホイホイの仕返し ${s.revenge} 回成功！</span>`);
-  for (const k of out.newPatterns || []) news.push(`<span class="new">羽のもよう「${WING_PATTERNS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`);
-  if (out.weekNow) news.push('<span class="new">週のチャレンジ達成！ おめでとう！</span>');
-  if ((s.stowaway || 0) > 0) news.push(`<span class="new">出荷ジャック ${s.stowaway} 回成功！${records.stowaway === s.stowaway ? '　おまけステージ「にげろ！田んぼ道」が遊べるようになった！（タイトル画面）' : ''}</span>`);
-  for (const k of out.newHats || []) news.push(`<span class="new">帽子「${HATS[k].label}」が使えるようになった！（図鑑・着せかえで選べる）</span>`);
+  if (prs.length) news.push(`<span class="new">いたずら ${prs.length}/${PRANKS.length}</span>`);
+  if ((s.revenge || 0) > 0) news.push(`<span class="new">仕返し ${s.revenge}回！</span>`);
+  for (const k of out.newPatterns || []) news.push(`<span class="new">新しい羽のもよう「${WING_PATTERNS[k].label}」</span>`);
+  if (out.weekNow) news.push('<span class="new">週のチャレンジ達成！</span>');
+  if ((s.stowaway || 0) > 0) news.push(`<span class="new">出荷ジャック ${s.stowaway}回！${records.stowaway === s.stowaway ? '　田んぼ道が遊べる！' : ''}</span>`);
+  for (const k of out.newHats || []) news.push(`<span class="new">新しい帽子「${HATS[k].label}」</span>`);
   // 結果画面は短く：大事なお知らせだけ上に、ほかは「くわしく」の中へ
-  $('rNews').innerHTML = news.join('<br>');
+  // 上には2つまで。残りは「くわしく」へ
+  $('rNews').innerHTML = news.slice(0, 2).join('<br>') + (news.length > 2 ? `<br><span class="was">ほか${news.length - 2}件</span>` : '');
   $('rNews').hidden = !news.length;
+  const moreNews = news.slice(2);
   const wkr = out.week;
   const weekLine = wkr ? `<b>週のチャレンジ</b>　${WEEK_GOALS.map((gl) => `${gl.text.replace('合計', '')} ${Math.min(gl.need, wkr.prog[gl.id] || 0)}/${gl.need}`).join('　')}` : '';
-  $('rOrders').innerHTML = `<b>今日の注文</b><br>${ol.join('<br>')}<br>${prankLine}${weekLine ? '<br>' + weekLine : ''}`;
+  $('rOrders').innerHTML = `${moreNews.length ? moreNews.join('<br>') + '<br>' : ''}<b>星</b>　${starRules}<br><b>今日の注文</b><br>${ol.join('<br>')}<br>${prankLine}${weekLine ? '<br>' + weekLine : ''}`;
   $('rMore').open = false;
   const rows = [
     ['ダメにした箱', `${s.ruined} 箱`], ['出荷された箱', `${s.shipped} 箱`],
@@ -643,8 +718,9 @@ function showResult(res) {
   ];
   $('rStats').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
   const tech = unusedTech(records, (DIFFS[res.diff] || {}).no || 1, records.games || 0);
-  const tipMain = res.advice ? `次はこうしてみよう：${res.advice}` : (res.win ? '完璧な作戦でした。次のステージにも挑戦してみよう。' : `ヒント：${pick(TIPS)}`);
-  $('rTip').textContent = tech ? `${tipMain}\nまだ試していない技：${tech.text}` : tipMain;
+  // 次の一言は1行だけ：作戦のヒント → まだ試していない技 の順
+  $('rTip').textContent = res.advice ? `次は：${res.advice}` : tech ? `まだ試していない技：${tech.short || tech.text}` : '';
+  $('rTip').hidden = !$('rTip').textContent;
   $('rTip').classList.toggle('advice', !!res.advice);
   setScreen('result');
 }
@@ -652,24 +728,55 @@ function showResult(res) {
 // ---------- ヒント ----------
 const hints = {
   list: [
-    { id: 'move', kb: 'WASDで移動、マウスをドラッグ（またはQ/E）で視点を回せます。野菜コンテナを目指そう', tc: '左下をなぞって移動、右側をなぞって視点を回せます。野菜コンテナを目指そう', until: (g) => g.elapsed > 9 },
-    { id: 'map', kb: '右上の地図の緑の四角がまだ食べられるコンテナ。赤い点が農場主、扇形が視界です', tc: '右上の地図の緑の四角がコンテナ。赤い点が農場主、扇形が視界です', until: (g) => g.elapsed > 18 },
-    { id: 'eat', kb: 'コンテナのそばでスペースを長押しすると食べる。がっつきゲージが赤になる前に離そう！', tc: 'コンテナのそばで「食べる」を長押し。がっつきゲージが赤になる前に離そう！', when: (g) => !!(g.context() && g.context().crate), until: (_, ev) => ev.has('ruin') || ev.has('egg'), max: 12 },
-    { id: 'climb', kb: '台やさいばい槽のふちでスペースを押すと登れます。さいばい槽の上では株の実もかじれる', tc: '台やさいばい槽のふちで「登る」を押すと登れます。さいばい槽の上では株の実もかじれる', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 9 },
-    { id: 'wind', kb: '通路の入口の渦！ スペースで風に乗ると、通路の先まで一気に飛べる', tc: '通路の入口の渦！「風に乗る」で通路の先まで一気に飛べる', when: (g) => { const c = g.context(); return c && c.text === '風に乗る'; }, until: (_, ev) => ev.has('wind'), max: 8 },
-    { id: 'bait', kb: '黒い丸い容器は毒エサ。食べると栄養は満タンだが、毒で体力が減り続ける。食べるかどうかはあなたしだい', tc: '黒い丸い容器は毒エサ。食べると栄養は満タンだが、毒で体力が減り続ける', when: (g) => { const c = g.context(); return c && c.bait; }, max: 8 },
-    { id: 'smoke', kb: 'けむり玉だ！ 緑の輪（出入り口・西の換気口）へ逃げこめ！ 右上の地図の緑の丸が逃げ場', tc: 'けむり玉だ！ 緑の輪（出入り口・換気口）へ逃げこめ！ 地図の緑の丸が逃げ場', when: (_, ev) => ev.has('fumigate'), max: 12 },
-    { id: 'egg', kb: '栄養が満タン！ Rで卵を産もう。葉の下や台の下なら見つかりにくい', tc: '栄養が満タン！「産卵」で卵を産もう。葉の下や台の下なら見つかりにくい', when: (g) => g.nutrition >= 100, until: (_, ev) => ev.has('egg'), max: 12 },
-    { id: 'cmd', kb: '仲間が生まれた！ 1：探索　2：おとり　3：集合 で指示を出せます', tc: '仲間が生まれた！ 右の「探索・おとり・集合」で指示を出せます', when: (_, ev) => ev.has('hatch'), max: 10 },
-    { id: 'hide', kb: '見つかった！ 葉の下や台の下に逃げこんで、じっとしていよう', tc: '見つかった！ 葉の下や台の下に逃げこんで、じっとしていよう', when: (_, ev) => ev.has('spotted'), max: 7 },
-    { id: 'attack', kb: '農場主の足もと！ Fで顔に突撃するとパニックにできる', tc: '農場主の足もと！「突撃」で顔に飛びつくとパニックにできる', when: (g) => g.canAttackNow() && g.elapsed > 25, until: (_, ev) => ev.has('panic'), max: 6 },
+    { id: 'move', kb: 'WASDで移動・ドラッグで見回す', tc: '左下で移動・右側で見回す', until: (g) => g.elapsed > 8 },
+    { id: 'eat', kb: 'Space長押しで食べる。赤になる前に離す', tc: '「食べる」長押し。赤になる前に離す', when: (g) => !!(g.context() && g.context().crate), until: (_, ev) => ev.has('ruin') || ev.has('egg'), max: 9 },
+    { id: 'climb', kb: 'ふちでSpace：登る', tc: 'ふちで「登る」', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 7 },
+    { id: 'wind', kb: '渦でSpace：風に乗る', tc: '渦で「風に乗る」', when: (g) => { const c = g.context(); return c && c.text === '風に乗る'; }, until: (_, ev) => ev.has('wind'), max: 7 },
+    { id: 'bait', kb: '黒い容器は毒エサ', tc: '黒い容器は毒エサ', when: (g) => { const c = g.context(); return c && c.bait; }, max: 6 },
+    { id: 'smoke', kb: 'けむり！ 緑の輪へにげろ', tc: 'けむり！ 緑の輪へにげろ', when: (_, ev) => ev.has('fumigate'), max: 9 },
+    { id: 'egg', kb: '栄養満タン！ Rで産卵', tc: '栄養満タン！「産卵」', when: (g) => g.nutrition >= 100, until: (_, ev) => ev.has('egg'), max: 9 },
+    { id: 'cmd', kb: '仲間だ！ 1 ついてこい／2 まかせた', tc: '仲間だ！ 下のボタンで指示', when: (_, ev) => ev.has('hatch'), max: 7 },
+    { id: 'hide', kb: '見つかった！ 葉や台の下へ', tc: '見つかった！ 葉や台の下へ', when: (_, ev) => ev.has('spotted'), max: 5 },
+    { id: 'attack', kb: '足もとでF：顔に突撃', tc: '足もとで「突撃」', when: (g) => g.canAttackNow() && g.elapsed > 25, until: (_, ev) => ev.has('panic'), max: 5 },
   ],
-  reset() { this.done = new Set(); this.cur = null; this.t = 0; this.events = new Set(); this.seenEvents = new Set(); },
+  reset() { this.done = new Set(); this.cur = null; this.t = 0; this.events = new Set(); this.seenEvents = new Set(); this.idle = 0; this.lost = null; this.nudge(null); },
+  // 今やると良いボタンをそっと光らせる
+  nudge(sel) {
+    document.querySelectorAll('.tbtn.nudge').forEach((b) => b.classList.remove('nudge'));
+    if (sel) { const b = document.querySelector(sel); if (b) b.classList.add('nudge'); }
+  },
   update(dt, g) {
     for (const e of g.events) this.seenEvents.add(e);
     const ev = this.seenEvents;
     const el = $('hint');
-    if (!hintsOn || g.tutorial) { el.hidden = true; return; }
+    if (!hintsOn || g.tutorial) { el.hidden = true; this.nudge(null); return; }
+    // 迷ったときのヒント：10秒動かず何もしていないとき、今できることを1つだけ（隠れているときは出さない）
+    const p = g.player;
+    if (p) {
+      // 操作していない（スティックも食べるボタンも）
+      const mv = Math.hypot(input.mx || 0, input.mz || 0) + (input.actionHeld ? 1 : 0) + Math.abs(input.camDX || 0) * 0.01;
+      const busy = mv > 0.05 || p.eatingCrate || p.eatingFruit || p.greed > 3 || p.st !== 'move' || p.stow || p.box || p.inGlove || p.playDead > 0;
+      // 農場主が近い・あやしんでいる間に隠れているなら、じゃましない
+      const F = g.farmer;
+      const danger = F && (F.state !== 'WORK' || Math.hypot(F.x - p.x, F.z - p.z) < 12);
+      const hiding = danger && (g.hideFactor(p) < 0.5 || F.state === 'CHASE' || F.state === 'FUMIGATE');
+      this.idle = busy ? 0 : (this.idle || 0) + dt;
+      if (this.lost) {
+        if (busy || this.idle < 0.1 || this.t > 6) { this.lost = null; this.nudge(null); if (!this.cur) el.hidden = true; }
+        else { this.t += dt; return; }
+      }
+      if (!this.cur && !hiding && this.idle > 10) {
+        const touch = document.body.classList.contains('touch');
+        let L;
+        if (g.nutrition >= 100) L = { t: touch ? '「産卵」しよう' : 'Rで産卵しよう', b: '.t-egg' };
+        else if (danger) L = { t: '葉や台の下にかくれよう', b: null };
+        else L = { t: touch ? '箱へ行って「食べる」' : '箱へ行ってSpaceで食べる', b: '#tAction' };
+        this.lost = L; this.t = 0; this.idle = 0;
+        el.textContent = L.t; el.hidden = false;
+        this.nudge(L.b);
+        return;
+      }
+    }
     if (this.cur) {
       this.t += dt;
       const h = this.cur;
@@ -710,6 +817,17 @@ function updateCamera(dt) {
     const x = 4.5 - k * 20;
     camera.position.set(x, 4.3 + Math.sin(t * 0.3) * 0.15, -2.5 + Math.sin(t * 0.17) * 0.3);
     camera.lookAt(x - 8, 3.4, -2.5 + Math.sin(t * 0.11) * 0.6);
+    return;
+  }
+  if (camState.intro) {
+    // ハウスをぐるっと：高い所から全体を回って見せ、最後にゴキブリの所へ
+    const I = camState.intro;
+    I.t += dt;
+    const k = Math.min(1, I.t / I.dur);
+    const a = -0.9 + k * 1.5;
+    camera.position.set(Math.sin(a) * 30, 20 - k * 3, Math.cos(a) * 26);
+    camera.lookAt(2, 0, 0);
+    if (k >= 1) endIntro();
     return;
   }
   let info = game.camInfo();
@@ -781,15 +899,17 @@ function setW(el, k) { const v = `${Math.round(clamp(k, 0, 1) * 1000) / 10}%`; i
 
 // 初めて近づいたときの一言（一度見たら出さない）
 const FIRST_TIPS = {
-  box: 'かぶるとゆっくり歩けて、見つかりにくい。もう一度押すと出る',
-  glove: '中にもぐると、まず見つからない。いたずらの1つ',
-  bento: '農場主のお弁当。長押しでかじると、いたずら成功',
-  trap: '仲間2匹と農場主の通り道に運ぶと、長靴がくっつく',
-  drain: '中を通って、別の排水溝から出られる。逃げ道にも',
-  stow: '死んだふりボタン（Xキー）で、このかごにもぐれる。運ばれて出荷されると、その箱は虫入りでダメに！',
-  stowIn: 'じっとしていれば、農場主が出荷まで運んでくれる。長押しで中からかじれるけど、ゆれるとバレる',
-  sheet: 'さわるとくっつく。食べるボタンの連打で抜け出せる。よけて通ろう',
-  spider: '白く光る巣のそばに近づくと、クモがとびかかってくる',
+  box: 'かぶると見つかりにくい',
+  glove: 'もぐると見つからない',
+  bento: 'お弁当。かじるといたずら',
+  trap: '仲間2匹で運んで、長靴をくっつける',
+  drain: '別の排水溝から出られる',
+  stow: 'もぐると、出荷先で虫入りに',
+  stowIn: 'じっと待てば出荷される',
+  sheet: 'さわるとくっつく',
+  spider: '巣に近づくとクモが来る',
+  boots: '農場主が来たら、おどろかせる',
+  radio: '止めると農場主が直しに来る',
 };
 const firstSeen = store.get('firstSeen', []);
 const firstT = {};
@@ -798,7 +918,7 @@ function updateHud(dt) {
   const g = game;
   if (!g.player) return;
   const left = g.shipLeft();
-  setText('timer', `あと${left}箱`);
+  setText('timer', String(left));
   $('timerCard').classList.toggle('low', left <= 2);
   // 練習の案内
   const tt = g.tutorialText(document.body.classList.contains('touch'));
@@ -819,6 +939,9 @@ function updateHud(dt) {
   // ナイス！
   if (g.niceT > 0.85 && !niceShown) {
     const el = $('nicePop');
+    const nc = g.niceCombo || 0;
+    el.textContent = nc >= 3 ? `${nc}連続！` : 'ナイス！';
+    el.classList.toggle('combo', nc >= 3);
     el.hidden = true; void el.offsetWidth; el.hidden = false;
     niceShown = true;
   } else if (g.niceT <= 0) { niceShown = false; $('nicePop').hidden = true; }
@@ -839,8 +962,8 @@ function updateHud(dt) {
   $('nutBar').classList.toggle('full', g.nutrition >= 100);
   setText('allies', String(g.nymphs.length));
   const eggs = g.eggs.filter((e) => e.alive).length;
-  setText('eggsTxt', eggs ? `（卵 ${eggs}）` : '');
-  setText('atkTxt', g.attackCD > 0 ? `${Math.ceil(g.attackCD)}秒` : 'OK');
+  setText('eggsTxt', eggs ? `　卵 ${eggs}` : '');
+  document.querySelector('.cmds').classList.toggle('none', g.nymphs.length === 0 && !g.tutorial);
 
   const ctx = g.context();
   const pr = $('prompt');
@@ -883,7 +1006,7 @@ function updateHud(dt) {
     gr.classList.toggle('hot', p.greed > 65);
     gr.classList.toggle('max', p.greed > 88);
     const c = p.eatingCrate;
-    setText('crateLeft', c ? `このコンテナ 残り ${Math.max(0, Math.ceil(c.hp))}%` : '');
+    setText('crateLeft', c ? `残り ${Math.max(0, Math.ceil(c.hp))}%` : '');
   } else gr.hidden = true;
   const st = $('struggle');
   if (p.st === 'stuck') { st.hidden = false; setW(st.querySelector('i'), p.struggle / 100); } else st.hidden = true;
@@ -912,7 +1035,7 @@ function project(x, y, z) {
   if (v3.z > 1 || v3.z < -1) return null;
   return { x: (v3.x * 0.5 + 0.5) * window.innerWidth, y: (-v3.y * 0.5 + 0.5) * window.innerHeight, on: Math.abs(v3.x) < 1.05 && Math.abs(v3.y) < 1.05 };
 }
-function place(el, s) { el.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -100%)`; }
+function place(el, s) { el.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -100%)`; return el; }
 
 function updateLabels() {
   used = 0;
@@ -933,6 +1056,12 @@ function updateLabels() {
       const pp = g.player;
       const close = pp.st === 'fly' || f.state === 'PANIC' || Math.hypot(pp.x - f.x, pp.z - f.z) < 3.5;
       if (close) mk = null;
+      // 鼻歌・ぶつぶつは、音を消していても分かるように頭の上に印
+      if (!mk && !close && !(f.speechT > 0)) {
+        const md = farmerMood(f);
+        if (md === 'hum') mk = label('mark note', '♪');
+        else if (md === 'grumble') mk = label('mark grr', 'ぶつぶつ');
+      }
       if (f.speechT > 0 && f.speech && !close) {
         place(label('speech', escapeHtml(f.speech)), s);
         if (mk) { const s0 = project(f.x, 8.4, f.z); if (s0 && s0.on) place(mk, s0); }
@@ -963,6 +1092,16 @@ function updateLabels() {
       if (d > 9 || c.hp >= 99.5) continue;
       const s2 = project(c.x, c.baseY + 1.25, c.z);
       if (s2 && s2.on) place(label('fresh', `<i style="width:${Math.max(0, c.hp).toFixed(0)}%"></i>`), s2);
+    }
+    // 卵がかえるまでの輪（いっぱいになると生まれる）
+    for (const e of g.eggs) {
+      if (!e.alive || Math.hypot(e.x - p.x, e.z - p.z) > 10) continue;
+      const se = project(e.x, (e.y || 0) + 0.45, e.z);
+      if (!se || !se.on) continue;
+      const k = Math.min(1, e.t / g.diff.hatch);
+      const el = place(label('egg-ring', '<i></i>'), se);
+      const v = (Math.round(k * 50) / 50).toFixed(2);
+      if (el && el._k !== v) { el._k = v; el.style.setProperty('--k', v); }
     }
     for (const r of g.roaches) {
       if (!r.alive || r.isPlayer || r.st !== 'stuck') continue;
@@ -1002,8 +1141,9 @@ function showPings() {
     if (ripplesEl.children.length > 8) ripplesEl.firstChild.remove();
     const sp = screenPos(pg.x, 0.2, pg.z);
     const el = document.createElement('div');
-    el.className = `ripple ${pg.kind === 'bell' ? 'bell' : ''}`;
+    el.className = `ripple ${pg.kind === 'bell' ? 'bell' : pg.kind === 'step' ? (pg.hard ? 'hard' : 'soil') : ''}`;
     if (pg.kind === 'bell') el.dataset.t = 'チリン';
+    else if (pg.kind === 'step') el.dataset.t = pg.hard ? 'コツ' : 'ザッ';
     el.style.setProperty('--pos', `translate(${sp.x.toFixed(0)}px, ${sp.y.toFixed(0)}px)`);
     el.style.setProperty('--op', String(Math.min(0.9, 0.25 + pg.v * 0.7)));
     ripplesEl.appendChild(el);
@@ -1169,7 +1309,7 @@ function frame(now) {
     }
     if (screen === 'play' || screen === 'result' || screen === 'title') {
       const prevMode = game.mode;
-      game.update(screen === 'play' ? dt : (game.state === 'over' ? dt : 0), input);
+      game.update(screen === 'play' && !camState.intro && !jackOfferOn ? dt : (game.state === 'over' ? dt : 0), input);
       if (game.mode !== prevMode) updateCmdButtons();
       if (screen === 'play') {
         hints.update(dt, game);
@@ -1177,7 +1317,29 @@ function frame(now) {
         if (game.events.includes('carrystart') && !firstSeen.includes('stowHint') && !game.tutorial && game.farmer && game.player &&
             Math.hypot(game.farmer.x - game.player.x, game.farmer.z - game.player.z) < 16) {
           firstSeen.push('stowHint'); store.set('firstSeen', firstSeen);
-          ui.toast('農場主が箱を運んでいく…あの箱にもぐれたら？ 台のコンテナのそばで死んだふりボタン＝「かごにもぐる」。そのまま出荷されると箱は虫入りでダメに！', 'warn');
+          ui.toast('あの箱にもぐれたら…？', 'warn');
+        }
+        if (game.events.includes('stowaway') && !game.tutorial && game.state === 'play') offerJack();
+        if (game.events.includes('heater')) {
+          if (!firstSeen.includes('heater')) { firstSeen.push('heater'); store.set('firstSeen', firstSeen); ui.toast('暖房の音で、足音が聞こえにくい！', 'info'); }
+          else ui.feed('ゴーッ（暖房）', '暖', 'info');
+          $('heatBadge').hidden = false;
+        }
+        if ($('heatBadge').hidden === false && !game.heaterOn) $('heatBadge').hidden = true;
+        // 技をはじめて使ったら「技をおぼえた！」（図鑑の技の一覧に★）
+        if (!game.tutorial) {
+          const TECH_EV = { panic: 'attack', wind: 'wind', playdead: 'playdead', box: 'box', drain: 'drain', stowaway: 'stow', revenge: 'revenge' };
+          for (const ev of game.events) {
+            const id = TECH_EV[ev];
+            if (!id) continue;
+            records.used = records.used || {};
+            if (records.used[id]) continue;
+            records.used[id] = true;
+            store.set('records', records);
+            const T = FEATURES.TECHS.find((x) => x.id === id);
+            ui.feed(`技をおぼえた！ ${T ? T.name : ''}`, '技', 'good');
+            sfx.chime && sfx.chime();
+          }
         }
         game.events.length = 0;
         if (game.state === 'over') setScreen('over');
@@ -1204,11 +1366,23 @@ function frame(now) {
     // けむり玉の煙でかすむ
     scene.fog.density = 0.0055 + (screen !== 'title' ? (game.fogLevel || 0) * 0.05 : 0);
     // 農場主のラジオ：近いほど大きく、左右で方向が分かる
-    if (screen === 'play' && game.farmer && game.player) {
+    if (screen === 'play' && game.farmer && game.player && !camState.intro) {
       const f = game.farmer, p = game.player;
-      const d = Math.hypot(f.x - p.x, f.z - p.z);
-      const vol = (f.hidden ? 0.15 : 1) / (1 + Math.pow(d / 7, 2));
-      sfx.updateRadio(vol, game.panOf(f.x, f.z));
+      // ステージ3からはラジオを作業場の床に置いている（音はそこから）
+      const R = game.radioObj;
+      const rx = R ? R.x : f.x, rz = R ? R.z : f.z;
+      const d = Math.hypot(rx - p.x, rz - p.z);
+      const vol = (R && !R.on ? 0 : 1) * (!R && f.hidden ? 0.15 : 1) / (1 + Math.pow(d / 7, 2));
+      sfx.updateRadio(vol, game.panOf(rx, rz));
+      // 農場主の鼻歌（機嫌がいい）・ぶつぶつ（怒っている）。あやしんでいる間は止まる
+      humT -= dt;
+      const mood = farmerMood(f);
+      if (humT <= 0 && !jackOfferOn) {
+        const dv = Math.max(0, 1 - Math.hypot(f.x - p.x, f.z - p.z) / 22);
+        if (mood === 'hum') { sfx.hum(dv * 0.9, game.panOf(f.x, f.z)); humT = 0.32; }
+        else if (mood === 'grumble') { sfx.grumble(dv * 0.9, game.panOf(f.x, f.z)); humT = 0.18 + Math.random() * 0.25; }
+        else humT = 0.3;
+      }
     } else sfx.updateRadio(0, 0);
     fx.render(dt, focusD, tNow);
     // 名場面の写真（描いた直後に小さく撮る）
@@ -1256,10 +1430,12 @@ window.__rh.sim = (seconds, step = 1 / 30, bot) => {
   }
   return game.sanity();
 };
-window.__rh.startGame = startGame;
+// テストからは、ぐるっと見せる場面なしで始める（intro: true で出す）
+window.__rh.startGame = (d, o = {}) => startGame(d, { noIntro: !o.intro });
 window.__rh.startTour = startTour;
 window.__rh.startRun = startRun;
 window.__rh.runner = runner;
+window.__rh.hints = hints;
 Object.assign(window.__rh, { stages: STAGES, plantFruits: PLANT_FRUITS, rows: ROWS, windLanes: WIND_LANES, safeSpots: SAFE_SPOTS, features: FEATURES });
 window.__rh.MAX_NYMPHS = MAX_NYMPHS;
 window.__rh.DOOR = DOOR;

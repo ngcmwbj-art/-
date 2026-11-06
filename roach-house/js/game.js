@@ -8,7 +8,7 @@ import {
 import {
   makeRoach, animateRoach, makeFarmer, makeCrate, setCrateRot, animateFlies, makeTrap, makeEgg,
   makeCloud, makeRing, makeCone, disposeObject, makeBait, makeFogger, VEG_COLORS, makeCat, makeInspector,
-  makeBento, makeGlove, makeBox, makeHat, makeDrain, makeXmasTree, makeKadomatsu, makeKagamiMochi, makeBeetle,
+  makeBento, makeGlove, makeBox, makeRadio, makeBoots, makeHat, makeDrain, makeXmasTree, makeKadomatsu, makeKagamiMochi, makeBeetle,
   makeSheet, makeSpider, makeExterminator,
 } from './models.js';
 import { paprikaMaterial, PAPRIKA_COLORS } from './paprika.js';
@@ -42,7 +42,7 @@ export const MAX_NYMPHS = Infinity;
 const EAT_REACH = 0.42;
 const ATTACK_RANGE = 3.6;
 const ATTACK_CD = 22;
-const MODES = { search: '探索', decoy: 'おとり', follow: '集合' };
+const MODES = { search: 'まかせた', decoy: 'おとり', follow: 'ついてこい' };
 // がっつきゲージの「ちょうどいい帯」
 export const NICE_LO = 55, NICE_HI = 85;
 const TROUGH0 = TABLES.length; // SURFACES のうち、この番号から先がさいばい槽
@@ -50,6 +50,9 @@ const BAIT_SPOTS = [{ x: 5.6, z: -9.6 }, { x: -19.6, z: 4.6 }, { x: 18.6, z: 3.2
 // いたずらの小物と、段ボール箱の場所
 const BENTO_SPOT = { x: 19.8, z: -6.2 };
 const GLOVE_SPOT = { x: 8.2, z: 11.8, h: 0.6 };
+// 農場主の替えの長靴（出入り口のそば）と、ステージ3からのラジオの置き場所
+const BOOT_SPOT = { x: 19.2, z: 12.7 };
+const RADIO_SPOT = { x: 8.0, z: 2.6 };
 const BOX_SPOTS = [{ x: 6.2, z: -1.6, h: 0.3 }, { x: -20.0, z: -6.0, h: 1.2 }];
 // 排水溝：2組。入ると相方の排水溝から出る
 const DRAIN_SPOTS = [{ x: -20.2, z: -12.8, to: 1 }, { x: 20.0, z: -12.6, to: 0 }, { x: -1.0, z: 12.9, to: 3 }, { x: 7.0, z: 7.6, to: 2 }];
@@ -60,6 +63,7 @@ export const PRANKS = [
   { id: 'bento', text: '農場主のお弁当をかじる', short: 'お弁当' },
   { id: 'glove', text: '落ちている軍手にもぐりこむ', short: '軍手' },
   { id: 'playdead', text: '死んだふりで農場主に見のがしてもらう', short: '死んだふり' },
+  { id: 'boot', text: '長靴に入って農場主をおどろかす', short: '長靴' },
 ];
 const PLAYDEAD_USES = 3;
 const _v3 = new THREE.Vector3();
@@ -106,6 +110,7 @@ export class Game {
     this.safeRings = [];
     this.tutorial = null;
     this.niceT = 0;
+    this.niceCombo = 0;
   }
 
   // ---------------- 開始 ----------------
@@ -142,12 +147,13 @@ export class Game {
     this.soundPings = [];
     this.minHp = 100;
     this.niceT = 0;
+    this.niceCombo = 0;
     this.cat = null;
     this.inspector = null;
     this.inspectDone = false;
     this.safeLine = null;
     this.lastDeathCause = null;
-    this.pranks = { bento: false, glove: false, playdead: false };
+    this.pranks = { bento: false, glove: false, playdead: false, boot: false };
     this.radioT = -99; this.radioLast = null;
     this.plantHits = [];
     this.alertLv = 0;
@@ -163,6 +169,7 @@ export class Game {
     this.layoutRand = lr;
     this.ruined = 0;
     this.shipped = 0;
+    this.truckN = 0; // トラックの荷台の何番目に積むか
     this.roaches = [];
     this.eggs = [];
     this.clouds = [];
@@ -196,6 +203,21 @@ export class Game {
     this.glove.model.position.set(GLOVE_SPOT.x, 0, GLOVE_SPOT.z);
     this.glove.model.rotation.y = GLOVE_SPOT.h;
     this.root.add(this.bento.model, this.glove.model);
+    this.boots = { ...BOOT_SPOT, model: makeBoots() };
+    this.boots.model.position.set(BOOT_SPOT.x, 0, BOOT_SPOT.z);
+    this.boots.model.rotation.y = -2.4;
+    this.root.add(this.boots.model);
+    // ラジオ：ステージ3からは作業場の床に置いてある。かじると止まり、農場主が直しに来る（直すと番組が変わる）
+    this.radioObj = null;
+    if ((D.no || 1) >= 3 && !opts.tutorial) {
+      const m = makeRadio();
+      m.position.set(RADIO_SPOT.x, 0, RADIO_SPOT.z);
+      m.rotation.y = -0.6;
+      this.root.add(m);
+      this.radioObj = { ...RADIO_SPOT, model: m, on: true, bite: 0, cd: 0, fixT: 0 };
+    }
+    // 暖房機：ステージ2から
+    this.heater = (D.no || 1) >= 2 && !opts.tutorial && !this.tour ? { next: randRange(45, 70), on: 0, clicked: false } : null;
     this.drains = DRAIN_SPOTS.map((d) => {
       const m = makeDrain();
       m.position.set(d.x, 0, d.z);
@@ -264,6 +286,13 @@ export class Game {
     this.player.deadUses = PLAYDEAD_USES;
     this.hat = opts.hat || 'none';
     this.wearHat(this.player);
+    // 親分ゴキブリ：卵を合計50個産むと、毎回大きな親分が仲間に来る（かじる力が強く、箱がゆれる）
+    if (opts.boss && !opts.tutorial) {
+      const b = this.spawnRoach(PLAYER_START.x + 0.9, PLAYER_START.z + 0.5, true, 0, -1, 'normal', 'none');
+      b.boss = true; b.hp = b.maxHp = 90;
+      b.model.root.scale.setScalar(1.3);
+      this.seen('boss');
+    }
     this.camYaw = Math.PI / 2;
     this.marker = makeRing(0xffe14d, 0.3, 0.38, 0.85);
     this.root.add(this.marker);
@@ -401,9 +430,9 @@ export class Game {
     this.niceT = Math.max(0, this.niceT - dt);
     if (this.tutorial) this.updateTutorial(dt);
 
-    if (inp.consume('cmd1')) this.setMode('search');
-    if (inp.consume('cmd2')) this.setMode('decoy');
-    if (inp.consume('cmd3')) this.setMode('follow');
+    // 指示は2つだけ：1＝ついてこい、2＝まかせた（自分で食べる。自分が追われたら半分がおとりになる）
+    if (inp.consume('cmd1')) this.setMode('follow');
+    if (inp.consume('cmd2') || inp.consume('cmd3')) this.setMode('search');
 
     for (const r of this.roaches) {
       if (!r.alive) continue;
@@ -427,6 +456,9 @@ export class Game {
     this.updateSpiders(dt);
     this.updateExterm(dt);
     this.updatePhone(dt);
+    this.updateRadioObj(dt);
+    this.updateBoots();
+    this.updateHeater(dt);
     const p = this.player;
     if (p && p.alive && p.hp < this.minHp - 8 && p.hp < 45) {
       this.minHp = p.hp;
@@ -442,8 +474,8 @@ export class Game {
     for (const r of this.nymphs) { r.ai.target = null; r.ai.retarget = 0; }
     this.sfx.click();
     const n = this.nymphs.length;
-    const msg = { search: '仲間に指示：エサを探して食べろ！', decoy: '仲間に指示：農場主の気を引け！（おとり）', follow: '仲間に指示：ついて来い！' }[m];
-    this.toast(n ? msg : `${msg}（まだ仲間がいない）`, 'info');
+    const msg = { search: 'まかせた！', decoy: 'おとり！', follow: 'ついてこい！' }[m];
+    this.toast(msg, 'info');
   }
 
   // ---------------- 自分のゴキブリ ----------------
@@ -547,6 +579,7 @@ export class Game {
     const bait = crate || fruit || p.box ? null : this.baitInReach(p);
     const lane = crate || fruit || bait || p.box ? null : this.windLaneAt(p);
     const bento = crate || fruit || bait || p.box ? null : this.nearBento(p);
+    const radioN = crate || fruit || bait || p.box || bento ? null : this.nearRadio(p);
     const actionPressed = inp.consume('action');
 
     // 捕まった仲間を助ける
@@ -578,7 +611,8 @@ export class Game {
         this.sfx.crunchLoud();
         this.noise(p, 16, 75);
         this.shake = Math.max(this.shake, 0.35);
-        this.toast('バリバリッ！ がっつきすぎて音が出た！', 'bad');
+        this.toast('バリッ！ 音が出た！', 'bad');
+        this.niceCombo = 0;
       }
       if (!wasEating) this.events.push('eat');
     } else {
@@ -589,9 +623,13 @@ export class Game {
         this.addNutrition(6);
         this.stats.nice++;
         this.niceT = 0.9;
+        // ナイスの連続：3回目から、おまけの栄養
+        this.niceCombo = (this.niceCombo || 0) + 1;
+        if (this.niceCombo >= 3) { this.addNutrition(8); this.stats.niceCombo = Math.max(this.stats.niceCombo || 0, this.niceCombo); }
         this.sfx.nice();
+        if (this.niceCombo >= 3) this.sfx.chime();
         this.events.push('nice');
-      }
+      } else if (wasEating) this.niceCombo = 0;
       p.greed = Math.max(0, p.greed - 55 * dt);
       // 毒エサ：長押しで食べる（栄養は満タン、でも毒が回る）
       if (inp.actionHeld && bait && mag < 0.15) {
@@ -615,13 +653,23 @@ export class Game {
           this.say('あっ！ おれの弁当！ 卵焼きが…ちくしょう！');
         }
       } else p.eatingBento = false;
-      const prop = actionPressed && !food && !rescued && !bait && !bento ? this.propAt(p) : null;
+      // ラジオ：長押しでかじると止まる
+      if (inp.actionHeld && radioN && mag < 0.15) {
+        const R = radioN;
+        p.h = dampAngle(p.h, Math.atan2(R.x - p.x, R.z - p.z), 6, dt);
+        R.bite += dt;
+        p.crunchT -= dt;
+        if (p.crunchT <= 0) { this.sfx.crunch(0.1); p.crunchT = 0.22; }
+        this.noise(p, 3, 4 * dt);
+        if (R.bite >= 1.4) this.breakRadio(R);
+      }
+      const prop = actionPressed && !food && !rescued && !bait && !bento && !radioN ? this.propAt(p) : null;
       if (p.box && actionPressed) {
         this.leaveHiding(p);
         this.toast('段ボールから出た', 'info');
       } else if (prop) {
         this.useProp(p, prop);
-      } else if (actionPressed && !food && !rescued && !bait && !bento) {
+      } else if (actionPressed && !food && !rescued && !bait && !bento && !radioN) {
         if (lane) this.startGlide(p, lane);
         else {
           const c = this.canClimb(p);
@@ -644,7 +692,7 @@ export class Game {
       if (p.y > 0.3 || p.st !== 'move') this.leaveHiding(p);
       else { B.x = p.x; B.z = p.z; B.h = dampAngle(B.h, p.h, 4, dt); B.model.position.set(B.x, 0, B.z); B.model.rotation.y = B.h; }
     }
-    if (inp.consume('egg')) { if (p.box) this.toast('段ボールの中では産卵できない', 'warn'); else this.tryLayEgg(p); }
+    if (inp.consume('egg')) { if (p.box) this.toast('段ボールの中では産めない', 'warn'); else this.tryLayEgg(p); }
     if (inp.consume('attack')) { if (p.box) this.leaveHiding(p); this.tryAttack(p); }
   }
 
@@ -660,7 +708,7 @@ export class Game {
     p.eatingCrate = null;
     this.farmer.stowSus = 0;
     this.sfx.click();
-    this.toast('収穫かごにもぐりこんだ！ このまま出荷されれば、出荷先で「虫入り」になって台無しに。ゆらすと気づかれる', 'good');
+    this.toast('かごにもぐった！ じっと待て', 'good');
     this.seen('stow');
     this.events.push('stow');
   }
@@ -680,7 +728,7 @@ export class Game {
     const f = this.farmer;
     f.stowSus = 0;
     this.say('ん？ 箱が動いた…うわっ！ 中にゴキブリが！');
-    this.dropCarry('農場主がかごを放り出した！');
+    this.dropCarry('かごを放り出した！');
     this.leaveStow(p, f.x + Math.sin(f.h) * 1.6, f.z + Math.cos(f.h) * 1.6);
     this.startChase(p);
   }
@@ -698,10 +746,14 @@ export class Game {
     p.model.root.visible = true;
     p.x = DOOR.x - 1.2; p.z = DOOR.z + 0.6; p.y = 0; p.surface = -1; p.trapImmune = 1.5;
     this.collide(p);
-    f.catHold = 2.5;
+    // ごほうび：同じ便（荷台に積んだばかりの箱）も虫入りで返品。最大2箱
+    const load = this.crates.filter((x) => x.shipped && !x.rotten).sort((a, b) => (b.shipNo || 0) - (a.shipNo || 0)).slice(0, 2);
+    for (const x of load) { this.shipped--; this.stats.shipped = this.shipped; this.ruinCrate(x, p); }
+    f.catHold = 6;
     this.stats.stowaway = (this.stats.stowaway || 0) + 1;
-    this.say('うわぁっ！ 積んだ箱からゴキブリが！ こんなの出荷できるか！');
-    this.toast('出荷ジャック成功！ トラックの荷台から飛びおりた。その箱は虫入りでダメに！', 'good');
+    this.say(load.length ? 'うわぁっ！ 荷台の箱にもゴキブリが！ ぜんぶ返品だ…！' : 'うわぁっ！ 積んだ箱からゴキブリが！ こんなの出荷できるか！');
+    this.toast(load.length ? `出荷ジャック成功！ 荷台の${load.length}箱も虫入り！` : '出荷ジャック成功！', 'good');
+    if (this.ruined >= this.diff.target) this.checkEnd && this.checkEnd();
     this.radio('ラジオ「出荷の箱にゴキブリが入っていたとの情報です」', true);
     this.snap('stowaway', '出荷されるかごにもぐりこんで、出荷を台無しに！');
     this.sfx.scream();
@@ -709,6 +761,71 @@ export class Game {
   }
 
   // ---------------- 隠れる・いたずら ----------------
+  nearRadio(p) {
+    const R = this.radioObj;
+    return R && R.on && R.cd <= 0 && p.y < 0.3 && p.surface < 0 && Math.hypot(R.x - p.x, R.z - p.z) < 0.9 ? R : null;
+  }
+  breakRadio(R) {
+    R.on = false; R.bite = 0; R.fixWait = 1.5;
+    this.sfx.radioOff && this.sfx.radioOff();
+    this.stats.radioBites = (this.stats.radioBites || 0) + 1;
+    this.toast('ラジオが止まった！', 'good');
+    this.events.push('radiooff');
+  }
+  // 農場主が直しにくる。直すと番組が変わる
+  updateRadioObj(dt) {
+    const R = this.radioObj;
+    if (!R) return;
+    R.cd = Math.max(0, R.cd - dt);
+    if (!R.on) R.model.rotation.z = 0;
+    const f = this.farmer;
+    if (R.fixing && f.phase !== 'radio') { R.fixing = false; R.fixWait = 1; }
+    if (R.on || R.fixing) return;
+    R.fixWait -= dt;
+    if (R.fixWait > 0 || f.state !== 'WORK' || f.carry || f.act || f.hidden) return;
+    if (['toCrate', 'pack', 'toDoor', 'loading', 'placing'].includes(f.phase)) return;
+    R.fixing = true;
+    f.phase = 'radio'; f.timer = 5;
+    this.pathTo(R.x + 1.2, R.z + 0.6);
+    this.say(pick(['ん？ ラジオが止まった', 'おい、ラジオどうした']));
+  }
+  // 暖房機：ときどき10秒ほど「ゴーッ」と動き、長靴と仲間の音がかき消される（前ぶれに「カチッ」）
+  updateHeater(dt) {
+    const H = this.heater;
+    if (!H) return;
+    if (H.on > 0) {
+      H.on -= dt;
+      if (H.on <= 0) { this.sfx.heaterStop && this.sfx.heaterStop(); H.next = randRange(70, 110); }
+      return;
+    }
+    H.next -= dt;
+    if (H.next <= 1.2 && !H.clicked) { H.clicked = true; this.sfx.heaterClick && this.sfx.heaterClick(); }
+    if (H.next <= 0) {
+      H.on = 10; H.clicked = false;
+      this.sfx.heaterStart && this.sfx.heaterStart();
+      this.events.push('heater');
+    }
+  }
+  get heaterOn() { return !!(this.heater && this.heater.on > 0); }
+
+  // 長靴の中にいると、農場主がそばに来たとき「うわっ！」
+  updateBoots() {
+    const p = this.player, f = this.farmer, B = this.boots;
+    if (!p || !B || !p.inBoot || !f || f.hidden || f.state === 'CHASE' || f.state === 'PANIC' || f.state === 'FUMIGATE') return;
+    if (Math.hypot(f.x - B.x, f.z - B.z) > 2.7) return;
+    this.leaveHiding(p);
+    p.x = B.x - 0.9; p.z = B.z - 0.5; p.trapImmune = 1.5;
+    this.collide(p);
+    if (f.carry) this.dropCarry('長靴にびっくり！ 箱を落とした！');
+    f.catHold = 4;
+    this.say('うわっ！ 長靴の中から！？');
+    this.sfx.scream();
+    this.shake = Math.max(this.shake, 0.4);
+    this.stats.bootScares = (this.stats.bootScares || 0) + 1;
+    this.prankDone('boot');
+    this.snap('prank', '長靴から飛び出して、農場主をおどろかせた！');
+  }
+
   nearBento(p) {
     const b = this.bento;
     return b && !b.done && p.y < 0.3 && Math.hypot(b.x - p.x, b.z - p.z) < 0.8 ? b : null;
@@ -717,6 +834,8 @@ export class Game {
     if (p.y > 0.3 || p.surface >= 0) return null;
     const G = this.glove;
     if (G && Math.hypot(G.x - p.x, G.z - p.z) < 0.8) return { kind: 'glove', o: G };
+    const BT = this.boots;
+    if (BT && Math.hypot(BT.x - p.x, BT.z - p.z) < 0.85) return { kind: 'boots', o: BT };
     const B = this.boxes && this.boxes.find((b) => !b.rider && Math.hypot(b.x - p.x, b.z - p.z) < 0.95);
     if (B) return { kind: 'box', o: B };
     const D = this.drains && this.drains.find((d) => Math.hypot(d.x - p.x, d.z - p.z) < 0.75);
@@ -735,14 +854,22 @@ export class Game {
       p.x = pr.o.x; p.z = pr.o.z;
       p.model.root.visible = false;
       this.sfx.click();
-      this.toast('軍手にもぐりこんだ！ ここなら見つからない（動くと出る）', 'good');
+      this.toast('軍手にもぐった！', 'good');
       this.prankDone('glove');
+    } else if (pr.kind === 'boots') {
+      // 長靴の中：見つからない。農場主がそばに来ると「うわっ！」
+      p.inGlove = true; p.inBoot = true; p.gloveT = 0; p.moving = false;
+      p.x = pr.o.x; p.z = pr.o.z;
+      p.model.root.visible = false;
+      this.sfx.click();
+      this.toast('長靴に入った！', 'good');
+      this.events.push('bootin');
     } else if (pr.kind === 'box') {
       p.box = pr.o; pr.o.rider = p;
       this.stats.boxes = (this.stats.boxes || 0) + 1;
       p.x = pr.o.x; p.z = pr.o.z;
       this.sfx.click();
-      this.toast('段ボールにもぐった！ ゆっくりなら見つかりにくい（食べるボタンで出る）', 'good');
+      this.toast('段ボールをかぶった！', 'good');
       this.events.push('box');
     } else if (pr.kind === 'drain') {
       const to = this.drains[pr.o.to];
@@ -756,13 +883,13 @@ export class Game {
   leaveHiding(r) {
     if (!r) return;
     if (r.box) { r.box.rider = null; r.box = null; }
-    if (r.inGlove) { r.inGlove = false; r.model.root.visible = true; }
+    if (r.inGlove) { r.inGlove = false; r.inBoot = false; r.model.root.visible = true; }
     if (r.stow) this.leaveStow(r);
     r.playDead = 0;
   }
   startPlayDead(p) {
     if (p.box || p.inGlove || p.st !== 'move') return false;
-    if ((p.deadUses || 0) <= 0) { this.toast('死んだふりはもう使えない（1回のプレイで3回まで）', 'warn'); return false; }
+    if ((p.deadUses || 0) <= 0) { this.toast('死んだふりはもう使えない', 'warn'); return false; }
     p.deadUses--;
     this.stats.playdeads = (this.stats.playdeads || 0) + 1;
     p.playDead = 4; p.playDeadT = 0; p.fooled = 0; p.moving = false;
@@ -770,7 +897,7 @@ export class Game {
     this.sfx.click();
     const f = this.farmer;
     const chasing = f.state === 'CHASE' && f.target === p;
-    this.toast(chasing ? '死んだふり！ …でも農場主の頭が「！」の間は見られている。効かないぞ' : `死んだふり！（あと ${p.deadUses} 回）じっとしていれば見のがしてもらえる`, chasing ? 'warn' : 'info');
+    this.toast(chasing ? '見られている！ 効かない' : `死んだふり！ あと${p.deadUses}`, chasing ? 'warn' : 'info');
     this.events.push('playdead');
     return true;
   }
@@ -786,7 +913,7 @@ export class Game {
   // 仲間2匹とホイホイを運び、農場主の通り道にしかける
   startCarryTrap(p, t) {
     const hs = this.helpersFor(p);
-    if (hs.length < 2) { this.toast('ホイホイを運ぶには、近くに仲間が2匹いる（「集合」で呼ぼう）', 'warn'); return; }
+    if (hs.length < 2) { this.toast('仲間が2匹いると運べる', 'warn'); return; }
     const f = this.farmer;
     let target = { x: 18.4, z: 8.6 }, bd = 1e9;
     for (let k = f.pi; k < f.path.length; k++) {
@@ -798,7 +925,7 @@ export class Game {
     t.carry = { tx: target.x, tz: target.z, helpers: hs };
     for (const r of hs) r.st = 'carry';
     this.sfx.click();
-    this.toast('仲間がホイホイを運んでいく！ 農場主の通り道にしかけるぞ', 'good');
+    this.toast('ホイホイを運ぶぞ！', 'good');
     this.events.push('carry');
   }
 
@@ -843,7 +970,7 @@ export class Game {
     this.stats.fruits++;
     if (rp >= 1) this.stats.ripeFruits++;
     this.seen('fruit');
-    this.toast(rp >= 1 ? '熟した実を落とした！ 栄養たっぷり' : rp >= 0.5 ? '色づきかけの実を落とした。栄養はそこそこ' : '緑の実を落とした…まだ熟してなくて栄養は少し', rp >= 1 ? 'good' : 'info');
+    this.toast(rp >= 1 ? '熟した実！ 栄養たっぷり' : rp >= 0.5 ? '実を落とした' : '緑の実…栄養は少し', rp >= 1 ? 'good' : 'info');
     // 株の見回り：食べられた場所を覚えておく
     this.plantHits.push({ x: f.x, z: f.z, t: this.clock });
     this.events.push('fruit');
@@ -890,7 +1017,7 @@ export class Game {
     this.stats.baits++;
     this.seen('bait');
     this.sfx.poison();
-    this.toast('毒エサを食べた！ 栄養は満タン。でも毒が回って体力が減っていく…', 'warn');
+    this.toast('毒エサ！ 栄養満タン、でも体力が減る…', 'warn');
     this.events.push('bait');
   }
 
@@ -944,7 +1071,7 @@ export class Game {
     this.stats.ruinedColor[c.colorIdx || 0]++;
     if (this.ruined >= this.diff.target) this.snap('last', '最後のコンテナをかじりつくした！');
     this.sfx.ruin();
-    this.toast(`コンテナを1箱ダメにした！（${this.ruined} / ${this.diff.target}）`, 'good');
+    this.toast(`1箱ダメにした！ ${this.ruined}/${this.diff.target}`, 'good');
     this.events.push('ruin');
     for (const r of this.roaches) if (r.eatingCrate === c) r.eatingCrate = null;
   }
@@ -959,7 +1086,7 @@ export class Game {
   }
 
   tryLayEgg(p) {
-    if (this.nutrition < 100) { this.toast(`栄養が足りない（${Math.floor(this.nutrition)} / 100）。野菜を食べよう`, 'info'); return; }
+    if (this.nutrition < 100) { this.toast('栄養が足りない', 'info'); return; }
     const pending = this.eggs.filter((e) => e.alive).length * 3;
     if (this.nymphs.length + pending >= MAX_NYMPHS) return;
     if (p.st !== 'move') return;
@@ -979,17 +1106,17 @@ export class Game {
     this.stats.eggs++;
     this.sfx.lay();
     const hid = this.hideFactor(e) < 0.5;
-    this.toast(hid ? '卵を産んだ！ 隠れた場所なので見つかりにくい' : '卵を産んだ！ 目立つ場所だと踏みつぶされるかも…', hid ? 'good' : 'info');
+    this.toast(hid ? '卵を産んだ！' : '卵を産んだ！（目立つ場所…）', hid ? 'good' : 'info');
     this.events.push('egg');
   }
 
   tryAttack(p) {
     const f = this.farmer;
     if (p.st !== 'move') return;
-    if (this.attackCD > 0) { this.toast(`突撃はあと ${Math.ceil(this.attackCD)} 秒で使える`, 'info'); return; }
+    if (this.attackCD > 0) { this.toast(`突撃まで ${Math.ceil(this.attackCD)}秒`, 'info'); return; }
     if (f.state === 'PANIC') return;
     const d = Math.hypot(f.x - p.x, f.z - p.z);
-    if (d > ATTACK_RANGE) { this.toast('農場主の足もとまで近づかないと届かない', 'info'); return; }
+    if (d > ATTACK_RANGE) { this.toast('足もとまで近づこう', 'info'); return; }
     p.st = 'fly';
     p.fly = { phase: 0, t: 0, sx: p.x, sy: p.y, sz: p.z };
     p.surface = -1;
@@ -1022,6 +1149,7 @@ export class Game {
       if (Math.hypot(c.x - r.x, c.z - r.z) < c.r + 0.3 && Math.abs(c.y - r.y) < 1.5) danger = c;
     }
 
+    const autoDecoy = this.mode === 'search' && f.state === 'CHASE' && f.target === this.player && ai.slot < 0.5 && Math.hypot(f.x - r.x, f.z - r.z) < 14;
     if (this.fog || (f.state === 'FUMIGATE')) {
       // けむり玉：いちばん近い逃げ場へ
       const sp = this.nearestSafe(r);
@@ -1034,7 +1162,7 @@ export class Game {
       // 追われたら隠れ場所へ
       if (!ai.hide || ai.retarget <= 0) { ai.hide = this.pickHideSpot(r); ai.retarget = 3; }
       tx = ai.hide.x; tz = ai.hide.z; spd = 3.8;
-    } else if (this.mode === 'search') {
+    } else if (this.mode === 'search' && !autoDecoy) {
       ai.retarget -= dt;
       const t = ai.target;
       if (!t || t.rotten || t.shipped || t.carried || ai.retarget <= 0) {
@@ -1060,8 +1188,8 @@ export class Game {
       } else {
         tx = this.player.x; tz = this.player.z;
       }
-    } else if (this.mode === 'decoy') {
-      // 農場主の前をうろちょろして気を引く
+    } else if (this.mode === 'decoy' || autoDecoy) {
+      // 農場主の前をうろちょろして気を引く（「まかせた」のときは、自分が追われると半分がおとりに）
       const a = this.clock * 0.9 + ai.slot * 6.28;
       const ahead = 3.2 + Math.sin(this.clock * 0.7 + ai.slot * 10) * 1.2;
       tx = f.x + Math.sin(f.h) * ahead + Math.cos(a) * 1.8;
@@ -1094,7 +1222,8 @@ export class Game {
       // 仲間は、リーダー（自分）から遠いほど働きがにぶる
       const dl = this.player ? Math.hypot(this.player.x - r.x, this.player.z - r.z) : 0;
       const lead = clamp(1.2 - dl / 18, 0.35, 1);
-      this.bite(eatTarget, 1.5 * dt * lead, r);
+      this.bite(eatTarget, 1.5 * dt * lead * (r.boss ? 3 : 1), r);
+      if (r.boss && eatTarget.model && !eatTarget.carried) eatTarget.model.group.rotation.z = Math.sin(this.clock * 30) * 0.03;
       this.noise(r, 2.5, 4 * dt);
       r.crunchT -= dt;
       if (r.crunchT <= 0) {
@@ -1404,7 +1533,7 @@ export class Game {
       this.leaveHiding(r);
       this.player = next;
       this.wearHat(next);
-      this.toast(`やられた…（${cname}）　仲間に意識を移した！ 残り ${this.nymphs.length} 匹`, 'bad');
+      this.toast(`やられた…（${cname}）仲間に乗りかえ！`, 'bad');
       this.events.push('transfer');
     } else {
       this.endGame(false, 'dead');
@@ -1440,8 +1569,22 @@ export class Game {
       this.stats.born++;
     }
     this.sfx.hatch();
-    this.toast(`卵がかえった！ 仲間が ${n} 匹ふえた（いま ${this.nymphs.length} 匹）`, 'good');
+    this.toast(`仲間が ${n} 匹ふえた！`, 'good');
     this.events.push('hatch');
+  }
+
+  // 田んぼ道のおみやげ：自分のそばに仲間が来る
+  giveSouvenir(n) {
+    const p = this.player;
+    if (!p || !(n > 0)) return;
+    for (let i = 0; i < n; i++) {
+      const a = (i / Math.max(1, n)) * Math.PI * 2 + 0.6;
+      const r = this.spawnRoach(p.x + Math.cos(a) * 0.5, p.z + Math.sin(a) * 0.5, true, p.surface >= 0 ? p.y : 0, p.surface);
+      this.collide(r);
+    }
+    this.sfx.hatch();
+    this.toast(`おみやげ！ 仲間 +${n}`, 'good');
+    this.events.push('souvenir');
   }
 
   // ---------------- 農場主 ----------------
@@ -1474,8 +1617,10 @@ export class Game {
       f.stepAcc = 0;
       const dp = Math.hypot(this.player.x - f.x, this.player.z - f.z);
       const v = Math.max(0, 1 - dp / 26);
-      this.sfx.boot(v * v * 0.8, this.panOf(f.x, f.z));
-      if (v > 0.15) this.soundPings.push({ x: f.x, z: f.z, v: Math.min(1, v * 1.2), kind: 'step' });
+      // 作業場（x>4）はコンクリで「コツ」、畝のある所は土で「ザッ」
+      const hard = f.x > 4;
+      this.sfx.boot(v * v * 0.8 * (this.heaterOn ? 0.35 : 1), this.panOf(f.x, f.z), hard);
+      if (v > 0.15) this.soundPings.push({ x: f.x, z: f.z, v: Math.min(1, v * 1.2), kind: 'step', hard });
       if (dp < 5) this.shake = Math.max(this.shake, (1 - dp / 5) * 0.25);
     }
     return false;
@@ -1543,6 +1688,8 @@ export class Game {
   noise(src, radius, amount) {
     const f = this.farmer;
     if (!f || f.state === 'PANIC') return;
+    // 暖房機が動いている間は、ゴキブリの音が農場主に届きにくい
+    if (this.heaterOn) { radius *= 0.6; amount *= 0.5; }
     const d = Math.hypot(src.x - f.x, src.z - f.z);
     if (d > radius) return;
     f.susp = Math.min(100, f.susp + amount * (1 - (d / radius) * 0.5) * this.diff.susp);
@@ -1715,7 +1862,7 @@ export class Game {
         this.radio(pick(['ラジオ「ただいまハウスにゴキブリ注意報が出ています」', 'ラジオ「ゴキブリ、農場主に見つかった模様です」', 'ラジオ「農場主さん、全力で追いかけています」']));
       }
     }
-    if (f.carry) this.dropCarry('農場主がコンテナを床に置いた！ チャンス！');
+    if (f.carry) this.dropCarry('箱を置いた！ チャンス！');
     f.state = 'CHASE';
     f.target = t;
     f.susp = 100;
@@ -1745,7 +1892,7 @@ export class Game {
     this.events.push('panic');
   }
 
-  dropCarry(msg = '農場主がコンテナを落とした！ チャンス！') {
+  dropCarry(msg = '箱を落とした！ チャンス！') {
     const f = this.farmer;
     const c = f.carry;
     if (!c) return;
@@ -1843,7 +1990,8 @@ export class Game {
           c.carried = false;
           c.shipped = true;
           this.root.attach(c.model.group);
-          const s = truckSlot(this.shipped);
+          const s = truckSlot(this.truckN++);
+          c.shipNo = this.truckN;
           c.model.group.position.set(s.x, s.y, s.z);
           c.model.group.rotation.set(0, 0, 0);
           c.x = s.x; c.z = s.z;
@@ -1853,7 +2001,7 @@ export class Game {
           if (leftN <= 2 && leftN > 0) this.radio(`ラジオ「本日の出荷、あと${leftN}箱で終わりの見こみです」`, true);
           this.sfx.ship();
           this.say(pick(['よし、一箱出荷だ', 'まず一箱。邪魔すんなよ', 'よいしょっと…次だ次']));
-          this.toast(`1箱出荷されてしまった（あと ${this.shipLeft()} 箱出荷されたら負け）`, 'warn');
+          this.toast(`出荷された…（あと${this.shipLeft()}）`, 'warn');
           this.events.push('ship');
           // トラックに積みこんで、ひもをかける
           f.phase = 'loading'; f.timer = this.diff.loadT; f.baseH = f.h;
@@ -1874,6 +2022,24 @@ export class Game {
           f.baseH = f.h;
         }
         break;
+      case 'radio': {
+        // ラジオを直す：そばまで行って5秒ほどいじる → 番組が変わる
+        const R = this.radioObj;
+        if (!R) { f.phase = 'choose'; break; }
+        const d = Math.hypot(R.x - f.x, R.z - f.z);
+        if (d > 2.2 && !this.walk(dt, this.farmerSpeed('work'))) break;
+        f.path = [];
+        f.h = dampAngle(f.h, Math.atan2(R.x - f.x, R.z - f.z), 6, dt);
+        f.timer -= dt;
+        R.model.rotation.z = Math.sin(this.clock * 9) * 0.06;
+        if (f.timer <= 0) {
+          R.on = true; R.fixing = false; R.cd = 25; R.model.rotation.z = 0;
+          this.sfx.radioNext && this.sfx.radioNext();
+          this.say(pick(['よし、直った。…あれ、番組が変わった', 'お、つながった。演歌か…まあいい']));
+          f.phase = 'choose';
+        }
+        break;
+      }
       case 'tend':
         f.timer -= dt;
         f.h = f.baseH + Math.sin(this.clock * 0.9) * 1.1;
@@ -2129,20 +2295,20 @@ export class Game {
         if (d < 0.1) {
           t.carry = null; t.revenge = true;
           for (const r of C.helpers) { r.st = 'move'; r.trapImmune = 2.5; r.ai.target = null; }
-          this.toast('ホイホイを農場主の通り道にしかけた！', 'good');
+          this.toast('ホイホイをしかけた！', 'good');
         }
       } else if (t.revenge) {
         const f = this.farmer;
         t.model.scale.setScalar(1 + Math.sin(this.clock * 6) * 0.05);
         if (f.state !== 'FUMIGATE' && f.state !== 'PANIC' && !f.hidden && Math.hypot(f.x - t.x, f.z - t.z) < 0.6) {
           f.catHold = 5; f.bootStuck = 5; f.act = null;
-          if (f.carry) this.dropCarry('長靴がくっついて、農場主がコンテナを落とした！');
+          if (f.carry) this.dropCarry('箱を落とした！');
           this.traps.splice(this.traps.indexOf(t), 1);
           this.root.remove(t.model); disposeObject(t.model);
           this.stats.revenge = (this.stats.revenge || 0) + 1;
           this.say('うわっ！ 長靴がホイホイにくっついた！ 誰だこんな所に置いたのは！');
           this.radio('ラジオ「ハウスで長靴ホイホイ事件が発生しました」', true);
-          this.toast('仕返し成功！ 農場主がしばらく動けない！', 'good');
+          this.toast('仕返し成功！', 'good');
           this.sfx.stuck();
           this.snap('revenge', '農場主の長靴がホイホイにくっついた！');
           this.events.push('revenge');
@@ -2162,7 +2328,7 @@ export class Game {
             this.sfx.stuck();
             this.stats.stuck++;
             this.seen('trap');
-            this.toast('ホイホイにくっついた！ スペース（食べる）を連打して脱出！', 'bad');
+            this.toast('ホイホイだ！ 連打で脱出！', 'bad');
             this.events.push('stuck');
           }
           break;
@@ -2344,12 +2510,12 @@ export class Game {
     f.fum = { phase: 'toCenter', t: 0, x: -7, z: -2.5 };
     f.path = [];
     this.pathTo(f.fum.x, f.fum.z);
-    this.dropCarry('農場主がコンテナを置いた');
+    this.dropCarry('箱を置いた');
     this.say('もう許さん！ けむり玉たいて、全部いぶし出してやる！');
     this.radio('ラジオ「けむり玉警報です。出入り口と換気口へ避難してください」', true);
     this.sfx.siren();
     this.seen('fogger');
-    this.toast('けむり玉だ！ 緑の輪（出入り口・換気口）へ逃げろ！', 'bad');
+    this.toast('けむり玉！ 緑の輪へにげろ！', 'bad');
     this.events.push('fumigate');
     for (const sp of SAFE_SPOTS) {
       const ring = makeRing(0x6dff7a, sp.r * 0.8, sp.r, 0.75);
@@ -2427,7 +2593,7 @@ export class Game {
       }
       if (!F.eggMsg && this.eggs.some((e) => e.alive && Math.hypot(e.x - F.x, e.z - F.z) < F.r)) {
         F.eggMsg = true;
-        this.toast('卵は殻が固くて煙に強い。卵は無事だ', 'info');
+        this.toast('卵は無事だ', 'info');
       }
     }
     if (F.t > 38) {
@@ -2469,7 +2635,7 @@ export class Game {
           const ang = Math.abs(angleDiff(C.h, Math.atan2(r.x - C.x, r.z - C.z)));
           if (d < bd && ang < 0.9 && (this.hideFactor(r) > 0.5 || r.moving) && (r.isPlayer || rand() < 0.5)) { bd = d; best = r; }
         }
-        if (best) { C.st = 'stalk'; C.target = best; C.t = 0; this.sfx.meow(); if (best.isPlayer) { this.toast('ネコに見つかった！ 台やさいばい槽の上へ！', 'bad'); this.radio('ラジオ「ハウスのミケちゃん、狩りの時間のようです」'); } }
+        if (best) { C.st = 'stalk'; C.target = best; C.t = 0; this.sfx.meow(); if (best.isPlayer) { this.toast('ネコだ！ 高い所へ！', 'bad'); this.radio('ラジオ「ハウスのミケちゃん、狩りの時間のようです」'); } }
       }
       // ときどき農場主の足にじゃれる
       if (C.pesterT <= 0 && f.state === 'WORK' && !f.hidden) { C.st = 'pester'; C.t = 0; C.pesterT = 25 + rand() * 20; }
@@ -2502,7 +2668,7 @@ export class Game {
             if (!r.alive || r.y > 0.3 || r.st === 'fly' || r.st === 'glide') continue;
             if (Math.hypot(r.x - P.x, r.z - P.z) < 0.5) {
               // 自分には大けが（でも一撃ではやられない）。仲間はひとたまりもない。物音で農場主も気づく
-              if (r.isPlayer) { this.damage(r, Math.min(30, Math.max(0, r.hp - 8)), 'cat'); this.noise(r, 9, 35); this.toast('ネコにはたかれた！ 高い所へ逃げろ！', 'bad'); }
+              if (r.isPlayer) { this.damage(r, Math.min(30, Math.max(0, r.hp - 8)), 'cat'); this.noise(r, 9, 35); this.toast('ネコにはたかれた！', 'bad'); }
               else this.damage(r, 999, 'cat');
             }
           }
@@ -2638,7 +2804,7 @@ export class Game {
             this.sfx.stuck();
             this.stats.stuck++;
             this.seen('sheet');
-            this.toast('黄色い粘着シートにくっついた！ 食べるボタンを連打して脱出！', 'bad');
+            this.toast('シートにくっついた！ 連打！', 'bad');
             this.events.push('stuck');
           }
           break;
@@ -2666,7 +2832,7 @@ export class Game {
           S.ring = makeRing(0xff3b30, 0.38, 0.5, 0.75);
           S.ring.position.set(prey.x, TROUGH_TOP + 0.06, prey.z);
           this.root.add(S.ring);
-          if (prey.isPlayer) { this.seen('spider'); this.toast('クモが巣からおりてきた！ 赤い輪から逃げろ！', 'bad'); }
+          if (prey.isPlayer) { this.seen('spider'); this.toast('クモだ！ にげろ！', 'bad'); }
         }
       } else if (S.st === 'aim') {
         // 糸をつたって、さいばい槽の上へおりてくる
@@ -2714,7 +2880,7 @@ export class Game {
       score.sort((a, b) => b.n - a.n);
       const rows = score.slice(0, 2).map((s) => s.row);
       this.exterm = { st: 'warn', t: 0, rows, wp: [], wi: 0, sprayT: 0, x: DOOR.x, z: DOOR.z, h: -Math.PI / 2, phase: 0 };
-      this.toast('害虫駆除の業者が来る！ 8秒後、さいばい槽の上に薬をまく。台の下か排水溝へ！', 'warn');
+      this.toast('駆除業者が来る！ 台の下へ！', 'warn');
       this.radio('ラジオ「ゴキブリ大発生につき、駆除業者さんが到着しました」', true);
       this.say('もう手に負えねえ…業者さん呼んだからな！');
       this.sfx.siren();
@@ -2837,7 +3003,7 @@ export class Game {
       this.root.add(m.root);
       this.beetle = { m, c, st: 'fly', t: 0, sx: 27, sy: 4.5, sz: 3, x: 27, y: 4.5, z: 3 };
       this.stats.beetles = (this.stats.beetles || 0) + 1;
-      this.toast('卵が10個に！ 外から助っ人のカブトムシが飛んできた！', 'good');
+      this.toast('助っ人のカブトムシ！', 'good');
       this.radio('ラジオ「ハウスに大きなカブトムシが入ったとの情報です」', true);
       this.sfx.wind && this.sfx.wind();
       return;
@@ -2896,7 +3062,7 @@ export class Game {
         this.noise(c, 9, 25);
         c.hp -= 45;
         if (c.hp <= 0) this.ruinCrate(c);
-        this.toast('カブトムシがコンテナを台から突き落とした！', 'good');
+        this.toast('カブトムシが箱を落とした！', 'good');
         this.snap('beetle', '助っ人のカブトムシがコンテナを突き落とした！');
       }
     }
@@ -2909,7 +3075,7 @@ export class Game {
     if (!I) {
       if ((this.shipped >= 3 || this.elapsed > 160) && (!this.fog || this.fog.cleared) && this.farmer.state !== 'FUMIGATE') {
         this.inspector = { st: 'coming', t: 0 };
-        this.toast('JAの検品員が来る！ 10秒後、台のまわりをまわる。近づくな！', 'warn');
+        this.toast('JAの検品員が来る！', 'warn');
         this.sfx.chime();
         this.say('おっ、JAさんが来るな。ちゃんとしとかねえと');
         this.events.push('inspect');
@@ -2967,7 +3133,7 @@ export class Game {
           this.farmer.anger = Math.min(3, this.farmer.anger + 1);
           if (this.farmer.state !== 'FUMIGATE' && this.farmer.state !== 'PANIC') this.startChase(r);
           this.say('なにっ！？ JAさんの前でかよ！');
-          this.toast('検品員に見つかった！ 農場主が飛んでくる！', 'bad');
+          this.toast('検品員に見つかった！', 'bad');
           break;
         }
       }
@@ -3031,7 +3197,7 @@ export class Game {
     this.farmer.timer = 3;
     this.farmer.phase = 'idle';
     this.say('さて、出荷するか。……ん？ なんか気配がするな');
-    this.toast(done ? '練習おわり！ ここからが本番だ。農場主が動き出した' : '練習をとばした。農場主が動き出した', 'good');
+    this.toast(done ? '練習おわり！ 本番だ' : '本番だ', 'good');
     this.events.push('tutorialDone');
   }
 
@@ -3039,11 +3205,11 @@ export class Game {
     const T = this.tutorial;
     if (!T) return null;
     const L = [
-      touch ? '練習 1/5　左下を指でなぞって歩いてみよう' : '練習 1/5　W A S D（矢印キー）で歩いてみよう',
-      touch ? '練習 2/5　画面の右側をなぞって、まわりを見てみよう' : '練習 2/5　マウスでドラッグ（または Q・E）して、まわりを見てみよう',
-      touch ? '練習 3/5　緑の矢印のコンテナまで行き、「食べる」を長押し' : '練習 3/5　緑の矢印のコンテナまで行き、スペースを長押しして食べよう',
-      '練習 4/5　がっつきゲージが緑の帯のときに離すと「ナイス！」。やってみよう',
-      '練習 5/5　白いさいばい槽の下にもぐって、じっと隠れてみよう',
+      touch ? '1/5　左下で歩く' : '1/5　WASDで歩く',
+      touch ? '2/5　右側をなぞって見回す' : '2/5　ドラッグで見回す',
+      touch ? '3/5　矢印の箱で「食べる」長押し' : '3/5　矢印の箱でSpace長押し',
+      '4/5　緑の帯で離すと「ナイス！」',
+      '5/5　白いさいばい槽の下にかくれる',
     ];
     return L[Math.min(T.step, L.length - 1)];
   }
@@ -3108,24 +3274,24 @@ export class Game {
   advice(win, reason) {
     const s = this.stats;
     if (win) {
-      if (s.shipped > 3) return '星を集めるなら：出荷を3箱以内におさえよう。運んでいる農場主に突撃すると、コンテナを落とす';
-      if (s.chased > 2) return '星を集めるなら：見つかる回数を2回以内に。さいばい槽の下を通って近づこう';
+      if (s.shipped > 3) return '星をねらうなら：運んでいる農場主に突撃';
+      if (s.chased > 2) return '星をねらうなら：さいばい槽の下を通ろう';
       return '';
     }
     if (reason === 'dead') {
       return {
-        spray: '黄色い輪は殺虫剤の予告。輪が出たらすぐ横へ逃げよう。霧はしばらく残る',
-        whack: '赤い輪は踏みつけ・叩きの予告。輪の外へ走ろう。台の下なら踏まれない',
-        trap: 'ホイホイは地図の×印。くっついたら食べるボタンを連打して抜け出そう',
-        poison: '毒エサは体力が多いときだけ食べよう。毒の間は隠れて待つ',
-        smoke: 'けむり玉のサイレンが鳴ったら、すぐ緑の輪（出入り口・換気口）へ。緑の線をたどろう',
-        cat: 'ネコは台やさいばい槽の上には来ない。鈴の音が近づいたら高い所へ',
-        spider: 'さいばい槽の上の白く光る巣にはクモがいる。巣のそばに近づかないで、ほかの株へ',
-      }[this.lastDeathCause] || '見つかったら、さいばい槽の下や台の下でじっとしよう。仲間がいれば乗りかわれる';
+        spray: '黄色い輪が出たら横へにげる',
+        whack: '赤い輪の外へ。台の下なら安全',
+        trap: 'ホイホイは連打で脱出',
+        poison: '毒エサは体力が多いときだけ',
+        smoke: 'けむりは緑の輪へ',
+        cat: 'ネコは高い所に来ない',
+        spider: '光る巣に近づかない',
+      }[this.lastDeathCause] || '見つかったら台の下でじっと';
     }
-    if (s.attacks === 0) return '出荷が早かった。農場主の足もとで「突撃」すると、運んでいるコンテナを落とさせて時間をかせげる';
-    if (s.born < 3) return '仲間をふやそう。栄養が満タンになったらすぐ産卵し、「探索」で同時に何箱もかじらせる';
-    return '「おとり」の仲間で農場主を引きつけ、そのすきに台の上のコンテナを一気にかじろう';
+    if (s.attacks === 0) return '運んでいる農場主に「突撃」';
+    if (s.born < 3) return '産卵して仲間をふやそう';
+    return '「まかせた」で何箱も同時にかじろう';
   }
 
   // 農場主の日記：今日の出来事を3行（記録された出来事だけを使う）
@@ -3133,7 +3299,9 @@ export class Game {
     const s = this.stats, L = [];
     const add = (cond, text) => { if (cond && L.length < 3) L.push(text); };
     add(s.stowaway > 0, `出荷した箱からゴキブリが出てきた。${s.stowaway > 1 ? `しかも${s.stowaway}回も。` : ''}JAさんに平謝りだ。`);
+    add(s.bootScares > 0, '替えの長靴をはこうとしたら、中からゴキブリが。腰がぬけた。');
     add(this.pranks && this.pranks.bento, '昼に食べようと思ってた弁当を、ゴキブリにかじられた。卵焼きが…。');
+    add(s.radioBites > 0, `ラジオが${s.radioBites > 1 ? `${s.radioBites}回も` : ''}止まった。直したら番組が変わってた。`);
     add(s.revenge > 0, '自分で置いたホイホイに長靴がくっついた。誰が動かしたんだ。');
     add(s.inspectSpotted, 'JAの検品の人の前でゴキブリが出た。恥ずかしくて顔から火が出た。');
     add(this.pranks && this.pranks.playdead, '死んでると思ったゴキブリが、あとで歩いてた。だまされた。');
@@ -3194,7 +3362,7 @@ export class Game {
     if (p.st !== 'move') return null;
     if (p.playDead > 0) return { key: 'action', text: '死んだふり中（動くと起きる）' };
     if (p.stow) return { key: 'action', text: p.stow.carried ? '運ばれている！ じっとして出荷を待て（ゆらすとバレる）' : 'かごの中（長押しで中からかじる・死んだふりボタンで出る）', first: 'stowIn' };
-    if (p.inGlove) return { key: 'action', text: '軍手から出る' };
+    if (p.inGlove) return { key: 'action', text: p.inBoot ? '長靴から出る' : '軍手から出る' };
     if (p.box) return { key: 'action', text: '段ボールから出る' };
     const stuckMate = this.roaches.find((r) => r.alive && r !== p && r.st === 'stuck' && Math.hypot(r.x - p.x, r.z - p.z) < 1.3);
     if (stuckMate) return { key: 'action', text: '仲間を助ける' };
@@ -3207,6 +3375,8 @@ export class Game {
     if (this.nearBento(p)) return { key: 'action', text: '長押しでお弁当をかじる', hold: true, first: 'bento' };
     const pr = this.propAt(p);
     if (pr && pr.kind === 'glove') return { key: 'action', text: '軍手にもぐる', first: 'glove' };
+    if (pr && pr.kind === 'boots') return { key: 'action', text: '長靴に入る', first: 'boots' };
+    if (this.nearRadio(p)) return { key: 'action', text: '長押しでラジオをかじる', hold: true, first: 'radio' };
     if (pr && pr.kind === 'box') return { key: 'action', text: '段ボールにもぐる', first: 'box' };
     if (pr && pr.kind === 'drain') return { key: 'action', text: '排水溝に入る', first: 'drain' };
     if (pr && pr.kind === 'trap') return this.helpersFor(p).length >= 2 ? { key: 'action', text: '仲間とホイホイを運ぶ', first: 'trap' } : { key: 'action', text: 'ホイホイ（運ぶには仲間2匹）', warn: true, first: 'trap' };

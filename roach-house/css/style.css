@@ -488,3 +488,57 @@ body.stowed #stowView { opacity: 1; }
 .grumble.diary { background: repeating-linear-gradient(0deg, #f6efdc 0 27px, #d9cdb0 27px 28px); color: #3a2b1c; border-left: 5px solid #b0302a; border-radius: 6px; padding: 8px 14px 10px; transform: rotate(-0.6deg); }
 .grumble.diary p { margin: 0; line-height: 28px; font-size: 15px; }
 .diary-h { font-weight: 700; font-size: 13px; color: #8a2a20; line-height: 28px; }
+
+/* ---------- シンプルに（第10回のあと：文字を少なく・ボタンは程よい大きさ） ---------- */
+.score-card { min-width: 132px; }
+.score-card .score-row .ic { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.06em; }
+.score-card .score-row b { font-size: 24px; }
+.score-card .score-row.ship { margin-top: 4px; }
+.score-card .score-row.ship b { font-size: 17px; color: var(--text); }
+.score-card.low .score-row.ship b { color: var(--danger); }
+.cmds.none { display: none; }
+.cmd { min-height: 40px; padding: 8px 16px; font-size: 14px; }
+#pauseBtn { width: 44px; height: 38px; font-size: 14px; }
+.order-mini { top: auto; position: static; font-size: 12px; padding: 4px 10px; max-width: none; }
+body.touch .order-mini { display: block; }
+#orderMini b { color: var(--yellow); }
+.howto-short { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 4px 0 10px; }
+.howto-short div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.howto-short b { color: var(--yellow); font-size: 15px; }
+.howto-short span { font-size: 13px; color: var(--text); }
+.tbtn { font-size: 14px; }
+.t-dead { font-size: 12px; }
+@media (max-height: 460px) {
+  .tbtns { grid-template-columns: 60px 78px; grid-template-rows: 60px 78px; gap: 8px; }
+  .cmd { min-height: 38px; padding: 6px 14px; font-size: 13px; }
+}
+@media (max-height: 460px) {
+  body.touch #hint { top: auto; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); width: auto; max-width: min(46vw, 360px); }
+}
+/* 卵がかえるまでの輪 */
+.lbl.egg-ring { width: 22px; height: 22px; border-radius: 50%; padding: 0;
+  background: conic-gradient(var(--yellow) calc(var(--k, 0) * 360deg), rgba(22, 15, 10, 0.55) 0);
+  box-shadow: 0 0 0 2px rgba(22, 15, 10, 0.6); }
+.lbl.egg-ring i { position: absolute; inset: 5px; border-radius: 50%; background: #f3ead2; }
+/* 足音の波紋：コンクリ＝細い二重の輪、土＝太いぼやけた輪 */
+.ripple.hard { border-width: 2px; box-shadow: 0 0 0 4px rgba(246, 236, 217, 0.25); }
+.ripple.soil { border-width: 4px; border-color: #c9a06a; border-style: dashed; }
+.ripple.hard::after, .ripple.soil::after { content: attr(data-t); position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: 700; font-size: 12px; color: var(--text); text-shadow: 0 1px 2px #000; }
+.tbtn.nudge { animation: nudge 1s ease-in-out infinite alternate; border-color: var(--yellow); }
+@keyframes nudge { from { box-shadow: 0 0 0 0 rgba(242, 195, 27, 0.0); } to { box-shadow: 0 0 16px 4px rgba(242, 195, 27, 0.75); } }
+#introSkip { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); pointer-events: auto; z-index: 7; min-height: 44px; padding: 8px 18px; }
+#jackOffer { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); pointer-events: auto; z-index: 8; text-align: center; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+#jackOffer[hidden] { display: none; }
+#jackOffer b { font-size: 18px; color: var(--yellow); }
+#jackOffer .btn { min-height: 46px; }
+#nicePop.combo { color: var(--yellow); font-size: 1.2em; }
+/* 鼻歌・ぶつぶつの印 */
+.lbl.mark.note { color: #fff3b0; font-size: 22px; text-shadow: 0 1px 3px #000; }
+.lbl.mark.grr { color: #ffb3a0; font-size: 13px; font-weight: 700; text-shadow: 0 1px 3px #000; }
+/* 暖房機が動いている間の「ゴーッ」 */
+#heatBadge { position: absolute; left: 50%; top: calc(54px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); font-family: var(--font-display); font-size: 22px; color: #ffcf8a; text-shadow: 0 2px 4px rgba(0,0,0,0.7); animation: heatwob 0.25s ease-in-out infinite alternate; pointer-events: none; }
+#heatBadge[hidden] { display: none; }
+@keyframes heatwob { from { transform: translateX(-52%); } to { transform: translateX(-48%); } }
+/* ぐるっと見せている間は、ほかの表示を消す */
+body.intro #hud > *:not(#introSkip), body.intro #touch, body.intro #labels { visibility: hidden; }
+#heatBadge { left: 62%; }

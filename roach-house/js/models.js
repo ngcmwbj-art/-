@@ -954,6 +954,50 @@ export function makeBento() {
   return g;
 }
 
+// 農場主のラジオ（ステージ3から、作業場の床に置く）
+export function makeRadio() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.42, 0.24), new THREE.MeshStandardMaterial({ color: 0xb8362c, roughness: 0.45 }));
+  body.position.y = 0.21; body.castShadow = true; body.receiveShadow = true;
+  const grille = new THREE.Mesh(new THREE.CircleGeometry(0.14, 20), new THREE.MeshStandardMaterial({ color: 0x2b2522, roughness: 0.8 }));
+  grille.position.set(-0.17, 0.21, 0.121);
+  const dial = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.01), new THREE.MeshStandardMaterial({ color: 0xf1e6c8, roughness: 0.5, emissive: 0x332a10 }));
+  dial.position.set(0.17, 0.25, 0.122);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 12), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }));
+  knob.rotation.x = Math.PI / 2; knob.position.set(0.17, 0.12, 0.13);
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 6, 16, Math.PI), new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.4 }));
+  handle.position.set(0, 0.42, 0);
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.3 }));
+  ant.position.set(0.3, 0.7, -0.05); ant.rotation.z = -0.35;
+  g.add(body, grille, dial, knob, handle, ant);
+  g.userData.dial = dial;
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
+// 出入り口のそばにぬいである、農場主の替えの長靴
+export function makeBoots() {
+  const g = new THREE.Group();
+  const rub = new THREE.MeshStandardMaterial({ color: 0x24402c, roughness: 0.55 });
+  const sole = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+  for (const sx of [-0.2, 0.22]) {
+    const b = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.85, 14, 1, true), rub);
+    shaft.position.y = 0.5; shaft.castShadow = true;
+    const inner = new THREE.Mesh(new THREE.CircleGeometry(0.15, 14), new THREE.MeshStandardMaterial({ color: 0x0b0b0b, roughness: 1 }));
+    inner.rotation.x = -Math.PI / 2; inner.position.y = 0.9;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.48), rub);
+    foot.position.set(0, 0.1, 0.12); foot.castShadow = true;
+    const so = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.04, 0.5), sole);
+    so.position.set(0, 0.02, 0.12);
+    b.add(shaft, inner, foot, so);
+    b.position.x = sx; b.rotation.y = sx * 0.4;
+    g.add(b);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; } });
+  return g;
+}
+
 // 落ちている軍手（白に、手のひらの赤いゴム）
 export function makeGlove() {
   const g = new THREE.Group();

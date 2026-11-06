@@ -19,42 +19,41 @@
 
   <div id="hud" hidden>
     <div class="hud-tl">
-      <div class="card timer" id="timerCard"><small>あと何箱出荷されたら負け</small><span id="timer">あと9箱</span></div>
-      <div class="card">
-        <div class="score-row"><span>ダメにした</span><b id="ruined">0</b><span>/ <span id="target">8</span> 箱</span></div>
+      <div class="card score-card" id="timerCard">
+        <div class="score-row"><span class="ic">ダメ</span><b id="ruined">0</b><span>/ <span id="target">8</span></span></div>
         <div class="pips" id="pips"></div>
-        <div class="score-row ship"><span>出荷された</span><b id="shipped">0</b><span>箱</span></div>
+        <div class="score-row ship"><span class="ic">出荷</span><span>あと</span><b id="timer">9</b><b id="shipped" hidden>0</b></div>
       </div>
+      <div id="orderMini" class="card order-mini" hidden></div>
     </div>
     <div class="hud-tr">
       <div class="card farmer-card">
         <div class="f-state" id="fstate" data-s="WORK"><span class="f-icon" id="ficon">…</span><span id="ftext">作業中</span></div>
         <div class="bar"><i id="susp"></i></div>
-        <div class="anger">怒り <b id="anger"></b></div>
+        <div class="anger"><b id="anger"></b></div>
       </div>
       <canvas id="minimap" width="352" height="224" aria-label="ハウスの地図"></canvas>
     </div>
     <div class="hud-bl card">
       <div class="stat"><span>体力</span><div class="bar" id="hpBar"><i></i></div></div>
       <div class="stat"><span>栄養</span><div class="bar" id="nutBar"><i></i></div></div>
-      <div class="allies">仲間 <b id="allies">0</b> 匹<span id="eggsTxt"></span>　<span class="kb-only">突撃 <span id="atkTxt">OK</span></span></div>
+      <div class="allies">仲間 <b id="allies">0</b><span id="eggsTxt"></span></div>
     </div>
     <div class="cmds">
-      <button class="cmd" data-cmd="search" id="cmd-search"><kbd>1</kbd>探索</button>
-      <button class="cmd" data-cmd="decoy" id="cmd-decoy"><kbd>2</kbd>おとり</button>
-      <button class="cmd on" data-cmd="follow" id="cmd-follow"><kbd>3</kbd>集合</button>
+      <button class="cmd on" data-cmd="follow" id="cmd-follow"><kbd>1</kbd>ついてこい</button>
+      <button class="cmd" data-cmd="search" id="cmd-search"><kbd>2</kbd>まかせた</button>
     </div>
     <div id="prompt" hidden></div>
-    <div id="greed" hidden><div>がっつきゲージ（緑の帯で離すと「ナイス！」）</div><div class="gbar"><span class="nice-band"></span><i></i></div><div class="crate-left" id="crateLeft"></div></div>
+    <div id="greed" hidden><div class="gbar"><span class="nice-band"></span><i></i></div><div class="crate-left" id="crateLeft"></div></div>
     <div id="nicePop" hidden>ナイス！</div>
     <div id="tutor" hidden><p id="tutorText"></p><button class="tskip" id="btnSkipTutor">練習をとばす</button></div>
     <div id="farmerArrow" class="edge-ind" hidden><span class="ea-tri"></span><span class="ea-lbl">農場主</span></div>
     <div id="guideArrow" class="edge-ind guide" hidden><span class="ea-tri"></span><span class="ea-lbl">ここ</span></div>
-    <div id="orderMini" class="card order-mini" hidden></div>
     <div id="struggle" hidden>ホイホイから脱出！<div class="bar"><i></i></div></div>
     <div id="hint" hidden></div>
     <div id="toasts"></div>
     <div id="feed"></div>
+    <div id="heatBadge" hidden>ゴーッ</div>
     <div id="stowView" aria-hidden="true"><span>かごの中</span></div>
     <div id="subtitle" hidden></div>
     <div id="tourBar" hidden>
@@ -65,10 +64,15 @@
     </div>
     <div id="ripples"></div>
     <button id="pauseBtn" aria-label="一時停止">II</button>
+    <button id="introSkip" class="btn" hidden>とばす ▶</button>
+    <div id="jackOffer" class="card" hidden>
+      <b>荷台から飛びおりた！</b>
+      <div class="row"><button class="btn primary" id="btnJackRun">田んぼ道へにげる</button><button class="btn" id="btnJackStay">ハウスにもどる</button></div>
+    </div>
   </div>
 
   <div id="touch" hidden>
-    <div class="joy-zone"><div class="joy-base"><div class="joy-knob"></div></div><span class="joy-hint">端まで倒すとダッシュ</span></div>
+    <div class="joy-zone"><div class="joy-base"><div class="joy-knob"></div></div></div>
     <div class="tbtns">
       <button class="tbtn t-dead" data-act="dead" id="tDead" tabindex="-1">死んだ<br>ふり</button>
       <button class="tbtn t-egg" data-act="egg" tabindex="-1">産卵</button>
@@ -80,7 +84,7 @@
   <section id="title" class="screen">
     <div class="sheet">
       <h1 class="logo"><span class="k1">パプリカハウス</span><span class="k2">侵略のG</span></h1>
-      <p class="lead">夜明けのパプリカハウス。収穫したパプリカのコンテナをかじってダメにしろ。農場主は殺虫剤とホイホイ、毒エサで待ちかまえている。食べて、卵を産んで、仲間と力を合わせ、出荷が終わる前に勝負をつけよう。</p>
+      <p class="lead">出荷される前に、コンテナをかじってダメにしろ！</p>
       <div class="tabs" id="titleTabs" role="tablist"><button class="tab on" data-tab="play">あそぶ</button><button class="tab" data-tab="see">みる</button><button class="tab" data-tab="set">せってい</button></div>
       <div class="tab-pane" data-pane="play">
         <div class="row"><button class="btn primary" id="btnLast" hidden>前回のステージをもう一度</button></div>
@@ -92,8 +96,14 @@
       </div>
       <div class="tab-pane" data-pane="see" hidden>
         <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button><button class="btn" id="btnTour">見学モード（遊ばずに見て回る）</button></div>
-      <details class="howto" id="howto" open>
-        <summary>遊びかた</summary>
+      <div class="howto-short">
+        <div><b>かじる</b><span>コンテナを食べてダメにする</span></div>
+        <div><b>かくれる</b><span>葉や台の下でじっと</span></div>
+        <div><b>ふやす</b><span>栄養満タンで産卵</span></div>
+        <div><b>勝ち</b><span>目標の数だけダメにする</span></div>
+      </div>
+      <details class="howto" id="howto">
+        <summary>くわしい遊びかた</summary>
         <div class="body">
           <div><h3>勝ち負け</h3><ul>
             <li>ステージは6つ。クリアすると次のステージが遊べるようになる。先に進むほど、ダメにする箱が増え、わなや毒エサが増え、農場主も手ごわくなる。</li>
@@ -108,7 +118,7 @@
           </ul></div>
           <div><h3>仲間をふやす</h3><ul>
             <li>栄養が満タンで産卵。卵は少したつと3匹の仲間になる。目立つ所の卵は踏みつぶされる。</li>
-            <li>「探索」は自分でエサを探して食べる。「おとり」は農場主の前をうろついて気を引く。「集合」は後ろについてくる。</li>
+            <li>「ついてこい」は後ろについてくる。「まかせた」は自分でエサを探して食べ、あなたが追われると半分が農場主の気を引いてくれる。</li>
             <li>自分がやられても、仲間がいればその1匹に乗りかわって続けられる。</li>
           </ul></div>
           <div><h3>反撃</h3><ul>
@@ -138,7 +148,7 @@
             <kbd>F</kbd><span>突撃</span>
             <kbd>R</kbd><span>産卵</span>
             <kbd>X</kbd><span>死んだふり（1回のプレイで3回まで）</span>
-            <kbd>1 2 3</kbd><span>仲間に指示（探索・おとり・集合）</span>
+            <kbd>1 2</kbd><span>仲間に指示（ついてこい・まかせた）</span>
             <kbd>Esc / P</kbd><span>一時停止</span>
           </div>
           <p class="touch-only">左下を指でなぞって移動（端まで倒すとダッシュ）、右側をなぞって視点を回します。</p>
@@ -186,6 +196,7 @@
       <div class="book-sec"><h3>帽子（星を集めると増える）</h3><div class="wings" id="bookHats"></div></div>
       </div>
       <div class="tab-pane" data-bpane="ency" hidden>
+      <div class="book-sec"><h3>技</h3><ul class="titles techs" id="bookTechs"></ul></div>
       <div class="book-sec"><h3>称号</h3><ul class="titles" id="bookTitles"></ul></div>
       <div class="book-sec"><h3>図鑑</h3><ul class="ency" id="bookEncy"></ul></div>
       </div>
@@ -213,7 +224,7 @@
       <div class="row"><button class="btn assist" id="btnAssist" hidden>おたすけ</button></div>
       <p class="r-news" id="rNews"></p>
       <details class="r-more" id="rMore">
-        <summary>くわしく（名場面の写真・今日の注文・いたずら・記録）</summary>
+        <summary>くわしく</summary>
         <div class="highlights" id="rHigh"></div>
         <div class="r-orders" id="rOrders"></div>
         <dl class="rstats" id="rStats"></dl>
@@ -229,14 +240,14 @@
     <div class="run-say" id="runSay" hidden></div>
     <div class="run-count" id="runCount"></div>
     <div class="run-bl card"><div>ダッシュ</div><div class="bar"><i id="runStam"></i></div><div>パプリカのかけら <b id="runBits">0</b></div></div>
-    <p class="run-help" id="runHelp">左右でよける・ダッシュで加速（Shift・食べるボタン）。水たまり・石・カエルに気をつけて、となりのハウスへ逃げこめ！</p>
+    <p class="run-help" id="runHelp">← → でよける　ダッシュで加速</p>
   </div>
   <section id="runResult" class="screen" hidden>
     <div class="sheet">
       <h2 class="rtitle" id="runTitle"></h2>
       <p class="lead" id="runText"></p>
       <p class="r-news" id="runNews"></p>
-      <div class="row r-btns"><button class="btn primary big-again" id="btnRunAgain">もう一回！</button><button class="btn" id="btnRunTitle">タイトルへ</button></div>
+      <div class="row r-btns"><button class="btn primary" id="btnRunBack" hidden>ハウスにもどる</button><button class="btn primary big-again" id="btnRunAgain">もう一回！</button><button class="btn" id="btnRunTitle">タイトルへ</button></div>
     </div>
   </section>
   <div id="err" hidden></div>

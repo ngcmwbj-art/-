@@ -109,10 +109,23 @@ export class Sfx {
     return node;
   }
   // 長靴の足音：ドスッ＋ゴムのキュッ。pan で左右
-  boot(v, pan = 0) {
+  // 長靴の足音。hard=true はコンクリの「コツ」、false は土の「ザッ」
+  boot(v, pan = 0, hard = true) {
     if (!this.ok || v < 0.01) return;
     const c = this.ctx, t = c.currentTime;
     const out = this.panOut(pan, Math.min(0.9, v));
+    if (!hard) {
+      // 土：低いドスッ＋こすれる「ザッ」
+      const o = c.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(62, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.16);
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.22);
+      const n = c.createBufferSource(); n.buffer = this.noiseBuf;
+      const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 700 + Math.random() * 200; nf.Q.value = 0.9;
+      const ng = c.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.5, t + 0.03); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      n.connect(nf); nf.connect(ng); ng.connect(out); n.start(t, Math.random() * 0.5); n.stop(t + 0.18);
+      return;
+    }
     const o = c.createOscillator(); o.type = 'sine';
     o.frequency.setValueAtTime(75, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
     const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
@@ -181,6 +194,7 @@ export class Sfx {
   }
 
   startRadio() {
+    if (this.radio) this.radio.off = false;
     if (!this.ok || this.radio) return;
     const c = this.ctx;
     const bus = c.createGain(); bus.gain.value = 0;
@@ -198,10 +212,75 @@ export class Sfx {
     if (!this.radio) return;
     try { this.radio.bus.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05); } catch (_) { /* 無視 */ }
   }
+  // ラジオがかじられて止まった：「ブツッ」
+  radioOff() {
+    if (this.radio) this.radio.off = true;
+    this.noise(0.12, 'bandpass', 1800, 0.25, 2);
+    this.tone(120, 0.08, 'square', 0.08);
+  }
+  // 直した：番組が変わる（次の曲＋アナウンス）
+  radioNext() {
+    const R = this.radio;
+    this.tone(1200, 0.06, 'sine', 0.05);
+    if (!R) return;
+    R.off = false;
+    R.step = (Math.floor(R.step / 32) + 1) * 32;
+    R.talk = 6;
+  }
+  // 暖房機：前ぶれの「カチッ」→ 10秒ほど低い「ゴーッ」
+  heaterClick() { this.tone(2400, 0.03, 'square', 0.08); this.noise(0.05, 'highpass', 3000, 0.2, 1); }
+  heaterStart() {
+    if (!this.ok || this.heater) return;
+    const c = this.ctx, t = c.currentTime;
+    const n = c.createBufferSource(); n.buffer = this.noiseBuf; n.loop = true;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 0.7;
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 50;
+    const of = c.createBiquadFilter(); of.type = 'lowpass'; of.frequency.value = 140;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.6);
+    const og = c.createGain(); og.gain.value = 0.25;
+    n.connect(f); f.connect(g); o.connect(of); of.connect(og); og.connect(g); g.connect(this.master);
+    n.start(t); o.start(t);
+    this.heater = { n, o, g };
+  }
+  heaterStop() {
+    const H = this.heater;
+    if (!H) return;
+    const t = this.ctx.currentTime;
+    try { H.g.gain.setTargetAtTime(0.0001, t, 0.3); H.n.stop(t + 1.5); H.o.stop(t + 1.5); } catch (_) { /* 無視 */ }
+    this.heater = null;
+  }
+  // 農場主の鼻歌（口笛のような高い音。ラジオの曲より高く、聞き分けやすく）
+  hum(vol, pan) {
+    if (!this.ok || vol < 0.02) return;
+    const c = this.ctx, t = c.currentTime;
+    const out = this.panOut(pan, Math.min(0.5, vol));
+    const SC = [0, 2, 4, 7, 9, 12];
+    this.humStep = (this.humStep || 0) + 1;
+    const MEL = [2, 3, 4, 4, 3, 2, 1, 2, 0, -1, 2, 4, 5, 4, 2, -1];
+    const deg = MEL[this.humStep % MEL.length];
+    if (deg < 0) return;
+    const o = c.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(1046 * Math.pow(2, SC[deg] / 12), t);
+    const vib = c.createOscillator(); vib.frequency.value = 6; const vg = c.createGain(); vg.gain.value = 9;
+    vib.connect(vg); vg.connect(o.frequency);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    o.connect(g); g.connect(out); o.start(t); vib.start(t); o.stop(t + 0.36); vib.stop(t + 0.36);
+  }
+  // 怒っているときの「ぶつぶつ」（低くこもった声）
+  grumble(vol, pan) {
+    if (!this.ok || vol < 0.02) return;
+    const c = this.ctx, t = c.currentTime;
+    const out = this.panOut(pan, Math.min(0.5, vol));
+    const n = c.createBufferSource(); n.buffer = this.noiseBuf;
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 260 + Math.random() * 160; f.Q.value = 4;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    n.connect(f); f.connect(g); g.connect(out); n.start(t, Math.random()); n.stop(t + 0.25);
+  }
   // 毎フレーム：vol 0..1、pan -1..1
   updateRadio(vol, pan) {
     if (!this.radio || !this.ok) return;
     const c = this.ctx, R = this.radio, t = c.currentTime;
+    if (R.off) vol = 0;
     R.bus.gain.setTargetAtTime(vol * vol * 0.55, t, 0.08);
     // 画面を裏に回して戻ったとき、たまった分をまとめて鳴らさない
     if (R.next < t - 0.5) R.next = t + 0.05;
