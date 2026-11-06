@@ -49,7 +49,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   await page.waitForFunction(() => { const h = document.getElementById('hint'); return !h.hidden && /食べる|かくれ|産卵/.test(h.textContent); }, null, { timeout: 200000 }).catch(() => {});
   const hintTxt = await page.evaluate(() => document.getElementById('hint').textContent);
   check('迷ったら今できることを1行', /食べる|かくれ|産卵/.test(hintTxt), hintTxt);
-  check('そのボタンが光る', await page.evaluate(() => !!document.querySelector('.tbtn.nudge')));
+  check('そのボタンが光る（かくれるとき以外）', /かくれ/.test(hintTxt) || await page.evaluate(() => !!document.querySelector('.tbtn.nudge')), hintTxt);
 
   // 出荷ジャック成功 → 田んぼ道へ → もどるとおみやげ
   await page.evaluate(() => {

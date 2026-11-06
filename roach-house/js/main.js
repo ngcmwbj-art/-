@@ -149,7 +149,12 @@ const ui = {
       camState.ending = { t: 0 };
       // しょんぼりしたクラクション「プッ…プー…」
       setTimeout(() => { sfx.tone(330, 0.18, 'square', 0.06); sfx.tone(262, 0.6, 'square', 0.06, -40, 0.25); }, 900);
-      setTimeout(() => showResult(res), 4200);
+      setTimeout(() => {
+        // 遅い機種でも、結果の前に必ずトラックの写真を撮る
+        const E = camState.ending;
+        if (E && !E.snapped) { E.snapped = true; game.snapRequests.push({ type: 'truck', text: '空っぽのトラックが、しょんぼり出発', t: game.elapsed, bubble: 'もう限界だ…' }); setTimeout(() => showResult(res), 250); }
+        else showResult(res);
+      }, 4200);
     }
     else setTimeout(() => showResult(res), 1400);
   },
