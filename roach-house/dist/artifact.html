@@ -595,11 +595,13 @@ body.intro #hud > #introHaz { visibility: visible; }
 body.demo #touch, body.demo #tourBar, body.demo #hint, body.demo #prompt { display: none !important; }
 /* スマホを縦で持つとき（ユーザーはいつも縦） */
 @media (orientation: portrait) and (max-width: 600px) {
-  body.touch .cmds { top: auto; right: auto; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: calc(252px + env(safe-area-inset-bottom, 0px)); transform: none; flex-direction: row; }
+  /* 左下は移動のなぞる場所なので、指示ボタンは右側（ボタンの上）に */
+  body.touch .cmds { top: auto; left: auto; right: calc(10px + env(safe-area-inset-right, 0px)); bottom: calc(215px + env(safe-area-inset-bottom, 0px)); transform: none; flex-direction: row; }
   body.touch #hint { top: calc(150px + env(safe-area-inset-top, 0px)); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: auto; max-width: calc(100vw - 24px); font-size: 13px; }
   body.touch .hud-bl { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
   #jackOffer { width: calc(100vw - 32px); }
 }
+.cmds { z-index: 7; }
 
 </style>
 <div id="app">
