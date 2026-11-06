@@ -54,6 +54,7 @@
     <div id="toasts"></div>
     <div id="feed"></div>
     <div id="heatBadge" hidden>ゴーッ</div>
+    <div id="demoBar" hidden><span class="demo-tag">見本</span><b id="demoCap"></b><button class="btn" id="btnDemoEnd">とじる</button></div>
     <div id="stowView" aria-hidden="true"><span>かごの中</span></div>
     <div id="subtitle" hidden></div>
     <div id="tourBar" hidden>
@@ -88,15 +89,15 @@
       <p class="lead">出荷される前に、コンテナをかじってダメにしろ！</p>
       <div class="tabs" id="titleTabs" role="tablist"><button class="tab on" data-tab="play">あそぶ</button><button class="tab" data-tab="see">みる</button><button class="tab" data-tab="set">せってい</button></div>
       <div class="tab-pane" data-pane="play">
-        <div class="row"><button class="btn primary big-today" id="btnToday">きょうの1回 ▶</button><button class="btn" id="btnLast" hidden>前回</button></div>
+        <div class="row"><button class="btn primary big-today" id="btnToday">きょうの1回 ▶</button><button class="btn" id="btnDemo">見本</button><button class="btn" id="btnLast" hidden>前回</button></div>
         <div class="stages" id="stages"></div>
         <div class="opts"><label><input type="checkbox" id="optTutor"> 練習から始める</label><label><input type="checkbox" id="optEasy"> かんたん（わな・敵なし）</label></div>
         <div class="card order-card" id="orderCard"></div>
-        <div class="row"><button class="btn run-btn" id="btnRun">おまけ：にげろ！田んぼ道</button></div>
-        <div class="row"><button class="btn run-btn" id="btnRunDusk" hidden>おまけ：夕方の農道</button></div>
       </div>
       <div class="tab-pane" data-pane="see" hidden>
-        <div class="row"><button class="btn" id="btnBook">図鑑・称号・着せかえ</button><button class="btn" id="btnTour">見学モード（遊ばずに見て回る）</button></div>
+        <div class="row"><button class="btn" id="btnBook">図鑑・着せかえ</button><button class="btn" id="btnTour">見学モード</button></div>
+        <div class="row"><button class="btn run-btn" id="btnRun">おまけ：にげろ！田んぼ道</button></div>
+        <div class="row"><button class="btn run-btn" id="btnRunDusk" hidden>おまけ：夕方の農道</button></div>
       <div class="howto-short">
         <div><b>かじる</b><span>コンテナを食べてダメにする</span></div>
         <div><b>かくれる</b><span>葉や台の下でじっと</span></div>
@@ -163,6 +164,7 @@
         <label>音量 <input type="range" id="optVolume" min="0" max="100" step="5" value="100"></label>
         <label><input type="checkbox" id="optRipple" checked> 音の波紋を出す</label>
         <label><input type="checkbox" id="optVoice" checked> 農場主の声（読み上げ）</label>
+        <label><input type="checkbox" id="optEco"> 省エネ（スマホが熱くなりにくい）</label>
         <label>画質 <select id="optQuality">
           <option value="auto">自動</option><option value="high">高（PC向け）</option><option value="medium">中</option><option value="low">低（軽い）</option>
         </select></label>
@@ -217,7 +219,8 @@
       <div class="rank"><div class="r" id="rRank">A</div><div class="s">スコア<br><b id="rScore">0</b><br><span id="rBest"></span></div></div>
       <div class="r-stars" id="rStars"></div>
       <figure class="r-photo" id="rPhoto" hidden></figure>
-      <blockquote class="grumble" id="rGrumble"></blockquote>
+      <p class="r-catch" id="rCatch"></p>
+      <details class="r-diary"><summary>農場主の日記</summary><blockquote class="grumble" id="rGrumble"></blockquote></details>
       <p class="tip" id="rTip"></p>
       <div class="row r-btns">
         <button class="btn primary" id="btnNext" hidden>次のステージへ</button>

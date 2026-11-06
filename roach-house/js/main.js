@@ -62,7 +62,7 @@ const world = buildWorld(scene, renderer, { shadow: L0.shadow, dust: L0.dust, sh
 const fx = new FX(renderer, scene, camera);
 fx.setLevel(startLevel);
 const autoQ = new AutoQuality(fx, (lvl, fps) => {
-  world.setShadow(LEVELS[lvl].shadow);
+  world.setShadow(ecoOnNow() ? Math.min(LEVELS[lvl].shadow, 1024) : LEVELS[lvl].shadow);
   ui.feed(`画質「${LEVELS[lvl].label}」に`, '画', 'info');
 });
 autoQ.auto = qualityPref === 'auto';
@@ -72,7 +72,7 @@ function applyQuality(pref) {
   autoQ.auto = pref === 'auto';
   const lvl = pref === 'auto' ? (isTouchDevice ? 'medium' : 'high') : pref;
   fx.setLevel(lvl);
-  world.setShadow(LEVELS[lvl].shadow);
+  world.setShadow(ecoOnNow() ? Math.min(LEVELS[lvl].shadow, 1024) : LEVELS[lvl].shadow);
 }
 
 function resize() {
@@ -168,13 +168,13 @@ function renderRunBtn() {
   const b = $('btnRun');
   const ok = runUnlocked();
   b.disabled = !ok;
-  b.textContent = ok ? `おまけ：にげろ！田んぼ道（夜明け）${records.runBest ? `　ベスト ${records.runBest.toFixed(1)}秒` : ''}` : 'おまけ：にげろ！田んぼ道（「かごにもぐって出荷ジャック」を1回成功させると遊べる）';
+  b.textContent = ok ? `おまけ：田んぼ道${records.runBest ? `　ベスト ${records.runBest.toFixed(1)}秒` : ''}` : 'おまけ：田んぼ道（出荷ジャックで遊べる）';
   // 夕方の農道：夜明けのコースを1回逃げきると遊べる
   const b2 = $('btnRunDusk');
   b2.hidden = !ok;
   const ok2 = (records.runClears || 0) >= 1;
   b2.disabled = !ok2;
-  b2.textContent = ok2 ? `おまけ：夕方の農道（ため池の橋とコンバイン）${records.runBestDusk ? `　ベスト ${records.runBestDusk.toFixed(1)}秒` : ''}` : 'おまけ：夕方の農道（夜明けのコースを1回逃げきると遊べる）';
+  b2.textContent = ok2 ? `おまけ：夕方の農道${records.runBestDusk ? `　ベスト ${records.runBestDusk.toFixed(1)}秒` : ''}` : 'おまけ：夕方の農道（田んぼ道を逃げきると遊べる）';
 }
 let runCourse = 'dawn';
 let runFromJack = null; // 出荷ジャックから来たとき：もどる先のゲームの状態
@@ -398,6 +398,67 @@ function startTour() {
   setScreen('play');
   ui.toast('見学モード', 'info');
 }
+// 見本プレイ：ゴキブリが自分で「かじる→かくれる→ふやす」を12秒ほど見せる（見学モードの仕組みを使う）
+let demo = null;
+function startDemo() {
+  sfx.unlock();
+  sfx.startAmbience();
+  refreshDay();
+  game.start('s1', undefined, { tour: true, wing: records.wing, hat: records.hat, pattern: records.pattern, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
+  world.setNight(false);
+  renderer.toneMappingExposure = 0.95;
+  const P = game.player;
+  const crate = game.crates.filter((c) => c.table < 0).sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z))[0];
+  demo = { t: 0, crate, laid: false, eat: true };
+  document.body.classList.add('tour', 'demo');
+  $('orderMini').hidden = true;
+  $('toasts').innerHTML = '';
+  $('demoBar').hidden = false;
+  camState.yaw = game.camYaw; camState.pitch = 0.5; camState.init = true; camState.focus = null;
+  setScreen('play');
+}
+function endDemo() {
+  if (!demo) return;
+  demo = null;
+  document.body.classList.remove('tour', 'demo');
+  $('demoBar').hidden = true;
+  toTitle();
+}
+function steerTo(x, z) {
+  const P = game.player;
+  const ex = x - P.x, ez = z - P.z, n = Math.hypot(ex, ez) || 1;
+  if (n < 0.25) { input.mx = 0; input.mz = 0; return true; }
+  const fx = Math.sin(game.camYaw), fz = Math.cos(game.camYaw);
+  input.mz = (ex * fx + ez * fz) / n; input.mx = (-ex * fz + ez * fx) / n;
+  return false;
+}
+function demoStep(dt) {
+  const D = demo, P = game.player;
+  D.t += dt;
+  input.actionHeld = false; input.dash = false;
+  let cap = '';
+  if (D.t < 6.5) {
+    cap = 'かじる';
+    const c = D.crate;
+    if (c && game.crateInReach(P) === c) {
+      input.mx = 0; input.mz = 0;
+      if (P.greed > 72) D.eat = false; else if (P.greed < 25) D.eat = true;
+      input.actionHeld = D.eat;
+    } else if (c) steerTo(c.x, c.z + (c.z > P.z ? -0.7 : 0.7));
+  } else if (D.t < 10.5) {
+    cap = 'かくれる';
+    // いちばん近い畝（葉の下）へ
+    const row = ROWS.slice().sort((a, b) => Math.abs(a.z - P.z) - Math.abs(b.z - P.z))[0];
+    steerTo(Math.max(row.x0 + 1, Math.min(row.x1 - 1, P.x)), row.z);
+  } else if (D.t < 13.5) {
+    cap = 'ふやす';
+    input.mx = 0; input.mz = 0;
+    if (!D.laid) { D.laid = true; game.nutrition = 100; input.press('egg'); }
+  } else { endDemo(); return; }
+  setText('demoCap', cap);
+}
+$('btnDemo').addEventListener('click', () => startDemo());
+$('btnDemoEnd').addEventListener('click', (e) => { e.preventDefault(); endDemo(); });
 function endTourUi() {
   touring = false;
   document.body.classList.remove('tour');
@@ -707,12 +768,16 @@ function showResult(res) {
   const [dy, dm, dd] = dayKey.split('-').map(Number);
   const dl = res.diary && res.diary.length ? res.diary : res.grumble;
   $('rGrumble').className = 'grumble diary';
-  $('rGrumble').innerHTML = `<div class="diary-h">農場主の日記　${dm}月${dd}日</div>` + dl.map((g) => `<p>${escapeHtml(g)}</p>`).join('');
+  $('rGrumble').innerHTML = `<div class="diary-h">${dm}月${dd}日</div>` + dl.map((g) => `<p>${escapeHtml(g)}</p>`).join('');
+  // 結果画面は、写真・星・口癖の1行だけ。日記はタップで開く
+  $('rCatch').textContent = `農場主「${res.win ? 'もう限界だ…' : '今日もおれの勝ちだな'}」`;
+  document.querySelector('.r-diary').open = false;
   // 名場面
   const hl = (res.highlights || []).filter((h) => h.img);
   // 今日の1枚：いちばんの名場面を1枚だけ大きく（ほかは「くわしく」の中）
-  const PREF = ['stowaway', 'prank', 'close', 'last'];
-  const top = hl.slice().sort((a, b) => (PREF.indexOf(a.type) < 0 ? 9 : PREF.indexOf(a.type)) - (PREF.indexOf(b.type) < 0 ? 9 : PREF.indexOf(b.type)))[0];
+  // いたずらの写真は候補から外す（第12回）
+  const PREF = ['truck', 'stowaway', 'close', 'last'];
+  const top = hl.filter((h) => h.type !== 'prank').sort((a, b) => (PREF.indexOf(a.type) < 0 ? 9 : PREF.indexOf(a.type)) - (PREF.indexOf(b.type) < 0 ? 9 : PREF.indexOf(b.type)))[0];
   $('rPhoto').innerHTML = top ? `<img src="${top.img}" alt=""><figcaption>${escapeHtml(top.text)}</figcaption>` : '';
   $('rPhoto').hidden = !top;
   $('rHigh').innerHTML = hl.length ? hl.map((h) => `<figure><img src="${h.img}" alt=""><figcaption>${mm(h.t)}　${escapeHtml(h.text)}</figcaption></figure>`).join('') : '';
@@ -891,6 +956,8 @@ function updateCamera(dt) {
     // 荷台の箱もいっしょに
     if (!E.crates) E.crates = game.crates.filter((c) => c.shipped && !c.rotten).map((c) => ({ c, x: c.model.group.position.x }));
     for (const it of E.crates) it.c.model.group.position.x = it.x + dx;
+    // 走り出したところを「今日の1枚」に（吹き出しつき）
+    if (!E.snapped && E.t > 1.9) { E.snapped = true; game.snapRequests.push({ type: 'truck', text: '空っぽのトラックが、しょんぼり出発', t: game.elapsed, bubble: 'もう限界だ…' }); }
     camera.position.set(TRUCK.x - 4 + dx * 0.4, 3.2, TRUCK.z + 8.5);
     camera.lookAt(TRUCK.x + dx, 1.2, TRUCK.z);
     return;
@@ -1168,6 +1235,14 @@ function updateLabels() {
       const s2 = project(c.x, c.baseY + 1.25, c.z);
       if (s2 && s2.on) place(label('fresh', `<i style="width:${Math.max(0, c.hp).toFixed(0)}%"></i>`), s2);
     }
+    // 「もぐる」の箱の印：農場主が取りに来る箱を、近くにいるときだけ光らせる（1つだけ）
+    {
+      const F = g.farmer, c = F && F.crate;
+      if (c && (F.phase === 'toCrate' || F.phase === 'pack') && !c.rotten && !c.carried && !c.shipped && !p.stow && Math.hypot(c.x - p.x, c.z - p.z) < 7) {
+        const sc = project(c.x, c.baseY + 1.7, c.z);
+        if (sc && sc.on) place(label('stow-mark', '<i></i>'), sc);
+      }
+    }
     // 卵がかえるまでの輪（いっぱいになると生まれる）
     for (const e of g.eggs) {
       if (!e.alive || Math.hypot(e.x - p.x, e.z - p.z) > 10) continue;
@@ -1348,8 +1423,27 @@ function drawMinimap(dt) {
 let last = performance.now();
 let fpsAcc = 0, fpsN = 0;
 window.__rh.fps = 0;
+// 省エネ：スマホが熱くならないよう、1秒に描く回数に上限をつける（遊んでいる間30、止まっている画面はもっと少なく）
+let ecoOn = store.get('eco', isTouchDevice);
+function ecoOnNow() { return ecoOn; }
+let ecoFrame = 0;
+function targetFps() {
+  if (screen === 'play' || screen === 'run' || screen === 'over' || screen === 'runover') return ecoOn ? 30 : 60;
+  if (screen === 'title' || screen === 'book') return ecoOn ? 20 : 60;
+  return ecoOn ? 8 : 30; // 一時停止・結果画面
+}
+function applyEco() {
+  fx.maxDpr = ecoOn ? 1.1 : 9;
+  fx.setDprScale(fx.dprScale);
+  if (ecoOn) world.setShadow(Math.min(LEVELS[fx.level].shadow, 1024)); else world.setShadow(LEVELS[fx.level].shadow);
+}
+$('optEco').checked = ecoOn;
+$('optEco').addEventListener('change', (e) => { ecoOn = e.target.checked; store.set('eco', ecoOn); applyEco(); });
+applyEco();
 function frame(now) {
   requestAnimationFrame(frame);
+  // 上限より早いときは、この回は何もしない（少しの誤差は許す）
+  if (now - last < 1000 / targetFps() - 3) return;
   let dt = (now - last) / 1000;
   const rawDt = dt;
   last = now;
@@ -1359,6 +1453,7 @@ function frame(now) {
   if (fpsAcc > 1) { window.__rh.fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
   try {
     input.poll();
+    if (demo && screen === 'play') demoStep(Math.min(0.05, (now - last) / 1000));
     if (input.consume('mute')) { soundOn = !soundOn; $('optSound').checked = soundOn; sfx.setMuted(!soundOn); store.set('sound', soundOn); ui.toast(soundOn ? '音：オン' : '音：オフ', 'info'); }
     if (input.consume('pause')) { if (screen === 'play') pauseGame(); else if (screen === 'pause') resumeGame(); }
     updateTouchVisibility();
@@ -1459,17 +1554,21 @@ function frame(now) {
         else humT = 0.3;
       }
     } else sfx.updateRadio(0, 0);
+    // 省エネ：影は2回に1回だけ描きなおす
+    ecoFrame++;
+    renderer.shadowMap.autoUpdate = !ecoOn;
+    if (ecoOn && ecoFrame % 2 === 0) renderer.shadowMap.needsUpdate = true;
     fx.render(dt, focusD, tNow);
     // 名場面の写真（描いた直後に小さく撮る）
     if (game.snapRequests && game.snapRequests.length) {
       for (const req of game.snapRequests.splice(0)) {
-        const img = snapCanvas();
+        const img = snapCanvas(req.bubble);
         const i = game.highlights.findIndex((h) => h.type === req.type);
         const h = { ...req, img };
-        if (i >= 0) game.highlights[i] = h; else if (game.highlights.length < 4) game.highlights.push(h);
+        if (i >= 0) game.highlights[i] = h; else if (game.highlights.length < 4 || h.type === 'truck') game.highlights.push(h);
       }
     }
-    autoQ.sample(dt, screen === 'play');
+    autoQ.sample(dt, screen === 'play', targetFps());
     // なめらかさの記録：遊んでいる間の1秒あたりのコマ数
     if (screen === 'play' && rawDt > 0 && rawDt < 1) { playFps.t += rawDt; playFps.n++; if (rawDt > playFps.worst) playFps.worst = rawDt; }
   } catch (e) {
@@ -1481,12 +1580,22 @@ function frame(now) {
 }
 const snapC = document.createElement('canvas');
 snapC.width = 320; snapC.height = 200;
-function snapCanvas() {
+function snapCanvas(bubble) {
   try {
     const x = snapC.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const sh = Math.min(H, W * 200 / 320), sw = sh * 320 / 200;
     x.drawImage(canvas, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, 320, 200);
+    if (bubble) {
+      // 写真の端に、農場主の吹き出し
+      x.font = 'bold 15px "Zen Maru Gothic", sans-serif';
+      const tw = x.measureText(bubble).width;
+      const bx = 320 - tw - 26, by = 12, bw = tw + 16, bh = 28;
+      x.fillStyle = '#fffaf0'; x.strokeStyle = '#2a1c12'; x.lineWidth = 2;
+      x.beginPath(); x.roundRect ? x.roundRect(bx, by, bw, bh, 10) : x.rect(bx, by, bw, bh); x.fill(); x.stroke();
+      x.beginPath(); x.moveTo(bx + 18, by + bh); x.lineTo(bx + 10, by + bh + 10); x.lineTo(bx + 30, by + bh); x.closePath(); x.fill();
+      x.fillStyle = '#2a1c12'; x.textBaseline = 'middle'; x.fillText(bubble, bx + 8, by + bh / 2 + 1);
+    }
     return snapC.toDataURL('image/jpeg', 0.75);
   } catch (_) { return ''; }
 }

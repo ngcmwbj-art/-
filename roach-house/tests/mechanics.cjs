@@ -904,6 +904,18 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       check('ナイスの連続は6回以上でも続く（おまけは3回まで）', (g.stats.niceCombo || 0) >= 6, `best=${g.stats.niceCombo}`);
     }
 
+    // 67. 第12回：負けたときの口癖・声は大事なセリフだけ
+    g.start('s1', 151);
+    {
+      const spoken = [];
+      const sp0 = g.ui.speak; g.ui.speak = (t) => spoken.push(t);
+      g.say('ふつうのセリフ');
+      g.endGame(false, 'shipped');
+      g.ui.speak = sp0;
+      check('負けたときの口癖「今日もおれの勝ちだな」', /今日もおれの勝ちだな/.test(g.farmer.speech) && /今日もおれの勝ちだな/.test(g.result.grumble[0]) && g.result.diary[g.result.diary.length - 1] === '今日もおれの勝ちだな。');
+      check('声は大事なセリフだけ', spoken.length === 1 && /今日もおれの勝ちだな/.test(spoken[0]), spoken.join('／'));
+    }
+
     RH.startGame('s1');
     return out;
   });

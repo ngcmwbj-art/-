@@ -64,6 +64,7 @@ export class FX {
     this.focus = 4;
     this.w = 1; this.h = 1;
     this.dprScale = 1; // 重いときに画面の細かさだけを下げる割合
+    this.maxDpr = 9; // 省エネのときの画面の細かさの上限
   }
 
   setLevel(name) {
@@ -72,7 +73,7 @@ export class FX {
     this.level = name;
     this.L = L;
     const r = this.renderer;
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, L.dpr) * this.dprScale);
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, L.dpr, this.maxDpr) * this.dprScale);
     if (this.composer) { this.composer.dispose(); this.composer = null; }
     this.passes = {};
     if (L.ao || L.dof || L.bloom || L.grade) {
@@ -111,7 +112,7 @@ export class FX {
 
   setDprScale(k) {
     this.dprScale = Math.max(0.55, Math.min(1, k));
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.L.dpr) * this.dprScale);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.L.dpr, this.maxDpr) * this.dprScale);
     this.setSize(this.w, this.h);
   }
 
@@ -145,7 +146,8 @@ export class AutoQuality {
     this.auto = true;
     this.acc = 0; this.n = 0; this.cool = 4;
   }
-  sample(dt, active) {
+  // target：目標のコマ数（省エネで30に上限があるときは、30を基準に判断する）
+  sample(dt, active, target = 60) {
     if (!this.auto || !active) { this.acc = 0; this.n = 0; return; }
     this.cool -= dt;
     this.acc += dt; this.n++;
@@ -154,7 +156,7 @@ export class AutoQuality {
     this.acc = 0; this.n = 0;
     if (this.cool > 0) return;
     const i = ORDER.indexOf(this.fx.level);
-    if (fps < 36) {
+    if (fps < target * 0.6) {
       // まず画面の細かさだけを少しずつ下げ、それでも重ければ画質を1段下げる
       if (this.fx.dprScale > 0.6) { this.fx.setDprScale(this.fx.dprScale - 0.15); this.cool = 4; }
       else if (i > 0) {
@@ -163,7 +165,7 @@ export class AutoQuality {
         this.cool = 6;
         this.onChange(ORDER[i - 1], fps);
       }
-    } else if (fps > 55 && this.fx.dprScale < 1) {
+    } else if (fps > target * 0.92 && this.fx.dprScale < 1) {
       // 余裕があれば細かさを少しもどす
       this.fx.setDprScale(this.fx.dprScale + 0.1);
       this.cool = 8;

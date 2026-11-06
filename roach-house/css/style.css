@@ -569,3 +569,30 @@ body.intro #hud > #introHaz { visibility: visible; }
 .r-photo[hidden] { display: none; }
 .r-photo img { width: 100%; border-radius: 10px; border: 3px solid #fffaf0; box-shadow: 0 4px 14px rgba(0,0,0,0.45); transform: rotate(-1.5deg); display: block; }
 .r-photo figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+/* 「もぐる」の箱の印：下向きの三角がはねる */
+.lbl.stow-mark i { display: block; width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 16px solid var(--yellow); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)); animation: stowbob 0.6s ease-in-out infinite alternate; }
+@keyframes stowbob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+/* 第12回：タイトルをすっきり。ステージは小さく並べる（たたまない） */
+.stages { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.stage { padding: 6px 8px; gap: 2px; }
+.stage b { font-size: 12px; }
+.stage > span:not(.stars):not(.haz), .stage em { display: none; }
+.stage .stars { font-size: 12px; }
+.stage .haz i { font-size: 10px; padding: 0 5px; }
+/* 結果画面：口癖の1行と、たたんだ日記 */
+.r-catch { margin: 4px 0; font-size: 17px; font-weight: 700; color: #fff3d6; }
+.r-diary summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 4px 0; }
+#result #rReason { display: none; }
+/* 見本プレイ */
+#demoBar { position: absolute; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: flex; align-items: center; gap: 12px; pointer-events: auto; z-index: 8; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; }
+#demoBar[hidden] { display: none; }
+#demoBar .demo-tag { font-size: 12px; color: var(--muted); }
+#demoBar b { font-family: var(--font-display); font-size: 26px; color: var(--yellow); min-width: 4.5em; text-align: center; }
+body.demo #touch, body.demo #tourBar, body.demo #hint, body.demo #prompt { display: none !important; }
+/* スマホを縦で持つとき（ユーザーはいつも縦） */
+@media (orientation: portrait) and (max-width: 600px) {
+  body.touch .cmds { top: auto; right: auto; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: calc(252px + env(safe-area-inset-bottom, 0px)); transform: none; flex-direction: row; }
+  body.touch #hint { top: calc(150px + env(safe-area-inset-top, 0px)); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: auto; max-width: calc(100vw - 24px); font-size: 13px; }
+  body.touch .hud-bl { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+  #jackOffer { width: calc(100vw - 32px); }
+}

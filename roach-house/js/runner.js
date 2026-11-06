@@ -347,7 +347,7 @@ export class Runner {
   finish(win) {
     this.done = win ? 'win' : 'lose';
     this.doneT = 0;
-    if (win) { this.sfx.win(); this.ui.say('くそぉ…となりのハウスに逃げこまれた！'); } else { this.sfx.lose(); this.ui.say('つかまえたぞ！ ざまあみろ！'); }
+    if (win) { this.sfx.win(); this.ui.say('くそぉ…となりのハウスに逃げこまれた！'); } else { this.sfx.lose(); this.ui.say('つかまえたぞ！ 今日もおれの勝ちだな'); }
     this.sfx.stopEngine && this.sfx.stopEngine();
     this.result = { win, time: this.t, bits: this.bits, dist: Math.min(L, this.x), course: this.course };
     setTimeout(() => this.ui.runOver && this.ui.runOver(this.result), 1300);

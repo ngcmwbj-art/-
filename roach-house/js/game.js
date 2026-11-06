@@ -413,11 +413,11 @@ export class Game {
     this.ui.radio(text);
   }
 
-  say(text) {
+  // voice=true の大事なセリフ（見つけた・勝ち負け・口癖）だけ声でも読む。ほかは字だけ
+  say(text, voice = false) {
     this.farmer.speech = text;
     this.farmer.speechT = 2.6;
-    // 農場主のセリフを声でも（設定でオン・オフ）
-    if (!this.tour && this.ui.speak) this.ui.speak(text);
+    if (voice && !this.tour && this.ui.speak) this.ui.speak(text);
   }
   toast(text, kind = '') { this.ui.toast(text, kind); }
 
@@ -1076,7 +1076,7 @@ export class Game {
     this.stats.ruined = this.ruined;
     this.stats.ruinedColor[c.colorIdx || 0]++;
     if (this.ruined >= this.diff.target) this.snap('last', '最後のコンテナをかじりつくした！');
-    else if (this.ruined === this.diff.target - 1 && this.state === 'play' && !this.tutorial) this.say('もう限界だ…あと1箱でもやられたら…');
+    else if (this.ruined === this.diff.target - 1 && this.state === 'play' && !this.tutorial) this.say('もう限界だ…あと1箱でもやられたら…', true);
     this.sfx.ruin();
     this.toast(`1箱ダメにした！ ${this.ruined}/${this.diff.target}`, 'good');
     this.events.push('ruin');
@@ -1864,7 +1864,7 @@ export class Game {
       this.stats.chased++;
       this.sfx.alert();
       if (t.kind === 'egg') this.say('卵まで産みやがって！ つぶしてやる！');
-      else this.say(pick(['出やがったな、このゴキブリが！', '待てコラァ！', 'そこか！ 逃がすかよ！']));
+      else this.say(pick(['出やがったな、このゴキブリが！', '待てコラァ！', 'そこか！ 逃がすかよ！']), true);
       if (t === this.player) {
         this.events.push('spotted');
         this.radio(pick(['ラジオ「ただいまハウスにゴキブリ注意報が出ています」', 'ラジオ「ゴキブリ、農場主に見つかった模様です」', 'ラジオ「農場主さん、全力で追いかけています」']));
@@ -2153,7 +2153,7 @@ export class Game {
       f.inv = { x: f.lastSeen ? f.lastSeen.x : f.x, y: f.lastSeen ? f.lastSeen.y || 0 : 0, z: f.lastSeen ? f.lastSeen.z : f.z, look: 0.001, spray: false };
       f.baseH = f.h;
       f.susp = 50;
-      if (t && t.kind !== 'egg') this.say('やったか…？ ざまあみろ');
+      if (t && t.kind !== 'egg') this.say('やったか…？');
       return;
     }
     const dx = t.x - f.x, dz = t.z - f.z, d = Math.hypot(dx, dz);
@@ -3273,8 +3273,8 @@ export class Game {
       assist: !!this.diff.assist,
       season: this.season,
     };
-    if (win) { this.sfx.win(); this.say('もう限界だ…'); }
-    else { this.sfx.lose(); this.say(reason === 'dead' ? 'ざまあみろ！ 二度と来んな！' : '見たか虫けら！ 全部出荷してやったぞ！'); }
+    if (win) { this.sfx.win(); this.say('もう限界だ…', true); }
+    else { this.sfx.lose(); this.say('今日もおれの勝ちだな', true); } // 負けたときの口癖（やさしい言い方で）
     this.ui.gameOver(this.result);
   }
 
@@ -3322,9 +3322,10 @@ export class Game {
     add(s.chased >= 8, `今日は${s.chased}回もゴキブリを追いかけた。足がパンパンだ。`);
     add(s.maxNymphs >= 15, `ゴキブリが${s.maxNymphs}匹くらいいた。もう大発生だ。`);
     add(true, win ? `ダメにされた箱は${s.ruined}箱。出荷は${s.shipped}箱しかできなかった。` : `出荷は${s.shipped}箱。ゴキブリには${s.ruined}箱やられた。`);
-    add(true, win ? 'もう限界だ…。' : '今日はおれの勝ちだ。ざまあみろ。');
-    // ゴキブリが勝った日は、日記のしめくくりも口癖で
-    if (win && L[L.length - 1] !== 'もう限界だ…。') { L.length = Math.min(L.length, 2); L.push('もう限界だ…。'); }
+    const last = win ? 'もう限界だ…。' : '今日もおれの勝ちだな。';
+    add(true, last);
+    // 日記のしめくくりは、勝ち負けどちらも口癖で
+    if (L[L.length - 1] !== last) { L.length = Math.min(L.length, 2); L.push(last); }
     return L;
   }
 
@@ -3339,9 +3340,10 @@ export class Game {
         'もう限界だ…。また単価下がったってのに、この上ゴキブリかよ…',
       ]));
     } else if (reason === 'dead') {
-      L.push(pick(['ざまあみろ！ ゴキブリなんざ、こうだ！', '見たか！ うちのハウスで好き勝手はさせねえ！']));
+      // 負けたときの口癖は「今日もおれの勝ちだな」
+      L.push(pick(['今日もおれの勝ちだな。またおいで、とは言わんぞ', '今日もおれの勝ちだな。ハウスはおれが守る']));
     } else {
-      L.push(pick(['見たか虫けら！ 全部出荷してやったぞ！ 二度と来んじゃねえ！', 'へっ、今日も出荷完了だ。ゴキブリごときに負けるかよ']));
+      L.push(pick(['今日もおれの勝ちだな。全部出荷できたぞ', '今日もおれの勝ちだな。よし、出荷完了だ']));
     }
     if (s.attacks >= 1) L.push('顔に飛んでくるとか反則だろうが！ 心臓止まるかと思ったぞ！');
     if (s.fruits >= 1) L.push('株になってるやつまで落としやがって…あれはまだ育ててたんだぞ！');

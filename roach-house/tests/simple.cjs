@@ -102,6 +102,21 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   await frames(30);
   check('トラックが走り出す', await page.evaluate(() => window.__rh.world.truck.position.x > 27.2));
 
+  // 第12回：結果は口癖の1行・日記はたたむ／トラックの写真に吹き出し／見本プレイ／おまけは「みる」へ／省エネ
+  check('結果に口癖の1行', await page.evaluate(() => /もう限界だ/.test(document.getElementById('rCatch').textContent)));
+  check('日記はたたんである', await page.evaluate(() => !document.querySelector('.r-diary').open));
+  check('今日の1枚はトラックの写真', await page.evaluate(() => (window.__rh.game.highlights || []).some((h) => h.type === 'truck')));
+  await page.evaluate(() => { document.getElementById('btnTitle2').click(); });
+  await frames(3);
+  check('田んぼ道は「みる」のタブに', await page.evaluate(() => !!document.querySelector('[data-pane="see"] #btnRun') && !document.querySelector('[data-pane="play"] #btnRun')));
+  check('省エネの設定がある（スマホは最初からオン）', await page.evaluate(() => document.getElementById('optEco').checked));
+  await page.evaluate(() => document.getElementById('btnDemo').click());
+  await frames(4);
+  check('見本プレイが始まる', await page.evaluate(() => !document.getElementById('demoBar').hidden && /かじる|かくれる|ふやす/.test(document.getElementById('demoCap').textContent)));
+  await page.evaluate(() => document.getElementById('btnDemoEnd').click());
+  await frames(3);
+  check('見本を閉じるとタイトルへ', await page.evaluate(() => !document.getElementById('title').hidden));
+
   console.log(out.join('\n'));
   console.log('ERRORS', errors.length, errors.join('\n'));
   await browser.close();
