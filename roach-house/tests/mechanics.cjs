@@ -496,7 +496,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     check('結果画面に「くわしく」がある', !!document.getElementById('rMore') && document.getElementById('rMore').tagName === 'DETAILS');
     {
       const order = [...document.querySelectorAll('#result .sheet > *')].map((e) => e.id || e.className);
-      check('結果画面のボタンは「くわしく」より上', order.indexOf('row r-btns') >= 0 && order.indexOf('row r-btns') < order.indexOf('rMore'), order.join(','));
+      check('結果画面のボタンはいちばん下（第13回）', order.indexOf('row r-btns') === order.length - 1, order.join(','));
     }
 
     // 41. 初めて近づいたときの一言・小さなお知らせ
