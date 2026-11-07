@@ -26,13 +26,13 @@
       </div>
       <div id="orderMini" class="card order-mini" hidden></div>
     </div>
-    <div class="hud-tr">
+    <div class="hud-tr folded" id="trPanel" role="button" aria-label="地図をひらく・たたむ">
       <div class="card farmer-card">
-        <div class="f-state" id="fstate" data-s="WORK"><span class="f-icon" id="ficon">…</span><span id="ftext">作業中</span></div>
+        <div class="f-state" id="fstate" data-s="WORK"><span class="f-icon" id="ficon">…</span><span id="ftext">作業中</span><span class="tr-open">地図 ▾</span></div>
         <div class="bar"><i id="susp"></i></div>
         <div class="anger"><b id="anger"></b></div>
+        <canvas id="minimap" width="352" height="224" aria-label="ハウスの地図"></canvas>
       </div>
-      <canvas id="minimap" width="352" height="224" aria-label="ハウスの地図"></canvas>
     </div>
     <div class="hud-bl card">
       <div class="stat"><span>体力</span><div class="bar" id="hpBar"><i></i></div></div>
@@ -222,11 +222,6 @@
       <p class="r-catch" id="rCatch"></p>
       <details class="r-diary"><summary>農場主の日記</summary><blockquote class="grumble" id="rGrumble"></blockquote></details>
       <p class="tip" id="rTip"></p>
-      <div class="row r-btns">
-        <button class="btn primary" id="btnNext" hidden>次のステージへ</button>
-        <button class="btn" id="btnAgain">もう一度</button>
-        <button class="btn" id="btnTitle2">タイトルへ</button>
-      </div>
       <div class="row"><button class="btn assist" id="btnAssist" hidden>おたすけ</button></div>
       <p class="r-news" id="rNews"></p>
       <details class="r-more" id="rMore">
@@ -235,6 +230,11 @@
         <div class="r-orders" id="rOrders"></div>
         <dl class="rstats" id="rStats"></dl>
       </details>
+      <div class="row r-btns">
+        <button class="btn primary" id="btnNext" hidden>次のステージへ</button>
+        <button class="btn" id="btnAgain">もう一度</button>
+        <button class="btn" id="btnTitle2">タイトルへ</button>
+      </div>
     </div>
   </section>
 

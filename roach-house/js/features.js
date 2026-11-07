@@ -111,6 +111,7 @@ export function normalizeRecords(r) {
   delete out.winEasy; delete out.winNormal; delete out.winHard;
   for (const k of ['titles', 'seen']) if (!Array.isArray(out[k])) out[k] = [];
   out.souvenir = Math.max(0, Math.min(2, Number(out.souvenir) || 0));
+  if (!out.carry || typeof out.carry !== 'object' || !(out.carry.n > 0)) out.carry = null;
   out.bossShown = !!out.bossShown;
   if (!out.ordersDone || typeof out.ordersDone !== 'object') out.ordersDone = {};
   if (!out.stars || typeof out.stars !== 'object') out.stars = {};

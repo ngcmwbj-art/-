@@ -65,6 +65,7 @@ export class FX {
     this.w = 1; this.h = 1;
     this.dprScale = 1; // 重いときに画面の細かさだけを下げる割合
     this.maxDpr = 9; // 省エネのときの画面の細かさの上限
+    this.eco = false;
   }
 
   setLevel(name) {
@@ -76,7 +77,8 @@ export class FX {
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, L.dpr, this.maxDpr) * this.dprScale);
     if (this.composer) { this.composer.dispose(); this.composer = null; }
     this.passes = {};
-    if (L.ao || L.dof || L.bloom || L.grade) {
+    // 省エネ中は、にじみ・色の仕上げ・ピントぼけ・陰影をすべて切って、そのまま描く
+    if (!this.eco && (L.ao || L.dof || L.bloom || L.grade)) {
       const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: L.samples });
       const comp = new EffectComposer(r, rt);
       comp.addPass(new RenderPass(this.scene, this.camera));

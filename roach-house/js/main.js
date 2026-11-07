@@ -331,8 +331,10 @@ function startGame(diff, opt = {}) {
   const tutorial = $('optTutor').checked;
   const assist = !!(records.assist && records.assist[diff]);
   endTourUi();
+  const carryWas = records.carry;
   game.start(diff, undefined, { tutorial, easy: !tutorial && $('optEasy').checked, boss: (records.eggs || 0) >= 50, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
+  if (records.carry) { records.carry = null; store.set('records', records); }
   renderOrderMini();
   $('orderMini').hidden = false;
   const D = game.diff;
@@ -342,6 +344,8 @@ function startGame(diff, opt = {}) {
     ui.toast(`${D.target}箱ダメにしろ！`, 'info');
     // 田んぼ道のおみやげ：次のステージのはじめに仲間がふえる
     if (records.souvenir > 0) { game.giveSouvenir(records.souvenir); records.souvenir = 0; store.set('records', records); }
+    // 前のステージで生き残った仲間がついてくる（次のステージをすぐ遊んだとき）
+    if (carryWas && carryWas.to === diff && carryWas.n > 0) game.giveSouvenir(carryWas.n, 'carry');
     if ((records.eggs || 0) >= 50 && !records.bossShown) { records.bossShown = true; store.set('records', records); ui.toast('親分ゴキブリが仲間に！', 'good'); }
   }
   hints.reset();
@@ -537,6 +541,8 @@ function pauseGame() {
   if (screen !== 'play') return;
   calmScreen();
   setScreen('pause');
+  sfx.pause();
+  if ('speechSynthesis' in window) try { window.speechSynthesis.cancel(); } catch (_) { /* 無視 */ }
   $('pauseTip').textContent = pick(TIPS);
 }
 function resumeGame() {
@@ -734,8 +740,12 @@ document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click
   updateCmdButtons();
   b.blur();
 }));
-document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
-window.addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
+// アプリを裏にしたら一時停止して音も止める。もどったら、遊んでいる途中でなければ音を戻す
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { pauseGame(); sfx.pause(); }
+  else if (screen !== 'pause' && soundOn) sfx.unlock();
+});
+window.addEventListener('pointerdown', () => { if (screen !== 'pause') sfx.unlock(); }, { capture: true });
 
 function updateCmdButtons() {
   for (const m of ['search', 'follow']) $(`cmd-${m}`).classList.toggle('on', game.mode === m);
@@ -802,8 +812,13 @@ function showResult(res) {
   if (out.unlockedStage) news.unshift(`<span class="new">${STAGES[out.unlockedStage - 1].label}が遊べる！</span>`);
   const cur = DIFFS[res.diff];
   const nxt = cur ? STAGES[cur.no] : null;
+  // 生き残った仲間を、次のステージへ連れて行く（8匹まで）
+  const carryN = res.win && nxt && !res.easy ? Math.min(8, res.alive || 0) : 0;
+  records.carry = carryN > 0 ? { to: nxt.key, n: carryN } : null;
+  store.set('records', records);
+  if (carryN > 0) news.unshift(`<span class="new">仲間 ${carryN}匹が次のステージへついてくる</span>`);
   $('btnNext').hidden = !(res.win && nxt);
-  if (nxt) $('btnNext').textContent = `次のステージへ（${nxt.label}）`;
+  if (nxt) $('btnNext').textContent = `次へ ▶ ${nxt.label}`;
   // すぐやり直し：負けたら「もう一回」をいちばん大きく、勝ったら「次のステージへ」を先頭に
   const showNext = res.win && nxt;
   $('btnAgain').className = `btn ${showNext ? '' : 'primary big-again'}`;
@@ -961,6 +976,17 @@ function updateCamera(dt) {
     // 荷台の箱もいっしょに
     if (!E.crates) E.crates = game.crates.filter((c) => c.shipped && !c.rotten).map((c) => ({ c, x: c.model.group.position.x }));
     for (const it of E.crates) it.c.model.group.position.x = it.x + dx;
+    // 生き残った仲間が、トラックの後ろをぞろぞろついて走る（8匹まで）
+    if (!E.mates) E.mates = game.nymphs.slice(0, 8);
+    E.mates.forEach((r, i) => {
+      if (!r.model || !r.model.root) return;
+      if (r.inGlove || r.box || r.stow) game.leaveHiding(r);
+      const lag = 2.6 + i * 0.75 + Math.sin(E.t * 9 + i) * 0.08;
+      r.x = TRUCK.x - lag + dx * 0.8; r.z = TRUCK.z + ((i % 3) - 1) * 0.55; r.y = 0; r.surface = -1;
+      r.model.root.visible = true;
+      r.model.root.position.set(r.x, 0, r.z);
+      r.model.root.rotation.set(0, Math.PI / 2, 0); r.h = Math.PI / 2; r.moving = true;
+    });
     // 走り出したところを「今日の1枚」に（吹き出しつき）
     if (!E.snapped && E.t > 1.9) { E.snapped = true; game.snapRequests.push({ type: 'truck', text: '空っぽのトラックが、しょんぼり出発', t: game.elapsed, bubble: 'もう限界だ…' }); }
     camera.position.set(TRUCK.x - 4 + dx * 0.4, 3.2, TRUCK.z + 8.5);
@@ -992,7 +1018,9 @@ function updateCamera(dt) {
   game.camYaw = camState.yaw;
   // 周りを見わたせるよう、少し引いて高めから（設定とホイールで調整できる）
   const Z = camState.zoom;
-  let pitch = camState.pitch, dist = 4.6 * Z;
+  // 縦画面では左右が狭いので、少しだけ引く（カメラの動き方はそのまま）
+  const portrait = window.innerHeight > window.innerWidth * 1.1;
+  let pitch = camState.pitch, dist = 4.6 * Z * (portrait ? 1.22 : 1);
   if (info.underTable) { pitch = Math.min(pitch, 0.24); dist = 3.2 * Z; }
   else if (info.onTrough) { dist = 3.4 * Z; pitch = Math.max(pitch, 0.75); }
   else if (info.underRow) { pitch = Math.min(pitch, 0.26); dist = 1.8; } // 株の下：さいばい槽のはしにカメラがかくれないよう近め
@@ -1103,6 +1131,9 @@ function updateHud(dt) {
   setText('ftext', tx);
   setW($('susp'), f.susp / 100);
   setText('anger', '●'.repeat(f.anger) + '○'.repeat(3 - f.anger));
+  // たたんでいる間も、怒りの色だけは枠のふちで見せる
+  const ak = f.state === 'CHASE' ? 'chase' : String(f.anger || 0);
+  if (trPanel.dataset.anger !== ak) trPanel.dataset.anger = ak;
   const p = g.player;
   setW($('hpBar').firstElementChild, p.hp / p.maxHp);
   setW($('nutBar').firstElementChild, g.nutrition / 100);
@@ -1358,7 +1389,14 @@ base.width = MW; base.height = MH;
   b.strokeRect(1, 1, MW - 2, MH - 2);
 })();
 let mmT = 0;
+// 右上の札（農場主＋地図）：ふだんはたたむ。押すと開く。たたんでいる間は地図を描かない
+const trPanel = $('trPanel');
+let mapOpen = !!store.get('mapOpen', false);
+function applyMapOpen() { trPanel.classList.toggle('folded', !mapOpen); }
+applyMapOpen();
+trPanel.addEventListener('click', (e) => { e.preventDefault(); mapOpen = !mapOpen; store.set('mapOpen', mapOpen); applyMapOpen(); sfx.click(); });
 function drawMinimap(dt) {
+  if (!mapOpen && !touring) return;
   mmT -= dt;
   if (mmT > 0) return;
   mmT = 0.08;
@@ -1439,6 +1477,8 @@ function targetFps() {
 }
 function applyEco() {
   fx.maxDpr = ecoOn ? 1.1 : 9;
+  // 省エネ：画面全体にかける「光のにじみ」と「色の仕上げ」を切る（いちばん重い所）
+  if (fx.eco !== ecoOn) { fx.eco = ecoOn; const lv = fx.level; fx.level = null; fx.setLevel(lv); }
   fx.setDprScale(fx.dprScale);
   if (ecoOn) world.setShadow(Math.min(LEVELS[fx.level].shadow, 1024)); else world.setShadow(LEVELS[fx.level].shadow);
 }
@@ -1562,7 +1602,7 @@ function frame(now) {
     // 省エネ：影は2回に1回だけ描きなおす
     ecoFrame++;
     renderer.shadowMap.autoUpdate = !ecoOn;
-    if (ecoOn && ecoFrame % 2 === 0) renderer.shadowMap.needsUpdate = true;
+    if (ecoOn && ecoFrame % 3 === 0) renderer.shadowMap.needsUpdate = true; // 影の描きなおしは3回に1回
     fx.render(dt, focusD, tNow);
     // 名場面の写真（描いた直後に小さく撮る）
     if (game.snapRequests && game.snapRequests.length) {

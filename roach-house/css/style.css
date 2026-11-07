@@ -430,7 +430,7 @@ body.touch #feed { bottom: auto; top: calc(118px + env(safe-area-inset-top, 0px)
 #tourBar .btn { flex: 0 0 auto; width: auto; min-width: 0; padding: 5px 10px; font-size: 12px; }
 #tourBar .btn.on { background: var(--yellow); color: var(--ink); }
 #tourBar .tour-ttl { font-family: var(--font-display); color: var(--yellow); font-size: 16px; margin-right: 4px; }
-body.tour .hud-tl, body.tour .farmer-card, body.tour .hud-bl, body.tour .cmds, body.tour #orderMini, body.tour .t-egg, body.tour .t-attack, body.tour .t-dead, body.tour #greed, body.tour #pauseBtn, body.tour #tutor, body.tour #hint { display: none !important; }
+body.tour .hud-tl, body.tour .hud-bl, body.tour .cmds, body.tour #orderMini, body.tour .t-egg, body.tour .t-attack, body.tour .t-dead, body.tour #greed, body.tour #pauseBtn, body.tour #tutor, body.tour #hint { display: none !important; }
 body.tour #minimap { margin-top: 64px; }
 .season-note { margin: 0 0 6px; color: var(--yellow); font-weight: 700; font-size: 13px; }
 /* 突撃中の農場主のセリフは画面の上に字幕で */
@@ -598,3 +598,24 @@ body.demo #touch, body.demo #tourBar, body.demo #hint, body.demo #prompt { displ
   #jackOffer { width: calc(100vw - 32px); }
 }
 .cmds { z-index: 7; }
+/* 第13回：右上を1枚にしてたたむ（押すと地図が開く） */
+#trPanel { pointer-events: auto; cursor: pointer; }
+#trPanel .farmer-card { display: flex; flex-direction: column; gap: 4px; border-width: 2px; transition: border-color 0.3s; }
+#trPanel #minimap { margin-top: 4px; }
+#trPanel .tr-open { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 500; }
+#trPanel.folded .farmer-card { min-width: 0; padding: 6px 10px; }
+#trPanel.folded #minimap, #trPanel.folded .bar, #trPanel.folded .anger { display: none; }
+#trPanel:not(.folded) .tr-open { display: none; }
+#trPanel[data-anger="1"] .farmer-card { border-color: #e8b04a; }
+#trPanel[data-anger="2"] .farmer-card { border-color: #e9772f; }
+#trPanel[data-anger="3"] .farmer-card { border-color: var(--danger); }
+#trPanel[data-anger="chase"] .farmer-card { border-color: var(--danger); box-shadow: 0 0 10px rgba(224, 65, 43, 0.7); }
+body.tour #trPanel #minimap { display: block; }
+body.tour #trPanel .f-state, body.tour #trPanel .bar, body.tour #trPanel .anger { display: none; }
+body.demo #trPanel { display: none; }
+/* 第13回：結果画面のボタンは画面の下に固定（親指で押しやすく） */
+#result .r-btns { position: sticky; bottom: 0; z-index: 2; margin: 0 -4px; padding: 10px 4px calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--panel-solid) 75%, transparent); display: flex; gap: 8px; flex-wrap: wrap; }
+#result .r-btns .btn { flex: 1 1 30%; min-height: 50px; }
+#result .r-btns .btn.primary { flex: 2 1 60%; font-size: 17px; }
+#result .sheet { min-height: 100%; margin: 0; }
+#result .r-btns { margin-top: auto; }

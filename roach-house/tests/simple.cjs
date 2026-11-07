@@ -117,6 +117,34 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   await frames(3);
   check('見本を閉じるとタイトルへ', await page.evaluate(() => !document.getElementById('title').hidden));
 
+  // 第13回：右上をたたむ・省エネで仕上げを切る・縦で少し引く・結果のボタンは下・仲間を次のステージへ・ぞろぞろ
+  await page.evaluate(() => window.__rh.startGame('s1'));
+  await frames(3);
+  check('右上は最初たたんである（地図なし）', await page.evaluate(() => document.getElementById('trPanel').classList.contains('folded') && getComputedStyle(document.getElementById('minimap')).display === 'none'));
+  await page.evaluate(() => document.getElementById('trPanel').click());
+  await frames(2);
+  check('押すと地図が開く', await page.evaluate(() => getComputedStyle(document.getElementById('minimap')).display !== 'none'));
+  await page.evaluate(() => document.getElementById('trPanel').click());
+  check('省エネ中は画面全体の仕上げを切る', await page.evaluate(() => !window.__rh.fx.composer));
+  await page.evaluate(() => { const g = window.__rh.game; Object.assign(g.player, { x: 6, z: 2.5, y: 0, surface: -1 }); g.farmer.timer = 999; g.farmer.x = 19; g.farmer.z = 12; });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await frames(30);
+  const dPort = await page.evaluate(() => window.__rh.cam.dist);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await frames(30);
+  const dLand = await page.evaluate(() => window.__rh.cam.dist);
+  check('縦画面では少し引いて見る', dPort > dLand * 1.1, `縦${dPort.toFixed(2)} 横${dLand.toFixed(2)}`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { const g = window.__rh.game; for (let i = 0; i < 5; i++) g.spawnRoach(g.player.x + 0.3 * i, g.player.z + 0.5, true); g.endGame(true, 'ruined'); });
+  await frames(20);
+  check('勝つと仲間がトラックの後ろを走る', await page.evaluate(() => { const E = window.__rh.cam.ending; return !!(E && E.mates && E.mates.length === 5 && E.mates.every((r) => r.x > 20)); }));
+  await page.waitForSelector('#result', { state: 'visible', timeout: 120000 }).catch(() => {});
+  check('結果のボタンは画面のいちばん下', await page.evaluate(() => { const b = document.querySelector('#result .r-btns').getBoundingClientRect(); return b.bottom > window.innerHeight - 80; }));
+  const nBefore = await page.evaluate(() => window.__rh.game.nymphs.length);
+  await page.evaluate(() => document.getElementById('btnNext').click());
+  await frames(3);
+  check('次のステージのはじめに仲間がいる', await page.evaluate((n) => window.__rh.game.diff.key === 's2' && window.__rh.game.nymphs.length === Math.min(8, n), nBefore), `前${nBefore}`);
+
   console.log(out.join('\n'));
   console.log('ERRORS', errors.length, errors.join('\n'));
   await browser.close();

@@ -24,6 +24,8 @@ export class Sfx {
       if (this.ctx.state === 'suspended') this.ctx.resume();
     } catch (e) { this.ctx = null; }
   }
+  // 一時停止・アプリを裏にしたとき：音をまるごと止める（電池にやさしく）。unlock() で再開
+  pause() { try { if (this.ctx && this.ctx.state === 'running') this.ctx.suspend(); } catch (_) { /* 無視 */ } }
   setMuted(m) {
     this.muted = m;
     if (this.master) this.master.gain.value = m ? 0 : 0.6 * this.volume;

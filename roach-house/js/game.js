@@ -1581,7 +1581,7 @@ export class Game {
   }
 
   // 田んぼ道のおみやげ：自分のそばに仲間が来る
-  giveSouvenir(n) {
+  giveSouvenir(n, kind = 'gift') {
     const p = this.player;
     if (!p || !(n > 0)) return;
     for (let i = 0; i < n; i++) {
@@ -1590,7 +1590,7 @@ export class Game {
       this.collide(r);
     }
     this.sfx.hatch();
-    this.toast(`おみやげ！ 仲間 +${n}`, 'good');
+    this.toast(kind === 'carry' ? `仲間 ${n}匹がついてきた！` : `おみやげ！ 仲間 +${n}`, 'good');
     this.events.push('souvenir');
   }
 
