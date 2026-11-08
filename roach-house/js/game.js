@@ -2650,9 +2650,9 @@ export class Game {
     if (!F || F.cleared) return;
     F.t += dt;
     // 第18回：煙は熱のいちばんの原因だったので、数を減らし（大きくして同じ広さを覆う）、早めに晴らす
-    const GROW = 22, FADE = 5;
+    const GROW = 24, FADE = 4;
     const growing = F.t < GROW;
-    F.r = Math.min(34, F.t * 1.6);
+    F.r = Math.min(34, F.t * 1.25); // 広がる速さは前と同じ
     const cap = this.eco ? 14 : 24;
     if (growing && F.puffs.length < cap && rand() < dt * 3) {
       const m = makeCloud();
