@@ -1,0 +1,152 @@
+/* ゲーム一覧ポータル。既存サイトに組み込むときは .gp-portal 以下だけが効くように書いてある（.gp-page は単体ページ用） */
+:root {
+  --gp-bg: #f5f0e6;
+  --gp-surface: #fffdf8;
+  --gp-ink: #2a2620;
+  --gp-ink-2: #5d564b;
+  --gp-ink-3: #847b6e;
+  --gp-line: #e2d9c8;
+  --gp-chip: #ece4d4;
+  --gp-chip-on: #2a2620;
+  --gp-chip-on-ink: #fffdf8;
+  --gp-focus: #2f6fd6;
+  --gp-dev: #8a5a00;
+  --gp-dev-bg: #fbe9c4;
+  --gp-shadow: 0 1px 2px rgb(60 45 20 / .06), 0 8px 24px -8px rgb(60 45 20 / .18);
+  --gp-shadow-hover: 0 2px 4px rgb(60 45 20 / .08), 0 18px 36px -12px rgb(60 45 20 / .28);
+  --gp-radius: 18px;
+  --gp-font: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --gp-bg: #17150f; --gp-surface: #221f18; --gp-ink: #f1ebdf; --gp-ink-2: #c4bbab; --gp-ink-3: #978e80;
+    --gp-line: #3a352b; --gp-chip: #2e2a22; --gp-chip-on: #f1ebdf; --gp-chip-on-ink: #17150f; --gp-focus: #7fb0ff;
+    --gp-dev: #f3c46b; --gp-dev-bg: #3d2f12; color-scheme: dark;
+    --gp-shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px -8px rgb(0 0 0 / .5);
+    --gp-shadow-hover: 0 2px 4px rgb(0 0 0 / .35), 0 18px 36px -12px rgb(0 0 0 / .65);
+  }
+}
+:root[data-theme="dark"] {
+  --gp-bg: #17150f; --gp-surface: #221f18; --gp-ink: #f1ebdf; --gp-ink-2: #c4bbab; --gp-ink-3: #978e80;
+  --gp-line: #3a352b; --gp-chip: #2e2a22; --gp-chip-on: #f1ebdf; --gp-chip-on-ink: #17150f; --gp-focus: #7fb0ff;
+  --gp-dev: #f3c46b; --gp-dev-bg: #3d2f12; color-scheme: dark;
+  --gp-shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px -8px rgb(0 0 0 / .5);
+  --gp-shadow-hover: 0 2px 4px rgb(0 0 0 / .35), 0 18px 36px -12px rgb(0 0 0 / .65);
+}
+
+/* ── 単体ページ ── */
+html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+body { margin: 0; background: var(--gp-bg); color: var(--gp-ink); font-family: var(--gp-font); }
+/* ページ全体を画面に固定した箱の中でスクロールさせる。
+   iPad / iPhone（Safari・Chrome とも）では、埋め込まれたページの枠が中身の大きさに合わせて伸び、
+   右が切れたり下が白く残ったりする。固定した箱の中身は枠の大きさに影響しないので、それを防げる */
+.gp-scroll {
+  position: fixed; inset: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: var(--gp-bg);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box;
+}
+/* レビューで全体を撮るときは、ふつうのページに戻す */
+.gp-static .gp-scroll { position: static; overflow: visible; }
+.gp-page { max-width: 1180px; margin: 0 auto; padding-block: clamp(28px, 6vw, 64px) 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); box-sizing: border-box; }
+.gp-head { margin-bottom: 28px; }
+.gp-eyebrow { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .18em; color: var(--gp-ink-3); }
+.gp-title { margin: 0; font-size: clamp(30px, 6vw, 52px); font-weight: 900; letter-spacing: .04em; line-height: 1.15; }
+.gp-lead { margin: 12px 0 0; color: var(--gp-ink-2); font-size: 15px; line-height: 1.8; }
+.gp-foot { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--gp-line); color: var(--gp-ink-3); font-size: 12px; line-height: 1.8; }
+
+/* ── ポータル本体（組み込み可） ── */
+.gp-portal { font-family: var(--gp-font); color: var(--gp-ink); max-width: 100%; min-width: 0; }
+.gp-portal *, .gp-portal *::before, .gp-portal *::after { box-sizing: border-box; }
+
+.gp-tools { min-width: 0; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-bottom: 22px; }
+.gp-search { position: relative; flex: 1 1 240px; max-width: 380px; }
+.gp-search input {
+  width: 100%; height: 44px; padding: 0 14px 0 40px; border-radius: 999px; border: 1px solid var(--gp-line);
+  background: var(--gp-surface); color: var(--gp-ink); font: inherit; font-size: 15px;
+}
+.gp-search input::placeholder { color: var(--gp-ink-3); }
+.gp-search svg { position: absolute; left: 14px; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); stroke: var(--gp-ink-3); fill: none; stroke-width: 2; pointer-events: none; }
+.gp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.gp-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 0;
+  background: var(--gp-chip); color: var(--gp-ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: background-color .2s, color .2s, transform .15s;
+}
+.gp-chip small { font-weight: 500; opacity: .65; font-size: 12px; }
+.gp-chip[aria-pressed="true"] { background: var(--gp-chip-on); color: var(--gp-chip-on-ink); }
+.gp-chip:active { transform: scale(.96); }
+.gp-count { margin: 0 0 14px; font-size: 13px; color: var(--gp-ink-3); }
+.gp-portal :focus-visible { outline: 3px solid var(--gp-focus); outline-offset: 2px; }
+
+.gp-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(16px, 2.4vw, 26px); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.gp-empty { padding: 48px 16px; text-align: center; color: var(--gp-ink-2); border: 1px dashed var(--gp-line); border-radius: var(--gp-radius); }
+
+/* カード：枠（.gp-card）と中身（.gp-media / .gp-body）を別々に動かす */
+.gp-card {
+  --tc: #888; --tc-ink: #fff;
+  position: relative; display: flex; flex-direction: column; min-width: 0; height: 100%;
+  background: var(--gp-surface); border-radius: var(--gp-radius); box-shadow: var(--gp-shadow); overflow: hidden;
+  transition: box-shadow .3s, transform .3s cubic-bezier(.2, .8, .2, 1);
+}
+.gp-card[hidden] { display: none; }
+@media (hover: hover) {
+  .gp-card.is-live:hover { box-shadow: var(--gp-shadow-hover); transform: translateY(-3px); }
+}
+.gp-media { position: relative; aspect-ratio: 16 / 10; background: var(--tc); overflow: hidden; }
+.gp-media img, .gp-media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.gp-media video { opacity: 0; transition: opacity .45s ease; }
+.gp-media video.is-playing { opacity: 1; }
+.gp-badges { position: absolute; left: 10px; top: 10px; right: 10px; display: flex; justify-content: space-between; gap: 6px; pointer-events: none; }
+.gp-genre, .gp-status {
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .04em; line-height: 1.4;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.gp-genre { background: rgb(20 18 14 / .62); color: #fff; }
+.gp-status { background: var(--gp-dev-bg); color: var(--gp-dev); margin-left: auto; }
+.gp-play-toggle {
+  position: absolute; right: 10px; bottom: 10px; width: 36px; height: 36px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; background: rgb(20 18 14 / .6); color: #fff; cursor: pointer;
+}
+.gp-play-toggle svg { width: 14px; height: 14px; fill: currentColor; }
+.gp-play-toggle .i-pause { display: none; }
+.gp-play-toggle[aria-pressed="true"] .i-play { display: none; }
+.gp-play-toggle[aria-pressed="true"] .i-pause { display: block; }
+
+.gp-body { display: flex; flex-direction: column; gap: 10px; flex: 1; padding: 16px 18px 18px; border-top: 4px solid var(--tc); }
+.gp-name { margin: 0; font-size: 19px; font-weight: 900; line-height: 1.35; letter-spacing: .02em; overflow-wrap: anywhere; }
+.gp-tagline { margin: 0; font-size: 15px; font-weight: 700; color: var(--gp-ink-2); line-height: 1.5; }
+.gp-how { margin: 0; font-size: 13px; color: var(--gp-ink-2); line-height: 1.75; }
+.gp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gp-tags li { padding: 2px 9px; border-radius: 6px; background: var(--gp-chip); font-size: 12px; color: var(--gp-ink-2); }
+.gp-meta { margin: 0; font-size: 12px; color: var(--gp-ink-3); }
+.gp-cta {
+  margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 16px;
+  border-radius: 12px; background: var(--tc); color: var(--tc-ink); font-weight: 900; font-size: 15px; letter-spacing: .08em; text-decoration: none;
+  transition: filter .2s, transform .15s;
+}
+.gp-cta svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.4; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.gp-cta:hover { filter: brightness(1.08); }
+.gp-cta:hover svg { transform: translateX(3px); }
+.gp-cta:active { transform: scale(.98); }
+.gp-cta[aria-disabled="true"] { background: var(--gp-chip); color: var(--gp-ink-3); cursor: not-allowed; letter-spacing: .02em; font-weight: 700; }
+.gp-card.is-dev .gp-media img, .gp-card.is-dev .gp-media video { filter: saturate(.55); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-card, .gp-cta, .gp-cta svg, .gp-media video { transition: none; }
+}
+@media (max-width: 600px) {
+  /* スマホ：ジャンルは横に流せる1列（ページは横にはみ出さない） */
+  .gp-search { max-width: none; flex-basis: 100%; }
+  .gp-chips {
+    flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+    margin: 0 -16px; padding: 2px 16px 4px; scroll-padding-inline: 16px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent);
+  }
+  .gp-chips::-webkit-scrollbar { display: none; }
+  .gp-chip { flex: none; }
+}
+@media (max-width: 480px) {
+  .gp-body { padding: 14px 16px 16px; }
+}
+.gp-noprev { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tc-ink); font-size: 13px; font-weight: 700; opacity: .8; }

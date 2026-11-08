@@ -1,0 +1,28 @@
+{
+  "id": "gusoku",
+  "capturedAt": "2026-11-02T03:33:30.832Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 80,
+  "seconds": 6.4,
+  "webm": "previews/gusoku.webm",
+  "mp4": "previews/gusoku.mp4",
+  "poster": "previews/gusoku.jpg",
+  "bytes": {
+    "webm": 162658,
+    "mp4": 160319,
+    "poster": 22901
+  },
+  "deterministic": {
+    "frames": 80,
+    "identical": 0,
+    "nearIdentical": 4,
+    "ratio": 0.05,
+    "minPsnr": 38.5,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "2b97820",
+  "recipe": "recipes/gusoku.mjs"
+}

@@ -1,0 +1,28 @@
+{
+  "id": "farm-roguelike",
+  "capturedAt": "2026-11-02T03:30:25.368Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 82,
+  "seconds": 6.56,
+  "webm": "previews/farm-roguelike.webm",
+  "mp4": "previews/farm-roguelike.mp4",
+  "poster": "previews/farm-roguelike.jpg",
+  "bytes": {
+    "webm": 190188,
+    "mp4": 196168,
+    "poster": 69070
+  },
+  "deterministic": {
+    "frames": 82,
+    "identical": 36,
+    "nearIdentical": 45,
+    "ratio": 0.549,
+    "minPsnr": 23.29,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "6792c7e",
+  "recipe": "recipes/farm-roguelike.mjs"
+}

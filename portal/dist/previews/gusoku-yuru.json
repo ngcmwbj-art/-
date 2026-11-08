@@ -1,0 +1,28 @@
+{
+  "id": "gusoku-yuru",
+  "capturedAt": "2026-11-02T03:39:15.353Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 80,
+  "seconds": 6.4,
+  "webm": "previews/gusoku-yuru.webm",
+  "mp4": "previews/gusoku-yuru.mp4",
+  "poster": "previews/gusoku-yuru.jpg",
+  "bytes": {
+    "webm": 170521,
+    "mp4": 160251,
+    "poster": 26345
+  },
+  "deterministic": {
+    "frames": 80,
+    "identical": 0,
+    "nearIdentical": 3,
+    "ratio": 0.037,
+    "minPsnr": 38.45,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "2b97820",
+  "recipe": "recipes/gusoku-yuru.mjs"
+}

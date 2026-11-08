@@ -1,0 +1,28 @@
+{
+  "id": "masato",
+  "capturedAt": "2026-11-02T04:48:16.783Z",
+  "mode": "play",
+  "fps": 10,
+  "frames": 47,
+  "seconds": 4.7,
+  "webm": "previews/masato.webm",
+  "mp4": "previews/masato.mp4",
+  "poster": "previews/masato.jpg",
+  "bytes": {
+    "webm": 316553,
+    "mp4": 251132,
+    "poster": 38455
+  },
+  "deterministic": {
+    "frames": 47,
+    "identical": 5,
+    "nearIdentical": 32,
+    "ratio": 0.681,
+    "minPsnr": 34.62,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "0afa6e7",
+  "recipe": "recipes/masato.mjs"
+}

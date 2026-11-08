@@ -1,0 +1,28 @@
+{
+  "id": "shun",
+  "capturedAt": "2026-11-02T03:28:57.366Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 81,
+  "seconds": 6.48,
+  "webm": "previews/shun.webm",
+  "mp4": "previews/shun.mp4",
+  "poster": "previews/shun.jpg",
+  "bytes": {
+    "webm": 458323,
+    "mp4": 382996,
+    "poster": 79665
+  },
+  "deterministic": {
+    "frames": 81,
+    "identical": 81,
+    "nearIdentical": 81,
+    "ratio": 1,
+    "minPsnr": null,
+    "sameCount": true
+  },
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "d210676",
+  "recipe": "recipes/shun.mjs"
+}
