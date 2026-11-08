@@ -606,6 +606,8 @@ export class Game {
     const bento = crate || fruit || bait || p.box ? null : this.nearBento(p);
     const radioN = crate || fruit || bait || p.box || bento ? null : this.nearRadio(p);
     const actionPressed = inp.consume('action');
+    // スペース1つで「その場でいちばん大事なこと」：農場主の足もとなら突撃
+    if (actionPressed && !p.box && this.canAttackNow()) { this.tryAttack(p); return; }
     // 農場主が取りに来る箱：食べるボタンで「もぐる」
     if (actionPressed && !p.box) { const sc = this.stowTarget(p); if (sc) { this.startStow(p, sc); return; } }
 
@@ -702,6 +704,7 @@ export class Game {
         else {
           const c = this.canClimb(p);
           if (c) this.startClimb(p, c);
+          else if (this.nutrition >= 100) this.tryLayEgg(p); // まわりに何もなければ産卵
         }
       }
     }
@@ -3269,7 +3272,7 @@ export class Game {
     const next = () => { T.step++; T.t = 0; this.sfx.nice(); };
     switch (T.step) {
       case 0: if (Math.hypot(p.x - T.sx, p.z - T.sz) > 2.5) next(); break;
-      case 1: if (Math.abs(angleDiff(this.camYaw, T.yaw)) > 0.7) next(); break;
+      case 1: if (Math.abs(angleDiff(this.camYaw, T.yaw)) > 0.7 || T.t > 6) next(); break; // カメラは歩くとついてくるので、6秒たてば次へ
       case 2: if (this.stats.ate >= 12) next(); break;
       case 3: if (this.stats.nice >= 1 || T.t > 25) next(); break;
       case 4:
@@ -3295,8 +3298,8 @@ export class Game {
     const T = this.tutorial;
     if (!T) return null;
     const L = [
-      touch ? '1/5　左下で歩く' : '1/5　WASDで歩く',
-      touch ? '2/5　右側をなぞって見回す' : '2/5　ドラッグで見回す',
+      touch ? '1/5　左下で歩く' : '1/5　WASD（矢印）で歩く',
+      touch ? '2/5　右側をなぞって見回す' : '2/5　歩くとカメラがついてくる',
       touch ? '3/5　矢印の箱で「食べる」長押し' : '3/5　矢印の箱でSpace長押し',
       '4/5　緑の帯で離すと「ナイス！」',
       '5/5　白いさいばい槽の下にかくれる',
@@ -3462,6 +3465,8 @@ export class Game {
     if (p.box) return { key: 'action', text: '段ボールから出る' };
     const stuckMate = this.roaches.find((r) => r.alive && r !== p && r.st === 'stuck' && Math.hypot(r.x - p.x, r.z - p.z) < 1.3);
     if (stuckMate) return { key: 'action', text: '仲間を助ける' };
+    // PCをシンプルに：農場主の足もとならスペースで「突撃」
+    if (this.canAttackNow()) return { key: 'action', text: '突撃', attack: true };
     const c = this.crateInReach(p);
     if (c) return this.stowTarget(p) ? { key: 'action', text: 'もぐる', crate: c, stow: true, first: 'stow' } : { key: 'action', text: '長押しで食べる', hold: true, crate: c };
     const f = this.fruitInReach(p);
@@ -3482,6 +3487,8 @@ export class Game {
     }
     if (this.windLaneAt(p)) return { key: 'action', text: '風に乗る' };
     if (this.canClimb(p)) return { key: 'action', text: '登る' };
+    // PCをシンプルに：栄養が満タンで、まわりに何もなければスペースで「産卵」
+    if (this.nutrition >= 100) return { key: 'action', text: '産卵', egg: true };
     return null;
   }
 

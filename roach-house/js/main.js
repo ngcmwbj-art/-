@@ -934,16 +934,16 @@ $('btnEndingClose').addEventListener('click', () => { $('ending').hidden = true;
 // ---------- ヒント ----------
 const hints = {
   list: [
-    { id: 'move', kb: 'WASDで移動・ドラッグで見回す', tc: '左下で移動・右側で見回す', until: (g) => g.elapsed > 8 },
+    { id: 'move', kb: 'WASDで歩く・Spaceで何でも', tc: '左下で移動・右側で見回す', until: (g) => g.elapsed > 8 },
     { id: 'eat', kb: 'Space長押しで食べる。赤になる前に離す', tc: '「食べる」長押し。赤になる前に離す', when: (g) => !!(g.context() && g.context().crate), until: (_, ev) => ev.has('ruin') || ev.has('egg'), max: 9 },
     { id: 'climb', kb: 'ふちでSpace：登る', tc: 'ふちで「登る」', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 7 },
     { id: 'wind', kb: '渦でSpace：風に乗る', tc: '渦で「風に乗る」', when: (g) => { const c = g.context(); return c && c.text === '風に乗る'; }, until: (_, ev) => ev.has('wind'), max: 7 },
     { id: 'bait', kb: '黒い容器は毒エサ', tc: '黒い容器は毒エサ', when: (g) => { const c = g.context(); return c && c.bait; }, max: 6 },
     { id: 'smoke', kb: 'けむり！ 緑の輪へにげろ', tc: 'けむり！ 緑の輪へにげろ', when: (_, ev) => ev.has('fumigate'), max: 9 },
-    { id: 'egg', kb: '栄養満タン！ Rで産卵', tc: '栄養満タン！「産卵」', when: (g) => g.nutrition >= 100, until: (_, ev) => ev.has('egg'), max: 9 },
+    { id: 'egg', kb: '栄養満タン！ Spaceで産卵', tc: '栄養満タン！「産卵」', when: (g) => g.nutrition >= 100, until: (_, ev) => ev.has('egg'), max: 9 },
     { id: 'cmd', kb: '仲間だ！ 1 ついてこい／2 まかせた', tc: '仲間だ！ 下のボタンで指示', when: (_, ev) => ev.has('hatch'), max: 7 },
     { id: 'hide', kb: '見つかった！ 葉や台の下へ', tc: '見つかった！ 葉や台の下へ', when: (_, ev) => ev.has('spotted'), max: 5 },
-    { id: 'attack', kb: '足もとでF：顔に突撃', tc: '足もとで「突撃」', when: (g) => g.canAttackNow() && g.elapsed > 25, until: (_, ev) => ev.has('panic'), max: 5 },
+    { id: 'attack', kb: '足もとでSpace：突撃', tc: '足もとで「突撃」', when: (g) => g.canAttackNow() && g.elapsed > 25, until: (_, ev) => ev.has('panic'), max: 5 },
   ],
   reset() { this.done = new Set(); this.cur = null; this.t = 0; this.events = new Set(); this.seenEvents = new Set(); this.idle = 0; this.lost = null; this.nudge(null); },
   // 今やると良いボタンをそっと光らせる
@@ -974,7 +974,7 @@ const hints = {
       if (!this.cur && !hiding && this.idle > 10) {
         const touch = document.body.classList.contains('touch');
         let L;
-        if (g.nutrition >= 100) L = { t: touch ? '「産卵」しよう' : 'Rで産卵しよう', b: '.t-egg' };
+        if (g.nutrition >= 100) L = { t: touch ? '「産卵」しよう' : 'Spaceで産卵しよう', b: '.t-egg' };
         else if (danger) L = { t: '葉や台の下にかくれよう', b: null };
         else L = { t: touch ? '箱へ行って「食べる」' : '箱へ行ってSpaceで食べる', b: '#tAction' };
         this.lost = L; this.t = 0; this.idle = 0;
@@ -1074,6 +1074,17 @@ function updateCamera(dt) {
     if (screen === 'play' && !input.camDX) camState.yaw += dt * 0.18;
   }
   if (screen === 'play') {
+    // PCをシンプルに：進む方向へ、カメラが少しずつ後ろに回りこむ（マウスで回さなくても遊べる）
+    if (input.camDX || input.keyRot) camState.lastManual = performance.now();
+    const P = game.player;
+    if (P && P.moving && !camState.focus && performance.now() - (camState.lastManual || 0) > 2000) {
+      const mvx = Math.abs(input.mx || 0), mvz = input.mz || 0;
+      if (mvz > -0.3 && (mvx > 0.2 || mvz > 0.2)) {
+        let d = P.h - camState.yaw;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        if (Math.abs(d) < 2.2) camState.yaw += d * Math.min(1, dt * 0.9);
+      }
+    }
     camState.yaw -= input.camDX * 0.0065 + input.keyRot * 2.2 * dt;
     camState.pitch = clamp(camState.pitch + input.camDY * 0.004, 0.08, 1.15);
   }

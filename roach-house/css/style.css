@@ -677,3 +677,7 @@ body.touch #greed { display: none !important; }
   .run-help { bottom: auto; top: 46%; width: calc(100vw - 48px); }
   .run-count { top: 34%; }
 }
+/* PCの操作はキー3つだけ案内 */
+.pc-keys { margin: 0 0 8px; font-size: 14px; }
+.pc-keys kbd { font-family: var(--font-body); background: var(--text); color: var(--ink); border-radius: 4px; padding: 1px 6px; margin: 0 2px; font-size: 12px; }
+body.touch .pc-keys { display: none; }

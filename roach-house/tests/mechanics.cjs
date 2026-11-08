@@ -954,6 +954,25 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       check('仲間がとても多いと農場主が後ずさり', (g.stats.backoffs || 0) >= 1);
     }
 
+    // 69. PCをシンプルに：スペース1つで突撃・産卵
+    g.start('s1', 171); freezeFarmer();
+    {
+      const P = g.player;
+      Object.assign(P, { x: -16, z: 2.5, surface: -1, y: 0, st: 'move' });
+      g.nutrition = 100;
+      const e0 = g.eggs.length;
+      inp.press('action');
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
+      check('スペースで産卵（まわりに何もないとき）', g.eggs.length === e0 + 1, g.context() && g.context().text);
+      const f = g.farmer;
+      Object.assign(P, { x: 0, z: 2.5 });
+      f.x = 0.5; f.z = 2.5; f.state = 'WORK'; f.phase = 'idle'; f.timer = 999; g.attackCD = 0;
+      check('農場主の足もとでは「突撃」と出る', g.context() && g.context().text === '突撃');
+      inp.press('action');
+      RH.sim(0.6, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('スペースで突撃', g.stats.attacks >= 1);
+    }
+
     RH.startGame('s1');
     return out;
   });
