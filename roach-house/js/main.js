@@ -75,7 +75,11 @@ function applyQuality(pref) {
   world.setShadow(ecoOnNow() ? Math.min(LEVELS[lvl].shadow, 1024) : LEVELS[lvl].shadow);
 }
 
+let frozenDrawn = false; // 止まった画面をもう描いたか
+// 第16回：夜のステージは、省エネ（光の仕上げなし）のとき暗くなりすぎないよう少し明るく
+function nightExposure(night) { return night ? (ecoOnNow() ? 1.85 : 1.5) : 0.95; }
 function resize() {
+  frozenDrawn = false; // 大きさが変わったら、止まった絵も描きなおす
   const w = window.innerWidth, h = window.innerHeight;
   fx.setSize(w, h);
   camera.aspect = w / Math.max(1, h);
@@ -115,7 +119,7 @@ function feed(text, glyph, kind) {
 }
 const ui = {
   feed,
-  radio(text) { feed(text.replace(/^ラジオ「/, '').replace(/」$/, ''), '♪', 'radio'); sfx.radioNews && sfx.radioNews(); },
+  radio(text) { /* 第14回：ラジオの字は出さず、音だけ */ sfx.radioNews && sfx.radioNews(); },
   toast(text, kind) {
     const m = MINOR.find(([re]) => re.test(text));
     if (m) { feed(text, m[1], m[2]); return; }
@@ -129,8 +133,8 @@ const ui = {
     setTimeout(() => el.remove(), 3100);
   },
   // 農場主の声（スマホ・パソコンの読み上げ。低めの声で。新しいセリフが来たら前のは止める）
-  speak(text) {
-    if (!voiceOn || !soundOn || !('speechSynthesis' in window) || (screen !== 'play' && screen !== 'over')) return;
+  speak(text, force = false) {
+    if (!voiceOn || !soundOn || !('speechSynthesis' in window) || (!force && screen !== 'play' && screen !== 'over')) return;
     try {
       const S = window.speechSynthesis;
       S.cancel();
@@ -195,7 +199,9 @@ function startRun(course, fromJack = false) {
   world.group.visible = false;
   if (game.root) game.root.visible = false;
   if (!runFromJack) game.state = 'title';
-  runner.start({ wing: records.wing, pattern: records.pattern, hat: records.hat, seed: dailySeed(dayKey) % 100000 + 7, course: runCourse });
+  // 連れてきた仲間（ジャックからならハウスの仲間、タイトルからなら次へ連れて行く仲間）が2〜3匹いっしょに走る
+  const mates = runFromJack ? game.nymphs.length : (records.carry ? records.carry.n : 0);
+  runner.start({ wing: records.wing, pattern: records.pattern, hat: records.hat, seed: dailySeed(dayKey) % 100000 + 7, course: runCourse, mates });
   $('runSay').hidden = true;
   setScreen('run');
 }
@@ -245,7 +251,7 @@ $('btnRunBack').addEventListener('click', () => {
   game.state = back.state;
   sfx.startRadio();
   world.setNight(!!game.diff.night);
-  renderer.toneMappingExposure = game.diff.night ? 1.5 : 0.95;
+  renderer.toneMappingExposure = nightExposure(game.diff.night);
   if (runGift) game.giveSouvenir(runGift);
   runGift = 0;
   camState.init = true;
@@ -271,6 +277,7 @@ window.__rh = { game, input, THREE, scene, camera, renderer, fx, world };
 let screen = 'title';
 function setScreen(s) {
   screen = s;
+  if (s !== 'result') $('ending').hidden = true;
   $('title').hidden = s !== 'title';
   $('pause').hidden = s !== 'pause';
   $('result').hidden = s !== 'result';
@@ -336,16 +343,18 @@ function startGame(diff, opt = {}) {
   $('optTutor').checked = false;
   if (records.carry) { records.carry = null; store.set('records', records); }
   renderOrderMini();
-  $('orderMini').hidden = false;
+  $('orderMini').hidden = true; // 第15回：遊んでいる間の「いたずら」の札は出さない
   const D = game.diff;
   world.setNight(!!D.night);
-  renderer.toneMappingExposure = D.night ? 1.5 : 0.95;
+  renderer.toneMappingExposure = nightExposure(D.night);
   if (!tutorial) {
     ui.toast(`${D.target}箱ダメにしろ！`, 'info');
     // 田んぼ道のおみやげ：次のステージのはじめに仲間がふえる
     if (records.souvenir > 0) { game.giveSouvenir(records.souvenir); records.souvenir = 0; store.set('records', records); }
     // 前のステージで生き残った仲間がついてくる（次のステージをすぐ遊んだとき）
     if (carryWas && carryWas.to === diff && carryWas.n > 0) game.giveSouvenir(carryWas.n, 'carry');
+    // 第17回：前の回でゴキブリが勝っていたら、農場主が「今日こそは…」
+    if (records.lastWin) setTimeout(() => { if (screen === 'play' && game.state === 'play') game.say('今日こそは…', true); }, 1200);
     if ((records.eggs || 0) >= 50 && !records.bossShown) { records.bossShown = true; store.set('records', records); ui.toast('親分ゴキブリが仲間に！', 'good'); }
   }
   hints.reset();
@@ -626,7 +635,7 @@ function renderBook() {
   const r = records;
   const rows = [['遊んだ回数', `${r.games} 回`], ['勝った回数', `${r.wins} 回`], ['ダメにした箱', `${r.ruined} 箱`], ['産んだ卵', `${r.eggs} 個`],
     ['パニックにした', `${r.attacks} 回`], ['ホイホイ脱出', `${r.escapes} 回`], ['ナイス！', `${r.nice} 回`], ['風に乗った', `${r.winds} 回`],
-    ['落とした実', `${r.fruits} 個`], ['こなした注文', `${r.orders} 個`]];
+    ['落とした実', `${r.fruits} 個`], ['こなした注文', `${r.orders} 個`], ['いちばん大きな群れ', `${r.maxGroup || 0} 匹`]];
   $('bookRec').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
   const mmb = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   $('bookBest').innerHTML = `<tr><th>ステージ</th><th>星</th><th>最速クリア</th><th>最少出荷</th></tr>` + STAGES.map((st) => {
@@ -646,7 +655,24 @@ document.querySelectorAll('#titleTabs [data-tab]').forEach((b) => b.addEventList
 document.querySelectorAll('#bookTabs [data-btab]').forEach((b) => b.addEventListener('click', () => setTab('bookTabs', 'data-btab', 'data-bpane', b.dataset.btab)));
 window.__rh.setTab = (k) => setTab('titleTabs', 'data-tab', 'data-pane', k);
 // 前回のステージをもう一度（1回おすだけで）
+// 第15回：クリアした数だけタイトルにゴキブリの旗。第16回：勝つほど農場主がやつれる
+function renderTitleDeco() {
+  const n = Math.min(6, records.cleared || 0);
+  $('titleFlags').innerHTML = Array.from({ length: n }, () => '<i class="flag"><b></b></i>').join('');
+  const lv = Math.min(4, Math.floor((records.wins || 0) / 3));
+  $('titleFarmer').className = `title-farmer yatsure-${lv}`;
+}
+// 第17回：タイトルで農場主を押すと口癖
+$('titleFarmer').addEventListener('click', (e) => {
+  e.preventDefault();
+  sfx.unlock();
+  const b = $('tfBubble');
+  b.textContent = (records.wins || 0) > 0 ? 'もう限界だ…' : '今日もおれの勝ちだな';
+  b.hidden = false; clearTimeout(b._t); b._t = setTimeout(() => { b.hidden = true; }, 1800);
+  ui.speak(b.textContent, true);
+});
 function renderLast() {
+  renderTitleDeco();
   const k = store.get('lastStage', null);
   const st = k && DIFFS[k];
   const b = $('btnLast');
@@ -692,6 +718,7 @@ function renderStages() {
       <span class="stars">${'★'.repeat(records.stars[st.key] || 0)}${'☆'.repeat(3 - (records.stars[st.key] || 0))}</span>
       <span>${ok ? `${st.target}箱ダメにする` : `ステージ${st.no - 1}をクリアで遊べる`}</span>
       ${ok ? `<span class="haz">${(st.haz || []).map((k) => `<i>${HAZ_NAMES[k]}</i>`).join('')}</span>` : ''}
+      ${ok && records.carry && records.carry.to === st.key ? `<span class="carry-n"><b class="roach-ic"></b>×${records.carry.n}</span>` : ''}
       <em>${b ? `最高 ${b.rank}・${b.score}点` : ''}</em></button>`;
   }).join('');
   $('stages').querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => startGame(b.dataset.diff)));
@@ -759,6 +786,21 @@ const REASONS = {
   shipped: '出荷されすぎた…',
   dead: '仲間がいなくなった…',
 };
+// パプリカの山の絵（下から積む）
+function pileSvg(n) {
+  n = Math.min(15, n);
+  if (!n) return '';
+  const cols = ['#d8392b', '#f2c12e', '#e8772a'];
+  let out = '', i = 0;
+  for (let row = 0; i < n; row++) {
+    const inRow = Math.max(1, 5 - row);
+    for (let k = 0; k < inRow && i < n; k++, i++) {
+      const x = 14 + k * 16 + row * 8, y = 70 - row * 13;
+      out += `<ellipse cx="${x}" cy="${y}" rx="8" ry="7" fill="${cols[i % 3]}"/><path d="M${x} ${y - 7}v-3" stroke="#3c6b2a" stroke-width="2"/>`;
+    }
+  }
+  return `<svg viewBox="0 0 96 80" aria-hidden="true">${out}</svg>`;
+}
 function showResult(res) {
   if (game.state !== 'over' || game.result !== res) return;
   saveFps();
@@ -802,16 +844,32 @@ function showResult(res) {
   records = out.rec;
   store.set('records', records);
   const ol = orders.map((o) => (out.cleared.includes(o.id) ? `<span class="ok">✓ ${o.text}</span>` : `<span class="ng">・${o.text}</span>`));
-  const news = [...out.newTitles.map((t) => `<span class="new">★ 称号「${t.name}」</span>`),
+  const news = [
     ...out.newWings.map((k) => `<span class="new">新しい羽の色「${WING_COLORS[k].label}」</span>`)];
   const st3 = out.stars;
-  $('rStars').innerHTML = `<div class="big">${st3.each.map((b) => (b ? '★' : '☆')).join('')}</div>`;
+  // 第14回：星の条件を字ではなく絵で（箱＝クリア、トラック≦3＝出荷3箱以内、目≦2＝見つかるのは2回まで）
+  const STAR_IC = [
+    '<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2" fill="currentColor"/><path d="M3 8l3-4h12l3 4" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+    '<svg viewBox="0 0 24 24"><rect x="2" y="9" width="13" height="8" fill="currentColor"/><path d="M15 11h4l3 3v3h-7z" fill="currentColor"/><circle cx="6" cy="18" r="2" fill="#16100a"/><circle cx="18" cy="18" r="2" fill="#16100a"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
+  ];
+  const STAR_N = ['', '≦3', '≦2'];
+  $('rStars').innerHTML = `<div class="big">${st3.each.map((b) => (b ? '★' : '☆')).join('')}</div>` +
+    `<div class="star-rules">${st3.each.map((b, i) => `<span class="${b ? 'ok' : 'ng'}">${STAR_IC[i]}${STAR_N[i]}</span>`).join('')}</div>`;
   const starRules = STAR_RULES.map((r, i) => `<span class="${st3.each[i] ? 'ok' : 'ng'}">${st3.each[i] ? '★' : '☆'} ${r.text}</span>`).join('　');
   if (out.newBest.time) news.push(`<span class="new">最速クリア！ ${mm(res.elapsed)}</span>`);
   if (out.newBest.shipped) news.push(`<span class="new">出荷の少なさ ベスト！</span>`);
   if (out.unlockedStage) news.unshift(`<span class="new">${STAGES[out.unlockedStage - 1].label}が遊べる！</span>`);
   const cur = DIFFS[res.diff];
   const nxt = cur ? STAGES[cur.no] : null;
+  // 第17回：次のステージの始めに「今日こそは…」と言うための記録
+  records.lastWin = !!res.win;
+  // 第15回：いちばん大きな群れ
+  if ((s.maxNymphs || 0) > (records.maxGroup || 0)) { records.maxGroup = s.maxNymphs; if (s.maxNymphs >= 5) news.push(`<span class="new">いちばん大きな群れ ${s.maxNymphs}匹！</span>`); }
+  // 第17回：いちばんかじった仲間の名前（1行だけ）
+  if (res.bestMate) news.unshift(`<span class="new">${res.bestMate}がいちばんかじった</span>`);
+  // 第18回：ダメにした箱の数だけパプリカの山
+  $('rPile').innerHTML = pileSvg(s.ruined || 0);
   // 生き残った仲間を、次のステージへ連れて行く（8匹まで）
   const carryN = res.win && nxt && !res.easy ? Math.min(8, res.alive || 0) : 0;
   records.carry = carryN > 0 ? { to: nxt.key, n: carryN } : null;
@@ -868,7 +926,10 @@ function showResult(res) {
   $('rTip').hidden = !$('rTip').textContent;
   $('rTip').classList.toggle('advice', !!res.advice);
   setScreen('result');
+  // 第15回：ステージ6をクリアしたらエンディング
+  if (res.win && res.diff === 's6' && !res.easy) setTimeout(() => { if (screen === 'result') { $('ending').hidden = false; } }, 600);
 }
+$('btnEndingClose').addEventListener('click', () => { $('ending').hidden = true; });
 
 // ---------- ヒント ----------
 const hints = {
@@ -984,7 +1045,8 @@ function updateCamera(dt) {
       const lag = 2.6 + i * 0.75 + Math.sin(E.t * 9 + i) * 0.08;
       r.x = TRUCK.x - lag + dx * 0.8; r.z = TRUCK.z + ((i % 3) - 1) * 0.55; r.y = 0; r.surface = -1;
       r.model.root.visible = true;
-      r.model.root.position.set(r.x, 0, r.z);
+      // 第17回：勝ったら仲間がぴょんぴょん跳ねながらついていく
+      r.model.root.position.set(r.x, Math.abs(Math.sin(E.t * 7 + i * 0.9)) * 0.35, r.z);
       r.model.root.rotation.set(0, Math.PI / 2, 0); r.h = Math.PI / 2; r.moving = true;
     });
     // 走り出したところを「今日の1枚」に（吹き出しつき）
@@ -1100,8 +1162,7 @@ function updateHud(dt) {
   const tt = g.tutorialText(document.body.classList.contains('touch'));
   $('tutor').hidden = !tt || screen !== 'play';
   if (tt) setText('tutorText', tt);
-  $('orderMini').hidden = screen !== 'play';
-  if (screen === 'play') renderOrderMini();
+  $('orderMini').hidden = true;
   // 死んだふりのボタン：使っている間は緑、残りの回数
   const pd = g.player;
   const tD = $('tDead');
@@ -1165,6 +1226,9 @@ function updateHud(dt) {
   const label = ctx ? (ctx.urgent ? '連打！' : ctx.text.replace('長押しで', '').replace('台に', '').replace(/（.*）/, '')) : '食べる';
   if (tA.textContent !== label) tA.textContent = label;
   tA.classList.toggle('off', !ctx);
+  // 第18回：農場主が近いと、食べるボタンのまわりが赤く（字なしの注意）
+  const fNear = f && !f.hidden && f.state !== 'PANIC' && Math.hypot(f.x - p.x, f.z - p.z) < 6.5;
+  tA.classList.toggle('danger', !!fNear);
   const eatingNow = !!(p.eatingCrate || p.eatingFruit) || p.greed > 3;
   tA.classList.toggle('eating', eatingNow);
   if (eatingNow) {
@@ -1184,7 +1248,7 @@ function updateHud(dt) {
     gr.classList.toggle('hot', p.greed > 65);
     gr.classList.toggle('max', p.greed > 88);
     const c = p.eatingCrate;
-    setText('crateLeft', c ? `残り ${Math.max(0, Math.ceil(c.hp))}%` : '');
+    setText('crateLeft', ''); // 第17回：残りは箱の上の棒だけで見せる
   } else gr.hidden = true;
   const st = $('struggle');
   if (p.st === 'stuck') { st.hidden = false; setW(st.querySelector('i'), p.struggle / 100); } else st.hidden = true;
@@ -1278,6 +1342,13 @@ function updateLabels() {
         const sc = project(c.x, c.baseY + 1.7, c.z);
         if (sc && sc.on) place(label('stow-mark', '<i></i>'), sc);
       }
+    }
+    // 第17回：栄養が満タンのとき、近くの隠れ場所（葉の下・台の下）を小さく光らせる（産む場所の案内）
+    if (g.nutrition >= 100 && p.surface < 0 && g.hideFactor(p) >= 0.5) {
+      let best = null, bd = 9;
+      for (const R of ROWS) { const x = clamp(p.x, R.x0 + 0.5, R.x1 - 0.5), d = Math.hypot(x - p.x, R.z - p.z); if (d < bd) { bd = d; best = { x, z: R.z }; } }
+      for (const T of TABLES) { const x = clamp(p.x, T.minX + 0.5, T.maxX - 0.5), d = Math.hypot(x - p.x, T.z - p.z); if (d < bd) { bd = d; best = { x, z: T.z }; } }
+      if (best) { const sn = project(best.x, 0.5, best.z); if (sn && sn.on) place(label('nest-mark', '<i></i>'), sn); }
     }
     // 卵がかえるまでの輪（いっぱいになると生まれる）
     for (const e of g.eggs) {
@@ -1394,9 +1465,13 @@ const trPanel = $('trPanel');
 let mapOpen = !!store.get('mapOpen', false);
 function applyMapOpen() { trPanel.classList.toggle('folded', !mapOpen); }
 applyMapOpen();
-trPanel.addEventListener('click', (e) => { e.preventDefault(); mapOpen = !mapOpen; store.set('mapOpen', mapOpen); applyMapOpen(); sfx.click(); });
+trPanel.addEventListener('click', (e) => { e.preventDefault(); mapOpenT = 0; mapOpen = !mapOpen; store.set('mapOpen', mapOpen); applyMapOpen(); sfx.click(); });
+let mapOpenT = 0;
 function drawMinimap(dt) {
   if (!mapOpen && !touring) return;
+  // 第15回：開いたまま10秒たったら、自動でたたむ（熱をおさえる）
+  mapOpenT += dt;
+  if (mapOpen && !touring && mapOpenT > 10) { mapOpen = false; store.set('mapOpen', false); applyMapOpen(); return; }
   mmT -= dt;
   if (mmT > 0) return;
   mmT = 0.08;
@@ -1476,10 +1551,12 @@ function targetFps() {
   return ecoOn ? 8 : 30; // 一時停止・結果画面
 }
 function applyEco() {
+  game.eco = ecoOn;
   fx.maxDpr = ecoOn ? 1.1 : 9;
   // 省エネ：画面全体にかける「光のにじみ」と「色の仕上げ」を切る（いちばん重い所）
   if (fx.eco !== ecoOn) { fx.eco = ecoOn; const lv = fx.level; fx.level = null; fx.setLevel(lv); }
   fx.setDprScale(fx.dprScale);
+  if (game.diff && game.state !== 'title') renderer.toneMappingExposure = nightExposure(game.diff.night);
   if (ecoOn) world.setShadow(Math.min(LEVELS[fx.level].shadow, 1024)); else world.setShadow(LEVELS[fx.level].shadow);
 }
 $('optEco').checked = ecoOn;
@@ -1502,6 +1579,10 @@ function frame(now) {
     if (input.consume('mute')) { soundOn = !soundOn; $('optSound').checked = soundOn; sfx.setMuted(!soundOn); store.set('sound', soundOn); ui.toast(soundOn ? '音：オン' : '音：オフ', 'info'); }
     if (input.consume('pause')) { if (screen === 'play') pauseGame(); else if (screen === 'pause') resumeGame(); }
     updateTouchVisibility();
+    // 第17回：止まっている画面（一時停止中・省エネ中のタイトルと図鑑）は、1回描いたらあとは描かない（熱をおさえる）
+    const frozen = screen === 'pause' || (ecoOn && (screen === 'title' || screen === 'book'));
+    if (frozen && frozenDrawn) { input.endFrame(); return; }
+    frozenDrawn = frozen;
     if (screen === 'run' || screen === 'runover') {
       runner.update(dt, input);
       if (screen === 'run') {

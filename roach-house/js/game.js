@@ -68,6 +68,8 @@ export const PRANKS = [
   { id: 'boot', text: '長靴に入って農場主をおどろかす', short: '長靴' },
 ];
 const PLAYDEAD_USES = 3;
+// 第17回：仲間の名前（入力なしで自動でつく）
+const MATE_NAMES = ['タロウ', 'ハナコ', 'ジロウ', 'モモ', 'ゴン', 'チビ', 'サブ', 'ミイ', 'ケン', 'ポチ', 'トメ', 'ヨネ', 'ハチ', 'キク', 'テツ', 'ウメ'];
 const _v3 = new THREE.Vector3();
 const _red = new THREE.Color(0xd8442e);
 // 実の熟し具合：熟した実（赤・黄・橙）は栄養たっぷり、色づきかけは中くらい、緑は少し
@@ -140,6 +142,8 @@ export class Game {
     };
     this.baits = [];
     this.fallers = [];
+    this.dusts = [];
+    this.slowT = 0; this.lastOneDone = false; this.buddy = null;
     this.fog = null;
     this.fogLevel = 0;
     this.fumigated = false;
@@ -298,7 +302,8 @@ export class Game {
       this.seen('boss');
     }
     this.camYaw = Math.PI / 2;
-    this.marker = makeRing(0xffe14d, 0.3, 0.38, 0.85);
+    // 第16回：白い床でも見失わないよう、足もとの輪を太く濃く（自分の1匹だけ）
+    this.marker = makeRing(0xffd400, 0.26, 0.42, 1);
     this.root.add(this.marker);
 
     if (!this.farmerModel) { this.farmerModel = makeFarmer(); this.farmerCone = makeCone(1, 0.78); }
@@ -341,6 +346,23 @@ export class Game {
   }
 
   // 帽子をかぶせる（自分のゴキブリだけ）
+  // 第15回：相棒（その回の最初の仲間）には帽子。帽子を持っていなければ麦わら帽子
+  makeBuddy(r) {
+    if (!r || this.buddy || r.isPlayer) return;
+    this.buddy = r; r.buddy = true;
+    const h = makeHat(this.hat !== 'none' ? this.hat : 'straw');
+    h.position.set(0, 0.13, 0.24); h.rotation.x = -0.2; h.scale.setScalar(1.3);
+    r.model.body.add(h); r.model.hat = h;
+  }
+  // 第15回：連れてきた仲間には小さな星（見た目だけ。強さは変えない）
+  markVeteran(r) {
+    const sh = new THREE.Shape();
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 - Math.PI / 2, rr = i % 2 ? 0.035 : 0.08; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; if (i) sh.lineTo(x, y); else sh.moveTo(x, y); }
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color: 0xffd400, side: THREE.DoubleSide, toneMapped: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(0, 0.2, -0.05);
+    m.userData.ownMaterial = true; m.userData.ownGeometry = true;
+    r.model.body.add(m); r.vet = true;
+  }
   wearHat(r) {
     if (!r || this.hat === 'none' || r.model.hat) return;
     const h = makeHat(this.hat);
@@ -390,6 +412,7 @@ export class Game {
       ai: { target: null, retarget: 0, hideT: 0, jitterT: 0, jx: 0, jz: 0, lastX: x, lastZ: z, stallT: 0, slot: rand() },
       model: m, crunchT: 0, poison: 0, glide: null, eatingFruit: null, eatingBait: null, baitT: 0,
     };
+    if (nymph) { r.name = MATE_NAMES[this.roaches.length % MATE_NAMES.length]; r.bitten = 0; }
     this.roaches.push(r);
     return r;
   }
@@ -427,6 +450,8 @@ export class Game {
 
   // ---------------- 毎フレーム ----------------
   update(dt, inp) {
+    // 最後の1匹のドキドキ：時間の進みだけをゆっくりに（描く回数は変えない）
+    if (this.slowT > 0) { this.slowT -= dt; dt *= 0.35; }
     this.clock += dt;
     this.shake = Math.max(0, this.shake - dt * 2.5);
     if (this.state !== 'play') {
@@ -467,6 +492,7 @@ export class Game {
     this.updateRadioObj(dt);
     this.updateBoots();
     this.updateHeater(dt);
+    this.updateDust(dt);
     const p = this.player;
     if (p && p.alive && p.hp < this.minHp - 8 && p.hp < 45) {
       this.minHp = p.hp;
@@ -629,8 +655,7 @@ export class Game {
         // おまけは連続3〜5回目の3回まで（上手な人だけが楽をしすぎないように）
         if (this.niceCombo >= 3) this.stats.niceCombo = Math.max(this.stats.niceCombo || 0, this.niceCombo);
         if (this.niceCombo >= 3 && this.niceCombo <= 5) this.addNutrition(8);
-        this.sfx.nice();
-        if (this.niceCombo >= 3) this.sfx.chime();
+        this.sfx.nice(this.niceCombo); // 続くほど高い音（チャイムはやめた）
         this.events.push('nice');
       } else if (wasEating) this.niceCombo = 0;
       p.greed = Math.max(0, p.greed - 55 * dt);
@@ -903,7 +928,8 @@ export class Game {
     this.sfx.click();
     const f = this.farmer;
     const chasing = f.state === 'CHASE' && f.target === p;
-    this.toast(chasing ? '見られている！ 効かない' : `死んだふり！ あと${p.deadUses}`, chasing ? 'warn' : 'info');
+    // 第18回：赤い字のお知らせを1つ減らす（見られているときはボタンの赤で分かる）
+    if (!chasing) this.toast(`死んだふり！ あと${p.deadUses}`, 'info');
     this.events.push('playdead');
     return true;
   }
@@ -1058,6 +1084,7 @@ export class Game {
 
   bite(c, amt, who) {
     if (c.rotten) return;
+    if (who && !who.isPlayer) who.bitten = (who.bitten || 0) + amt; // 仲間ごとのかじった量
     c.hp -= amt;
     c.lastBite = this.clock;
     this.stats.ate += amt;
@@ -1219,7 +1246,8 @@ export class Game {
         }
       }
       const d = Math.hypot(tx - r.x, tz - r.z);
-      spd = d > 3 ? 4.0 : 2.6;
+      // 第18回：遠くの仲間は速く走ってきて、はぐれない
+      spd = d > 8 ? 5.4 : d > 3 ? 4.0 : 2.6;
       if (d < 0.25) { tx = null; }
     }
 
@@ -1393,6 +1421,8 @@ export class Game {
       if (r.y <= 0) {
         r.y = 0; r.vy = 0; r.st = 'move'; r.surface = -1;
         this.collide(r);
+        // 第18回：自分の1匹だけ「ポテッ」と小さな土ぼこり
+        if (r.isPlayer) { this.sfx.plop && this.sfx.plop(); this.addDust(r.x, r.z); }
       }
     } else if (r.st === 'fly') {
       this.updateFly(r, dt);
@@ -1498,6 +1528,11 @@ export class Game {
 
   kill(r, cause) {
     if (!r.alive) return;
+    // 第16回：最後の仲間がやられて自分1匹になったら、一瞬だけゆっくりに（1回のプレイで1回）
+    if (!r.isPlayer && !this.lastOneDone && this.nymphs.length === 1 && this.state === 'play' && !this.tutorial) {
+      this.lastOneDone = true; this.slowT = 0.7;
+      this.sfx.thud && this.sfx.thud(); this.events.push('lastone');
+    }
     r.alive = false;
     r.hp = 0;
     r.deadT = 0;
@@ -1576,8 +1611,27 @@ export class Game {
       this.stats.born++;
     }
     this.sfx.hatch();
+    if (!this.buddy) this.makeBuddy(this.nymphs[this.nymphs.length - 1]);
     this.toast(`仲間が ${n} 匹ふえた！`, 'good');
     this.events.push('hatch');
+  }
+
+  // 着地の土ぼこり：小さな茶色の輪が広がって消える
+  addDust(x, z) {
+    const m = makeRing(0xb08a5a, 0.08, 0.2, 0.6);
+    m.position.set(x, 0.03, z);
+    this.root.add(m);
+    (this.dusts || (this.dusts = [])).push({ m, t: 0 });
+  }
+  updateDust(dt) {
+    if (!this.dusts || !this.dusts.length) return;
+    for (const d of this.dusts) {
+      d.t += dt;
+      d.m.scale.setScalar(1 + d.t * 6);
+      d.m.material.opacity = Math.max(0, 0.6 * (1 - d.t / 0.45));
+    }
+    for (const d of this.dusts.filter((x) => x.t > 0.45)) { this.root.remove(d.m); disposeObject(d.m); }
+    this.dusts = this.dusts.filter((x) => x.t <= 0.45);
   }
 
   // 田んぼ道のおみやげ：自分のそばに仲間が来る
@@ -1588,6 +1642,7 @@ export class Game {
       const a = (i / Math.max(1, n)) * Math.PI * 2 + 0.6;
       const r = this.spawnRoach(p.x + Math.cos(a) * 0.5, p.z + Math.sin(a) * 0.5, true, p.surface >= 0 ? p.y : 0, p.surface);
       this.collide(r);
+      if (kind === 'carry') { this.markVeteran(r); this.makeBuddy(r); }
     }
     this.sfx.hatch();
     this.toast(kind === 'carry' ? `仲間 ${n}匹がついてきた！` : `おみやげ！ 仲間 +${n}`, 'good');
@@ -1715,6 +1770,27 @@ export class Game {
   updateFarmer(dt) {
     const f = this.farmer;
     f.speechT -= dt;
+    // 第18回：仲間がとても多いと、農場主が後ずさりする（字は出さず、動きと声だけ）
+    f.backCD = Math.max(0, (f.backCD || 0) - dt);
+    if (f.backT > 0) {
+      f.backT -= dt;
+      f.x = clamp(f.x + f.backDX * 1.6 * dt, BOUNDS.minX + 1, BOUNDS.maxX - 1);
+      f.z = clamp(f.z + f.backDZ * 1.6 * dt, BOUNDS.minZ + 1, BOUNDS.maxZ - 1);
+      f.moveSpeed = 1.6;
+    } else if (!f.backCD && !f.hidden && !f.carry && (f.state === 'WORK' || f.state === 'INVESTIGATE') && this.nymphs.length >= 15) {
+      const near = this.nymphs.filter((r) => r.y < 0.3 && Math.hypot(r.x - f.x, r.z - f.z) < 3);
+      if (near.length >= 6) {
+        let cx = 0, cz = 0;
+        for (const r of near) { cx += r.x; cz += r.z; }
+        cx /= near.length; cz /= near.length;
+        const d = Math.hypot(f.x - cx, f.z - cz) || 1;
+        f.backDX = (f.x - cx) / d; f.backDZ = (f.z - cz) / d;
+        f.backT = 0.9; f.backCD = 20;
+        f.h = Math.atan2(cx - f.x, cz - f.z);
+        this.sfx.huhDown ? this.sfx.huhDown() : this.sfx.huh();
+        this.stats.backoffs = (this.stats.backoffs || 0) + 1;
+      }
+    }
     f.sprayCD = Math.max(0, f.sprayCD - dt);
     f.whackCD = Math.max(0, f.whackCD - dt);
     f.coneRange = this.night ? 13 : 10 + f.anger * 1.2;
@@ -2187,7 +2263,11 @@ export class Game {
     const f = this.farmer;
     const spray = type === 'spray';
     const radius = spray ? 1.7 : 0.95;
-    const marker = makeRing(spray ? 0xffd23c : 0xff3b30, radius * 0.86, radius, 0.7);
+    // 第18回：縦画面でも見えるよう、輪を太くし、中もうすく塗る
+    const marker = makeRing(spray ? 0xffc21a : 0xff3b30, radius * 0.7, radius, 0.8);
+    const fill = makeRing(spray ? 0xffe066 : 0xff6b5e, 0.001, radius * 0.7, 0.22);
+    fill.material.opacity = 0.22;
+    marker.add(fill);
     marker.position.set(x, y + 0.04, z);
     this.root.add(marker);
     f.act = { type, t: 0, x, y, z, wind: spray ? 0.65 : 0.8, radius, marker, done: false };
@@ -2374,7 +2454,8 @@ export class Game {
       const ph = r.st === 'stuck' ? t * 30 : r.phase;
       // 遠くの仲間は脚と触角を描かない（数が多くても重くならないように）
       if (!r.isPlayer) {
-        const far = this.player && Math.hypot(r.x - this.player.x, r.z - this.player.z) > 9;
+        // 第17回：省エネ中は、もっと近くから簡単な形にする
+        const far = this.player && Math.hypot(r.x - this.player.x, r.z - this.player.z) > (this.eco ? 6 : 9);
         if (m.farLod !== far) {
           m.farLod = far;
           for (const L of m.legs) L.g.visible = !far;
@@ -2568,27 +2649,27 @@ export class Game {
     const F = this.fog;
     if (!F || F.cleared) return;
     F.t += dt;
-    const growing = F.t < 30;
-    F.r = Math.min(34, F.t * 1.25);
-    // 煙のかたまりを足していく
-    if (growing && F.puffs.length < 70 && rand() < dt * 6) {
+    // 第18回：煙は熱のいちばんの原因だったので、数を減らし（大きくして同じ広さを覆う）、早めに晴らす
+    const GROW = 22, FADE = 5;
+    const growing = F.t < GROW;
+    F.r = Math.min(34, F.t * 1.6);
+    const cap = this.eco ? 14 : 24;
+    if (growing && F.puffs.length < cap && rand() < dt * 3) {
       const m = makeCloud();
       const a = rand() * Math.PI * 2, d = rand() * F.r;
       m.group.position.set(clamp(F.x + Math.cos(a) * d, -21, 21), 0, clamp(F.z + Math.sin(a) * d, -13, 13));
-      m.group.scale.setScalar(2.2 + rand() * 1.5);
+      m.group.scale.setScalar(3.4 + rand() * 1.8);
       m.mat.color.setHex(0xdcdcd4);
+      // かたまりの形は最初に1回だけ決める（毎回動かさない）
+      for (const pf of m.puffs) { const o = pf.userData.off; pf.position.set(o.x * 1.6, o.y, o.z * 1.6); pf.scale.setScalar(pf.userData.s * 1.4); }
       this.root.add(m.group);
       F.puffs.push({ m, t: 0 });
     }
-    const fade = F.t > 30 ? Math.max(0, 1 - (F.t - 30) / 8) : Math.min(1, F.t / 3);
+    const fade = F.t > GROW ? Math.max(0, 1 - (F.t - GROW) / FADE) : Math.min(1, F.t / 3);
     for (const p of F.puffs) {
       p.t += dt;
-      p.m.mat.opacity = 0.22 * fade;
-      for (const pf of p.m.puffs) {
-        const o = pf.userData.off;
-        pf.position.set(o.x * 1.6, o.y + Math.sin(p.t * 0.5) * 0.2, o.z * 1.6);
-        pf.scale.setScalar(pf.userData.s * 1.4);
-      }
+      p.m.mat.opacity = 0.26 * fade;
+      p.m.group.position.y = Math.sin(p.t * 0.5) * 0.2;
     }
     this.fogLevel = fade;
     // 煙の中は体力が減る（逃げ場の輪の中は平気）
@@ -2604,7 +2685,7 @@ export class Game {
         this.toast('卵は無事だ', 'info');
       }
     }
-    if (F.t > 38) {
+    if (F.t > GROW + FADE) {
       F.cleared = true;
       this.fogLevel = 0;
       for (const p of F.puffs) { this.root.remove(p.m.group); disposeObject(p.m.group); }
@@ -2759,6 +2840,7 @@ export class Game {
       C.bellT = 0.55;
       const dp = Math.hypot(C.x - this.player.x, C.z - this.player.z);
       this.sfx.bell(Math.max(0, 1 - dp / 16) * 0.6, this.panOf(C.x, C.z));
+      if (dp < 6) this.sfx.duck(0.8); // 近くの鈴のときは、ほかの音を少し小さく
       if (dp < 16) this.soundPings.push({ x: C.x, z: C.z, v: Math.max(0.3, 1 - dp / 16), kind: 'bell' });
       this.events.push('bell');
     }
@@ -3265,6 +3347,7 @@ export class Game {
     this.result = {
       win, reason, score: Math.max(0, score), rank, alive, elapsed: this.elapsed, diff: this.diff.key, easy: this.easyMode,
       stats: { ...this.stats, ruinedColor: [...this.stats.ruinedColor], seen: [...this.stats.seen] },
+      bestMate: (() => { const b = this.roaches.filter((r) => !r.isPlayer && r.name && (r.bitten || 0) > 2).sort((a, c) => c.bitten - a.bitten)[0]; return b ? b.name : null; })(),
       grumble: this.grumble(win, reason),
       diary: this.diary(win, reason),
       advice: this.advice(win, reason),

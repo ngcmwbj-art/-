@@ -239,6 +239,15 @@ export class Runner {
     if (opts.hat && opts.hat !== 'none') { const h = makeHat(opts.hat); h.position.set(0, 0.13, 0.24); h.rotation.x = -0.2; h.scale.setScalar(1.5); this.roach.body.add(h); }
     this.roach.root.rotation.y = Math.PI / 2; // +x の方向へ走る
     this.root.add(this.roach.root);
+    // 第18回：連れてきた仲間（2〜3匹）がいっしょに走る（見た目だけ。当たり判定はなし）
+    if (this.mates) for (const mt of this.mates) { this.root.remove(mt.m.root); disposeObject(mt.m.root); }
+    this.mates = [];
+    for (let i = 0; i < Math.min(3, opts.mates || 0); i++) {
+      const mm = makeRoach(true, 'normal', 'none');
+      mm.root.scale.setScalar(0.5);
+      this.root.add(mm.root);
+      this.mates.push({ m: mm, lag: 0.55 + i * 0.4, side: (i % 2 ? 1 : -1) * (0.3 + 0.12 * i), ph: i * 1.7 });
+    }
     this.root.visible = true;
     Object.assign(this, { active: true, x: 0, z: 0, vz: 0, speed: 0, stam: 100, slowT: 0, stunT: 0, bits: 0, t: 0, count: 3, truckX: -10, done: null, phase: 0, shoutT: 0 });
     this.truck.position.set(this.truckX, 0, 0);
@@ -320,6 +329,12 @@ export class Runner {
     m.root.rotation.y = Math.PI / 2 - this.vz * 0.12;
     animateRoach(m, this.phase, this.speed > 0.3 ? 1 : 0, this.t, false);
     m.body.rotation.z = this.stunT > 0 ? Math.sin(this.t * 40) * 0.2 : 0;
+    for (const mt of this.mates || []) {
+      const mz = Math.max(-1.5, Math.min(1.5, this.z + mt.side));
+      mt.m.root.position.set(this.x - mt.lag, 0, mz);
+      mt.m.root.rotation.y = Math.PI / 2;
+      animateRoach(mt.m, this.phase + mt.ph, this.speed > 0.3 ? 1 : 0, this.t + mt.ph, false);
+    }
     this.truck.position.set(this.truckX, Math.sin(this.t * 18) * 0.02, this.z * 0.3);
     if (this.reel) this.reel.rotation.y += dt * 3;
     // ライトの光（軽トラの前からゴキブリの足もとまで）と、前へのびる影

@@ -538,7 +538,8 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
     {
       document.getElementById('feed').innerHTML = '';
       g.startChase(g.player);
-      check('見つかるとラジオが実況する', document.querySelectorAll('#feed .feed-item.radio').length === 1 && /ラジオ/.test(g.radioLast || ''));
+      // 第14回：ラジオの字は出さず、音だけ
+      check('見つかるとラジオが実況する（字は出さない）', document.querySelectorAll('#feed .feed-item.radio').length === 0 && /ラジオ/.test(g.radioLast || ''));
     }
 
     // 45. 助っ人のカブトムシ
@@ -914,6 +915,43 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       g.ui.speak = sp0;
       check('負けたときの口癖「今日もおれの勝ちだな」', /今日もおれの勝ちだな/.test(g.farmer.speech) && /今日もおれの勝ちだな/.test(g.result.grumble[0]) && g.result.diary[g.result.diary.length - 1] === '今日もおれの勝ちだな。');
       check('声は大事なセリフだけ', spoken.length === 1 && /今日もおれの勝ちだな/.test(spoken[0]), spoken.join('／'));
+    }
+
+    // 68. 第14〜18回
+    g.start('s5', 161);
+    {
+      g.eco = true;
+      g.farmer.x = 0; g.farmer.z = 0;
+      g.startFumigation();
+      let maxPuffs = 0;
+      RH.sim(70, 1 / 30, (gg, i) => { idle(gg, i); gg.player.hp = gg.player.maxHp; if (gg.fog) maxPuffs = Math.max(maxPuffs, gg.fog.puffs.length); });
+      check('けむり玉の煙は少なく（省エネで14こまで）、早く晴れる', g.fog && g.fog.cleared && maxPuffs > 0 && maxPuffs <= 14, g.fog ? `t=${g.fog.t.toFixed(1)} puffs=${maxPuffs}` : 'no fog');
+      g.eco = false;
+    }
+    g.start('s1', 162); freezeFarmer();
+    {
+      for (let i = 0; i < 3; i++) g.spawnRoach(g.player.x + 0.3 * i, g.player.z + 0.4, true);
+      check('仲間には名前がつく', g.nymphs.every((r) => !!r.name));
+      g.giveSouvenir(2, 'carry');
+      check('連れてきた仲間には星、1匹は相棒の帽子', g.nymphs.filter((r) => r.vet).length === 2 && !!g.buddy && !!g.buddy.model.hat);
+      const n0 = g.nymphs[0]; n0.bitten = 50;
+      g.endGame(true, 'ruined');
+      check('いちばんかじった仲間の名前', g.result.bestMate === n0.name, g.result.bestMate);
+    }
+    g.start('s1', 163); freezeFarmer();
+    {
+      const m = g.spawnRoach(g.player.x + 0.5, g.player.z, true);
+      g.kill(m, 'spray');
+      check('最後の1匹で一瞬ゆっくりに', g.slowT > 0 && g.lastOneDone);
+    }
+    g.start('s1', 164);
+    {
+      const f = g.farmer;
+      f.state = 'WORK'; f.phase = 'idle'; f.timer = 999; f.x = 0; f.z = 0; f.act = null; f.backCD = 0;
+      for (let i = 0; i < 16; i++) { const r = g.spawnRoach(0.6 + (i % 4) * 0.3, 0.6 + Math.floor(i / 4) * 0.3, true); r.ai.slot = 0.9; }
+      g.setMode('follow');
+      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('仲間がとても多いと農場主が後ずさり', (g.stats.backoffs || 0) >= 1);
     }
 
     RH.startGame('s1');

@@ -85,7 +85,9 @@
 
   <section id="title" class="screen">
     <div class="sheet">
-      <h1 class="logo"><span class="k1">パプリカハウス</span><span class="k2">侵略のG</span></h1>
+      <div class="title-top"><h1 class="logo"><span class="k1">パプリカハウス</span><span class="k2">侵略のG</span></h1>
+      <button class="title-farmer" id="titleFarmer" aria-label="農場主"><svg viewBox="0 0 64 64" aria-hidden="true"><g class="tf-hair"><circle cx="20" cy="18" r="8"/><circle cx="30" cy="13" r="9"/><circle cx="41" cy="15" r="8"/><circle cx="47" cy="23" r="6"/><circle cx="16" cy="26" r="6"/></g><circle class="tf-face" cx="32" cy="36" r="17"/><g class="tf-eyes"><circle cx="25" cy="34" r="2.2"/><circle cx="39" cy="34" r="2.2"/></g><g class="tf-bags"><path d="M21 38q4 3 8 0M35 38q4 3 8 0"/></g><path class="tf-mouth" d="M26 45q6 -3 12 0"/><path class="tf-sweat" d="M50 30q3 5 0 7q-3 -2 0 -7z"/><g class="tf-stray"><path d="M30 6l2 -5M40 8l4 -4"/></g></svg><span class="tf-bubble" id="tfBubble" hidden>もう限界だ…</span></button></div>
+      <div class="title-flags" id="titleFlags"></div>
       <p class="lead">出荷される前に、コンテナをかじってダメにしろ！</p>
       <div class="tabs" id="titleTabs" role="tablist"><button class="tab on" data-tab="play">あそぶ</button><button class="tab" data-tab="see">みる</button><button class="tab" data-tab="set">せってい</button></div>
       <div class="tab-pane" data-pane="play">
@@ -193,7 +195,7 @@
   <section id="book" class="screen" hidden>
     <div class="sheet">
       <h2 class="rtitle">図鑑・称号・着せかえ</h2>
-      <div class="tabs" id="bookTabs"><button class="tab on" data-btab="dress">着せかえ</button><button class="tab" data-btab="ency">図鑑・称号</button><button class="tab" data-btab="rec">記録</button></div>
+      <div class="tabs" id="bookTabs"><button class="tab on" data-btab="dress">着せかえ</button><button class="tab" data-btab="ency">技と図鑑</button><button class="tab" data-btab="rec">記録</button></div>
       <div class="tab-pane" data-bpane="dress">
       <div class="book-sec"><h3>羽の色</h3><div class="wings" id="bookWings"></div></div>
       <div class="book-sec"><h3>羽のもよう</h3><div class="wings" id="bookPatterns"></div></div>
@@ -201,7 +203,7 @@
       </div>
       <div class="tab-pane" data-bpane="ency" hidden>
       <div class="book-sec"><h3>技</h3><ul class="titles techs" id="bookTechs"></ul></div>
-      <div class="book-sec"><h3>称号</h3><ul class="titles" id="bookTitles"></ul></div>
+      <ul class="titles" id="bookTitles" hidden></ul>
       <div class="book-sec"><h3>図鑑</h3><ul class="ency" id="bookEncy"></ul></div>
       </div>
       <div class="tab-pane" data-bpane="rec" hidden>
@@ -216,7 +218,7 @@
     <div class="sheet">
       <h2 class="rtitle" id="rTitle"></h2>
       <p class="lead" id="rReason"></p>
-      <div class="rank"><div class="r" id="rRank">A</div><div class="s">スコア<br><b id="rScore">0</b><br><span id="rBest"></span></div></div>
+      <div class="rank"><div class="r" id="rRank">A</div><div class="s"><b id="rScore" hidden>0</b><span id="rBest"></span></div><div class="r-pile" id="rPile"></div></div>
       <div class="r-stars" id="rStars"></div>
       <figure class="r-photo" id="rPhoto" hidden></figure>
       <p class="r-catch" id="rCatch"></p>
@@ -254,6 +256,20 @@
       <p class="lead" id="runText"></p>
       <p class="r-news" id="runNews"></p>
       <div class="row r-btns"><button class="btn primary" id="btnRunBack" hidden>ハウスにもどる</button><button class="btn primary big-again" id="btnRunAgain">もう一回！</button><button class="btn" id="btnRunTitle">タイトルへ</button></div>
+    </div>
+  </section>
+  <section id="ending" class="screen" hidden>
+    <div class="sheet ending-sheet">
+      <svg class="ending-art" viewBox="0 0 320 180" aria-hidden="true">
+        <rect width="320" height="180" fill="#f2b880"/><rect y="120" width="320" height="60" fill="#6a8c3a"/>
+        <path d="M40 120 L40 70 Q110 20 180 70 L180 120 Z" fill="#e8eef0" stroke="#9aa" stroke-width="2"/>
+        <g fill="#5a3418"><ellipse cx="95" cy="62" rx="10" ry="6"/></g><path d="M95 56 L95 34" stroke="#333" stroke-width="2"/><path d="M95 34 L118 40 L95 46 Z" fill="#c33"/>
+        <g fill="#5a3418"><ellipse cx="200" cy="128" rx="5" ry="3"/><ellipse cx="214" cy="131" rx="5" ry="3"/><ellipse cx="228" cy="127" rx="5" ry="3"/><ellipse cx="242" cy="130" rx="5" ry="3"/></g>
+        <g transform="translate(270 92)"><circle cx="0" cy="0" r="9" fill="#d9a27a"/><path d="M-9 -4 q9 -14 18 0" fill="#3a2a20"/><rect x="-8" y="9" width="16" height="22" fill="#c0503a"/></g>
+      </svg>
+      <h2 class="rtitle win">おしまい</h2>
+      <p class="lead">ハウスはゴキブリのものになった。農場主「もう限界だ…」</p>
+      <div class="row"><button class="btn primary" id="btnEndingClose">とじる</button></div>
     </div>
   </section>
   <div id="err" hidden></div>

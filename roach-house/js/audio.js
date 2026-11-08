@@ -85,7 +85,12 @@ export class Sfx {
   thump() { this.tone(55, 0.35, 'sine', 0.8, -25); this.noise(0.2, 'lowpass', 500, 0.6); }
   alert() { this.tone(660, 0.12, 'square', 0.12); this.tone(990, 0.2, 'square', 0.12, 0, 0.12); }
   huh() { this.tone(400, 0.25, 'triangle', 0.15, 160); }
-  hatch() { for (let i = 0; i < 3; i++) this.tone(900 + i * 300, 0.08, 'triangle', 0.15, 300, i * 0.09); }
+  // 後ずさりの「ん…？」（下がり調子）
+  huhDown() { this.tone(420, 0.35, 'triangle', 0.15, -180); }
+  // 第18回：生まれた仲間のひと声「チッ」（前の「ピピピ」の置きかえ。音は増やさない）
+  hatch() { this.tone(2300, 0.05, 'square', 0.07, -600); this.noise(0.03, 'highpass', 4000, 0.12, 1); }
+  // 第18回：自分が着地したときの「ポテッ」（低く短く）
+  plop() { this.tone(170, 0.09, 'sine', 0.35, -90); this.noise(0.06, 'lowpass', 900, 0.2, 1); }
   stuck() { this.noise(0.4, 'lowpass', 700, 0.4, 3); this.tone(180, 0.3, 'sawtooth', 0.08, -80); }
   hurt() { this.tone(300, 0.15, 'sawtooth', 0.15, -180); }
   die() { this.tone(500, 0.6, 'triangle', 0.2, -420); }
@@ -161,12 +166,26 @@ export class Sfx {
   phone() { for (let i = 0; i < 3; i++) { this.tone(1320, 0.08, 'square', 0.05, 0, i * 0.5); this.tone(1100, 0.08, 'square', 0.05, 0, i * 0.5 + 0.1); } }
   // ラジオのお知らせ：ポーン↑と、短いしゃべり風の音
   radioNews() { this.tone(660, 0.25, 'sine', 0.1); this.tone(990, 0.35, 'sine', 0.1, 0, 0.16); for (let i = 0; i < 5; i++) this.tone(260 + (i % 3) * 40, 0.07, 'square', 0.025, 0, 0.45 + i * 0.09); }
-  nice() { this.tone(880, 0.08, 'triangle', 0.18); this.tone(1320, 0.14, 'triangle', 0.18, 0, 0.07); }
+  // 第14回：ナイスが続くと、音がだんだん高くなる（step＝何回目か）
+  nice(step = 1) {
+    const k = Math.pow(2, (Math.min(8, Math.max(1, step)) - 1) * 2 / 12);
+    this.tone(880 * k, 0.08, 'triangle', 0.18); this.tone(1320 * k, 0.14, 'triangle', 0.18, 0, 0.07);
+  }
+  // 第14回：大事な音（サイレン・近くの鈴）のときは、環境音・ラジオを少し小さく
+  bgBus() {
+    if (!this.bg && this.ctx) { this.bg = this.ctx.createGain(); this.bg.gain.value = 1; this.bg.connect(this.master); }
+    return this.bg || this.master;
+  }
+  duck(sec = 1.2) {
+    if (!this.ok) return;
+    const g = this.bgBus().gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t); g.setTargetAtTime(0.3, t, 0.05); g.setTargetAtTime(1, t + sec, 0.3);
+  }
   thud() { this.tone(90, 0.3, 'sine', 0.7, -40); this.noise(0.15, 'lowpass', 400, 0.5); }
   poison() { this.tone(300, 0.5, 'sawtooth', 0.08, -150); this.tone(310, 0.5, 'sawtooth', 0.06, -160, 0.05); }
   wind() { this.noise(1.6, 'bandpass', 700, 0.3, 0.6, 0.2); }
   fogger() { this.noise(3, 'highpass', 2500, 0.25, 0.5, 0.4); }
-  siren() { for (let i = 0; i < 4; i++) { this.tone(660, 0.25, 'square', 0.07, 0, i * 0.5); this.tone(520, 0.25, 'square', 0.07, 0, i * 0.5 + 0.25); } }
+  siren() { this.duck(2.2); for (let i = 0; i < 4; i++) { this.tone(660, 0.25, 'square', 0.07, 0, i * 0.5); this.tone(520, 0.25, 'square', 0.07, 0, i * 0.5 + 0.25); } }
 
   // 農場主の腰のラジオ：民謡風のメロディと、ときどきのしゃべり。音の大きさと左右で居場所が分かる
   // 軽トラのエンジン音（にげろ！田んぼ道）：近いほど大きく低くうなる
@@ -203,7 +222,7 @@ export class Sfx {
     const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.9;
     let pan = null;
     if (c.createStereoPanner) { pan = c.createStereoPanner(); bp.connect(pan); pan.connect(bus); } else bp.connect(bus);
-    bus.connect(this.master);
+    bus.connect(this.bgBus());
     // 小さなスピーカーのザーッという音
     const hiss = c.createBufferSource(); hiss.buffer = this.noiseBuf; hiss.loop = true;
     const hg = c.createGain(); hg.gain.value = 0.015;
@@ -336,7 +355,7 @@ export class Sfx {
     src.buffer = this.noiseBuf; src.loop = true;
     const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260;
     const g = c.createGain(); g.gain.value = 0.05;
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g); g.connect(this.bgBus());
     src.start();
     // 緊張の鼓動
     const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = 52;

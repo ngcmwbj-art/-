@@ -145,6 +145,23 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   await frames(3);
   check('次のステージのはじめに仲間がいる', await page.evaluate((n) => window.__rh.game.diff.key === 's2' && window.__rh.game.nymphs.length === Math.min(8, n), nBefore), `前${nBefore}`);
 
+  // 第14〜18回：止まった絵・タイトルの農場主・旗・星の絵・パプリカの山・エンディング
+  await page.evaluate(() => { document.getElementById('btnTitle2') && document.getElementById('btnTitle2').click(); });
+  await frames(3);
+  check('タイトルに農場主の顔', await page.isVisible('#titleFarmer'));
+  await page.evaluate(() => document.getElementById('titleFarmer').click());
+  check('農場主を押すと口癖', await page.evaluate(() => !document.getElementById('tfBubble').hidden && /限界|勝ち/.test(document.getElementById('tfBubble').textContent)));
+  check('省エネ中のタイトルは描くのをやめる', await page.evaluate(() => new Promise((res) => { const r = window.__rh.renderer; let n = 0; const o = r.render.bind(r); r.render = (...a) => { n++; return o(...a); }; setTimeout(() => { r.render = o; res(n === 0); }, 700); })));
+  await page.evaluate(() => window.__rh.startGame('s6'));
+  await frames(3);
+  await page.evaluate(() => { const g = window.__rh.game; g.ruined = g.diff.target; g.stats.ruined = 5; g.endGame(true, 'ruined'); });
+  await page.waitForSelector('#result', { state: 'visible', timeout: 120000 }).catch(() => {});
+  check('結果の星の条件は絵', await page.evaluate(() => document.querySelectorAll('#rStars .star-rules svg').length === 3));
+  check('結果にパプリカの山', await page.evaluate(() => document.querySelectorAll('#rPile ellipse').length === 5));
+  await page.waitForSelector('#ending', { state: 'visible', timeout: 20000 }).catch(() => {});
+  check('ステージ6をクリアするとエンディング', await page.isVisible('#ending'));
+  await page.evaluate(() => document.getElementById('btnEndingClose').click());
+
   console.log(out.join('\n'));
   console.log('ERRORS', errors.length, errors.join('\n'));
   await browser.close();

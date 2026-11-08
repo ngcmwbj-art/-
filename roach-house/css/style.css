@@ -576,7 +576,7 @@ body.intro #hud > #introHaz { visibility: visible; }
 .stages { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
 .stage { padding: 6px 8px; gap: 2px; }
 .stage b { font-size: 12px; }
-.stage > span:not(.stars):not(.haz), .stage em { display: none; }
+.stage > span:not(.stars):not(.haz):not(.carry-n), .stage em { display: none; }
 .stage .stars { font-size: 12px; }
 .stage .haz i { font-size: 10px; padding: 0 5px; }
 /* 結果画面：口癖の1行と、たたんだ日記 */
@@ -619,3 +619,61 @@ body.demo #trPanel { display: none; }
 #result .r-btns .btn.primary { flex: 2 1 60%; font-size: 17px; }
 #result .sheet { min-height: 100%; margin: 0; }
 #result .r-btns { margin-top: auto; }
+/* 第14〜18回 */
+/* スマホでは画面中央のがっつきゲージを出さず、食べるボタンの輪だけ。赤になりそうならボタンがふるえる */
+body.touch #greed { display: none !important; }
+.tbtn.big.hot { animation: btnshake 0.12s linear infinite; }
+@keyframes btnshake { 0% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } 100% { transform: translateX(0); } }
+/* 農場主が近いと食べるボタンのまわりが赤く */
+.tbtn.big.danger { box-shadow: 0 0 0 4px rgba(224, 65, 43, 0.85), 0 0 16px rgba(224, 65, 43, 0.7); }
+/* 連れて行ける仲間の数（ステージのカード） */
+.stage .carry-n { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; color: var(--yellow); font-weight: 700; }
+.roach-ic { display: inline-block; width: 10px; height: 14px; border-radius: 50% 50% 45% 45%; background: #7a4a24; box-shadow: inset 0 -3px 0 #4a2a12; }
+/* 星の条件の絵 */
+.star-rules { display: flex; gap: 12px; justify-content: flex-start; margin-top: 4px; }
+.star-rules span { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 700; }
+.star-rules span.ok { color: var(--yellow); }
+.star-rules span.ng { color: var(--muted); opacity: 0.7; }
+.star-rules svg { width: 20px; height: 20px; }
+#trPanel.folded { transition: opacity 0.4s; }
+/* 産む場所の印（「もぐる」の印と同じ形で、緑） */
+.lbl.nest-mark i { display: block; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 14px solid #7ddc5a; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)); animation: stowbob 0.6s ease-in-out infinite alternate; }
+/* タイトルの農場主（押すと口癖・勝つほどやつれる）と、クリアの旗 */
+.title-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.title-farmer { position: relative; width: 74px; height: 74px; flex: 0 0 auto; border: none; background: none; padding: 0; cursor: pointer; }
+.title-farmer svg { width: 100%; height: 100%; }
+.title-farmer .tf-hair { fill: #3a2a20; }
+.title-farmer .tf-face { fill: #d9a27a; }
+.title-farmer .tf-eyes { fill: #2a1c12; }
+.title-farmer .tf-bags { fill: none; stroke: #8a5a4a; stroke-width: 1.5; opacity: 0; }
+.title-farmer .tf-mouth { fill: none; stroke: #5a2a1a; stroke-width: 2; stroke-linecap: round; }
+.title-farmer .tf-sweat { fill: #8fd0ff; opacity: 0; }
+.title-farmer .tf-stray { fill: none; stroke: #3a2a20; stroke-width: 2; opacity: 0; }
+.title-farmer.yatsure-1 .tf-bags { opacity: 0.6; }
+.title-farmer.yatsure-2 .tf-bags { opacity: 1; } .title-farmer.yatsure-2 .tf-sweat { opacity: 1; }
+.title-farmer.yatsure-3 .tf-bags, .title-farmer.yatsure-4 .tf-bags { opacity: 1; stroke-width: 2.5; }
+.title-farmer.yatsure-3 .tf-sweat, .title-farmer.yatsure-4 .tf-sweat { opacity: 1; }
+.title-farmer.yatsure-3 .tf-stray, .title-farmer.yatsure-4 .tf-stray { opacity: 1; }
+.title-farmer.yatsure-3 .tf-face { fill: #c9a07e; } .title-farmer.yatsure-4 .tf-face { fill: #b9a48c; }
+.title-farmer.yatsure-4 .tf-hair { fill: #6a6058; }
+.title-farmer.yatsure-2 .tf-mouth, .title-farmer.yatsure-3 .tf-mouth, .title-farmer.yatsure-4 .tf-mouth { d: path("M26 47q6 -4 12 0"); }
+.tf-bubble { position: absolute; right: 60px; top: 6px; white-space: nowrap; background: #fffaf0; color: var(--ink); font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
+.tf-bubble[hidden] { display: none; }
+.title-flags { display: flex; gap: 6px; min-height: 0; }
+.title-flags .flag { position: relative; width: 22px; height: 26px; }
+.title-flags .flag::before { content: ''; position: absolute; left: 2px; top: 0; bottom: 0; width: 2px; background: #ddd; }
+.title-flags .flag b { position: absolute; left: 4px; top: 1px; width: 16px; height: 11px; background: var(--paprika); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+/* 結果のパプリカの山 */
+.rank { align-items: center; }
+.r-pile svg { width: 110px; height: 90px; display: block; }
+/* エンディング */
+#ending { z-index: 20; background: rgba(22, 15, 10, 0.9); }
+#ending[hidden] { display: none; }
+.ending-art { width: 100%; max-width: 420px; border-radius: 12px; display: block; }
+/* 第16回：縦画面の田んぼ道 */
+@media (orientation: portrait) and (max-width: 600px) {
+  .run-top { top: calc(28px + env(safe-area-inset-top, 0px)); width: calc(100vw - 40px); }
+  body.touch .run-bl { top: calc(118px + env(safe-area-inset-top, 0px)); width: 150px; padding: 6px 8px; }
+  .run-help { bottom: auto; top: 46%; width: calc(100vw - 48px); }
+  .run-count { top: 34%; }
+}
