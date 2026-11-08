@@ -91,6 +91,7 @@ export function setupTouch(game) {
   bind('tb-go', () => game.skipPrep());
   bind('tb-help', () => document.getElementById('help').classList.toggle('show'));
   bind('tb-settings', () => game.toggleSettings(true));
+  bind('tb-pause', () => game.pauseGame());
 
   // ホットバーをタップでタワー選択（もう一度タップで解除）
   for (const slot of document.querySelectorAll('#hotbar .slot')) {

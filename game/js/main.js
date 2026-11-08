@@ -202,7 +202,38 @@ class Game {
       const locked = document.pointerLockElement === canvas;
       if (!locked && this.phase !== 'title' && this.phase !== 'result' && this.phase !== 'gameover') this.setPaused(true);
     });
-    document.getElementById('resume').addEventListener('click', () => this.lockPointer());
+    document.getElementById('resume').addEventListener('click', () => { this.resumeGame(); this.lockPointer(); });
+    // 裏に回った（ホーム画面・別のアプリ・タブ切り替え・画面ロック）ら自動で一時停止
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.pauseGame(); });
+    addEventListener('pagehide', () => this.pauseGame());
+  }
+
+  // 一時停止（iPad の ⏸ ボタン・裏に回ったとき）。時間も描画も止め、音も止める
+  pauseGame() {
+    if (this.userPaused || this.phase === 'title' || this.phase === 'result' || this.phase === 'gameover') return;
+    this.userPaused = true;
+    this.input.ax = this.input.az = 0; this.input.sprint = false;
+    for (const k of ['f', 'b', 'l', 'r']) this.input[k] = false;
+    if (this.audio.ctx && this.audio.ctx.state === 'running') this.audio.ctx.suspend();
+    const left = Math.max(0, Math.ceil(this.prepLength() - this.phaseT));
+    const now = this.phase === 'prep' ? `準備タイム（上陸まで ${left} 秒）`
+      : this.phase === 'storm' ? (this.spawn.boss ? '大ボス戦の途中' : `台風の途中（雑魚 残り ${this.minionsLeft()} 匹）`) : '台風一過';
+    document.getElementById('pause-info').innerHTML =
+      `<b>${this.waveName()}・${now}</b><span>キャベツ ${this.cabbages.alive.toLocaleString()} / ${this.cabbages.total.toLocaleString()} 玉　Qビット ${Math.floor(this.q)}</span>`;
+    this.updatePauseUI();
+  }
+  resumeGame() {
+    if (!this.userPaused) return;
+    this.userPaused = false;
+    if (this.audio.ctx && this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
+    this.clock.getDelta();
+    this.updatePauseUI();
+  }
+  updatePauseUI() {
+    const v = (this.userPaused || this.paused) && this.phase !== 'title' && this.phase !== 'result' && this.phase !== 'gameover';
+    document.getElementById('pause').classList.toggle('show', v);
+    document.getElementById('pause-info').hidden = !this.userPaused;
+    document.getElementById('resume').textContent = IS_TOUCH ? 'タップで再開' : 'クリックで再開';
   }
 
   lockPointer() {
@@ -216,7 +247,7 @@ class Game {
   setPaused(v) {
     if (this.phase === 'title') return;
     this.paused = v;
-    document.getElementById('pause').classList.toggle('show', v && this.phase !== 'result' && this.phase !== 'gameover');
+    this.updatePauseUI();
   }
 
   // opts.resume：保存データから再開 ／ opts.wave：台風を選んで始める（0 始まり）
@@ -1379,7 +1410,7 @@ class Game {
       if (now - (this.lastFrameAt || 0) < 1000 / this.Q.fps - 3) return;
       this.lastFrameAt = now;
     }
-    if (this.mapOpen || this.settingsOpen) { this.clock.getDelta(); return; }
+    if (this.mapOpen || this.settingsOpen || this.userPaused) { this.clock.getDelta(); return; }
     const rawDt = Math.min(this.clock.getDelta(), 0.05);
     let dt = this.paused ? 0 : rawDt;
     if (this.hitstop > 0) { this.hitstop -= rawDt; dt *= 0.08; }
