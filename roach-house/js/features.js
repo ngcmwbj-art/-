@@ -140,7 +140,7 @@ export function seasonOf(key) {
   return null;
 }
 export const SEASON_LABEL = { xmas: 'クリスマス', newyear: 'お正月' };
-export function totalStars(r) { return Object.values(r.stars || {}).reduce((a, b) => a + (b || 0), 0); }
+export function totalStars(r) { return Object.values(r.stars || {}).reduce((a, b) => a + (b || 0), 0) + Math.min(10, r.goldStars || 0); }
 export function unlockedHats(r) { const n = totalStars(r); const sh = r.seasonHats || []; return Object.keys(HATS).filter((k) => (HATS[k].season ? sh.includes(k) : n >= HATS[k].need)); }
 // 羽のもようの手に入れ方
 export const PATTERN_UNLOCK = {
@@ -222,6 +222,9 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   const key = String(res.diff);
   const prevStars = r.stars[key] || 0;
   if (got.count > prevStars) r.stars[key] = got.count;
+  // 第20回：金のパプリカの箱をダメにすると、星が1つ増える（10個まで）
+  const goldNow = !res.easy && stats.gold > 0 && (r.goldStars || 0) < 10;
+  if (goldNow) r.goldStars = (r.goldStars || 0) + 1;
   const pb = r.bests[key] || {};
   const newBest = {};
   if (res.win && !res.easy) {
@@ -255,13 +258,20 @@ export function applyResult(rec, res, stats, orders, dayKey) {
   if (weekNow) { wk.done = true; r.weeksDone = (r.weeksDone || 0) + 1; }
   r.week = wk;
   if (stats.stowaway) r.stowaway = (r.stowaway || 0) + stats.stowaway;
+  // 第19回：仲間名簿（よく働いた仲間の名前を残す。12匹まで）
+  if (res.bestMate && !res.easy) {
+    r.roster = Array.isArray(r.roster) ? r.roster : [];
+    r.roster.push({ name: res.bestMate, bit: res.bestMateBit || 0, st: key, win: !!res.win, d: dayKey });
+    r.roster.sort((a, b) => b.bit - a.bit);
+    r.roster.length = Math.min(r.roster.length, 12);
+  }
   // 使ったことのある技（「次はこうしてみよう」で、まだの技をすすめる）
   r.used = r.used && typeof r.used === 'object' ? r.used : {};
   const usedNow = { attack: stats.attacks, playdead: stats.playdeads, stow: stats.stowaway, revenge: stats.revenge, drain: stats.drains, box: stats.boxes, wind: stats.winds };
   for (const k of Object.keys(usedNow)) if (usedNow[k] > 0) r.used[k] = true;
   const newPatterns = unlockedPatterns(r).filter((k) => !before.patterns.includes(k));
   const newHats = unlockedHats(r).filter((k) => !before.hats.includes(k));
-  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, newBest, offerAssist, newPranks, newHats, newPatterns, weekNow, week: wk };
+  return { rec: r, newTitles, newWings, cleared, unlockedStage, stars: got, goldNow, newBest, offerAssist, newPranks, newHats, newPatterns, weekNow, week: wk };
 }
 export function unlockedWings(r) {
   return Object.keys(WING_UNLOCK).filter((k) => WING_UNLOCK[k].check(r));

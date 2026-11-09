@@ -1,12 +1,25 @@
 // 映像の仕上げ（陰影・光のにじみ・ピントのぼけ・色づくり）と、画質の自動調整
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+// 第20回：仕上げの部品（にじみ・陰影など）は、使うときになってから読みこむ（開いてから遊べるまでを短く。省エネ中は読まない）
+let PP = null, ppLoading = null;
+function loadPost() {
+  if (PP) return Promise.resolve(PP);
+  if (!ppLoading) {
+    ppLoading = Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'),
+      import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/ShaderPass.js'),
+      import('three/addons/postprocessing/GTAOPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'),
+      import('three/addons/postprocessing/BokehPass.js'),
+      import('three/addons/postprocessing/OutputPass.js'),
+    ]).then(([a, b, c, d, e, f, g]) => {
+      PP = { EffectComposer: a.EffectComposer, RenderPass: b.RenderPass, ShaderPass: c.ShaderPass, GTAOPass: d.GTAOPass, UnrealBloomPass: e.UnrealBloomPass, BokehPass: f.BokehPass, OutputPass: g.OutputPass };
+      return PP;
+    });
+  }
+  return ppLoading;
+}
 
 // 画質ごとの設定
 export const LEVELS = {
@@ -78,7 +91,11 @@ export class FX {
     if (this.composer) { this.composer.dispose(); this.composer = null; }
     this.passes = {};
     // 省エネ中は、にじみ・色の仕上げ・ピントぼけ・陰影をすべて切って、そのまま描く
-    if (!this.eco && (L.ao || L.dof || L.bloom || L.grade)) {
+    if (!this.eco && (L.ao || L.dof || L.bloom || L.grade) && !PP) {
+      // まだ部品が読めていない：いったんそのまま描き、読めたら仕上げをつける
+      loadPost().then(() => { if (this.level === name && !this.composer && !this.eco) { this.level = null; this.setLevel(name); } }).catch(() => { /* 読めなければ仕上げなしのまま */ });
+    } else if (!this.eco && (L.ao || L.dof || L.bloom || L.grade)) {
+      const { EffectComposer, RenderPass, ShaderPass, GTAOPass, UnrealBloomPass, BokehPass, OutputPass } = PP;
       const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: L.samples });
       const comp = new EffectComposer(r, rt);
       comp.addPass(new RenderPass(this.scene, this.camera));

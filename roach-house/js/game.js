@@ -9,7 +9,7 @@ import {
   makeRoach, animateRoach, makeFarmer, makeCrate, setCrateRot, animateFlies, makeTrap, makeEgg,
   makeCloud, makeRing, makeCone, disposeObject, makeBait, makeFogger, VEG_COLORS, makeCat, makeInspector,
   makeBento, makeGlove, makeBox, makeRadio, makeBoots, makeHat, makeDrain, makeXmasTree, makeKadomatsu, makeKagamiMochi, makeBeetle,
-  makeSheet, makeSpider, makeExterminator,
+  makeSheet, makeSpider, makeExterminator, addReturnStamp, makeGoldCrate, setRoachGloss, makeRat,
 } from './models.js';
 import { paprikaMaterial, PAPRIKA_COLORS } from './paprika.js';
 import { seededRand } from './features.js';
@@ -22,7 +22,7 @@ export const STAGES = [
     tip: 'まずはコンテナを1箱かじってみよう。見つかったらさいばい槽の下へ' },
   { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'ホイホイ・粘着シート・暖房機', haz: ['trap', 'sheet', 'heater'], target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
     tip: 'ホイホイ（黄色い家）が多い。地図の×印を見て、通り道を選ぼう' },
-  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: 'ホイホイ・毒エサ・JAの検品', haz: ['trap', 'bait', 'inspect'], target: 7, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true,
+  { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: 'ホイホイ・毒エサ・JAの検品', haz: ['trap', 'bait', 'inspect'], target: 7, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 17, fumAt: 0.5, inspect: true,
     tip: '黒い丸い容器は毒エサ。JAの検品員が来たら、近づかずに待とう' },
   { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: 'ネコ・クモ・暖房機', haz: ['cat', 'spider', 'heater'], target: 7, baits: 1, fSpeed: 0.97, susp: 0.88, patrol: [5, 8], patrolP: 0.6, loadT: 11, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true, cat: true,
     tip: '鈴の音はネコ。ネコは台やさいばい槽の上には来ない' },
@@ -200,6 +200,12 @@ export class Game {
       this.root.add(m.group);
       return c;
     });
+    // 第20回：まれに「金のパプリカ」の箱（ダメにすると星が1つ）
+    this.goldCrate = null;
+    if (!this.tour && !opts.tutorial && !opts.noGold && (opts.gold || rand() < 0.3)) {
+      const gc = this.crates[Math.floor(rand() * this.crates.length)];
+      gc.gold = true; makeGoldCrate(gc.model); this.goldCrate = gc;
+    }
     const trapList = [...INITIAL_TRAPS].sort(() => lr() - 0.5);
     trapList.slice(0, this.has('trap') ? D.traps : 0).forEach((t) => this.addTrap(t.x, t.z, t.r));
     BAIT_SPOTS.slice(0, this.has('bait') ? Math.max(1, D.baits) : 0).forEach((b) => this.addBait(b.x, b.z));
@@ -211,6 +217,12 @@ export class Game {
     this.glove.model.position.set(GLOVE_SPOT.x, 0, GLOVE_SPOT.z);
     this.glove.model.rotation.y = GLOVE_SPOT.h;
     this.root.add(this.bento.model, this.glove.model);
+    // 第21回：ステージ3だけ、一度だけ短い停電（10秒暗くなり、農場主が止まる）
+    this.blackout = (D.key === 's3' && !this.tour && !opts.tutorial && !this.easyMode) || opts.blackout ? { at: opts.blackoutAt != null ? opts.blackoutAt : randRange(100, 220), t: 0, done: false } : null;
+    this.blackoutK = 0;
+    // 第21回：味方のネズミ（ときどき走りぬけて、農場主の気をそらす）
+    if (this.rat && this.rat.model && this.rat.model.parent) this.rat.model.parent.remove(this.rat.model);
+    this.rat = (!this.tour && !opts.tutorial) ? { next: opts.ratAt != null ? opts.ratAt : randRange(70, 130), run: null, model: null } : null;
     this.boots = { ...BOOT_SPOT, model: makeBoots() };
     this.boots.model.position.set(BOOT_SPOT.x, 0, BOOT_SPOT.z);
     this.boots.model.rotation.y = -2.4;
@@ -492,6 +504,8 @@ export class Game {
     this.updateRadioObj(dt);
     this.updateBoots();
     this.updateHeater(dt);
+    this.updateBlackout(dt);
+    this.updateRat(dt);
     this.updateDust(dt);
     const p = this.player;
     if (p && p.alive && p.hp < this.minHp - 8 && p.hp < 45) {
@@ -514,6 +528,14 @@ export class Game {
 
   // ---------------- 自分のゴキブリ ----------------
   updatePlayer(p, dt, inp) {
+    { // 第20回：長く生き残るほど背中がつやつやに（1分から5分で最大。見た目だけ）
+      const P0 = this.player;
+      if (P0 && P0.alive) {
+        P0.life = (P0.life || 0) + dt;
+        const k = Math.round(clamp((P0.life - 60) / 240, 0, 1) * 10) / 10;
+        if (k !== P0.glossK) { P0.glossK = k; setRoachGloss(P0.model, k); }
+      }
+    }
     p.moving = false; p.dashing = false;
     const wasEating = p.eatingCrate || p.eatingFruit;
     const prevGreed = p.greed;
@@ -527,7 +549,7 @@ export class Game {
       if (!p.alive) return;
     }
     if (p.st === 'stuck') {
-      if (inp.consume('action')) { p.struggle += 15; this.sfx.click(); }
+      if (inp.consume('action')) { p.struggle += this.diff.assist ? 25 : 15; this.sfx.click(); } // 第20回：おたすけのときは連打が少なくてすむ
       p.struggle = Math.max(0, p.struggle - 9 * dt);
       this.damage(p, 3 * dt, 'trap');
       if (!p.alive) return;
@@ -711,10 +733,11 @@ export class Game {
 
     if (!p.eatingCrate && !p.eatingFruit && !p.eatingBait && mag > 0.05) {
       const dash = inp.dash && !p.box;
-      const spd = (dash ? 4.6 : 2.7) * Math.min(1, mag + 0.2) * (p.grow > 0 ? 0.9 : 1) * (p.box ? 0.45 : 1);
+      const soft = dash && inp.autoDash && !(inp.keys && (inp.keys.has('ShiftLeft') || inp.keys.has('ShiftRight')));
+      const spd = (dash ? (soft ? 3.7 : 4.6) : 2.7) * Math.min(1, mag + 0.2) * (p.grow > 0 ? 0.9 : 1) * (p.box ? 0.45 : 1);
       this.moveRoach(p, dx / mag, dz / mag, spd, dt);
       p.dashing = dash;
-      if (dash && p.surface < 0) this.noise(p, 4.5, 12 * dt);
+      if (dash && p.surface < 0) this.noise(p, soft ? 3.4 : 4.5, (soft ? 8 : 12) * dt);
     }
 
     if (p.box) {
@@ -782,7 +805,8 @@ export class Game {
     this.collide(p);
     // ごほうび：同じ便（荷台に積んだばかりの箱）も虫入りで返品。最大2箱
     const load = this.crates.filter((x) => x.shipped && !x.rotten).sort((a, b) => (b.shipNo || 0) - (a.shipNo || 0)).slice(0, 2);
-    for (const x of load) { this.shipped--; this.stats.shipped = this.shipped; this.ruinCrate(x, p); }
+    for (const x of load) { this.shipped--; this.stats.shipped = this.shipped; this.ruinCrate(x, p); addReturnStamp(x.model); }
+    addReturnStamp(c.model);
     f.catHold = 6;
     this.stats.stowaway = (this.stats.stowaway || 0) + 1;
     this.say(load.length ? 'うわぁっ！ 荷台の箱にもゴキブリが！ ぜんぶ返品だ…！' : 'うわぁっ！ 積んだ箱からゴキブリが！ こんなの出荷できるか！');
@@ -792,6 +816,66 @@ export class Game {
     this.snap('stowaway', '出荷されるかごにもぐりこんで、出荷を台無しに！');
     this.sfx.scream();
     this.events.push('stowaway');
+  }
+
+  // ---------------- 第21回：停電とネズミ ----------------
+  updateBlackout(dt) {
+    const B = this.blackout;
+    if (!B || B.done) { this.blackoutK = Math.max(0, this.blackoutK - dt * 2); return; }
+    const f = this.farmer;
+    if (B.t > 0) {
+      B.t -= dt;
+      this.blackoutK = Math.min(1, this.blackoutK + dt * 4);
+      if (B.t <= 0) { B.done = true; this.say('…おっ、電気がついた'); this.sfx.click && this.sfx.click(); }
+      return;
+    }
+    B.at -= dt;
+    if (B.at <= 0 && f && f.state === 'WORK' && !f.carry && !f.hidden) {
+      B.t = 10;
+      f.act = null;
+      this.say('うわっ、停電か！？ なんも見えん…', true);
+      this.sfx.thud && this.sfx.thud();
+      this.events.push('blackout');
+      this.stats.blackout = 1;
+    }
+  }
+  updateRat(dt) {
+    const R = this.rat, f = this.farmer;
+    if (!R || !f) return;
+    if (!R.run) {
+      R.next -= dt;
+      if (R.next > 0 || f.state !== 'WORK' || f.carry || f.hidden || f.catHold > 0) return;
+      // 農場主のそばを横切るように、ハウスの端から端へ走る
+      const side = rand() < 0.5 ? -1 : 1;
+      const sz = clamp(f.z + side * 7, BOUNDS.minZ + 1, BOUNDS.maxZ - 1), ez = clamp(f.z - side * 7, BOUNDS.minZ + 1, BOUNDS.maxZ - 1);
+      const x = clamp(f.x + randRange(-1.2, 1.2), BOUNDS.minX + 2, BOUNDS.maxX - 2);
+      if (!R.model) R.model = makeRat();
+      this.root.add(R.model);
+      R.run = { x, z: sz, ez, dir: Math.sign(ez - sz) || 1, seen: false, t: 0 };
+      R.model.position.set(x, 0, sz);
+      R.model.rotation.y = R.run.dir > 0 ? 0 : Math.PI;
+      this.events.push('rat');
+      return;
+    }
+    const U = R.run;
+    U.t += dt;
+    U.z += U.dir * 5.5 * dt;
+    R.model.position.set(U.x + Math.sin(U.t * 5) * 0.15, Math.abs(Math.sin(U.t * 22)) * 0.05, U.z);
+    if (R.model.userData.tail) R.model.userData.tail.rotation.z = Math.sin(U.t * 18) * 0.4;
+    const d = Math.hypot(U.x - f.x, U.z - f.z);
+    if (!U.seen && d < 3.5 && f.state !== 'CHASE' && f.state !== 'PANIC' && f.state !== 'FUMIGATE') {
+      U.seen = true;
+      f.catHold = 3.5; f.act = null;
+      f.h = Math.atan2(U.x - f.x, U.z - f.z);
+      f.susp = Math.max(0, f.susp - 30);
+      this.say(pick(['うわっ、ネズミ！', 'こらっ、ネズミめ！', 'ネズミまで出やがった…']), true);
+      this.sfx.huh && this.sfx.huh();
+      this.stats.rats = (this.stats.rats || 0) + 1;
+    }
+    if ((U.dir > 0 && U.z >= U.ez) || (U.dir < 0 && U.z <= U.ez) || U.t > 6) {
+      if (R.model.parent) R.model.parent.remove(R.model);
+      R.run = null; R.next = randRange(110, 190);
+    }
   }
 
   // ---------------- 隠れる・いたずら ----------------
@@ -1108,6 +1192,7 @@ export class Game {
     if (this.ruined >= this.diff.target) this.snap('last', '最後のコンテナをかじりつくした！');
     else if (this.ruined === this.diff.target - 1 && this.state === 'play' && !this.tutorial) this.say('もう限界だ…あと1箱でもやられたら…', true);
     this.sfx.ruin();
+    if (c.gold && !this.stats.gold) { this.stats.gold = 1; this.toast('金のパプリカ！ 星が1つふえる', 'good'); this.sfx.nice && this.sfx.nice(4); }
     this.toast(`1箱ダメにした！ ${this.ruined}/${this.diff.target}`, 'good');
     this.events.push('ruin');
     for (const r of this.roaches) if (r.eatingCrate === c) r.eatingCrate = null;
@@ -1554,6 +1639,7 @@ export class Game {
     this.sfx.die();
     this.stats.deaths++;
     this.lastDeathCause = cause;
+    this.events.push(`killed:${cause}`); // 第20回：何にやられたかを絵で一瞬
     // 仲間がいれば意識を移す
     let next = null, bd = Infinity;
     for (const o of this.roaches) {
@@ -1804,6 +1890,12 @@ export class Game {
       if (!this.calm) { const s0 = f.susp; this.sense(dt); f.susp = s0 + (f.susp - s0) * 0.25; }
       if (f.state === 'WORK') return;
     }
+    // 第21回：停電の間は、農場主は立ち止まって何も見えない
+    if (this.blackout && this.blackout.t > 0 && f.state !== 'PANIC' && f.state !== 'FUMIGATE') {
+      f.moveSpeed = 0; f.view = f.h;
+      f.susp = Math.max(0, f.susp - 12 * dt);
+      return;
+    }
     // ネコが足にじゃれている間は動けない
     if (f.catHold > 0 && f.state !== 'PANIC' && f.state !== 'FUMIGATE') {
       f.catHold -= dt;
@@ -1865,7 +1957,9 @@ export class Game {
     const crowd = 1 + Math.min(0.8, Math.max(0, nN - 10) * 0.025) * (this.diff.assist ? 0.5 : 1);
     const mul = this.diff.susp * (1 + 0.3 * f.anger) * (f.focusT > 0 ? 0.35 : 1) * crowd;
     if (best && bs > 0.04) {
-      f.susp = Math.min(100, f.susp + 58 * bs * mul * dt);
+      // 第21回：「？」から「！」までは少しゆっくり（にげる間をつくる）
+      const late = f.susp >= 40 ? 0.7 : 1;
+      f.susp = Math.min(100, f.susp + 58 * bs * mul * late * dt);
       if (f.state !== 'CHASE') {
         f.lastSeen = { x: best.x, y: best.y, z: best.z };
         f.suspect = best;
@@ -2473,6 +2567,12 @@ export class Game {
         for (const P of m.palps) P.visible = true;
       }
       animateRoach(m, ph, mv, t + r.id, !!(r.eatingCrate || r.eatingFruit));
+      // 第21回：仲間が10匹をこえると、止まっている仲間がときどき順番に体をゆらす「ウェーブ」（見た目だけ）
+      if (!r.isPlayer && r.nymph && this.nymphs.length >= 10 && !r.moving && r.st === 'move' && !r.eatingCrate) {
+        const wi = this.nymphs.indexOf(r);
+        const d = (t % 9) - wi * 0.09;
+        if (d > 0 && d < 0.45) { const k = Math.sin((d / 0.45) * Math.PI); m.body.position.y += k * 0.1; m.body.rotation.x = -k * 0.5; }
+      }
       if (r.st === 'climb') {
         const c = r.climb;
         m.body.rotation.x = -1.25 * Math.sin(Math.PI * Math.min(1, c.t));
@@ -3298,7 +3398,7 @@ export class Game {
     const T = this.tutorial;
     if (!T) return null;
     const L = [
-      touch ? '1/5　左下で歩く' : '1/5　WASD（矢印）で歩く',
+      touch ? '1/5　左下で歩く' : '1/5　矢印キーで歩く',
       touch ? '2/5　右側をなぞって見回す' : '2/5　歩くとカメラがついてくる',
       touch ? '3/5　矢印の箱で「食べる」長押し' : '3/5　矢印の箱でSpace長押し',
       '4/5　緑の帯で離すと「ナイス！」',
@@ -3351,6 +3451,7 @@ export class Game {
       win, reason, score: Math.max(0, score), rank, alive, elapsed: this.elapsed, diff: this.diff.key, easy: this.easyMode,
       stats: { ...this.stats, ruinedColor: [...this.stats.ruinedColor], seen: [...this.stats.seen] },
       bestMate: (() => { const b = this.roaches.filter((r) => !r.isPlayer && r.name && (r.bitten || 0) > 2).sort((a, c) => c.bitten - a.bitten)[0]; return b ? b.name : null; })(),
+      bestMateBit: (() => { const b = this.roaches.filter((r) => !r.isPlayer && r.name && (r.bitten || 0) > 2).sort((a, c) => c.bitten - a.bitten)[0]; return b ? Math.round(b.bitten) : 0; })(),
       grumble: this.grumble(win, reason),
       diary: this.diary(win, reason),
       advice: this.advice(win, reason),

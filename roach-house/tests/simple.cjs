@@ -162,6 +162,29 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   check('ステージ6をクリアするとエンディング', await page.isVisible('#ending'));
   await page.evaluate(() => document.getElementById('btnEndingClose').click());
 
+  // 第19〜21回
+  check('結果画面で「次へ」か「もう一度」が一度ぴょん', await page.evaluate(() => !!document.querySelector('#result .r-btns .hop')));
+  // 写真がまだない場合（すぐ終わらせたとき）は、試しの写真を1枚入れて確かめる
+  await page.evaluate(() => { const f = document.getElementById('rPhoto'); if (!f.querySelector('img')) { f.innerHTML = '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt=""><figcaption>ためし</figcaption>'; f.hidden = false; } });
+  await page.evaluate(() => document.querySelector('#rPhoto img').click());
+  check('結果の写真をタップすると大きく', await page.isVisible('#photoBig img'));
+  await page.evaluate(() => document.getElementById('photoBig').click());
+  check('もう一度タップでとじる', !(await page.isVisible('#photoBig')));
+  await page.evaluate(() => { document.getElementById('btnTitle2').click(); });
+  await frames(3);
+  check('タイトルに「今日のお題」は出さない', await page.evaluate(() => !/今日のお題/.test(document.getElementById('title').textContent)));
+  check('入口の看板と壁の落書き', await page.evaluate(() => { const d = window.__rh.deco; return !!d; }));
+  await page.evaluate(() => window.__rh.startGame('s1'));
+  await frames(3);
+  check('スマホでは右下のSpaceの札を出さない', !(await page.isVisible('#pcCard')));
+  check('一時停止ボタンは押しやすい大きさ', await page.evaluate(() => { const b = document.getElementById('pauseBtn').getBoundingClientRect(); return b.width >= 50 && b.height >= 44; }));
+  await page.evaluate(() => { const g = window.__rh.game; g.farmer.timer = 999; g.farmer.x = 19; g.farmer.z = 12; for (let i = 0; i < 15; i++) g.spawnRoach(g.player.x + 0.3 * (i % 5), g.player.z + 0.4 + Math.floor(i / 5) * 0.3, true); });
+  await frames(4);
+  check('仲間が多いと右上の農場主が青ざめる', await page.evaluate(() => document.getElementById('fface').dataset.pale === '3'));
+  await page.evaluate(() => { const g = window.__rh.game; g.kill(g.player, 'trap'); });
+  await frames(3);
+  check('やられたら、何にやられたかを絵で一瞬', await page.evaluate(() => !document.getElementById('deathPic').hidden && document.getElementById('deathPic').dataset.c === 'trap'));
+
   console.log(out.join('\n'));
   console.log('ERRORS', errors.length, errors.join('\n'));
   await browser.close();

@@ -120,9 +120,11 @@ export function makeRoach(nymph = false, wingKey = 'normal', pattern = 'none') {
   abd.position.set(0, 0.1, -0.08);
   body.add(abd);
   // 前の翅（成虫だけ）：左右2枚が背中をおおう
+  const shell = [];
   if (!nymph) {
     for (const s of [-1, 1]) {
       const w = mesh(SPH_Z, wingMat(wingKey, pattern));
+      shell.push(w);
       w.scale.set(0.088, 0.03, 0.285);
       w.position.set(s * 0.043, 0.148, -0.085);
       w.rotation.set(0.04, s * 0.03, s * -0.12);
@@ -258,7 +260,7 @@ export function makeRoach(nymph = false, wingKey = 'normal', pattern = 'none') {
     }
   }
   body.add(wings);
-  return { root, body, legs, antennae, nymph, wings, shadow, palps };
+  return { root, body, legs, antennae, nymph, wings, shadow, palps, shell };
 }
 
 export function animateRoach(m, phase, move, t, eating) {
@@ -665,10 +667,82 @@ export function makeCrate(i, colorIndex = i) {
     flies.add(f);
   }
   g.add(flies);
-  return { group: g, vegs, mats: [...mats.values()], flies };
+  // 第19回：かじられるほど、箱に穴が増える（3段階。絵を切りかえるだけで軽い）
+  const holes = [];
+  const HM = crateHoleMat();
+  const hspots = [
+    [[0.3, 0.32, d / 2 + 0.006, 0, 0.07], [-0.5, 0.18, -d / 2 - 0.006, Math.PI, 0.06]],
+    [[-0.15, 0.2, d / 2 + 0.006, 0, 0.09], [w / 2 + 0.006, 0.3, 0.1, Math.PI / 2, 0.08], [0.2, 0.36, -d / 2 - 0.006, Math.PI, 0.08]],
+    [[0.55, 0.14, d / 2 + 0.006, 0, 0.11], [-w / 2 - 0.006, 0.2, -0.12, -Math.PI / 2, 0.1], [-0.25, 0.3, -d / 2 - 0.006, Math.PI, 0.12], [0.62, 0.36, d / 2 + 0.006, 0, 0.06]],
+  ];
+  for (const set of hspots) {
+    const hg = new THREE.Group();
+    for (const [x, y, z, ry, r] of set) {
+      const m = new THREE.Mesh(crateHoleGeo(), HM);
+      m.position.set(x, y, z); m.rotation.y = ry; m.scale.set(r, r * 0.8, 1);
+      hg.add(m);
+    }
+    hg.visible = false;
+    g.add(hg);
+    holes.push(hg);
+  }
+  return { group: g, vegs, mats: [...mats.values()], flies, holes };
+}
+let _holeGeo = null, _holeMat = null, _stampMat = null, _goldMat = null;
+function crateHoleGeo() {
+  if (!_holeGeo) {
+    // ぎざぎざの穴（かじったあと）
+    const sh = new THREE.Shape();
+    const n = 9;
+    for (let k = 0; k <= n; k++) {
+      const a = (k / n) * Math.PI * 2, rr = k % 2 ? 0.75 : 1;
+      if (k === 0) sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); else sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    _holeGeo = new THREE.ShapeGeometry(sh);
+  }
+  return _holeGeo;
+}
+function crateHoleMat() {
+  if (!_holeMat) _holeMat = new THREE.MeshBasicMaterial({ color: 0x140c06, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
+  return _holeMat;
+}
+// 第20回：出荷ジャックで虫入りになった箱に、赤い「返品」のはんこ
+export function addReturnStamp(m) {
+  if (m.stamp) return;
+  if (!_stampMat) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const x = c.getContext('2d');
+    x.translate(64, 64); x.rotate(-0.25);
+    x.strokeStyle = '#d42020'; x.lineWidth = 9; x.beginPath(); x.arc(0, 0, 52, 0, Math.PI * 2); x.stroke();
+    x.lineWidth = 3; x.beginPath(); x.arc(0, 0, 42, 0, Math.PI * 2); x.stroke();
+    x.fillStyle = '#d42020'; x.font = 'bold 34px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('返品', 0, 2);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    _stampMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+  }
+  const g = new THREE.Group();
+  for (const s of [1, -1]) {
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), _stampMat);
+    q.position.set(0.2 * s, CRATE.h * 0.5, s * (CRATE.d / 2 + 0.012));
+    q.rotation.y = s > 0 ? 0 : Math.PI;
+    g.add(q);
+  }
+  m.group.add(g);
+  m.stamp = g;
+}
+// 第20回：まれに「金のパプリカ」の箱（上の段の真ん中を金色に）
+export function makeGoldCrate(m) {
+  if (!_goldMat) _goldMat = new THREE.MeshStandardMaterial({ color: 0xffcc33, metalness: 0.85, roughness: 0.25, emissive: 0x6a4a00, emissiveIntensity: 0.6 });
+  const v = m.vegs[m.vegs.length - 2];
+  if (!v) return;
+  v.children[0].material = _goldMat;
+  v.userData.gold = true;
+  m.gold = v;
 }
 
 export function setCrateRot(m, k) {
+  // 穴は残り75%・50%・25%で1段ずつ
+  if (m.holes) for (let i = 0; i < m.holes.length; i++) { const on = k > 0.25 + i * 0.25; if (m.holes[i].visible !== on) m.holes[i].visible = on; }
   for (const v of m.mats) {
     v.mat.color.copy(v.base).lerp(ROT, k);
     v.mat.roughness = 0.22 + k * 0.6;
@@ -1368,4 +1442,38 @@ export function makeExterminator() {
   m.root.add(hood, mask, goggles, tank, wand);
   m.root.traverse((o) => { if (o.isMesh) { o.userData.ownMaterial = true; o.userData.ownGeometry = true; o.castShadow = true; } });
   return m;
+}
+
+// 第20回：長く生き残るほど、背中がつやつやに（k：0〜1。見た目だけ）
+export function setRoachGloss(m, k) {
+  if (!m.shell || !m.shell.length) return;
+  if (!m.glossMat) { m.glossMat = m.shell[0].material.clone(); for (const w of m.shell) w.material = m.glossMat; m.glossBase = m.glossMat.roughness; }
+  const G = m.glossMat;
+  G.roughness = m.glossBase * (1 - 0.8 * k);
+  G.clearcoat = 1;
+  G.clearcoatRoughness = 0.1 * (1 - k) + 0.02;
+  if (G.emissive) { G.emissive.setRGB(0.35 * k, 0.22 * k, 0.05 * k); G.emissiveIntensity = 0.5 * k; }
+  if (G.sheen !== undefined) G.sheen = k;
+}
+
+// 第21回：味方のネズミ（ときどき走りぬけて、農場主の気をそらす）
+export function makeRat() {
+  const g = new THREE.Group();
+  const fur = new THREE.MeshStandardMaterial({ color: 0x8a8278, roughness: 0.9 });
+  const pink = new THREE.MeshStandardMaterial({ color: 0xe8a0a0, roughness: 0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), fur);
+  body.scale.set(0.22, 0.17, 0.36); body.position.y = 0.18; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), fur);
+  head.scale.set(0.13, 0.12, 0.17); head.position.set(0, 0.2, 0.38); g.add(head);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), pink); nose.position.set(0, 0.2, 0.55); g.add(nose);
+  for (const s of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), pink); ear.position.set(s * 0.09, 0.32, 0.33); ear.rotation.y = s * 0.3; g.add(ear);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), dark); eye.position.set(s * 0.06, 0.25, 0.48); g.add(eye);
+  }
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.025, 0.6, 6), pink);
+  tail.rotation.x = Math.PI / 2 - 0.25; tail.position.set(0, 0.12, -0.6); g.add(tail);
+  g.userData.tail = tail; g.userData.body = body;
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
 }

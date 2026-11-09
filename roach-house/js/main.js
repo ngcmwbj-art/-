@@ -1,6 +1,6 @@
 // 起動・描画・画面の表示
 import * as THREE from 'three';
-import { buildWorld, ROWS, TABLES, DOOR, TRUCK, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
+import { buildWorld, ROWS, TABLES, DOOR, TRUCK, BOUNDS, rowAt, WIND_LANES, SAFE_SPOTS, PLANT_FRUITS } from './world.js';
 import * as FEATURES from './features.js';
 import { Game, DIFFS, STAGES, MAX_NYMPHS, HAZ_NAMES } from './game.js';
 import { Runner } from './runner.js';
@@ -272,6 +272,7 @@ function closeJack() { jackOfferOn = false; $('jackOffer').hidden = true; }
 $('btnJackRun').addEventListener('click', () => { closeJack(); startRun('dawn', true); });
 $('btnJackStay').addEventListener('click', () => { closeJack(); });
 window.__rh = { game, input, THREE, scene, camera, renderer, fx, world };
+queueMicrotask(() => { try { window.__rh.cam = camState; window.__rh.startPcPractice = startPcPractice; } catch (_) { /* 無視 */ } });
 
 // ---------- 画面切りかえ ----------
 let screen = 'title';
@@ -279,6 +280,7 @@ function setScreen(s) {
   screen = s;
   if (s !== 'result') $('ending').hidden = true;
   $('title').hidden = s !== 'title';
+  if (s !== 'play' && s !== 'pause' && s !== 'over') $('blackout').hidden = true;
   $('pause').hidden = s !== 'pause';
   $('result').hidden = s !== 'result';
   $('book').hidden = s !== 'book';
@@ -315,9 +317,10 @@ function renderOrders() {
   const wHave = WEEK_GOALS.reduce((a2, gl) => a2 + Math.min(gl.need, wk.prog[gl.id] || 0), 0);
   const o = orders[0];
   const ok = o && done.includes(o.id);
-  $('orderCard').innerHTML = `${sn ? `<p class="season-note">${SEASON_LABEL[sn]}のかざり（期間限定の帽子）</p>` : ''}<h3>今日のお題</h3>` +
-    `<p class="odai ${ok ? 'done' : ''}">${ok ? '✓ ' : ''}${o ? o.text : ''}</p>` +
-    `<div class="week1"><span>週</span><span class="wbar"><i style="width:${(wHave / wNeed * 100).toFixed(0)}%"></i></span>${wk.done ? '<b class="ok">✓</b>' : ''}</div>`;
+  // 第20回：タイトルの「今日のお題」は消した（お題は結果画面だけで見せる）。季節のかざりの知らせだけ残す
+  void ok; void wHave; void wNeed;
+  $('orderCard').innerHTML = sn ? `<p class="season-note">${SEASON_LABEL[sn]}のかざり（期間限定の帽子）</p>` : '';
+  $('orderCard').hidden = !sn;
 }
 renderOrders();
 renderRunBtn();
@@ -326,6 +329,7 @@ $('optTutor').checked = !store.get('tutorialDone', false);
 let lastDiff = 's1';
 function startGame(diff, opt = {}) {
   closeJack();
+  $('blackout').hidden = true; blackoutOn = false;
   resetTruck();
   sfx.heaterStop && sfx.heaterStop();
   $('heatBadge').hidden = true;
@@ -339,6 +343,7 @@ function startGame(diff, opt = {}) {
   const assist = !!(records.assist && records.assist[diff]);
   endTourUi();
   const carryWas = records.carry;
+  houseDeco.update(records);
   game.start(diff, undefined, { tutorial, easy: !tutorial && $('optEasy').checked, boss: (records.eggs || 0) >= 50, wing: records.wing, hat: records.hat, pattern: records.pattern, assist, season: seasonOf(dayKey), layoutSeed: dailySeed(dayKey) });
   $('optTutor').checked = false;
   if (records.carry) { records.carry = null; store.set('records', records); }
@@ -368,6 +373,7 @@ function startGame(diff, opt = {}) {
   $('toasts').innerHTML = '';
   setScreen('play');
   updateCmdButtons();
+  if (!tutorial) startPcPractice();
   // ハウスをぐるっと：そのステージの1回目だけ、始めに3秒ほど全体を見せる（おせばとばせる。やり直しでは出さない）
   const introSeen = store.get('introSeen', []);
   if (!tutorial && !introSeen.includes(diff) && !opt.noIntro) {
@@ -379,6 +385,102 @@ function startGame(diff, opt = {}) {
     $('introHaz').hidden = false;
     document.body.classList.add('intro');
   } else endIntro();
+}
+// 第20回：入口の看板（クリアするたびに「パプリカハウス」→「ゴキブリハウス」）と、第21回：勝つほど壁に落書き
+const houseDeco = (() => {
+  const mk = (w, h, cw, ch) => {
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.9, side: THREE.DoubleSide }));
+    return { c, t, m };
+  };
+  const sign = mk(4.2, 1.1, 512, 134);
+  sign.m.position.set(BOUNDS.maxX - 0.08, 4.1, DOOR.z);
+  sign.m.rotation.y = -Math.PI / 2;
+  const wall = mk(9, 2.2, 1024, 250);
+  wall.m.position.set(BOUNDS.minX + 0.06, 1.25, -2.5);
+  wall.m.rotation.y = Math.PI / 2;
+  scene.add(sign.m, wall.m);
+  let lastKey = '';
+  const roach = (x, cx, cy, s, a, col) => {
+    x.save(); x.translate(cx, cy); x.rotate(a); x.scale(s, s);
+    x.strokeStyle = col; x.fillStyle = col; x.lineWidth = 3 / s; x.lineCap = 'round';
+    x.beginPath(); x.ellipse(0, 0, 10, 16, 0, 0, Math.PI * 2); x.stroke();
+    x.beginPath(); x.arc(0, -19, 5, 0, Math.PI * 2); x.fill();
+    for (const k of [-1, 1]) { x.beginPath(); x.moveTo(k * 9, -6); x.lineTo(k * 20, -12); x.moveTo(k * 10, 2); x.lineTo(k * 22, 4); x.moveTo(k * 8, 10); x.lineTo(k * 18, 20); x.moveTo(k * 3, -23); x.quadraticCurveTo(k * 10, -36, k * 20, -38); x.stroke(); }
+    x.restore();
+  };
+  return {
+    update(rec) {
+      const st = Math.min(6, rec.cleared || 0), wins = Math.min(14, rec.wins || 0);
+      const key = `${st}|${wins}`;
+      if (key === lastKey) return;
+      lastKey = key;
+      // 看板
+      const x = sign.c.getContext('2d');
+      x.clearRect(0, 0, 512, 134);
+      x.fillStyle = '#f4ecd8'; x.strokeStyle = '#5a3a1a'; x.lineWidth = 10;
+      x.fillRect(5, 5, 502, 124); x.strokeRect(5, 5, 502, 124);
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.font = 'bold 64px "Zen Maru Gothic", sans-serif';
+      if (st >= 6) { x.fillStyle = '#2a1608'; x.fillText('ゴキブリハウス', 256, 70); roach(x, 40, 66, 1.1, -0.3, '#2a1608'); roach(x, 472, 66, 1.1, 0.3, '#2a1608'); }
+      else {
+        x.fillStyle = '#c0281c'; x.fillText('パプリカハウス', 256, 70);
+        if (st >= 1) {
+          // クリアした数だけ、上から「ゴキブリ」と落書きされていく
+          x.strokeStyle = '#1a1a1a'; x.lineWidth = 7;
+          const w = 380 * Math.min(1, st / 5);
+          x.beginPath(); x.moveTo(66, 74); x.lineTo(66 + w, 66); x.stroke();
+          x.save(); x.translate(256, 28); x.rotate(-0.06); x.fillStyle = '#1a1a1a'; x.font = `bold ${30 + st * 4}px "Zen Maru Gothic", sans-serif`;
+          x.fillText(st >= 3 ? 'ゴキブリ' : 'ゴキ…', 0, 0); x.restore();
+          for (let i = 0; i < st; i++) roach(x, 30 + i * 90, 116, 0.55, i * 0.7, '#1a1a1a');
+        }
+      }
+      sign.t.needsUpdate = true;
+      // 壁の落書き：勝った回数だけゴキブリの絵がふえる
+      const y = wall.c.getContext('2d');
+      y.clearRect(0, 0, 1024, 250);
+      sign.m.visible = true;
+      wall.m.visible = wins > 0;
+      const cols = ['#1d1d1d', '#7a2a10', '#103a6a', '#2a5a1a'];
+      for (let i = 0; i < wins; i++) {
+        const cx = 60 + (i % 7) * 140 + ((i * 37) % 30), cy = 70 + Math.floor(i / 7) * 110 + ((i * 53) % 20);
+        roach(y, cx, cy, 1.3 + ((i * 7) % 5) * 0.12, ((i * 1.7) % 6.28), cols[i % cols.length]);
+      }
+      if (wins >= 5) { y.save(); y.translate(512, 220); y.rotate(-0.03); y.fillStyle = '#1d1d1d'; y.font = 'bold 34px "Zen Maru Gothic", sans-serif'; y.textAlign = 'center'; y.fillText(`ゴキブリ参上 ×${wins}`, 0, 0); y.restore(); }
+      wall.t.needsUpdate = true;
+    },
+  };
+})();
+houseDeco.update(records);
+window.__rh.deco = houseDeco;
+// 第19回 T1：はじめてパソコンで遊ぶ人だけ、10秒の練習（矢印で歩く → Space）
+let pcPractice = null;
+function startPcPractice() {
+  pcPractice = null;
+  document.body.classList.remove('pcprac');
+  $('pcPractice').hidden = true;
+  if (isTouchDevice || input.touchMode || store.get('pcPracticed', false)) return;
+  pcPractice = { step: 0, moved: 0, t: 0 };
+  $('pcpText').textContent = '矢印キーで歩いてみよう';
+  $('pcp1').className = ''; $('pcp2').className = '';
+  $('pcPractice').hidden = false;
+  document.body.classList.add('pcprac');
+}
+function updatePcPractice(dt, ctx) {
+  if (!pcPractice || screen !== 'play') return;
+  const P = pcPractice;
+  P.t += dt;
+  if (P.step === 0) {
+    if (Math.hypot(input.mx || 0, input.mz || 0) > 0.3) P.moved += dt;
+    if (P.moved > 0.8) { P.step = 1; $('pcp1').className = 'ok'; $('pcpText').textContent = 'Space（または左クリック）を押してみよう'; sfx.click(); }
+  } else if (P.step === 1) {
+    if (input.lit('Space')) { P.step = 2; P.t = 0; $('pcp2').className = 'ok'; $('pcpText').textContent = 'それだけでOK！'; sfx.click(); }
+  } else if (P.t > 1.6) {
+    $('pcPractice').hidden = true; pcPractice = null; store.set('pcPracticed', true); document.body.classList.remove('pcprac');
+    return;
+  }
+  if (P.step < 2 && P.t > 25) { $('pcPractice').hidden = true; pcPractice = null; store.set('pcPracticed', true); document.body.classList.remove('pcprac'); }
 }
 function resetTruck() {
   camState.ending = null;
@@ -638,6 +740,10 @@ function renderBook() {
     ['落とした実', `${r.fruits} 個`], ['こなした注文', `${r.orders} 個`], ['いちばん大きな群れ', `${r.maxGroup || 0} 匹`]];
   $('bookRec').innerHTML = rows.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
   const mmb = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  { // 第19回：仲間名簿
+    const ro = records.roster || [];
+    $('bookRoster').innerHTML = ro.length ? ro.map((m) => { const st = STAGES.find((x) => x.key === m.st); return `<li><b>${escapeHtml(m.name)}</b><span>${st ? st.label : ''}${m.win ? '・勝ち' : ''}</span></li>`; }).join('') : '<li class="none">まだいない（仲間にかじってもらおう）</li>';
+  }
   $('bookBest').innerHTML = `<tr><th>ステージ</th><th>星</th><th>最速クリア</th><th>最少出荷</th></tr>` + STAGES.map((st) => {
     const b = records.bests[st.key] || {};
     const n = records.stars[st.key] || 0;
@@ -744,6 +850,15 @@ $('btnAssist').addEventListener('click', (e) => {
 });
 $('btnTitle2').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pauseGame);
+// 第19回：全画面（家族の大きな画面で遊ぶ）
+$('btnFull').addEventListener('click', () => {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => ui.toast('この画面では全画面にできません', 'info'));
+    else ui.toast('この画面では全画面にできません', 'info');
+  } catch (_) { ui.toast('この画面では全画面にできません', 'info'); }
+});
+document.addEventListener('fullscreenchange', () => { $('btnFull').textContent = document.fullscreenElement ? '全画面をやめる' : '全画面'; });
 $('optSound').addEventListener('change', (e) => { soundOn = e.target.checked; store.set('sound', soundOn); sfx.setMuted(!soundOn); });
 $('optQuality').value = qualityPref;
 // 音量と、音の波紋
@@ -845,6 +960,7 @@ function showResult(res) {
   store.set('records', records);
   const ol = orders.map((o) => (out.cleared.includes(o.id) ? `<span class="ok">✓ ${o.text}</span>` : `<span class="ng">・${o.text}</span>`));
   const news = [
+    ...out.cleared.map((id) => { const o = orders.find((x) => x.id === id); return `<span class="new">今日のお題 達成！${o ? `（${o.text}）` : ''}</span>`; }),
     ...out.newWings.map((k) => `<span class="new">新しい羽の色「${WING_COLORS[k].label}」</span>`)];
   const st3 = out.stars;
   // 第14回：星の条件を字ではなく絵で（箱＝クリア、トラック≦3＝出荷3箱以内、目≦2＝見つかるのは2回まで）
@@ -898,6 +1014,7 @@ function showResult(res) {
   if ((s.revenge || 0) > 0) news.push(`<span class="new">仕返し ${s.revenge}回！</span>`);
   for (const k of out.newPatterns || []) news.push(`<span class="new">新しい羽のもよう「${WING_PATTERNS[k].label}」</span>`);
   if (out.weekNow) news.push('<span class="new">週のチャレンジ達成！</span>');
+  if (out.goldNow) news.unshift('<span class="new gold">金のパプリカ！ 星+1</span>');
   if ((s.stowaway || 0) > 0) news.push(`<span class="new">出荷ジャック ${s.stowaway}回！${records.stowaway === s.stowaway ? '　田んぼ道が遊べる！' : ''}</span>`);
   for (const k of out.newHats || []) news.push(`<span class="new">新しい帽子「${HATS[k].label}」</span>`);
   // 結果画面は短く：大事なお知らせだけ上に、ほかは「くわしく」の中へ
@@ -926,15 +1043,26 @@ function showResult(res) {
   $('rTip').hidden = !$('rTip').textContent;
   $('rTip').classList.toggle('advice', !!res.advice);
   setScreen('result');
+  // 第21回：「次へ」（なければ「もう一度」）が一度だけぴょんと動く
+  { const hb = !$('btnNext').hidden ? $('btnNext') : $('btnAgain'); document.querySelectorAll('.r-btns .hop').forEach((b) => b.classList.remove('hop')); void hb.offsetWidth; hb.classList.add('hop'); }
   // 第15回：ステージ6をクリアしたらエンディング
   if (res.win && res.diff === 's6' && !res.easy) setTimeout(() => { if (screen === 'result') { $('ending').hidden = false; } }, 600);
 }
+// 第20回：結果の写真をタップすると大きく見られる
+document.addEventListener('click', (e) => {
+  const im = e.target && e.target.closest && e.target.closest('#rPhoto img, #rHigh img');
+  if (!im) return;
+  const cap = im.parentElement && im.parentElement.querySelector('figcaption');
+  $('photoBig').innerHTML = `<img src="${im.src}" alt="">${cap ? `<p>${escapeHtml(cap.textContent)}</p>` : ''}`;
+  $('photoBig').hidden = false;
+});
+$('photoBig').addEventListener('click', () => { $('photoBig').hidden = true; });
 $('btnEndingClose').addEventListener('click', () => { $('ending').hidden = true; });
 
 // ---------- ヒント ----------
 const hints = {
   list: [
-    { id: 'move', kb: 'WASDで歩く・Spaceで何でも', tc: '左下で移動・右側で見回す', until: (g) => g.elapsed > 8 },
+    { id: 'move', kb: '矢印で歩く・Spaceで何でも', tc: '左下で移動・右側で見回す', until: (g) => g.elapsed > 8 },
     { id: 'eat', kb: 'Space長押しで食べる。赤になる前に離す', tc: '「食べる」長押し。赤になる前に離す', when: (g) => !!(g.context() && g.context().crate), until: (_, ev) => ev.has('ruin') || ev.has('egg'), max: 9 },
     { id: 'climb', kb: 'ふちでSpace：登る', tc: 'ふちで「登る」', when: (g) => { const c = g.context(); return c && c.text === '登る'; }, until: (_, ev) => ev.has('climb'), max: 7 },
     { id: 'wind', kb: '渦でSpace：風に乗る', tc: '渦で「風に乗る」', when: (g) => { const c = g.context(); return c && c.text === '風に乗る'; }, until: (_, ev) => ev.has('wind'), max: 7 },
@@ -1042,6 +1170,17 @@ function updateCamera(dt) {
     E.mates.forEach((r, i) => {
       if (!r.model || !r.model.root) return;
       if (r.inGlove || r.box || r.stow) game.leaveHiding(r);
+      // 第21回：はじめの2匹はトラックの荷台に乗って、立ち上がって前足（手）をふる
+      if (i < 2) {
+        r.x = TRUCK.x - 1.3 + dx; r.z = TRUCK.z + (i ? 0.7 : -0.7); r.y = 1.26;
+        r.model.root.visible = true;
+        r.model.root.position.set(r.x, r.y, r.z);
+        r.model.root.rotation.set(0, -Math.PI / 2 + (i ? -0.5 : 0.5), 0); r.moving = false;
+        r.model.body.rotation.x = -1.15;
+        r.model.body.rotation.z = Math.sin(E.t * 10 + i * 1.5) * 0.25;
+        r.model.legs.slice(0, 2).forEach((L, j) => { if (L.g) L.g.rotation.x = -0.9 + Math.sin(E.t * 12 + j * Math.PI + i) * 0.6; });
+        return;
+      }
       const lag = 2.6 + i * 0.75 + Math.sin(E.t * 9 + i) * 0.08;
       r.x = TRUCK.x - lag + dx * 0.8; r.z = TRUCK.z + ((i % 3) - 1) * 0.55; r.y = 0; r.surface = -1;
       r.model.root.visible = true;
@@ -1132,7 +1271,7 @@ function updateCamera(dt) {
   camState.look.lerp(new THREE.Vector3(info.x, ty, info.z), 1 - Math.exp(-18 * dt));
   camera.position.copy(camState.pos);
   if (game.shake > 0) {
-    const s = game.shake * 0.06;
+    const s = game.shake * 0.03; // 第21回：ゆれは半分に（目にやさしく）
     camera.position.x += (Math.random() - 0.5) * s;
     camera.position.y += (Math.random() - 0.5) * s;
   }
@@ -1141,6 +1280,29 @@ function updateCamera(dt) {
 
 // ---------- HUD ----------
 const fmt = (t) => { t = Math.max(0, Math.ceil(t)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+// 第20回：何にやられたかを、字ではなく絵で一瞬（缶・手・ホイホイ…）
+const DEATH_PIC = {
+  spray: '<svg viewBox="0 0 64 64"><rect x="20" y="18" width="22" height="40" rx="5" fill="#e23b3b"/><rect x="24" y="10" width="14" height="9" rx="2" fill="#ccc"/><rect x="27" y="5" width="8" height="6" fill="#888"/><path d="M38 8h6" stroke="#888" stroke-width="3"/><g fill="#bfe8ff" opacity="0.9"><circle cx="50" cy="8" r="3"/><circle cx="56" cy="5" r="2"/><circle cx="57" cy="12" r="2.5"/></g><rect x="22" y="30" width="18" height="10" fill="#fff" opacity="0.8"/></svg>',
+  whack: '<svg viewBox="0 0 64 64"><path d="M14 40c0-10 4-22 8-22s3 10 3 10V10c0-4 6-4 6 0v16V7c0-4 6-4 6 0v19V10c0-4 6-4 6 0v20l3-6c2-4 7-2 6 2l-6 18c-2 8-8 14-18 14S14 50 14 40z" fill="#f0c49a" stroke="#6b4a2a" stroke-width="2"/><path d="M6 58h52" stroke="#fff" stroke-width="3" stroke-dasharray="4 4"/></svg>',
+  trap: '<svg viewBox="0 0 64 64"><path d="M6 50V28l26-16 26 16v22z" fill="#f6d64a" stroke="#7a5a10" stroke-width="2"/><rect x="22" y="36" width="20" height="14" fill="#3a2a10"/><path d="M10 50h44" stroke="#c9a020" stroke-width="3"/></svg>',
+  smoke: '<svg viewBox="0 0 64 64"><g fill="#d8dde0"><circle cx="20" cy="38" r="12"/><circle cx="34" cy="30" r="14"/><circle cx="46" cy="40" r="11"/><circle cx="30" cy="44" r="12"/></g><rect x="26" y="50" width="12" height="10" rx="2" fill="#5a6a3a"/></svg>',
+  cat: '<svg viewBox="0 0 64 64"><path d="M12 22l4-16 12 10h8l12-10 4 16v16c0 12-10 20-20 20S12 50 12 38z" fill="#e8a050" stroke="#6b3a10" stroke-width="2"/><circle cx="24" cy="32" r="3.5" fill="#222"/><circle cx="40" cy="32" r="3.5" fill="#222"/><path d="M28 42l4 3 4-3" stroke="#222" stroke-width="2" fill="none"/><path d="M6 40h12M6 46h12M46 40h12M46 46h12" stroke="#6b3a10" stroke-width="1.5"/></svg>',
+  spider: '<svg viewBox="0 0 64 64"><g stroke="#222" stroke-width="3" fill="none"><path d="M26 30L12 18l-6 8M26 34L8 34l-4 8M38 30l14-12 6 8M38 34h18l4 8M27 38L14 50l-4 8M37 38l13 12 4 8"/></g><ellipse cx="32" cy="36" rx="10" ry="12" fill="#2a2a2a"/><circle cx="32" cy="22" r="7" fill="#2a2a2a"/><circle cx="29" cy="21" r="1.6" fill="#f33"/><circle cx="35" cy="21" r="1.6" fill="#f33"/></svg>',
+  poison: '<svg viewBox="0 0 64 64"><ellipse cx="32" cy="46" rx="24" ry="9" fill="#1d1d1d"/><ellipse cx="32" cy="42" rx="20" ry="6" fill="#3a3a3a"/><circle cx="32" cy="22" r="11" fill="#9c6"/><circle cx="28" cy="20" r="2.4" fill="#222"/><circle cx="36" cy="20" r="2.4" fill="#222"/><path d="M27 28h10" stroke="#222" stroke-width="2"/></svg>',
+};
+let deathPicT = 0;
+let blackoutOn = false;
+function showDeathPic(cause) {
+  const el = $('deathPic');
+  const svg = DEATH_PIC[cause];
+  if (!svg) return;
+  el.innerHTML = svg;
+  el.dataset.c = cause;
+  el.hidden = false;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  clearTimeout(deathPicT);
+  deathPicT = setTimeout(() => { el.hidden = true; }, 1100);
+}
 const F_TEXT = { WORK: ['…', '作業中'], INVESTIGATE: ['?', 'あやしんでいる'], CHASE: ['!', '追いかけてくる！'], PANIC: ['@', 'パニック中'], FUMIGATE: ['煙', 'けむり玉をたいている！'] };
 const cache = {};
 function setText(id, v) { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } }
@@ -1200,6 +1362,10 @@ function updateHud(dt) {
   const [ic, tx] = F_TEXT[f.state] || F_TEXT.WORK;
   if ($('fstate').dataset.s !== f.state) $('fstate').dataset.s = f.state;
   setText('ficon', ic);
+  { // 第19回：仲間が多いほど農場主が青ざめる（5匹・10匹・15匹）
+    const n = g.nymphs.length, pl = String(n >= 15 ? 3 : n >= 10 ? 2 : n >= 5 ? 1 : 0);
+    const ff = $('fface'); if (ff.dataset.pale !== pl) ff.dataset.pale = pl;
+  }
   setText('ftext', tx);
   setW($('susp'), f.susp / 100);
   setText('anger', '●'.repeat(f.anger) + '○'.repeat(3 - f.anger));
@@ -1247,6 +1413,18 @@ function updateHud(dt) {
     tA.classList.toggle('hot', p.greed > 65);
     tA.classList.toggle('max', p.greed > 88);
   }
+  // 第19回：PCでは右下の大きな札に「いま Space で何が起きるか」。押したキーが光る
+  if (!touch) {
+    const pc = $('pcCard');
+    if (pc.hidden) pc.hidden = false;
+    const pl = ctx ? label : '―';
+    if (cache.pcAct !== pl) { cache.pcAct = pl; $('pcAct').textContent = pl; }
+    pc.classList.toggle('off', !ctx);
+    pc.classList.toggle('urgent', !!(ctx && ctx.urgent));
+    pc.classList.toggle('danger', !!fNear);
+    pc.querySelectorAll('kbd[data-k]').forEach((k) => k.classList.toggle('lit', !!input.lit(k.dataset.k)));
+    updatePcPractice(dt, ctx);
+  } else if (!$('pcCard').hidden) $('pcCard').hidden = true;
   document.querySelector('.t-attack').classList.toggle('ready', g.canAttackNow());
   document.querySelector('.t-attack').classList.toggle('off', g.attackCD > 0);
   document.querySelector('.t-egg').classList.toggle('ready', g.nutrition >= 100);
@@ -1339,13 +1517,7 @@ function updateLabels() {
       if (si && si.on) place(label('speech', escapeHtml(I.speech)), si);
     }
     const p = g.player;
-    for (const c of g.crates) {
-      if (c.rotten || c.shipped || c.carried) continue;
-      const d = Math.hypot(c.x - p.x, c.z - p.z);
-      if (d > 9 || c.hp >= 99.5) continue;
-      const s2 = project(c.x, c.baseY + 1.25, c.z);
-      if (s2 && s2.on) place(label('fresh', `<i style="width:${Math.max(0, c.hp).toFixed(0)}%"></i>`), s2);
-    }
+    // 第21回：箱の上の帯は消した（かじり具合は箱の色・しぼみ・穴で見せる）
     // 「もぐる」の箱の印：農場主が取りに来る箱を、近くにいるときだけ光らせる（1つだけ）
     {
       const F = g.farmer, c = F && F.crate;
@@ -1648,6 +1820,14 @@ function frame(now) {
             sfx.chime && sfx.chime();
           }
         }
+        for (const ev of game.events) if (ev.startsWith('killed:')) showDeathPic(ev.slice(7));
+        // 第21回：停電の間は画面を暗く
+        if (game.blackoutK > 0 || blackoutOn) {
+          const bo = $('blackout');
+          bo.hidden = !(game.blackoutK > 0);
+          bo.style.opacity = (0.78 * game.blackoutK).toFixed(2);
+          blackoutOn = game.blackoutK > 0;
+        }
         game.events.length = 0;
         if (game.state === 'over') setScreen('over');
       }
@@ -1716,12 +1896,13 @@ function frame(now) {
   }
 }
 const snapC = document.createElement('canvas');
-snapC.width = 320; snapC.height = 200;
+snapC.width = 480; snapC.height = 300; // 第20回：タップで大きく見られるよう、少し大きく撮る
 function snapCanvas(bubble) {
   try {
     const x = snapC.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const sh = Math.min(H, W * 200 / 320), sw = sh * 320 / 200;
+    x.setTransform(1.5, 0, 0, 1.5, 0, 0);
     x.drawImage(canvas, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, 320, 200);
     if (bubble) {
       // 写真の端に、農場主の吹き出し
@@ -1733,6 +1914,7 @@ function snapCanvas(bubble) {
       x.beginPath(); x.moveTo(bx + 18, by + bh); x.lineTo(bx + 10, by + bh + 10); x.lineTo(bx + 30, by + bh); x.closePath(); x.fill();
       x.fillStyle = '#2a1c12'; x.textBaseline = 'middle'; x.fillText(bubble, bx + 8, by + bh / 2 + 1);
     }
+    x.setTransform(1, 0, 0, 1, 0, 0);
     return snapC.toDataURL('image/jpeg', 0.75);
   } catch (_) { return ''; }
 }

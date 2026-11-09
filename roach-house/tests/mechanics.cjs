@@ -973,6 +973,61 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       check('スペースで突撃', g.stats.attacks >= 1);
     }
 
+    // 70. 第19〜21回
+    g.start('s1', 180, { gold: true }); freezeFarmer();
+    {
+      const gc = g.goldCrate;
+      check('金のパプリカの箱が出る（金色の実）', !!gc && !!gc.model.gold);
+      gc.hp = 30; g.updateCrates(0.016);
+      check('かじられた箱に穴が見える（3段階）', gc.model.holes.filter((h) => h.visible).length === 2, gc.model.holes.map((h) => h.visible).join());
+      g.ruinCrate(gc, g.player);
+      check('金の箱をダメにすると記録される', g.stats.gold === 1);
+      const F = RH.features;
+      const st = { ruined: 6, eggs: 1, attacks: 0, escapes: 0, nice: 0, winds: 0, fruits: 0, baits: 0, smokeSurvived: 0, shipped: 2, stuck: 0, chased: 0, ruinedColor: [2, 2, 2], seen: [], gold: 1 };
+      const r0 = F.normalizeRecords(null);
+      const out1 = F.applyResult(r0, { win: true, diff: 's1', alive: 0, bestMate: 'チビ', bestMateBit: 40 }, st, [], '2026-11-09');
+      check('金のパプリカで星が1つふえる', out1.goldNow && F.totalStars(out1.rec) === (out1.rec.stars.s1 || 0) + 1);
+      check('仲間名簿に名前が残る', (out1.rec.roster || []).some((m) => m.name === 'チビ'));
+    }
+    g.start('s1', 181); freezeFarmer();
+    {
+      const c = g.crates.find((x) => x.table < 0);
+      const f = g.farmer;
+      f.carry = c; c.carried = true;
+      g.stowShipped(g.player, c);
+      check('出荷ジャックの箱に「返品」のはんこ', !!c.model.stamp);
+    }
+    g.start('s3', 182, { blackoutAt: 0.1 }); freezeFarmer();
+    {
+      RH.sim(1, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('ステージ3の停電：暗くなって農場主が止まる', g.blackout.t > 0 && g.blackoutK > 0.5 && g.farmer.moveSpeed === 0);
+      RH.sim(10, 1 / 30, (gg, i) => { idle(gg, i); gg.player.hp = gg.player.maxHp; });
+      check('停電は10秒で終わる（1回だけ）', g.blackout.done && g.blackoutK < 1);
+    }
+    g.start('s1', 183, { ratAt: 0.1 }); freezeFarmer();
+    {
+      const f = g.farmer; f.x = 0; f.z = 0;
+      RH.sim(3, 1 / 30, (gg, i) => { idle(gg, i); f.phase = 'idle'; f.timer = 999; });
+      check('ネズミが走りぬけて、農場主の気をそらす', (g.stats.rats || 0) >= 1);
+    }
+    g.start('s1', 184, { assist: true }); freezeFarmer();
+    {
+      const P = g.player; P.st = 'stuck'; P.struggle = 0; P.trap = g.traps[0] || { x: P.x, z: P.z };
+      inp.press('action');
+      RH.sim(1 / 30, 1 / 30, () => {});
+      check('おたすけのときは連打が少なくてすむ（1回で25）', P.struggle >= 24, String(P.struggle));
+    }
+    g.start('s1', 185); freezeFarmer();
+    {
+      const P = g.player; P.life = 400;
+      RH.sim(0.1, 1 / 30, (gg, i) => { idle(gg, i); });
+      check('長く生き残ると背中がつやつやに', P.glossK === 1);
+      const m = g.spawnRoach(P.x + 0.5, P.z, true);
+      g.events.length = 0;
+      g.kill(g.player, 'spray');
+      check('やられたら何にやられたかを知らせる', g.events.includes('killed:spray'));
+      void m;
+    }
     RH.startGame('s1');
     return out;
   });

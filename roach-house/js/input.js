@@ -21,14 +21,22 @@ export class Input {
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       if (!this.keys.has(e.code) && map[e.code]) this.pressed.add(map[e.code]);
       this.keys.add(e.code);
+      this.keyFlash(e.code);
       this.touchMode = false;
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => { this.keys.clear(); this.btnHeld.clear(); this.resetJoy(); this.drag = null; });
+    window.addEventListener('blur', () => { this.mouseAct = false; this.keys.clear(); this.btnHeld.clear(); this.resetJoy(); this.drag = null; });
 
     // マウス／指で画面をドラッグ → 視点を回す
+    // 第19回：マウスは右ボタン（または中ボタン）を押している間だけ視点が回る。左クリックは Space と同じ「何でも」
+    this.mouseAct = false;
     canvas.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'mouse') this.touchMode = true;
+      else if (e.button === 0) {
+        if (!this.enabled) return;
+        this.pressed.add('action'); this.mouseAct = true; this.keyFlash('Space');
+        return;
+      }
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
       try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
     });
@@ -38,7 +46,7 @@ export class Input {
       this.camDY += e.clientY - this.drag.y;
       this.drag.x = e.clientX; this.drag.y = e.clientY;
     });
-    const end = (e) => { if (this.drag && this.drag.id === e.pointerId) this.drag = null; };
+    const end = (e) => { if (e.pointerType === 'mouse' && e.button === 0) this.mouseAct = false; if (this.drag && this.drag.id === e.pointerId) this.drag = null; };
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -98,6 +106,13 @@ export class Input {
     if (this.base) this.base.classList.remove('on');
   }
   press(act) { this.pressed.add(act); }
+  // 第19回 T10：押したキーを覚えておき、画面の札のキーの絵を光らせる
+  keyFlash(code) {
+    if (!this.flash) this.flash = {};
+    const k = /^(Key[WASD]|Arrow)/.test(code) ? 'move' : code === 'Space' ? 'Space' : (code === 'KeyX' || code === 'KeyC') ? 'X' : code === 'Escape' ? 'Esc' : null;
+    if (k) this.flash[k] = performance.now();
+  }
+  lit(k) { return this.flash && this.flash[k] && performance.now() - this.flash[k] < 260; }
 
   // 毎フレームの最初に呼ぶ
   poll() {
@@ -108,6 +123,13 @@ export class Input {
     if (k.has('KeyA') || k.has('ArrowLeft')) x -= 1;
     if (k.has('KeyD') || k.has('ArrowRight')) x += 1;
     let dash = k.has('ShiftLeft') || k.has('ShiftRight');
+    // 第19回：Shift を押さなくても、同じ向きに2秒まっすぐ歩き続けると少し速くなる（向きを変えたら元にもどる）
+    const now = performance.now();
+    if (x || z) {
+      const dir = `${x},${z}`;
+      if (dir !== this.runDir) { this.runDir = dir; this.runSince = now; }
+      if (now - this.runSince > 2000) { dash = true; this.autoDash = true; } else this.autoDash = false;
+    } else { this.runDir = null; this.autoDash = false; }
     if (this.joy.id !== null) {
       x = this.joy.x; z = -this.joy.y;
       dash = Math.hypot(x, z) > 0.92;
@@ -115,7 +137,9 @@ export class Input {
     const m = Math.hypot(x, z);
     if (m > 1) { x /= m; z /= m; }
     this.mx = x; this.mz = z; this.dash = dash;
-    this.actionHeld = k.has('Space') || this.btnHeld.has('action');
+    this.actionHeld = k.has('Space') || this.btnHeld.has('action') || this.mouseAct;
+    if (this.actionHeld && k.has('Space')) this.keyFlash('Space');
+    if (x || z) this.keyFlash('KeyW');
     let rot = 0;
     if (k.has('KeyQ')) rot -= 1;
     if (k.has('KeyE')) rot += 1;
