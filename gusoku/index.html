@@ -2921,7 +2921,7 @@ const World={acc:0,vis:null,deco:null,lastM:undefined,
   awayFinds(h){
     const res=[];this.lastFinds=[];
     if(S.stage>=1&&h>=3&&Math.random()<.6){const T=Col.pick();Col.addItem(T.k);this.lastFinds.push({t:'item',k:T.k});res.push('砂の中から、'+T.n+'を掘り出していたようです。（図鑑に入りました）')}
-    if(h>=2&&Math.random()<.5){const V=this.chooseVisitor();if(V){this.lastFinds.push({t:'vis',k:V.k});Col.c.vis[V.k]=(Col.c.vis[V.k]||0)+1;const G=TREASURES.find(t=>t.gift===V.k),gift=G&&Math.random()<.6;if(gift)Col.addItem(G.k);save();res.push(V.n+'が訪れていたようです。'+(gift?'（'+G.n+'を残していきました）':''))}}
+    if(h>=2&&Math.random()<.5){const V=this.chooseVisitor(true);if(V){this.lastFinds.push({t:'vis',k:V.k});Col.c.vis[V.k]=(Col.c.vis[V.k]||0)+1;const G=TREASURES.find(t=>t.gift===V.k),gift=G&&Math.random()<.6;if(gift)Col.addItem(G.k);save();res.push(V.n+'が訪れていたようです。'+(gift?'（'+G.n+'を残していきました）':''))}}
     return res;
   },
   /* the treasure chosen for display sits on the sand at the front left */
@@ -3013,9 +3013,12 @@ const Zukan={tabK:'items',
         const d=this.card('<b>'+T.n+'</b><span class="r">'+'★'.repeat(T.r)+'</span>　<span class="r">×'+n+'</span><br><span>'+T.d+'</span><br><button type="button">'+(c.deco===T.k?'飾っています（外す）':'水槽に飾る')+'</button>',c.deco===T.k?'deco':'');
         d.querySelector('button').addEventListener('click',()=>{c.deco=c.deco===T.k?null:T.k;save();World.placeDeco();this.render();toast(c.deco?T.n+'を飾りました':'飾りを外しました')});grid.appendChild(d)});
     }else if(this.tabK==='vis'){
-      sum('出会ったお客さま　'+Object.keys(c.vis).length+' / '+VISITORS.length);
-      VISITORS.forEach(V=>{const n=c.vis[V.k],L=Col.T(V.lure);
+      const deep=VISITORS.filter(v=>!v.fish),fishv=VISITORS.filter(v=>v.fish);
+      sum('出会ったお客さま　'+deep.filter(v=>c.vis[v.k]).length+' / '+deep.length);
+      deep.forEach(V=>{const n=c.vis[V.k],L=Col.T(V.lure);
         grid.appendChild(n?this.card('<b>'+V.n+'</b><span class="r">'+n+'回</span><br><span>'+V.d+'</span><br><span class="r">好きな宝物：'+(c.items[V.lure]?L.n:'？？？')+'</span>'):this.card('<b>？？？</b><span>'+V.hint+'</span>','unk'))});
+      if(fishv.length){const h=document.createElement('p');h.className='zk-sum';h.style.gridColumn='1/-1';h.style.marginTop='10px';h.textContent='浅い海から迷いこんだ魚　'+fishv.filter(v=>c.vis[v.k]).length+' / '+fishv.length;grid.appendChild(h);
+        fishv.forEach(V=>{const n=c.vis[V.k];grid.appendChild(n?this.card('<b>'+V.n+'</b><span class="r">'+n+'回</span><br><span>'+V.d+'</span>'):this.card('<b>？？？</b><span>'+V.hint+'</span>','unk'))})}
     }else if(this.tabK==='morph'){
       sum('見つけた姿　'+Object.keys(c.morphs).length+' / '+Object.keys(MORPHS).length+'　・　脱皮のたびに、それまでの育ち方で姿が決まります。');
       Object.entries(MORPHS).forEach(([k,M])=>grid.appendChild(c.morphs[k]?this.card('<b>'+M.n+(S.morph===k||(!S.morph&&k==='std')?'　<span class="r">いまの姿</span>':'')+'</b><span>'+M.d+'</span>'):this.card('<b>？？？</b><span>'+M.hint+'</span>','unk')));
@@ -4317,6 +4320,66 @@ const Sashie={
 };
 {const f=Letter.render;Letter.render=function(){const r=f.apply(this,arguments);try{Sashie.show((S.letters||[])[this.i])}catch(e){}return r}}
 
+/* =====================================================================
+   FISH FROM THE SHALLOWS — photo-built fish models (Fish Kit, CC0) that now and then
+   wander into the tank and swim across the far side. They join the 図鑑 as visitors.
+   ===================================================================== */
+const FISHES=[
+  ['aji','アジ',30,'いつもの餌でおなじみの魚。体の横に「ぜいご」という硬いうろこが並ぶ。'],
+  ['mebaru','メバル',25,'大きな目が目印の、岩場の魚。夜になると動き出す。'],
+  ['kasago','カサゴ',24,'とげのあるヒレを持つ、岩のすき間の住人。じっと動かず獲物を待つ。'],
+  ['suzuki','スズキ',70,'大きくなるにつれて名前が変わる「出世魚」。セイゴ、フッコ、スズキの順。'],
+  ['saba','サバ',30,'背中のしま模様が目印。群れで素早く泳ぐ。'],
+  ['tachiuo','タチウオ',100,'刀のように細長く、銀色に光る魚。立ったまま泳ぐことがある。'],
+  ['sawara','サワラ',75,'細長い体で、とても速く泳ぐ魚。'],
+  ['kamasu','カマス',34,'口のとがった細長い魚。するどい歯で小魚を追う。'],
+  ['buri','ブリ',70,'大きくなると名前が変わる出世魚。冬の寒ブリが有名。'],
+  ['hiramasa','ヒラマサ',80,'ブリによく似た、力の強い魚。口元の形で見分ける。'],
+  ['magochi','マゴチ',50,'平たい頭で、砂にかくれて暮らす魚。グソクと少し気が合いそう。'],
+  ['kurodai','クロダイ',45,'黒っぽいタイの仲間。「チヌ」とも呼ばれる。'],
+  ['madai','マダイ',55,'赤い体の「魚の王様」。おめでたい席によく出る。'],
+  ['kihada','キハダ',135,'ヒレが黄色いマグロの仲間。休まず泳ぎ続ける。'],
+  ['isaki','イサキ',33,'初夏においしいと言われる、岩場の魚。'],
+  ['isaki_young','イサキの子',12,'イサキの子ども。はっきりした縞模様から「ウリボウ」とも呼ばれる。'],
+  ['onagagure','オナガグレ',45,'尾びれの長いメジナの仲間。磯釣りで人気。'],
+  ['kuchibuto','クチブトグレ',38,'口の太いメジナ。ふつう「グレ」「メジナ」と呼ばれる。'],
+  ['shibudai','シブダイ',50,'赤みのある体の、南の海の魚。'],
+  ['katakuchi','カタクチイワシ',11,'小さなイワシの仲間。煮干しやしらすになる。']
+];
+const FishKit={cache:{},loading:null,
+  base(){return /github\.io$/.test(location.hostname)?'fish/':'https://ngcmwbj-art.github.io/gusoku/fish/'},
+  loader(){if(this.loading)return this.loading;
+    this.loading=new Promise((ok,ng)=>{if(THREE.GLTFLoader)return ok();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js';s.onload=()=>ok();s.onerror=()=>{this.loading=null;ng()};document.head.appendChild(s)});
+    return this.loading},
+  load(id){if(this.cache[id])return Promise.resolve(this.cache[id]);
+    return this.loader().then(()=>new Promise((ok,ng)=>new THREE.GLTFLoader().load(this.base()+id+'_lo.glb',g=>{
+      let mesh=null;g.scene.traverse(o=>{if(o.isMesh&&!mesh)mesh=o});if(!mesh)return ng();
+      mesh.geometry.computeBoundingBox();const b=mesh.geometry.boundingBox,len=b.max.x-b.min.x;
+      this.cache[id]={geo:mesh.geometry,mat:mesh.material,len,minX:b.min.x};ok(this.cache[id])},undefined,ng)))},
+  /* a tail-beat bend in the vertex shader: the further from the head, the wider the sweep */
+  material(src,minX,len,head){const m=src.clone();m.side=THREE.DoubleSide;m.transparent=true;m.alphaTest=.35;m.depthWrite=true;
+    const u={uFT:{value:0},uFA:{value:.06}};m.userData.fu=u;
+    m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,u);sh.vertexShader='uniform float uFT;uniform float uFA;\n'+sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\nfloat tl=clamp('+(head>0?'('+(minX+len).toFixed(4)+'-transformed.x)':'(transformed.x-('+minX.toFixed(4)+'))')+'/'+len.toFixed(4)+',0.,1.);transformed.z+=sin(uFT-tl*4.)*uFA*'+len.toFixed(4)+'*tl*tl;')};
+    m.customProgramCacheKey=()=>'fishbend'+head;addCaustics(m,.5);return m}
+};
+const FISH_HEAD=1; // the models face +X (Fish Kit turns them -90° about Y to face +Z)
+FISHES.forEach(([id,n,cm,d])=>{
+  VISITORS.push({k:'f_'+id,fish:id,n,cm,lure:null,w:.12,d,hint:'浅い海から、まれに迷いこんで来ます。',ok:()=>true});
+  VMODEL['f_'+id]=()=>{const F=FishKit.cache[id],g=new THREE.Group();
+    const L=.25*Math.sqrt(cm),mat=FishKit.material(F.mat,F.minX,F.len,FISH_HEAD),mesh=new THREE.Mesh(F.geo,mat);mesh.scale.setScalar(L/F.len);mesh.castShadow=true;g.add(mesh);
+    const dir=Math.random()<.5?1:-1,z=-1.6+Math.random()*1.1,y0=.9+Math.random()*1.1,sp=.5+Math.random()*.4,X=8,dur=2*X/sp;
+    g.rotation.y=dir*FISH_HEAD>0?0:Math.PI;
+    return{g,dur,upd(t){const x=-dir*X+dir*sp*t;g.position.set(x,heightAt(x,z)+y0+Math.sin(t*.6)*.15,z+Math.sin(t*.35)*.25);
+      mat.userData.fu.uFT.value=t*(5+3*sp);g.rotation.z=Math.sin(t*.6+1)*.04}}};
+});
+{const f=World.visit;World.visit=function(k){if(this.vis||this.fishWait)return;const V=k?VISITORS.find(v=>v.k===k):this.chooseVisitor();if(!V)return;
+  if(!V.fish)return f.call(this,V.k);
+  this.fishWait=true;FishKit.load(V.fish).then(()=>{this.fishWait=false;if(!started||Life.dead||this.vis)return;f.call(this,V.k);
+    if(S.stage>=2&&!Life.asleep)setTimeout(()=>say(V.fish==='aji'?'……アジです。いつもいただいている、あのアジですね。':pickR(['浅い海の方のようですね。……迷子でしょうか。','……光の多い海から来た方ですね。']),{emo:'curious'}),5200)})
+    .catch(()=>{this.fishWait=false})}}
+{const f=World.chooseVisitor;World.chooseVisitor=function(away){if(!away)return f.apply(this,arguments);const keep=VISITORS.slice();try{VISITORS.splice(0,VISITORS.length,...keep.filter(v=>!v.fish));return f.apply(this,arguments)}finally{VISITORS.splice(0,VISITORS.length,...keep)}}}
+
 let started=false;
 function boot(){
   load();
@@ -4529,7 +4592,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Boushi,Kira,Nezou,Omoide,Tanjo,Korobu,Hisashi,Ureshii,Sashie,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Sfx,Kibun,Onegai,Letter,MenuGrid,Eco,Expr,Keep,Mukae,Suki,Hitori,DayLight,Nigori,Neiki,Yobu,Shigusa,Suna,Offline,Yousu,Mute,Shippo,Onaka,Hazukashi,Hana,Iebasho,Pose,Mune,Kotoba,Itsumo,Utatane,Hint,Yobi,Knock,Asobi,Boushi,Kira,Nezou,Omoide,Tanjo,Korobu,Hisashi,Ureshii,Sashie,FishKit,FISHES,VISITORS,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>

@@ -24,3 +24,7 @@ for src,dst,k,title in (('index.html','real.html','real','グソク'),('yuru.htm
     s=open(os.path.join(here,src),encoding='utf-8').read()
     i=s.index('<canvas id="gl"')
     open(os.path.join(out,dst),'w',encoding='utf-8').write(HEAD.replace('{title}',title).replace('{icon}','icon-'+k)+s[:i]+'</head>\n<body>\n'+s[i:]+'\n</body>\n</html>\n')
+# fish models (Fish Kit, CC0) that swim in as visitors
+fs=os.path.join(os.path.dirname(b),'fish')
+if os.path.isdir(fs):
+    shutil.copytree(fs,os.path.join(out,'fish'),dirs_exist_ok=True)
