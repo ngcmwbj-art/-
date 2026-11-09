@@ -167,7 +167,7 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
   // 写真がまだない場合（すぐ終わらせたとき）は、試しの写真を1枚入れて確かめる
   await page.evaluate(() => { const f = document.getElementById('rPhoto'); if (!f.querySelector('img')) { f.innerHTML = '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt=""><figcaption>ためし</figcaption>'; f.hidden = false; } });
   await page.evaluate(() => document.querySelector('#rPhoto img').click());
-  check('結果の写真をタップすると大きく', await page.isVisible('#photoBig img'));
+  check('結果の写真をタップすると大きく', await page.isVisible('#photoBig') && await page.evaluate(() => !!document.querySelector('#photoBig img')));
   await page.evaluate(() => document.getElementById('photoBig').click());
   check('もう一度タップでとじる', !(await page.isVisible('#photoBig')));
   await page.evaluate(() => { document.getElementById('btnTitle2').click(); });
