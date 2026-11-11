@@ -14,7 +14,7 @@ FR.Art = {
     crow: 'crow.svg', boar: 'boar.svg', aphids: 'aphids.svg', weeds: 'weeds.svg', blast: 'blast.svg',
     avianflu: 'avianflu.svg', frost: 'frost.svg', drought: 'drought.svg', typhoon: 'typhoon.svg',
     // 家畜
-    calf: 'calf.png', piglet: 'piglet.png', chick: 'chick.png', hen: 'hen.png', dog: 'dog.svg',
+    calf: 'calf.png', piglet: 'piglet.png', chick: 'chick.png', hen: 'hen.png', dog: 'dog.png',
     // 野菜
     sprout: 'sprout.png', komatsuna: 'komatsuna.png', tomato: 'tomato.png', cabbage: 'cabbage.svg',
     spinach: 'spinach.png', eggplant: 'eggplant.png', daikon: 'daikon.png',
@@ -23,9 +23,9 @@ FR.Art = {
     yuzutree: 'yuzutree.png', dekopontree: 'dekopontree.png', mikanbox: 'mikanbox.png', jar: 'jar.svg',
     // 道具・作業・機械
     weeding: 'weeding.png', mulch: 'mulch.svg', seeds: 'seeds.png', basket: 'basket.png', water: 'water.png',
-    net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.svg', compost: 'compost.png',
+    net: 'net.svg', fertilizer: 'fertilizer.svg', scarecrow: 'scarecrow.png', compost: 'compost.png',
     greenhouse: 'greenhouse.svg', sprayer: 'sprayer.svg', tractor: 'tractor.svg', feed: 'feed.png',
-    vaccine: 'vaccine.png', fence: 'fence.png', truck: 'truck.png', hay: 'hay.svg', shears: 'shears.png',
+    vaccine: 'vaccine.png', fence: 'fence.png', truck: 'truck.png', hay: 'hay.png', shears: 'shears.png',
     firework: 'firework.svg', fan: 'fan.svg', stonewall: 'stonewall.png', cowbell: 'cowbell.png',
     sunrise: 'sunrise.png', coin: 'coin.png'
   },
