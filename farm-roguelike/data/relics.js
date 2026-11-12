@@ -101,17 +101,17 @@ FR.Relics = {
     hooks: { turnStart: [{ op: 'gold', amount: 1 }] }
   },
   strawHat: {
-    name: '麦わら帽子', art: 'hay', rarity: 'tool', pool: ['common'],
+    name: '麦わら帽子', art: 'strawhat', rarity: 'tool', pool: ['common'],
     text: '戦闘開始時、健康度+3',
     hooks: { battleStart: [{ op: 'heal', amount: 3 }] }
   },
   thermos: {
-    name: '魔法瓶のお茶', art: 'water', rarity: 'tool', pool: ['common'],
+    name: '魔法瓶のお茶', art: 'thermos', rarity: 'tool', pool: ['common'],
     text: '戦闘開始時、エネルギー+1',
     hooks: { battleStart: [{ op: 'energy', amount: 1 }] }
   },
   workGloves: {
-    name: '野良仕事の手袋', art: 'seeds', rarity: 'tool', pool: ['common'],
+    name: '野良仕事の手袋', art: 'gloves', rarity: 'tool', pool: ['common'],
     text: '戦闘開始時、1枚多く引く',
     hooks: { battleStart: [{ op: 'draw', amount: 1 }] }
   },
@@ -126,17 +126,17 @@ FR.Relics = {
     hooks: { battleStart: [{ op: 'damageAll', amount: 3 }] }
   },
   jaCard: {
-    name: '農協の組合員証', art: 'coin', rarity: 'tool', pool: ['common'],
+    name: '農協の組合員証', art: 'jacard', rarity: 'tool', pool: ['common'],
     text: '戦闘に勝つたび、銭+8',
     rewardGold: 8
   },
   harvestCrate: {
-    name: '収穫コンテナ', art: 'mikanbox', rarity: 'tool', pool: ['vegetable'],
+    name: '収穫コンテナ', art: 'crate', rarity: 'tool', pool: ['vegetable'],
     text: '作物を1つ収穫するたび、1枚引く',
     hooks: { harvest: [{ op: 'draw', amount: 1 }] }
   },
   feedBag: {
-    name: '予備の飼料袋', art: 'feed', rarity: 'tool', pool: ['livestock'],
+    name: '予備の飼料袋', art: 'feedbag', rarity: 'tool', pool: ['livestock'],
     text: '家畜を1頭出荷するたび、1枚引く',
     hooks: { ship: [{ op: 'draw', amount: 1 }] }
   },
