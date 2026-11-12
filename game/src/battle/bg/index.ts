@@ -1,0 +1,46 @@
+// Background factory: bg id (or enemy default) → Background instance.
+import type { Background } from './common';
+import { ResidentialBg } from './residential';
+import { RainBg } from './rain';
+import { KanenariBg } from './kanenari';
+import { OjigiBg } from './ojigi';
+import { MallBg } from './mall';
+import { BossBg } from './boss';
+import { HOSHI_BG_IDS, makeHoshiBackground } from './hoshi';
+import { placeFor } from './place';
+import { C3_PLACE_BG_IDS, makeC3Background } from './c3';
+
+export type { Background } from './common';
+
+const ALIASES: Record<string, string> = {
+  bg_pr_board: 'bg_kanenari',
+  bg_boss_clocks: 'bg_boss',
+};
+
+// (第3章: the market and the diner's kitchen stand on their 3D rooms; the siren tower's view is its own picture, c3.ts)
+export const BG_IDS = ['bg_residential', 'bg_reverse_rain', 'bg_kanenari', 'bg_ojigi', 'bg_mall_floor', 'bg_boss', ...HOSHI_BG_IDS, ...C3_PLACE_BG_IDS];
+
+export function makeBackground(id: string, enemyId: string): Background {
+  const bid = ALIASES[id] ?? id;
+  const bg = makeHoshiBackground(bid) ?? makeC3Background(bid) ?? chapter1Background(bid, enemyId);
+  // HD-2D: the place the battle started in, in 3D, under it (place.ts) — chapter 2's too since 2026-10-06
+  bg.place = placeFor(bg, enemyId);
+  return bg;
+}
+
+function chapter1Background(bid: string, enemyId: string): Background {
+  switch (bid) {
+    case 'bg_reverse_rain':
+      return new RainBg(enemyId);
+    case 'bg_kanenari':
+      return new KanenariBg();
+    case 'bg_ojigi':
+      return new OjigiBg();
+    case 'bg_mall_floor':
+      return new MallBg(enemyId);
+    case 'bg_boss':
+      return new BossBg();
+    default:
+      return new ResidentialBg(enemyId);
+  }
+}

@@ -1,0 +1,73 @@
+// Chapter 2 battle system text (50_ch2_story.md 6.7–6.8, 7.1–7.4; 51 22章).
+// One entry = pages; '\n' breaks a page into the band's two lines.
+// Variables: $actor $target $enemy $n $item $part $name $name2
+// ★2026-09-29 カネナリくん→グソっ君 (the member id stays 'kanenari'): his own
+// words are said with battle/gusokkun.ts (the band's name tag, no 「」).
+
+export const SYS2 = {
+  // おつかれさま (50 6.8)
+  otsukare: ['$enemyに『おつかれさま』を\n押した！', '$enemyは ひと息 ついた。\n次の 行動を 休む！'],
+  otsukareFail: ['$enemyは 休む ひまが ないと\n言いたげだ。'],
+  otsukareBoss: ['「……まだ、休めません。」'],
+  otsukareResting: ['$enemyは もう 休憩中だ。'],
+  restAct: ['$enemyは 休憩中だ。'],
+  /** おかえりなさい chosen in a chapter-2 battle (no turn used). */
+  okaeriCh2: ['これは、あの 子たちに\n押した ハンコだ。'],
+  /** おかえりなさい's description once chapter 2 has begun (it was used up in 夕鳴町). */
+  okaeriDescCh2: ['待っていた だれかに、押した ハンコ。', '（夕鳴町の、あの 子たちに）'],
+  /** The pencil note by its name in the hanko case, chapter 2. */
+  okaeriNoteCh2: '夕鳴町で 押した',
+  /** おやすみなさい chosen in a battle after the chapter-2 boss (no turn used). */
+  oyasumiAfter: ['……いまは、押す ときじゃ ない。'],
+  // level rewards (50 6.8, 51 16.4)
+  lv6: ['グソっ君は ときどき、半分だけ\nまるく なれる ように なった！'],
+  lv7: ['しゅんの ペケが\nはみだす ように なった！'],
+  /** まるくなる (skill_kane), Lv6 and up, one time in four (replaces pages 2–3): half a ball, キレ+2. */
+  kaneKon: ['……お？\n半分だけ、まるく なれた！', 'いい 空気で、\nキレが 2つ たまった！'],
+  pekeHamidashi: ['ペケが となりまで\nはみだした！'],
+  pekeHamidashi1: ['はみだした ペケが、\nふちに もう一度 当たった！'],
+  // statuses (50 6.7)
+  henjiOnMinato: ['しゅんは つい『はい』と\n返事を しかけた！'],
+  henjiOnKanenari: ['グソっ君は つい『はいな！』と\n返事を しかけた！'],
+  henjiAct: ['$targetは 返事の 口の まま\n固まっている。'],
+  henjiOff: ['$targetは 口を とじた。'],
+  henjiGuard: ['$targetは 返事を\nのみこんだ！'],
+  suneAct: ['$enemyは 背中を 向けたままだ。'],
+  // ビリビリ番 (50 6.3)
+  shockFirst: ['……じーん と した。'],
+  // はなまるトマト (50 6.7, 7.1)
+  tomatoRaise: ['$actorは はなまるトマトを\nかかげた！', 'あたりが 夕焼け色に\n照らされた！'],
+  tomatoRaiseKanenari: ['グソっ君は アミを 受けとって、\nトマトを かかげた！', 'あたりが 夕焼け色に\n照らされた！'],
+  tomatoDim: ['トマトの 光が、少し 落ちついた。'],
+  tomatoCharging: ['トマトは まだ 光を\nためている。'],
+  tomatoLit: ['トマトは いま、せいいっぱい\n光っている。'],
+  /** Second line of the tomato's description in the boss battle's item list (13.3). */
+  tomatoDesc2: 'かかげると、2ラウンド 明るい。',
+  /** The dark ラッパ while it is being chosen (1 line). */
+  rappaDark: '暗くて よく 見えない。',
+  rappaDarkStamp: ['暗くて、どこを 見れば いいか\nわからない。'],
+  rappaUnknown: 'ラッパ（？）',
+  /** やりなおし on a name tag (50 6.8). */
+  yarinaoshiTenko: ['名札が 1つ、白紙に もどった！'],
+  // 梅干し and 回覧板の朱肉 on グソっ君: kept, no turn (50 7.2)
+  keepItem: [] as string[],
+  /** ハトの名刺 on ヘノヘノ課長 (50 6.2): 課長 gets ボケ負け, the turn is used. */
+  hatoMeishiKacho: ['しゅんは ハトの名刺を さしだした。', 'ヘノヘノ課長は 受けとって、\n困った 顔に 描きなおした。'],
+  /** A retry of the boss: グソっ君 says what beat them (his balloon; the chapter-1 line's twin). */
+  retryFlip: '4つ目の 名前の 前は、\nまもるんやで',
+  /** 〔にげる・テツヤ〕 (no turn). */
+  noFleeTetsuya: ['テツヤが 山道の 入口を\n耕しつづけている。'],
+};
+
+/**
+ * 点呼 names in order (50 3.2): the ones who left, called every night. The
+ * boss starts again from the top when the list runs out.
+ */
+export const TENKO_NAMES = ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'まさとさん'];
+
+/** The chapter-2 report card's せんせいより use REPORT.teacher[6|7]; the cover gets a small ②. */
+export const REPORT_CH2 = {
+  coverMark: '②',
+  /** Prologue report card (chapter2Adjust level-ups): its heading. */
+  summerTitle: 'なつやすみの つうちひょう',
+};
