@@ -248,28 +248,7 @@ export class Sfx {
     R.step = (Math.floor(R.step / 32) + 1) * 32;
     R.talk = 6;
   }
-  // 暖房機：前ぶれの「カチッ」→ 10秒ほど低い「ゴーッ」
-  heaterClick() { this.tone(2400, 0.03, 'square', 0.08); this.noise(0.05, 'highpass', 3000, 0.2, 1); }
-  heaterStart() {
-    if (!this.ok || this.heater) return;
-    const c = this.ctx, t = c.currentTime;
-    const n = c.createBufferSource(); n.buffer = this.noiseBuf; n.loop = true;
-    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 0.7;
-    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 50;
-    const of = c.createBiquadFilter(); of.type = 'lowpass'; of.frequency.value = 140;
-    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.6);
-    const og = c.createGain(); og.gain.value = 0.25;
-    n.connect(f); f.connect(g); o.connect(of); of.connect(og); og.connect(g); g.connect(this.master);
-    n.start(t); o.start(t);
-    this.heater = { n, o, g };
-  }
-  heaterStop() {
-    const H = this.heater;
-    if (!H) return;
-    const t = this.ctx.currentTime;
-    try { H.g.gain.setTargetAtTime(0.0001, t, 0.3); H.n.stop(t + 1.5); H.o.stop(t + 1.5); } catch (_) { /* 無視 */ }
-    this.heater = null;
-  }
+
   // 農場主の鼻歌（口笛のような高い音。ラジオの曲より高く、聞き分けやすく）
   hum(vol, pan) {
     if (!this.ok || vol < 0.02) return;

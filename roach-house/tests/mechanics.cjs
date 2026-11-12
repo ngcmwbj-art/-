@@ -866,30 +866,16 @@ const URL = process.env.URL || 'http://localhost:8765/index.html?q=low';
       g.endGame(true, 'ruined');
       check('長靴のことが日記に書かれる', g.result.diary.some((l) => /長靴/.test(l)), g.result.diary.join('／'));
     }
-    // 暖房機
-    g.start('s2', 138); freezeFarmer();
-    {
-      check('ステージ2から暖房機がある', !!g.heater);
-      g.heater.next = 0.05;
-      RH.sim(0.2, 1 / 30, (gg, i) => { idle(gg, i); freezeFarmer(); });
-      check('暖房機が動く', g.heaterOn);
-      const f = g.farmer; f.susp = 0;
-      g.noise({ x: f.x + 3, z: f.z, y: 0 }, 4, 20);
-      const sOn = f.susp; f.susp = 0;
-      g.heater.on = 0;
-      g.noise({ x: f.x + 3, z: f.z, y: 0 }, 4, 20);
-      check('暖房の間は音が届きにくい', sOn < f.susp, `on=${sOn.toFixed(1)} off=${f.susp.toFixed(1)}`);
-    }
     // 66. 第11回：ステージごとに3種類まで・かんたんモード・口癖・ナイスの上限
     {
       const ok3 = RH.stages.every((st) => Array.isArray(st.haz) && st.haz.length <= 3);
       check('わな・敵はステージごとに3種類まで', ok3, RH.stages.map((st) => (st.haz || []).join('+')).join(' / '));
       g.start('s4', 141);
-      check('ステージ4にホイホイはない', g.traps.length === 0 && !!g.cat && g.spiders.length === 2 && !!g.heater);
+      check('ステージ4にホイホイはない', g.traps.length === 0 && !!g.cat && g.spiders.length === 2);
       g.start('s3', 142);
       check('ステージ3にネコ・クモ・シートはいない', !g.cat && g.spiders.length === 0 && g.sheets.length === 0 && g.baits.length >= 1);
       g.start('s5', 143, { easy: true });
-      check('かんたんモードはわな・敵なし', g.traps.length === 0 && g.baits.length === 0 && !g.cat && g.spiders.length === 0 && g.sheets.length === 0 && !g.heater);
+      check('かんたんモードはわな・敵なし', g.traps.length === 0 && g.baits.length === 0 && !g.cat && g.spiders.length === 0 && g.sheets.length === 0);
       g.endGame(true, 'ruined');
       check('かんたんモードの勝ちは記録に数えない', g.result.easy === true && F.applyResult(F.normalizeRecords(null), g.result, g.result.stats, [], '2026-11-06').rec.cleared === 0);
       g.start('s1', 144);

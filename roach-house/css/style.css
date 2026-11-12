@@ -535,13 +535,8 @@ body.touch .order-mini { display: block; }
 /* 鼻歌・ぶつぶつの印 */
 .lbl.mark.note { color: #fff3b0; font-size: 22px; text-shadow: 0 1px 3px #000; }
 .lbl.mark.grr { color: #ffb3a0; font-size: 13px; font-weight: 700; text-shadow: 0 1px 3px #000; }
-/* 暖房機が動いている間の「ゴーッ」 */
-#heatBadge { position: absolute; left: 50%; top: calc(54px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); font-family: var(--font-display); font-size: 22px; color: #ffcf8a; text-shadow: 0 2px 4px rgba(0,0,0,0.7); animation: heatwob 0.25s ease-in-out infinite alternate; pointer-events: none; }
-#heatBadge[hidden] { display: none; }
-@keyframes heatwob { from { transform: translateX(-52%); } to { transform: translateX(-48%); } }
 /* ぐるっと見せている間は、ほかの表示を消す */
 body.intro #hud > *:not(#introSkip), body.intro #touch, body.intro #labels { visibility: hidden; }
-#heatBadge { left: 62%; }
 /* スマホのボタン：絵＋1〜2字 */
 .tbtn .ic { width: 26px; height: 26px; display: block; margin: 0 auto -2px; }
 .tbtn .tl { display: block; font-size: 11px; line-height: 1; }

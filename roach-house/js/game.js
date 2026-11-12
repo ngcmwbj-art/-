@@ -20,11 +20,11 @@ import { clamp, lerp, dampAngle, angleDiff, smooth, rand, randRange, pick, rectD
 export const STAGES = [
   { key: 's1', no: 1, label: 'ステージ1', name: 'はじめての夜明け', desc: '農場主はのんびり屋。まずはかじって、隠れて、慣れよう', haz: ['trap'], target: 6, baits: 0, fSpeed: 0.85, susp: 0.7, patrol: [9, 13], patrolP: 0.8, loadT: 8, traps: 2, hatch: 8, sprayDmg: 20, fumAt: 0.5,
     tip: 'まずはコンテナを1箱かじってみよう。見つかったらさいばい槽の下へ' },
-  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'ホイホイ・粘着シート・暖房機', haz: ['trap', 'sheet', 'heater'], target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
+  { key: 's2', no: 2, label: 'ステージ2', name: 'ホイホイ増量中', desc: 'ホイホイ・粘着シート', haz: ['trap', 'sheet'], target: 7, baits: 0, fSpeed: 0.92, susp: 0.85, patrol: [7, 10], patrolP: 0.7, loadT: 7, traps: 3, hatch: 9, sprayDmg: 23, fumAt: 0.5,
     tip: 'ホイホイ（黄色い家）が多い。地図の×印を見て、通り道を選ぼう' },
   { key: 's3', no: 3, label: 'ステージ3', name: '毒エサの日', desc: 'ホイホイ・毒エサ・JAの検品', haz: ['trap', 'bait', 'inspect'], target: 7, baits: 1, fSpeed: 0.95, susp: 0.86, patrol: [5, 8], patrolP: 0.6, loadT: 9, traps: 3, hatch: 10, sprayDmg: 17, fumAt: 0.5, inspect: true,
     tip: '黒い丸い容器は毒エサ。JAの検品員が来たら、近づかずに待とう' },
-  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: 'ネコ・クモ・暖房機', haz: ['cat', 'spider', 'heater'], target: 7, baits: 1, fSpeed: 0.97, susp: 0.88, patrol: [5, 8], patrolP: 0.6, loadT: 11, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true, cat: true,
+  { key: 's4', no: 4, label: 'ステージ4', name: '怒りっぽい農場主', desc: 'ネコ・クモ', haz: ['cat', 'spider'], target: 7, baits: 1, fSpeed: 0.97, susp: 0.88, patrol: [5, 8], patrolP: 0.6, loadT: 11, traps: 3, hatch: 10, sprayDmg: 21, fumAt: 0.5, inspect: true, cat: true,
     tip: '鈴の音はネコ。ネコは台やさいばい槽の上には来ない' },
   { key: 's5', no: 5, label: 'ステージ5', name: '出荷の大一番', desc: 'ホイホイ・毒エサ・駆除業者。8箱をダメにしろ', haz: ['trap', 'bait', 'exterm'], target: 8, baits: 2, fSpeed: 0.98, susp: 0.9, patrol: [5, 7], patrolP: 0.65, loadT: 13, traps: 3, hatch: 11, sprayDmg: 22, fumAt: 0.5, inspect: true, cat: true,
     tip: '仲間をたくさん増やして、「まかせた」で一気に攻めよう' },
@@ -32,7 +32,7 @@ export const STAGES = [
     tip: '暗いので光の外なら見つかりにくい。懐中電灯の光の輪に入るな' },
 ];
 // ステージに出るわな・敵（ステージごとに3種類まで。殺虫剤・叩き・けむり玉は農場主の技なので数えない）
-export const HAZ_NAMES = { trap: 'ホイホイ', bait: '毒エサ', sheet: '粘着シート', spider: 'クモ', inspect: 'JAの検品', cat: 'ネコ', exterm: '駆除業者', heater: '暖房機' };
+export const HAZ_NAMES = { trap: 'ホイホイ', bait: '毒エサ', sheet: '粘着シート', spider: 'クモ', inspect: 'JAの検品', cat: 'ネコ', exterm: '駆除業者' };
 export const DIFFS = Object.fromEntries(STAGES.map((st) => [st.key, st]));
 // 以前の呼び名（テスト用）
 DIFFS.easy = STAGES[0];
@@ -236,8 +236,6 @@ export class Game {
       this.root.add(m);
       this.radioObj = { ...RADIO_SPOT, model: m, on: true, bite: 0, cd: 0, fixT: 0 };
     }
-    // 暖房機：ステージ2から
-    this.heater = this.has('heater') && !opts.tutorial && !this.tour ? { next: randRange(45, 70), on: 0, clicked: false } : null;
     this.drains = DRAIN_SPOTS.map((d) => {
       const m = makeDrain();
       m.position.set(d.x, 0, d.z);
@@ -503,7 +501,6 @@ export class Game {
     this.updatePhone(dt);
     this.updateRadioObj(dt);
     this.updateBoots();
-    this.updateHeater(dt);
     this.updateBlackout(dt);
     this.updateRat(dt);
     this.updateDust(dt);
@@ -907,24 +904,6 @@ export class Game {
     this.pathTo(R.x + 1.2, R.z + 0.6);
     this.say(pick(['ん？ ラジオが止まった', 'おい、ラジオどうした']));
   }
-  // 暖房機：ときどき10秒ほど「ゴーッ」と動き、長靴と仲間の音がかき消される（前ぶれに「カチッ」）
-  updateHeater(dt) {
-    const H = this.heater;
-    if (!H) return;
-    if (H.on > 0) {
-      H.on -= dt;
-      if (H.on <= 0) { this.sfx.heaterStop && this.sfx.heaterStop(); H.next = randRange(70, 110); }
-      return;
-    }
-    H.next -= dt;
-    if (H.next <= 1.2 && !H.clicked) { H.clicked = true; this.sfx.heaterClick && this.sfx.heaterClick(); }
-    if (H.next <= 0) {
-      H.on = 10; H.clicked = false;
-      this.sfx.heaterStart && this.sfx.heaterStart();
-      this.events.push('heater');
-    }
-  }
-  get heaterOn() { return !!(this.heater && this.heater.on > 0); }
 
   // 長靴の中にいると、農場主がそばに来たとき「うわっ！」
   updateBoots() {
@@ -1770,7 +1749,7 @@ export class Game {
       const v = Math.max(0, 1 - dp / 26);
       // 作業場（x>4）はコンクリで「コツ」、畝のある所は土で「ザッ」
       const hard = f.x > 4;
-      this.sfx.boot(v * v * 0.8 * (this.heaterOn ? 0.35 : 1), this.panOf(f.x, f.z), hard);
+      this.sfx.boot(v * v * 0.8, this.panOf(f.x, f.z), hard);
       if (v > 0.15) this.soundPings.push({ x: f.x, z: f.z, v: Math.min(1, v * 1.2), kind: 'step', hard });
       if (dp < 5) this.shake = Math.max(this.shake, (1 - dp / 5) * 0.25);
     }
@@ -1839,8 +1818,6 @@ export class Game {
   noise(src, radius, amount) {
     const f = this.farmer;
     if (!f || f.state === 'PANIC') return;
-    // 暖房機が動いている間は、ゴキブリの音が農場主に届きにくい
-    if (this.heaterOn) { radius *= 0.6; amount *= 0.5; }
     const d = Math.hypot(src.x - f.x, src.z - f.z);
     if (d > radius) return;
     f.susp = Math.min(100, f.susp + amount * (1 - (d / radius) * 0.5) * this.diff.susp);

@@ -188,7 +188,6 @@ function renderRunBtn() {
 let runCourse = 'dawn';
 let runFromJack = null; // 出荷ジャックから来たとき：もどる先のゲームの状態
 function startRun(course, fromJack = false) {
-  sfx.heaterStop && sfx.heaterStop();
   runCourse = course === 'dusk' ? 'dusk' : 'dawn';
   runFromJack = fromJack ? { state: game.state } : null;
   sfx.unlock();
@@ -331,8 +330,6 @@ function startGame(diff, opt = {}) {
   closeJack();
   $('blackout').hidden = true; blackoutOn = false;
   resetTruck();
-  sfx.heaterStop && sfx.heaterStop();
-  $('heatBadge').hidden = true;
   sfx.unlock();
   sfx.startAmbience();
   sfx.startRadio();
@@ -665,8 +662,6 @@ function toTitle() {
   closeJack();
   resetTruck();
   if ('speechSynthesis' in window) try { window.speechSynthesis.cancel(); } catch (_) { /* 無視 */ }
-  sfx.heaterStop && sfx.heaterStop();
-  $('heatBadge').hidden = true;
   if (runner.active) endRun();
   saveFps();
   endTourUi();
@@ -1799,12 +1794,6 @@ function frame(now) {
           ui.toast('あの箱にもぐれたら…？', 'warn');
         }
         if (game.events.includes('stowaway') && !game.tutorial && game.state === 'play') offerJack();
-        if (game.events.includes('heater')) {
-          if (!firstSeen.includes('heater')) { firstSeen.push('heater'); store.set('firstSeen', firstSeen); ui.toast('暖房の音で、足音が聞こえにくい！', 'info'); }
-          else ui.feed('ゴーッ（暖房）', '暖', 'info');
-          $('heatBadge').hidden = false;
-        }
-        if ($('heatBadge').hidden === false && !game.heaterOn) $('heatBadge').hidden = true;
         // 技をはじめて使ったら「技をおぼえた！」（図鑑の技の一覧に★）
         if (!game.tutorial) {
           const TECH_EV = { panic: 'attack', wind: 'wind', playdead: 'playdead', box: 'box', drain: 'drain', stowaway: 'stow', revenge: 'revenge' };
