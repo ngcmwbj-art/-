@@ -16,7 +16,7 @@ const noPhoto = [];
 const fail = msg => { failures++; console.log('NG:', msg); };
 
 // データの整合性：art・crop・animal・status の参照先があるか
-const artNames = new Set(fs.readdirSync(path.join(root, 'assets/img/art')).map(f => f.replace('.svg', '')));
+const artNames = new Set(fs.readdirSync(path.join(root, 'assets/img/art')).map(f => f.replace(/\.(svg|png)$/, '')));
 for (const [id, c] of Object.entries(FR.Cards)) {
   if (c.unplayable) continue;
   if (!artNames.has(c.art)) fail(`カード ${id} の絵 ${c.art} がない`);
