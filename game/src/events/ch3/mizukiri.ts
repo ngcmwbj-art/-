@@ -16,7 +16,7 @@
 //   ・しゅんの 1回目の あと 1回、グソっ君の 番（flag_mz_kn）。3回 投げた あと テルに 話す → 押し返して くれる（flag_mz_done）。
 //   ・段階2：波が 寄せている（輪は 波で 沖へ 流れて 消える）。跳ねる 数は 少し 減る（いちばん 下の 帯でも 6まで）。
 //   ・かくし：9回（flag_mz_nine）。グソっ君の 番の あと もう一度 グソっ君に 話す（flag_mz_naze）。段階2 の 灯台の テル
-//     （flag_mz_c2）と 防波堤の ミナト（flag_mz_minato。ミナトの 台詞は 変えない、地の文 1行）。
+//     （flag_mz_c2）と 防波堤の ふーちゃん（flag_mz_minato。ふーちゃんの 台詞は 変えない、地の文 1行）。
 //
 // QA：__game.cmd.mizukiri(step, auto, band)、mzState()、mzText()
 
@@ -607,7 +607,7 @@ wrap(TERU, function* (_ctx, orig): Co {
   }
 });
 
-/** S13 の 防波堤の ミナト（台詞は 変えない。テルの 話を 聞いていれば 地の文 1行）。 */
+/** S13 の 防波堤の ふーちゃん（台詞は 変えない。テルの 話を 聞いていれば 地の文 1行）。 */
 wrap('npc_c3_sirenban', function* (_ctx, orig): Co {
   yield* orig();
   if (inCh3() && c3Stage() === 2 && onMap(UMIZOI) && flag(MF.done) && !flag(MF.minato)) {
@@ -818,7 +818,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'oshi'    3回 投げた あと、テルの 前 (5,5) 上向き
  *   'stage2'  段階2、石を 3つ 持って 浜の 波打ちぎわ (10,7) 下向き
  *   'teru2'   段階2、浜で 投げた あと、テル (10,30) の 前 (11,30) 左向き
- *   'minato'  段階2、すんだ あと、防波堤の ミナト (44,28) の 前 (45,28) 左向き
+ *   'minato'  段階2、すんだ あと、防波堤の ふーちゃん (44,28) の 前 (45,28) 左向き
  */
 if (import.meta.env.DEV) {
   registerDebug('mizukiri', (step = 'kid', auto = false, band = 0.92) => {

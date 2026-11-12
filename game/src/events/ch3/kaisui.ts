@@ -1,10 +1,10 @@
 // S09 ③ 海水浴場「今年 最後の 海」（60_ch3_story 9.4・10.9、62 1.4・4.5・4.7、63 12.7）:
 //
-//   ウミ〔c1_1〕・カイト〔c1_1〕→ evt_ch3_kaisui（flag_ch3_kaisui_start）→ グソっ君の
+//   やおちゃん〔c1_1〕・よっしー〔c1_1〕→ evt_ch3_kaisui（flag_ch3_kaisui_start）→ グソっ君の
 //   潜り evt_ch3_moguri（港の階段・浜の波打ちぎわで海へ押す → map_c3_umi をグソっ君
-//   だけで歩く。落とし物4つ、必須はウミの貝のブレスレット。flag_ch3_moguri_<id>）→
-//   ウミに返す（テル「波は、光で 起こせるよ。」flag_ch3_lens_ok）→ 灯台のレンズ
-//   evt_ch3_lens（ブイ3つに光を当てる。flag_ch3_lens_n）→ ウミに話すと最後の海
+//   だけで歩く。落とし物4つ、必須はやおちゃんの貝のブレスレット。flag_ch3_moguri_<id>）→
+//   やおちゃんに返す（テル「波は、光で 起こせるよ。」flag_ch3_lens_ok）→ 灯台のレンズ
+//   evt_ch3_lens（ブイ3つに光を当てる。flag_ch3_lens_n）→ やおちゃんに話すと最後の海
 //   （flag_ch3_umi_done, flag_ch3_part_koe）。
 //
 // Where map_c3_umi / map_c3_toudai aren't registered yet, the dive and the lens
@@ -35,7 +35,7 @@ import { pgBand, pgOn } from '../../world/postgame';
 /** The two ways into the sea and the land side each comes back to. */
 const ENTRY = {
   minato: { under: [2, 11, 'right'] as [number, number, Dir], land: [28, 26, 'down'] as [number, number, Dir] },
-  // (beside ウミ, who stands on (60,30))
+  // (beside やおちゃん, who stands on (60,30))
   hama: { under: [45, 1, 'left'] as [number, number, Dir], land: [61, 30, 'left'] as [number, number, Dir] },
 };
 type Entry = keyof typeof ENTRY;
@@ -96,7 +96,7 @@ function jumpMap(id: string, x: number, y: number, dir: Dir): void {
   if (prevKind !== f.map.def.kind) f.renderer.onMapChange();
 }
 
-// ---------------------------------------------------------------- ウミ・カイト
+// ---------------------------------------------------------------- やおちゃん・よっしー
 
 function* maybeStart(): Co {
   if (flag('flag_ch3_kaisui_start')) return;
@@ -275,7 +275,7 @@ function* surface(entry: Entry, onMap: boolean): Co {
   }
   yield 200;
   yield* game.fadeIn(600);
-  // the bracelet back to ウミ at once when they come up on the beach
+  // the bracelet back to やおちゃん at once when they come up on the beach
   if (entry === 'hama' && state.inventory.includes('item_c3_bracelet') && !flag('flag_ch3_bracelet_given')) {
     yield 300;
     yield* braceletBack();
@@ -436,7 +436,7 @@ registerScript('evt_ch3_umi_last', function* (): Co {
   if (flag('flag_ch3_lens_n') >= 3 && !flag('flag_ch3_umi_done')) yield* lastSea();
 });
 
-// ---------------------------------------------------------------- ツリノ: the line back (9.4)
+// ---------------------------------------------------------------- みちお: the line back (9.4)
 
 registerScript('npc_c3_tsuri', function* (): Co {
   if (!inCh3()) return;

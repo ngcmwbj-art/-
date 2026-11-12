@@ -4,7 +4,7 @@
 //
 //   段階1（正午）、③海水浴場の 決着の あと（flag_ch3_umi_done：浜の 波だけ 寄せている。world/c3sea.ts）から S12 の
 //   ナリオサメの 前まで。③の 前は 浜の 海が 鏡の まま なので 起きない。
-//   ・波打ちぎわの ウミ npc_c3_mago (60,30)：③の あとの いつもの 会話（C2_TALK）の あと（flag_sr_heard）、グソっ君が
+//   ・波打ちぎわの やおちゃん npc_c3_mago (60,30)：③の あとの いつもの 会話（C2_TALK）の あと（flag_sr_heard）、グソっ君が
 //     いれば もう1回 話すと〔shiro〕（flag_sr_start）。頭の 上に「！」（addMarkSource）。
 //   ・バケツ obj_sr_bucket (62,23)：海の 家の 前、浮き輪の 山の よこ。持つ（flag_sr_bucket。持って いる あいだは 地図に 出ない）。
 //   ・大写し「砂」その1 SunaPanel('press')：3つの 所で 砂を すくって、決定で 手で 押す（flag_sr_saw_<kind>）。
@@ -17,9 +17,9 @@
 //     よこ (54,30) の 小石・パラソルの 下 (65,28) の 流木の 小枝。3段の あと 1つずつ のせる（0個でも 先へ。flag_sr_deco）。
 //   ・波に 見せる（同じ 大写しで、寄せる 波 2つ。波の 音は 今の 浜の 音 amb_c3_umi の 'shiro'：とける 音は 弱く 波に まぜる）
 //     → 城の 下が とける（flag_sr_toke 1）→ まるい 小山（2）→ 朱肉 +2、みました帳③の すみ（flag_sr_done）。
-//   ・済んだ あと：城の あとを 調べると 1行（段階1）。段階2（S13〜S14）：ウミの〔c2〕の あと 1ページ（flag_sr_c2）、
+//   ・済んだ あと：城の あとを 調べると 1行（段階1）。段階2（S13〜S14）：やおちゃんの〔c2〕の あと 1ページ（flag_sr_c2）、
 //     城の あとは 平らな 砂（地図の 物は 段階1 だけ）。S14 から 先と クリア後は 足さない。
-//   ・かくし：城の あとで カイト（flag_sr_kaito）、水切り（flag_mz_done）を 済ませて いれば 小石で 1行（flag_sr_mz）、
+//   ・かくし：城の あとで よっしー（flag_sr_kaito）、水切り（flag_mz_done）を 済ませて いれば 小石で 1行（flag_sr_mz）、
 //     3段とも 1回で（flag_sr_jii）。
 //   ・もどる：大写しを やめると 台本は 止まる（積んだ 段は 残る。城の 所を 調べ直すと 続きから）。
 //
@@ -154,7 +154,7 @@ const stage1Umi = (): boolean => inCh3() && !pgOn() && c3Stage() === 1 && flag('
 addToMap(UMIZOI, [
   // the bucket in front of the beach hut, beside the heap of rubber rings (not while しゅん carries it)
   OBJ({ id: 'obj_sr_bucket', x: AT.bucket[0], y: AT.bucket[1], prop: 'prop_sr_bucket', face: 'up', script: 'obj_sr_bucket', cond: { when: () => stage1Umi() && (!flag(SF.bucket) || flag(SF.done) > 0) } }),
-  // the castle's place at the wet edge, east of ウミ (stage 1 only: at 12:01 it is flat sand again)
+  // the castle's place at the wet edge, east of やおちゃん (stage 1 only: at 12:01 it is flat sand again)
   OBJ({ id: 'obj_sr_shiro', x: AT.shiro[0], y: AT.shiro[1], prop: 'prop_sr_shiro', script: 'obj_sr_shiro', cond: { when: () => stage1Umi() && flag(SF.start) > 0 } }),
   // the dry sand up the beach (a little heap to scoop)
   OBJ({ id: 'obj_sr_suna', x: AT.suna[0], y: AT.suna[1], flat: true, prop: 'prop_sr_suna', script: 'obj_sr_suna', cond: { when: making } }),
@@ -164,7 +164,7 @@ addToMap(UMIZOI, [
   ),
 ]);
 
-// ウミの 頭の 上の「！」（〔shiro〕を 言いだせる とき）
+// やおちゃんの 頭の 上の「！」（〔shiro〕を 言いだせる とき）
 addMarkSource((f) => {
   if (f.map.id !== UMIZOI || !srOpen() || !flag(SF.heard) || flag(SF.start) || !knWith()) return null;
   const a = f.actorById(UMI);
@@ -841,7 +841,7 @@ function* build(): Co {
   yield* say3(T.SR_REWARD);
 }
 
-/** 1 波打ちぎわの ウミ（〔shiro〕、作っている あいだ）。段階2 は〔c2〕の あと 1ページ。 */
+/** 1 波打ちぎわの やおちゃん（〔shiro〕、作っている あいだ）。段階2 は〔c2〕の あと 1ページ。 */
 wrap(UMI, function* (_ctx, orig): Co {
   if (srOpen() && onMap(UMIZOI)) {
     if (!flag(SF.start)) {
@@ -926,7 +926,7 @@ registerScript('obj_sr_shiro', function* (): Co {
   yield* build();
 });
 
-/** かくし：城の あとで カイト（監視台の 上。グソっ君が いる とき 1回）。 */
+/** かくし：城の あとで よっしー（監視台の 上。グソっ君が いる とき 1回）。 */
 wrap(KAITO, function* (_ctx, orig): Co {
   if (srOpen() && onMap(UMIZOI) && flag(SF.done) && !flag(SF.kaito) && knWith()) {
     setFlag(SF.kaito, 1);
@@ -943,7 +943,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 
 /**
  * QA: __game.cmd.shiro(step = 'umi', auto = false)（第3章の 段階1、③の あと）
- *   'umi'      ③の あとの いつもの 会話の あと、ウミの 前 (60,29) 下向き（話すと〔shiro〕）
+ *   'umi'      ③の あとの いつもの 会話の あと、やおちゃんの 前 (60,29) 下向き（話すと〔shiro〕）
  *   'bucket'   〔shiro〕の あと、バケツの 前 (62,24) 上向き
  *   'kaigara'・'koishi'・'eda'  かざりの 上 （(56,29) 上・(54,29) 下・(65,29) 上向き）
  *   'kawaki'   バケツを 持って、乾いた 砂の 前 (60,27) 上向き
@@ -951,8 +951,8 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'shiro'    バケツを 持って、かざり 3つ、城の 所の 前 (62,29) 下向き（しめった 砂 → 3段 → かざり → 波）。
  *              'zuru' は auto の 版で 2段目を 押しかためずに 返す。'zaza' は 乾いた 砂を すくった あと
  *   'done'     済んだ あと、城の あとの 前 (62,29) 下向き
- *   'kaito'    済んだ あと、監視台の カイトの 前 (57,28) 上向き
- *   'c2'       済んだ あと 段階2、防波堤の ウミ (34,32) の 前 (34,31) 下向き
+ *   'kaito'    済んだ あと、監視台の よっしーの 前 (57,28) 上向き
+ *   'c2'       済んだ あと 段階2、防波堤の やおちゃん (34,32) の 前 (34,31) 下向き
  */
 if (import.meta.env.DEV) {
   registerDebug('shiro', (step = 'umi', auto = false) => {

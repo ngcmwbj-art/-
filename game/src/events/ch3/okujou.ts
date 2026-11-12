@@ -8,14 +8,14 @@
 //     赤い ふちの 札と、すき間から 床に 落ちる 外の 光（見つけやすく。開いている 間だけ 光る）。
 //   ・屋上に 出た とき 1回：カモメが 飛んで きて、屋上の 上に 入った ところで 止まる（flag_oj_in）。
 //   ・屋上の 物 5つ（カモメ・給水塔・天窓・室外機・2つの 排水口。flag_oj_mono_<k>）。
-//   ・南西の 排水口 (2,8)：黒い 輪（flag_oj_wa）→ 南の 手すり (8–12,9) から のぞくと ハキコ（flag_oj_talk）→
+//   ・南西の 排水口 (2,8)：黒い 輪（flag_oj_wa）→ 南の 手すり (8–12,9) から のぞくと ぶろこり（flag_oj_talk）→
 //     南西の 排水口で 大写し「排水口」HaisuiPanel：上の 物から 1つずつ（↑↓ 選ぶ・けってい 取る。flag_oj_n に 取った 数。
 //     とちゅうで やめても 続きから）→ 網（flag_oj_ami）→ ボール（選ぶ。flag_oj_ball 1 落とした・2 持っている）→
 //     2人で、やっと → 朱肉 +2、みました帳③の すみ（flag_oj_done）。
 //   ・どこで やめても 再開に 困らない：屋上は 戸 1つで 入口の (1,4) に もどる。手順は フラグで 続きから。
 //   ・かくし：「水槽の うら」が すんでいる（flag_aqura_done）→ 入った とき グソっ君（flag_oj_ura）。
-//     「下の 紙の 字」で つづりを こすった（flag_sh_tsuzuri）→ 終わりに ハキコ（flag_oj_tsuzuri）。
-//     ボールを 持っていた → クリア後、旧水族館の 前の ハキコに わたす（flag_oj_ball = 3）。
+//     「下の 紙の 字」で つづりを こすった（flag_sh_tsuzuri）→ 終わりに ぶろこり（flag_oj_tsuzuri）。
+//     ボールを 持っていた → クリア後、旧水族館の 前の ぶろこりに わたす（flag_oj_ball = 3）。
 //
 // QA：__game.cmd.okujou(step, auto)、ojState()、ojText()
 
@@ -500,7 +500,7 @@ registerScript('obj_oj_haisui_se', function* (): Co {
   yield* haisuiSeen('se');
 });
 
-/** 南西の 排水口：黒い 輪 → （ハキコの あと）上から 1つずつ → ボール → 2人で。 */
+/** 南西の 排水口：黒い 輪 → （ぶろこりの あと）上から 1つずつ → ボール → 2人で。 */
 registerScript('obj_oj_haisui_sw', function* (): Co {
   se('se_examine');
   if (flag(OF.done) || !ojOpen()) {
@@ -553,7 +553,7 @@ function* finish(): Co {
   yield* say3(T.OJ_REWARD);
 }
 
-/** 南の 手すり：まん中 (8–12) から のぞくと ハキコ、ほかは 景色。 */
+/** 南の 手すり：まん中 (8–12) から のぞくと ぶろこり、ほかは 景色。 */
 registerScript('obj_oj_tesuri', function* (): Co {
   se('se_examine');
   const f = field();
@@ -579,9 +579,9 @@ registerScript('obj_oj_tesuri', function* (): Co {
   setFlag(OF.talk, 1);
 });
 
-// ---- クリア後：ボールを 持っていた 人だけ、旧水族館の 前の ハキコに わたす（1回。包むのは okujou_pg.ts）
+// ---- クリア後：ボールを 持っていた 人だけ、旧水族館の 前の ぶろこりに わたす（1回。包むのは okujou_pg.ts）
 
-/** クリア後の ハキコ：ボールを 返す（返したら true）。 */
+/** クリア後の ぶろこり：ボールを 返す（返したら true）。 */
 export function* ojPgBall(): Co<boolean> {
   if (!pgOn() || flag(OF.ball) !== 2 || !state.inventory.includes(BALL)) return false;
   setFlag(OF.ball, 3);
@@ -600,11 +600,11 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'to'      入口の 西の 戸の 前 (1,4) 左向き（調べると 開く。そのまま 左へ 歩くと 屋上）
  *   'in'      戸が 開いた あと、屋上の 入口 (1,2)（入った ときの カモメ）
  *   'wa'      カモメの あと、南西の 排水口の 前 (3,8) 左向き
- *   'tesuri'  黒い 輪の あと、手すりの 前 (10,8) 下向き（ハキコ）
- *   'haisui'  ハキコの あと、南西の 排水口の 前（大写し）。'wrong' は auto で いちど 下の 物を 引く
+ *   'tesuri'  黒い 輪の あと、手すりの 前 (10,8) 下向き（ぶろこり）
+ *   'haisui'  ぶろこりの あと、南西の 排水口の 前（大写し）。'wrong' は auto で いちど 下の 物を 引く
  *   'half'    2つ 取った ところで やめた あと（続きから）
  *   'ball'    網まで 来た あと（ボールから）
- *   'pg'      クリア後、ボールを 持って 旧水族館の 前（岬）の ハキコの 前
+ *   'pg'      クリア後、ボールを 持って 旧水族館の 前（岬）の ぶろこりの 前
  */
 if (import.meta.env.DEV) {
   registerDebug('okujou', (step = 'to', auto = false) => {
@@ -670,7 +670,7 @@ if (import.meta.env.DEV) {
   });
 }
 
-/** Every page: at most 3 lines, each at most 336 px; no 天丼 but ハキコ's; no clock time; no S19 words; the names without さん in the narration. */
+/** Every page: at most 3 lines, each at most 336 px; no 天丼 but ぶろこり's; no clock time; no S19 words; the names without さん in the narration. */
 export function ojTextCheck(): { pages: number; bad: string[] } {
   const bad: string[] = [];
   let pages = 0;

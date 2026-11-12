@@ -148,7 +148,7 @@ function placeBreakwater(center: number, fixed: [string, number, number, Dir, st
  * S29 on 海水浴場's sand (2026-10-20 依頼主「人多過ぎてしゅんが誰かと被ってるし、焼きそば焼いてる2人が後ろの方で
  * 何かやってるなって感じで全く良さが出てない。こんな狭い所でなく砂浜で広々と使えば良いのでは？」; it was the
  * breakwater's two rows). The beach is x53–66, y23–31 (the beach hut north, the sea south behind the camera):
- * ナミエの 長机の 鉄板 (prop_c3_end_yatai, x58–62) front and centre on y29, たかし and グソっ君 behind it facing us,
+ * まさとの 長机の 鉄板 (prop_c3_end_yatai, x58–62) front and centre on y29, たかし and グソっ君 behind it facing us,
  * しゅん at its west end; a mat each side in front (53–56, 63–66 × 29–30). Everyone else round them in a wide half
  * ring, the beach hut's front, the waterline, under the parasol, the lifeguard's chair, and — when many came — the
  * grass east of the beach and the quay west of the rocks (the camera goes there slowly; not all need be in one frame).
@@ -158,19 +158,19 @@ const BEACH = { yatai: [60, 29] as const, shun: [57, 29] as const };
 const BEACH_FIXED: [string, number, number, Dir, string?, string?][] = [
   ['npc_maruyama', 59, 28, 'down', 'npc_maruyama_hige', 'fry'],
   ['kanenari', 61, 28, 'down', 'kanenari', 'hera'],
-  // the east mat: ツガオ at its end, ゴロウ eating, ナミエ by the griddle with the second helping
+  // the east mat: ツガオ at its end, こねぎ eating, まさと by the griddle with the second helping
   ['npc_tsugao', 66, 30, 'down', 'npc_tsugao_shirt'],
   ['npc_c3_jouren', 64, 30, 'down'],
   ['npc_c3_shokudo', 63, 28, 'down'],
-  // under the parasol (65,27): the dried-fish couple
+  // under the parasol (65,27): the dried-fish brothers
   ['npc_c3_himono_otto', 65, 27, 'down'],
   ['npc_c3_himono_tsuma', 66, 27, 'down'],
-  // the west mat: ヒロスケ, and ポコシャ and ハキコ side by side (they bow together)
+  // the west mat: ヒロスケ, and ポコシャ and ぶろこり side by side (they bow together)
   ['npc_hirosuke', 53, 29, 'down'],
   ['npc_pokosha', 54, 30, 'down'],
   ['npc_c3_uketsuke', 55, 30, 'down'],
   ['npc_dakoku', 55, 27, 'down', 'npc_dakoku_daisha'],
-  // カイト up on his lifeguard chair (57,27), as at noon (umizoi.ts: off −18)
+  // よっしー up on his lifeguard chair (57,27), as at noon (umizoi.ts: off −18)
   ['npc_c3_kanshiin', 57, 27, 'down', undefined, 'sit'],
   // the children at the waterline
   ['npc_c3_kid_a', 53, 31, 'down'],
@@ -314,7 +314,7 @@ function* cut1Lunch(): Co {
     if (id === 'npc_hirosuke') se('se_yakiimo', { vol: 0.5 });
     yield* beat(2000);
   }
-  // ポコシャとハキコが並んで会釈
+  // ポコシャとぶろこりが並んで会釈
   poseOf('npc_pokosha', 'bow_small');
   poseOf('npc_c3_uketsuke', 'bow_small');
   yield* beat(1200);

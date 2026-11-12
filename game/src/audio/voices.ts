@@ -150,18 +150,25 @@ export const VOICES: Record<string, VoiceDef> = {
   // voices are named by role (npc_c3_shokudo → c3_shokudo) and never follow a
   // renamed name tag. No two share base, wave, set and pace with each other or
   // with the voices of chapters 1–2 (16.2)
-  c3_shokudo: { label: 'ナミエ（食堂かもめのおかみ）', wave: 'triangle', wave2: ['sine', 0.4], base: 'G4', scale: [0, 2, 4, 7, 9, 12], len: 30, A: 2, D: 20, S: 0.5, R: 12, every: 2, v: 0.06, lp: 2600, scoop: [60, 15], formant: true },
-  c3_jouren: { label: 'ゴロウ（常連の漁師）', wave: 'sawtooth', wave2: ['triangle', 0.5], base: 'F#3', scale: [0, 3, 5], len: 58, A: 6, every: 3, v: 0.065, lp: 1100, formant: true },
-  c3_seri: { label: 'ゲン（セリ人）', wave: 'pulse25', base: 'B3', scale: [0, 2, 4, 5, 7], len: 26, A: 1, D: 18, S: 0.4, R: 8, every: 1, v: 0.07, lp: 2400, formant: true },
-  c3_seri_deshi: { label: 'ツグミ（若いセリ人）', wave: 'sine', wave2: ['triangle', 0.3], base: 'C#5', scale: [0, 2, 4, 7], len: 26, A: 4, every: 3, v: 0.035, lp: 2200, formant: true },
-  c3_sirenban: { label: 'ミナト（サイレン塔の番人）', wave: 'pulse12', wave2: ['triangle', 0.4], base: 'E3', scale: [0, 2, 5, 7], len: 40, A: 0, D: 25, S: 0, every: 2, v: 0.06, lp: 1600, formant: true },
+  // まさと (2026-11-12): a big father of a cook in his 40s — low and round, warm, still bouncing on 「おかわり」
+  c3_shokudo: { label: 'まさと（食堂かもめの主人）', wave: 'triangle', wave2: ['sine', 0.4], base: 'A3', scale: [0, 2, 4, 7, 9, 12], len: 34, A: 3, D: 22, S: 0.55, R: 14, every: 2, v: 0.065, lp: 1700, scoop: [40, 15], formant: true },
+  c3_jouren: { label: 'こねぎ（常連の漁師・大食い）', wave: 'sawtooth', wave2: ['triangle', 0.5], base: 'F#3', scale: [0, 3, 5], len: 58, A: 6, every: 3, v: 0.065, lp: 1100, formant: true },
+  // えんまい：40代の男、関西弁で しゃべりどおし、声が 大きい（短く 速く、every 1）
+  c3_seri: { label: 'えんまい（セリ人・みかん農家）', wave: 'pulse25', base: 'B3', scale: [0, 2, 4, 5, 7, 9], len: 24, A: 1, D: 18, S: 0.4, R: 8, every: 1, v: 0.075, lp: 2400, formant: true },
+  // すまこ：60代の女の弟子、ふだんは 大声で おしゃべり（台の 上の 小声は 文の「……」と 売った！の 大写しで）
+  c3_seri_deshi: { label: 'すまこ（えんまいの弟子）', wave: 'pulse25', wave2: ['triangle', 0.4], base: 'G#4', scale: [0, 2, 4, 7, 9], len: 26, A: 2, every: 1, v: 0.055, lp: 2300, vib: [5, 8], formant: true },
+  c3_sirenban: { label: 'ふーちゃん（サイレン塔の番人）', wave: 'pulse12', wave2: ['triangle', 0.4], base: 'E3', scale: [0, 2, 5, 7], len: 40, A: 0, D: 25, S: 0, every: 2, v: 0.06, lp: 1600, formant: true },
   c3_toudai: { label: 'テル（灯台のおばあ）', wave: 'triangle', base: 'F#4', scale: [0, 2, 4, 7], len: 52, A: 6, every: 3, v: 0.055, vib: [5, 16], formant: true },
-  c3_mago: { label: 'ウミ（ミナトとテルの孫）', wave: 'pulse25', wave2: ['triangle', 0.3], base: 'F5', scale: [0, 2, 4, 7, 9], len: 22, A: 1, every: 2, v: 0.05, formant: true, child: true },
-  c3_kanshiin: { label: 'カイト（監視員）', wave: 'square', base: 'D#4', scale: [0, 4, 7], len: 24, A: 0, D: 18, S: 0, every: 2, v: 0.05, lp: 2800, formant: true },
-  c3_himono_otto: { label: 'ホシオ（干物屋の夫）', wave: 'sawtooth', base: 'A3', scale: [0, 3, 5], len: 30, every: 2, v: 0.055, lp: 1600, formant: true },
-  c3_himono_tsuma: { label: 'ホシミ（干物屋の妻）', wave: 'sawtooth', base: 'A4', scale: [0, 3, 5], len: 30, every: 2, v: 0.05, lp: 2000, formant: true },
-  c3_tsuri: { label: 'ツリノ（防波堤の釣り人）', wave: 'triangle', wave2: ['sine', 0.5], base: 'G#3', scale: [0, 2, 5], len: 75, A: 8, every: 4, v: 0.06, vib: [4, 10], formant: true },
-  c3_uketsuke: { label: 'ハキコ（元・受付）', wave: 'sine', wave2: ['triangle', 0.25], base: 'A#4', scale: [0, 2, 4], len: 34, A: 3, every: 2, v: 0.045, lp: 2200, rev: 0.15, formant: true },
+  c3_mago: { label: 'やおちゃん（ふーちゃんとテルの孫）', wave: 'pulse25', wave2: ['triangle', 0.3], base: 'F5', scale: [0, 2, 4, 7, 9], len: 22, A: 1, every: 2, v: 0.05, formant: true, child: true },
+  c3_kanshiin: { label: 'よっしー（監視員）', wave: 'square', base: 'D#4', scale: [0, 4, 7], len: 24, A: 0, D: 18, S: 0, every: 2, v: 0.05, lp: 2800, formant: true },
+  // 干物屋は 夫婦 → 兄弟（2026-11-12 依頼主）：弟は 兄と 同じ のこぎり波・同じ 音の 組で、少し 高い 男の 声
+  c3_himono_otto: { label: 'シェフ男（干物屋の兄）', wave: 'sawtooth', base: 'A3', scale: [0, 3, 5], len: 30, every: 2, v: 0.055, lp: 1600, formant: true },
+  c3_himono_tsuma: { label: 'シェフ次郎（干物屋の弟）', wave: 'sawtooth', base: 'C#4', scale: [0, 3, 5], len: 28, every: 2, v: 0.055, lp: 1800, formant: true },
+  c3_tsuri: { label: 'みちお（防波堤の釣り人。おぴぃの父）', wave: 'triangle', wave2: ['sine', 0.5], base: 'G#3', scale: [0, 2, 5], len: 75, A: 8, every: 4, v: 0.06, vib: [4, 10], formant: true },
+  // ぶろこり（2026-11-12 ハキコ（元・受付）から）：30代の 男の 掃除係。いつも 鼻歌なので、ゆれの ある 歌う 声（5音の 組）
+  c3_uketsuke: { label: 'ぶろこり（旧水族館の掃除係）', wave: 'triangle', wave2: ['sine', 0.3], base: 'D3', scale: [0, 2, 4, 7, 9], len: 34, A: 3, every: 2, v: 0.055, lp: 1800, vib: [5, 12], rev: 0.15, formant: true },
+  // 港の 市場の お客（名前のない 町の 人。前は 干物屋の 妻の 声を 借りていた）
+  c3_ichiba_kyaku: { label: 'お客（港の市場）', wave: 'sawtooth', base: 'A4', scale: [0, 3, 5], len: 30, every: 2, v: 0.05, lp: 2000, formant: true },
   c3_kid: { label: '防波堤の子ども', wave: 'square', base: 'A5', scale: [0, 2, 4, 7], len: 20, every: 2, v: 0.045, formant: true, child: true },
   // the two that are not people (9.1): the retiring siren speaks through its own
   // tower's speaker (bus_pa 'umi'), each blip rising like the head of the siren;
@@ -300,13 +307,13 @@ interface State {
   /** A fixed figure under way on this page: its notes and how far into it. */
   c3fig?: number[];
   c3figI?: number;
-  /** ゲン's 「ひゃく」: 1 after the ひ. */
+  /** えんまい's 「ひゃく」: 1 after the ひ. */
   hyaku?: number;
-  /** ツグミ's 「売った！」 out loud (1), and the page after it (2: small). */
+  /** すまこ's 「売った！」 out loud (1), and the page after it (2: small). */
   utta?: number;
-  /** カイト's page that opened with his whistle (the rest ×0.8). */
+  /** よっしー's page that opened with his whistle (the rest ×0.8). */
   fue?: boolean;
-  /** ゴロウ's 「……もう」 page (a breath before it, a sigh at the end). */
+  /** こねぎ's 「……もう」 page (a breath before it, a sigh at the end). */
   mou?: boolean;
   /** ヤキソバン's 「ヤキソバン、出前に 参上。」 page (1; its M10 blips counted in ykI), and the page after it (2: shy). */
   yk?: number;
@@ -616,7 +623,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     return;
   }
   // 海ぞいの町 (63 9.2): 「ごちそう……」 — at 12:00 every townsperson who starts
-  // to say it is cut short by the head of the siren (once a line); ゴロウ's
+  // to say it is cut short by the head of the siren (once a line); こねぎ's
   // 「……もう 1杯。」 ends on a sigh (−2, 120 ms)
   if (id.startsWith('c3_')) {
     if (!SILENT.has(ch) && ch.trim()) s.c3recent = ((s.c3recent ?? '') + ch).slice(-6);
@@ -693,10 +700,10 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     } else if (s.sasuga && mode === undefined) s.sasuga++;
     if (s.stam === ch && mode === undefined) forced = true;
   }
-  // 海ぞいの町's fixed figures (63 9.2): ナミエ's 「おかわり」 bounces up 0 +4 +7 +12;
-  // the dried-fish couple's 「干しすぎ！」「干したりない！」 run 0 +3 +5 +3 +5; ゲン's
-  // 「ひゃく」 is always 0 +2; ツグミ's 「売った！」 says it out loud (+7, +12, ×2);
-  // カイト's 「ピッ」 is his whistle, not a blip
+  // 海ぞいの町's fixed figures (63 9.2): まさと's 「おかわり」 bounces up 0 +4 +7 +12;
+  // the dried-fish brothers' 「干しすぎ！」「干したりない！」 run 0 +3 +5 +3 +5; えんまい's
+  // 「ひゃく」 is always 0 +2; すまこ's 「売った！」 says it out loud (+7, +12, ×2);
+  // よっしー's 「ピッ」 is his whistle, not a blip
   let c3Semi: number | null = null;
   let c3Vol = 1;
   let c3Delay = 0;
@@ -955,7 +962,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       scale = b % 2 === 1 ? def.scale.slice(0, 3) : def.scale.slice(3);
     }
     semi = scale[hashCh(ch) % scale.length];
-    // ミナト (63 9.2): as exact as his clock — the same note may come again
+    // ふーちゃん (63 9.2): as exact as his clock — the same note may come again
     if (semi === s.lastSemi && id !== 'c3_sirenban') {
       s.repeat++;
       if (s.repeat >= 2) {

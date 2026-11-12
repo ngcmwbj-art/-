@@ -5,22 +5,22 @@
 //   段階2（12:01）、S13 の あと（flag_ch3_got_gochisou）から S14 の 前まで（flag_ch3_truck_trap が 立ったら 起きない。
 //   S14 の 前の「やり残し ないか？」で 乗らない ほうを 選べば 来られる：今の 作り）。段階1 では 起きない（正午の あいだ、
 //   子どもたちは 丘の 広場に いる。波に 見せる 城の 貝がらの かざりと まぎれない ように、段階1 の 貝がらは 置かない）。
-//   ・監視台の 下の カイト npc_c3_kanshiin (57,28)：グソっ君が いる とき、頭の 上に「！」（addMarkSource。見のがし 対策）。
+//   ・監視台の 下の よっしー npc_c3_kanshiin (57,28)：グソっ君が いる とき、頭の 上に「！」（addMarkSource。見のがし 対策）。
 //     話すと いつもの〔c2〕（はじめの 1回）の あと、浮き輪の 子 npc_c3_kid_c が 港の 岸壁から 浜へ 走って きて〔ana〕
 //     （flag_tm_start）。子どもの 歩きは 見える 所の すぐ 外から（防波堤から だと 10秒 かかるので、岸壁 (42,25) から）。
 //   ・貝がら 3つ obj_tm_kai_1〜3（監視台の まわり (55,28)・(59,29)・(56,30)。案の 5つ → 会議 10-28 で へらして 近くに）：
 //     調べると 大写し「穴」の 寄り（TsumePanel 'look'）。穴の あいた 二枚貝 2つ・ふちの 欠けた 貝 1つ（flag_tm_kai_<n>）。
-//     3つ 見ると その 場で カイトが「くらべて みよう」→ 大写し「穴」TsumePanel 'cards'：←→ で うたがわしい 者の カード
+//     3つ 見ると その 場で よっしーが「くらべて みよう」→ 大写し「穴」TsumePanel 'cards'：←→ で うたがわしい 者の カード
 //     （はさみ・くちばし・波の 石）を えらぶと、右に「もし これなら」の 貝が 出る。決定で くらべる（flag_tm_card_<c>）。
 //     形だけで 見くらべる（会議 10-28：色に たよらない。まんまるの 穴 ／ 穴の ない 殻 ／ 割れ ／ 欠け。見た カードには ×）。
-//     もどるで やめると 台本は 止まる（見た カードは 残る。カイトに 話すと 続きから）。
+//     もどるで やめると 台本は 止まる（見た カードは 残る。よっしーに 話すと 続きから）。
 //   ・3枚 見たら（flag_tm_kurabe）波打ちぎわの 丸い 巻貝の 殻 obj_tm_tsumeta (61,30) → ツメタガイ → 決めゼリフ →
 //     子どもが あやまる → もどす（自動）→ 朱肉 +2、みました帳③の すみ（flag_tm_done）→ 子どもは 防波堤へ もどる。
 //   ・かくし：砂の お茶わん obj_tm_chawan (62,30)（〔ana〕の あと。グソっ君が いる とき 1回 flag_tm_chawan）／
 //     波に 見せる 城（flag_sr_done）を 済ませて いれば もどす ときに 子どもの 1行（flag_tm_shiro）／
-//     カードを 見る 前に 巻貝を 調べると カイトの 1行（flag_tm_saki。進めなく しない）。
+//     カードを 見る 前に 巻貝を 調べると よっしーの 1行（flag_tm_saki。進めなく しない）。
 //   ・段階2 で 済んだ あと：巻貝は「中は、からっぽ」、貝がらは「もどしてある」。S14 から 先と クリア後は 足さない。
-//   ・止まった 正午の 決まりと ぶつけない：12:01 の 浜（波が 動いて いる）だけ。旗を 下ろした カイトの 最後の 見回り。
+//   ・止まった 正午の 決まりと ぶつけない：12:01 の 浜（波が 動いて いる）だけ。旗を 下ろした よっしーの 最後の 見回り。
 //
 // QA：__game.cmd.tsumeta(step, auto)、tmState()、tmText()
 
@@ -77,7 +77,7 @@ const AT = {
   tsumeta: [61, 30] as [number, number],
   chawan: [62, 30] as [number, number],
 };
-/** 子どもが 走り だす 所（港の 岸壁）と、カイトの そばの 空いた マス（前から 空いて いる 物）。 */
+/** 子どもが 走り だす 所（港の 岸壁）と、よっしーの そばの 空いた マス（前から 空いて いる 物）。 */
 const KID_FROM: [number, number] = [42, 25];
 /** もどる ときの 曲がり角（防波堤の もと）。 */
 const KID_WAY: [number, number] = [44, 25];
@@ -163,7 +163,7 @@ addToMap(UMIZOI, [
   OBJ({ id: 'obj_tm_chawan', x: AT.chawan[0], y: AT.chawan[1], flat: true, prop: 'prop_tm_chawan', script: 'obj_tm_chawan', cond: { when: () => onBeach() && flag(TF.start) > 0 } }),
 ]);
 
-// カイトの 頭の 上の「！」（〔ana〕を 言いだせる とき。見のがし 対策：S13 の あと 浜に 来れば 見える）
+// よっしーの 頭の 上の「！」（〔ana〕を 言いだせる とき。見のがし 対策：S13 の あと 浜に 来れば 見える）
 addMarkSource((f) => {
   if (f.map.id !== UMIZOI || !tmOpen() || flag(TF.start) || !knWith()) return null;
   const a = f.actorById(KAITO);
@@ -585,13 +585,13 @@ function kidSpot(): [number, number] | null {
   return KID_SPOTS.find(([x, y]) => !busy.has(`${x},${y}`)) ?? null;
 }
 
-/** 子どもが カイトの そばに いる（前に 来た まま）。 */
+/** 子どもが よっしーの そばに いる（前に 来た まま）。 */
 function kidNear(): boolean {
   const a = field()?.actorById(KID);
   return !!a && a.visible && a.tileX >= 55 && a.tileX <= 60 && a.tileY >= 27 && a.tileY <= 30;
 }
 
-/** 港の 岸壁から 走って きて、カイトの ほうを 向く（着くまで 待つ。長くても 4秒）。 */
+/** 港の 岸壁から 走って きて、よっしーの ほうを 向く（着くまで 待つ。長くても 4秒）。 */
 function* kidCome(): Co {
   const f = field();
   const a = f?.actorById(KID);
@@ -659,7 +659,7 @@ function* lookKai(n: Kai): Co {
   if (tmKaiCount() >= 3 && !flag(TF.kurabe)) yield* kurabe(true);
 }
 
-/** 3 うたがわしい 者（大写し）。first は 3つ目の 貝がらの すぐ あと（カイトの 1行から）。 */
+/** 3 うたがわしい 者（大写し）。first は 3つ目の 貝がらの すぐ あと（よっしーの 1行から）。 */
 function* kurabe(first: boolean): Co {
   if (first || !tmCardCount()) yield* say3(T.TM_KURABE);
   const p = new TsumePanel('cards');
@@ -711,7 +711,7 @@ function* hannin(): Co {
   kidBack();
 }
 
-/** 1 監視台の 下の カイト（段階2）。 */
+/** 1 監視台の 下の よっしー（段階2）。 */
 wrap(KAITO, function* (_ctx, orig): Co {
   if (tmOpen() && onMap(UMIZOI) && !flag(TF.done)) {
     if (!flag(TF.start)) {
@@ -753,7 +753,7 @@ registerScript('obj_tm_kai', function* (ctx: ScriptCtx): Co {
     return;
   }
   if (flag(kaiF(n))) {
-    // (all three seen: the comparing again from here, like talking to カイト)
+    // (all three seen: the comparing again from here, like talking to よっしー)
     if (!flag(TF.kurabe)) yield* kurabe(false);
     else yield* say3(T.TM_WAIT2);
     return;
@@ -803,7 +803,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 
 /**
  * QA: __game.cmd.tsumeta(step = 'start', auto = false)（第3章の 段階2、S13 の あと）
- *   'start'    監視台の 下の カイト (57,28) の 前 (57,29) 上向き（「！」。話すと〔c2〕→ 子どもが 走って くる〔ana〕）
+ *   'start'    監視台の 下の よっしー (57,28) の 前 (57,29) 上向き（「！」。話すと〔c2〕→ 子どもが 走って くる〔ana〕）
  *   'far'      同じ、浜の 入り口 (53,24)（遠くから「！」が 見えるか）
  *   'kai1'・'kai2'・'kai3'  〔ana〕の あと、貝がらの 所（(55,28)・(59,29) に 立つ、(56,30) の 上 (56,29) 下向き）
  *   'kurabe'   貝がら 2つ 見た あと、3つ目 (56,30) の 前 (56,29) 下向き（見ると その 場で くらべる）

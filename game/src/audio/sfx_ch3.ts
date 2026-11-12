@@ -172,7 +172,7 @@ se('se_c3_donburi', {
   layers: ['sine f=520→480/30 env=0/120/0/40 dur=30 v=.020', 'sine f=1460 env=0/80/0/30 dur=20 v=.006', 'noise env=0/20/0/10 dur=10 v=.006 flt=BP3000q1'],
 });
 se('se_c3_fue', {
-  label: '監視員カイトの笛（ピッ！）',
+  label: '監視員よっしーの笛（ピッ！）',
   group: G_MINATO,
   layers: ['sine f=3150 env=3/150/0/30 dur=120 v=.016 am=38/.4', 'noise env=3/120/0/20 dur=100 v=.004 flt=BP3200q3'],
 });
@@ -402,11 +402,11 @@ se('se_c3_futa', {
   layers: ['tri f=1100 env=0/40/0/15 dur=8 v=.012 rep=6x90 rnd=15%', 'sine f=700→600/40 env=0/60/0/20 dur=15 v=.008 at=560'],
 });
 /**
- * ゴロウ's 「……ごちそうさま。」(S08): M9′ heard for the first time, the
+ * こねぎ's 「……ごちそうさま。」(S08): M9′ heard for the first time, the
  * harmonica alone (1.3: the seal is lifted here). No siren head.
  */
 se('se_c3_gochisou', {
-  label: 'ゴロウの「ごちそうさま。」（M9′ のハーモニカ）',
+  label: 'こねぎの「ごちそうさま。」（M9′ のハーモニカ）',
   group: G_SHOKUDO,
   max: 1,
   fn(c) {
@@ -483,7 +483,7 @@ se('se_c3_lens_beam', {
     if (c.opts.level !== 1) layer(c, 'noise env=300/800/0/400 dur=500 v=.006 flt=LP900 at=500');
   },
 });
-/** Part ③「いただきます の 声」(S09): カイト's whistle, then the children's M9. */
+/** Part ③「いただきます の 声」(S09): よっしー's whistle, then the children's M9. */
 se('se_c3_part_koe', {
   label: '部品③「いただきます」の声（笛と子どもの声）',
   group: G_UMI,

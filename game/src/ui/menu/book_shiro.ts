@@ -1,7 +1,7 @@
 // みました帳③の すみの 1ページ『波に 見せる 城』（03_ch3_index、events/ch3/shiro.ts）：城を 波に 見せた あと
 // （flag_sr_done）、③の「ふしぎ」の 一覧の いちばん下に 番号なしの 1行（鉛筆の 字）。右の ページに 題、3段の 城と
 // 寄せる 波の 鉛筆の 絵（てっぺんに 小枝の 旗、すみに 城の 前で はさみを 広げる グソっ君）、さわった 砂と かざりの 数、
-// ウミの 字「みず ちょっとだけ」。ふしぎの 数（/10）には 入れない。
+// やおちゃんの 字「みず ちょっとだけ」。ふしぎの 数（/10）には 入れない。
 //
 // QA：__game.cmd.srBookText()、bookPeek('sr')
 
@@ -22,7 +22,7 @@ export const SR_ROW_LABEL = SR_BOOK.title;
 const TITLE_H = 17;
 const LINE_H = 16;
 const PIC_H = 32;
-/** ウミの 字（子どもの 鉛筆、少し 青い）。 */
+/** やおちゃんの 字（子どもの 鉛筆、少し 青い）。 */
 const UMI_C = '#4A6A9A';
 
 function count(ids: string[]): number {

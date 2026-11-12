@@ -6,7 +6,7 @@
 //   S12 の ナリオサメの 前まで。
 //   ・くま吉（あぜ道市の 豆腐の 屋台 (27,3)、c3_kita_npc_mamekichi）：今の 到着の 台詞の あと（flag_yd_heard）、
 //     2回目に〔yose〕→ 空きびん item_c3_akibin（flag_yd_start）。グソっ君が いない ときは 頼まない。
-//   ・監視台の カイト：びんを 持っていて、くむ 前に 1回（flag_yd_kaito）。
+//   ・監視台の よっしー：びんを 持っていて、くむ 前に 1回（flag_yd_kaito）。
 //   ・海の 中 map_c3_umi の 海水浴場の 底の 南の はし (40,12)：ロープの 1ページ（びんを 持っている とき 1回、
 //     flag_yd_rope）、(40,13) の 岩の すき間 door_c3_umi_oki → 沖の ブイの 下 map_c3_umi_oki (12,1)。
 //   ・沖：入った とき 1回（flag_yd_in）。ブイの 鎖 (12,5) で びんに 水を くむ（flag_yd_kumu）。
@@ -446,7 +446,7 @@ wrap(`c3_kita_${MAME}`, function* (_ctx, orig): Co {
   yield* orig();
 });
 
-/** 2 監視台の カイト（陸。びんを 持っていて、くむ 前に 1回）。 */
+/** 2 監視台の よっしー（陸。びんを 持っていて、くむ 前に 1回）。 */
 wrap('npc_c3_kanshiin', function* (_ctx, orig): Co {
   if (ydOpen() && onMap('map_umizoi') && hasBin() && !flag(YF.kumu) && !flag(YF.kaito)) {
     setFlag(YF.kaito, 1);
@@ -590,7 +590,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 /**
  * QA: __game.cmd.yose(step = 'kuma', auto = false)（第3章の 段階1、S09 の 潜りの あと、くま吉が 来た）
  *   'kuma'    到着の 台詞を 聞いた あと、くま吉の 前 (27,4) 上向き（話すと〔yose〕）
- *   'kaito'   びんを 持って、カイトの 前 (57,28) 上向き
+ *   'kaito'   びんを 持って、よっしーの 前 (57,28) 上向き
  *   'umi'     びんを 持って、海の 中の 南の はしの 手前 (40,11) 下向き（グソっ君だけ。下へ 歩くと ロープ → 沖）
  *   'oki'     びんを 持って、沖の ブイの 鎖の 前 (12,4) 下向き
  *   'nabe'    くんだ あと、くま吉の 前（話すと なべ）。'oboro'・'shoppai' は auto の 版

@@ -1,8 +1,8 @@
 // 灯台の 名のり（第3章の クリア後の 夜。げむきか 10/15 の 案3、2026-10-15 依頼主の 採用。05_postgame 2.3・3.5・14、
 // 03_ch3_index）。文は data/text/c3_nanori.ts、みました帳の ページは ui/menu/book_nanori.ts。
 //
-//   クリア後の 夜（19:00〜4:59）だけ、防波堤の 石の ベンチ (42,31) に ミナト（nn_minato。すわって いる）。
-//   ・ミナト → 1 ずれとる（flag_nn_zure）→ 灯室の テル → 2 ずれとらん（flag_nn_teru）→ ミナト → 3 予備の
+//   クリア後の 夜（19:00〜4:59）だけ、防波堤の 石の ベンチ (42,31) に ふーちゃん（nn_minato。すわって いる）。
+//   ・ふーちゃん → 1 ずれとる（flag_nn_zure）→ 灯室の テル → 2 ずれとらん（flag_nn_teru）→ ふーちゃん → 3 予備の
 //     ストップウォッチ（item_nn_stopwatch、flag_nn_sw）→ 大写し「夜の 海」（NightSeaPanel）。
 //   ・光は 5つ（町の 作りもの）：テルの 灯台（赤・4秒に 1回）、沖の 島の 灯台（白・2回 光って 長く 休む。6秒）、
 //     港の 口の ブイ（緑・1秒に 1回）、夜の 漁の 船（白・光りつづける）、星（またたく）。はかれる 光は 3回
@@ -10,10 +10,10 @@
 //     flag_nn_hana_<id>）。はかれない 2つは「名のらない」（flag_nn_no_<id>）。
 //   ・テルの 灯台を 3回 → 5 ずれて いたのは → 6 止めない 時計（テルが 下りて きて ベンチの 横 nn_teru）→
 //     朱肉 +2、ページ（flag_nn_done、その 夜 flag_nn_night）。
-//   ・そのあと：その 夜の ミナトは 寝ている。次の 夜から「4秒 0。ええ 名のりじゃ。」と はかる（何回でも）。
+//   ・そのあと：その 夜の ふーちゃんは 寝ている。次の 夜から「4秒 0。ええ 名のりじゃ。」と はかる（何回でも）。
 //     次の 朝の テル（1回、flag_nn_teru_asa）。夕方、はかり 始めた あとの テル。
 //   ・かくし：夜の 港の 階段（28–29,27）で、グソっ君が 水に 手を 入れる → 夜光虫（flag_nn_yakou）。
-//     めがねを 返した 人（flag_ch3_megane_back）は 1 の あとに ミナトの 1ページ。
+//     めがねを 返した 人（flag_ch3_megane_back）は 1 の あとに ふーちゃんの 1ページ。
 //
 // QA：__game.cmd.nn(step, auto)、nnState()、nnText()
 
@@ -81,7 +81,7 @@ function night(): boolean {
   return pgOn() && pgBand() === 'yoru';
 }
 
-/** 名場面の 夜（ミナトが 寝ている、テルが ベンチの 横）。 */
+/** 名場面の 夜（ふーちゃんが 寝ている、テルが ベンチの 横）。 */
 function sceneNight(): boolean {
   return night() && flag(NF.done) > 0 && flag(NF.night) === nightId();
 }
@@ -102,7 +102,7 @@ function wrap(id: string, fn: (ctx: ScriptCtx, orig: () => Co) => Co): void {
 const NPC = (o: Record<string, unknown>): MapObj => ({ t: 'npc', ...o }) as unknown as MapObj;
 
 addToMap('map_umizoi', [
-  // ミナト：夜の 石の ベンチ（すわる）。昼の 防波堤の 根もとの ミナトは 表（pg_schedule.ts）の 人
+  // ふーちゃん：夜の 石の ベンチ（すわる）。昼の 防波堤の 根もとの ふーちゃんは 表（pg_schedule.ts）の 人
   NPC({ id: 'nn_minato', sprite: 'npc_c3_sirenban', x: 42, y: 31, dir: 'down', pose: 'sit', off: [0, -4], noTurn: true, script: 'nn_minato', cond: { when: night } }),
   // 名場面の 夜：テルが ベンチの 横（海側）
   NPC({ id: 'nn_teru', sprite: 'npc_c3_toudai', x: 41, y: 32, dir: 'right', script: 'nn_teru', cond: { when: () => sceneNight() || (night() && flag(NF.scene) > 0 && !flag(NF.done)) } }),
@@ -540,11 +540,11 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 
 /**
  * QA: __game.cmd.nn(step = 'zure', auto = false)（クリア後の 夜 21:00。クリアデータから）
- *   'zure'    ベンチの ミナトの 前（1）
+ *   'zure'    ベンチの ふーちゃんの 前（1）
  *   'teru'    1 の あと、灯室の テルの 前（2）
- *   'yobi'    2 の あと、ミナトの 前（3 → 大写し。auto：自動で はかる）
+ *   'yobi'    2 の あと、ふーちゃんの 前（3 → 大写し。auto：自動で はかる）
  *   'measure' ストップウォッチの あと（大写しから）
- *   'after'   すんだ 次の 夜、ミナトの 前
+ *   'after'   すんだ 次の 夜、ふーちゃんの 前
  *   'asa'     すんだ 次の 朝、防波堤の テルの 前
  *   'yakou'   港の 階段の 上（下を 向いて 進むと 夜光虫）
  * グソっ君は 合流させる（'solo'：合流 なしで 'zure'）。

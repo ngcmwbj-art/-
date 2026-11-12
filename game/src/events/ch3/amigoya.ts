@@ -6,18 +6,18 @@
 //   段階1：前ぶれ。港通りの 西の はしの 漁協の 建物の 木の 戸 (5,15) を 調べると、札『網小屋』・網の におい・
 //     グソっ君「網の 持ち主、お昼が 長いんや。」（1回）。
 //   段階2、S13 の あと（flag_ch3_got_gochisou）から S14 の 前まで（flag_ch3_truck_trap）：
-//   ・食堂かもめの 前の ゴロウ (31,16)：いつもの〔c2〕の あと、もう 1回 話すと〔ami〕（flag_ag_start）。
-//     遊べる あいだ、ゴロウの 頭の 上に「！」（addMarkSource）。始まった あとは 漁協の 戸の 上に「！」。
-//   ・ゴロウが 港通りを 西へ 歩き、しゅんと グソっ君が ついていく → 暗転で 漁協の 戸の 前 (5,16) →
+//   ・食堂かもめの 前の こねぎ (31,16)：いつもの〔c2〕の あと、もう 1回 話すと〔ami〕（flag_ag_start）。
+//     遊べる あいだ、こねぎの 頭の 上に「！」（addMarkSource）。始まった あとは 漁協の 戸の 上に「！」。
+//   ・こねぎが 港通りを 西へ 歩き、しゅんと グソっ君が ついていく → 暗転で 漁協の 戸の 前 (5,16) →
 //     戸の 暗転で map_c3_amigoya (7,8)（建物の 絵に 歩いて 入る 形では ない）。出たら 戸を 調べて また 入れる。
-//   ・網小屋：梁から 下がる 網、ゴロウは 腰かけ (7,4)。破れ 3つ (4,2)・(8,2)・(12,2) を 左から 順に。
+//   ・網小屋：梁から 下がる 網、こねぎは 腰かけ (7,4)。破れ 3つ (4,2)・(8,2)・(12,2) を 左から 順に。
 //     1つめの 前で 網針と 目板、穴の 形を ととのえる 話。破れごとに 大写し「網の 目」（AmiPanel）：
 //     針が 上下に ゆれる → 目板に 重なった とき けってい（かける）→ ←→ で 糸を 回して 結ぶ（グソっ君が はさみで
 //     押さえる）。1つの 破れで 2目、合わせて 6目。目板から はずれて 結ぶと、その 目だけ 大きく なり、ほどいて
 //     やりなおし（失敗に しない）。もどる で やめても、結んだ 目は 残る（調べ直せば 続きから）。
 //   ・3つ すんだら また 出る → 朱肉 +2、大事な もの『古い 網針』、帳面③の すみ → 暗転で 漁協の 戸の 前へ。
-//   ・かくし：ツリノの 浮き釣り（やっと、魚の 昼）を 済ませている → 入って すぐ、グソっ君と ゴロウの 1行。
-//     3つめで 目板を 1回も はずさなかった → ゴロウ「……器用じゃのう」。来た マサル → 戸の 前で 無口が 2人。
+//   ・かくし：みちおの 浮き釣り（やっと、魚の 昼）を 済ませている → 入って すぐ、グソっ君と こねぎの 1行。
+//     3つめで 目板を 1回も はずさなかった → こねぎ「……器用じゃのう」。来た マサル → 戸の 前で 無口が 2人。
 //   ・すんだ あと 段階2 の 戸：地の文「中で、網を たたむ 音。」。S15 から 先と クリア後は 札『網小屋』だけ。
 //
 // QA：__game.cmd.amigoya(step, auto)、agState()、agText()
@@ -54,7 +54,7 @@ export const AGF = {
   pre: 'flag_ag_pre',
   c2: 'flag_ag_c2',
   start: 'flag_ag_start',
-  /** 漁協の 戸の 前の 場面の あいだ（ゴロウが 戸の 前に 立つ）。 */
+  /** 漁協の 戸の 前の 場面の あいだ（こねぎが 戸の 前に 立つ）。 */
   to: 'flag_ag_to',
   inn: 'flag_ag_in',
   tsurino: 'flag_ag_tsurino',
@@ -76,7 +76,7 @@ export const AGF = {
   /** 3つめで 目板から はずれた 回数。 */
   miss2: 'flag_ag_miss_2',
   kiyou: 'flag_ag_kiyou',
-  /** 戸の 前の 場面の あいだ（すんだ あと、ゴロウと マサル）。 */
+  /** 戸の 前の 場面の あいだ（すんだ あと、こねぎと マサル）。 */
   soto: 'flag_ag_soto',
   done: 'flag_ag_done',
   masaru: 'flag_ag_masaru',
@@ -93,7 +93,7 @@ export const AG_ME_N = [2, 2, 2];
 /** 町の 漁協の 木の 戸（港通りの 西の はし）と、その 前。 */
 const TO: [number, number] = [5, 15];
 const TO_MAE: [number, number] = [5, 16];
-/** ゴロウの 置き場所（食堂かもめの 前、段階2）。 */
+/** こねぎの 置き場所（食堂かもめの 前、段階2）。 */
 const GORO_AT: [number, number] = [31, 16];
 
 function knWith(): boolean {
@@ -142,7 +142,7 @@ export function agDoor(): boolean {
   return agOpen() && flag(AGF.start) > 0 && !flag(AGF.done);
 }
 
-/** ゴロウが 網小屋に いる（町の 地図では 見えない）。 */
+/** こねぎが 網小屋に いる（町の 地図では 見えない）。 */
 const agAway = agDoor;
 
 // ================================================================ 町の 物
@@ -153,7 +153,7 @@ const agAway = agDoor;
     // the 漁協's wooden door (5,15): a door cell (the picture: art/props/c3_bld.ts)
     const r = def.rows[TO[1]];
     if (r && r[TO[0]] === 'W') def.rows[TO[1]] = r.slice(0, TO[0]) + 'D' + r.slice(TO[0] + 1);
-    // ゴロウ in front of 食堂かもめ is in the 網小屋 meanwhile, and at the door in the scenes
+    // こねぎ in front of 食堂かもめ is in the 網小屋 meanwhile, and at the door in the scenes
     for (const o of def.objects) {
       if (o.t !== 'npc' || o.id !== GORO) continue;
       const c = (o.cond ?? {}) as Record<string, unknown>;
@@ -169,7 +169,7 @@ const NPC = (o: Record<string, unknown>): MapObj => ({ t: 'npc', ...o }) as unkn
 addToMap(UMIZOI, [
   { t: 'door', id: 'door_c3_amigoya', x: TO[0], y: TO[1], to: AMIGOYA, tx: 7, ty: 8, dir: 'up', se: 'se_door', cond: { when: agDoor } } as unknown as MapObj,
   { t: 'obj', id: 'obj_ag_to', x: TO[0], y: TO[1], script: 'obj_ag_to', face: 'up', cond: { when: () => inCh3() || pgOn() } } as unknown as MapObj,
-  // ゴロウ at the door: before going in, and after (with マサル)
+  // こねぎ at the door: before going in, and after (with マサル)
   NPC({ id: 'ag_goro_to', sprite: GORO, x: 6, y: 16, dir: 'left', script: 'ag_scene', cond: { when: () => flag(AGF.to) > 0 || flag(AGF.soto) > 0 } }),
 ]);
 
@@ -510,7 +510,7 @@ function* tsukurou(k: number): Co<boolean> {
 
 // ================================================================ 台本
 
-/** 1 食堂かもめの 前の ゴロウ（〔ami〕）。 */
+/** 1 食堂かもめの 前の こねぎ（〔ami〕）。 */
 wrap(GORO, function* (_ctx, orig): Co {
   if (!agOpen() || !onMap(UMIZOI) || flag(AGF.done) || flag(AGF.start)) {
     yield* orig();
@@ -532,7 +532,7 @@ function placePlayer(f: FieldScene, x: number, y: number, dir: Dir): void {
   f.snapCamera();
 }
 
-/** ゴロウが 港通りを 西へ 歩く（しゅんが ついていく）：絵だけの 歩く 人を 出して、本物は 隠す。 */
+/** こねぎが 港通りを 西へ 歩く（しゅんが ついていく）：絵だけの 歩く 人を 出して、本物は 隠す。 */
 function* arukiScene(f: FieldScene): Co {
   const home = f.actorById(GORO);
   const sx = home ? home.tileX : GORO_AT[0];
@@ -668,7 +668,7 @@ function* deru(): Co {
   if (!state.inventory.includes(AMIBARI)) addItem(AMIBARI);
   se('se_item');
   yield* say3(T.AG_REWARD);
-  // out to the door: ゴロウ comes out too (and マサル, if he came)
+  // out to the door: こねぎ comes out too (and マサル, if he came)
   setFlag(AGF.soto, 1);
   yield* f.warpCo(UMIZOI, TO_MAE[0], TO_MAE[1], 'down', 'se_door', AMIGOYA);
   yield 200;
@@ -686,7 +686,7 @@ function* deru(): Co {
   yield* game.fadeIn(300);
 }
 
-/** 網小屋の ゴロウ。 */
+/** 網小屋の こねぎ。 */
 registerScript('ag_goro', function* (): Co {
   if (!inKoya()) return;
   yield* say3(ANA_F.some((f) => flag(f)) || flag(AGF.dougu) ? T.AG_GORO_NAKA : T.AG_GORO_MAE);
@@ -747,7 +747,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 /**
  * QA: __game.cmd.amigoya(step = 'start', auto = false)（auto：大写しを 自動で 結ぶ）
  *   'c1'     段階1、漁協の 戸の 前 (5,16) 上向き（前ぶれ）
- *   'start'  段階2、〔c2〕の あと、食堂かもめの 前の ゴロウの 前 (31,17) 上向き（話すと〔ami〕）
+ *   'start'  段階2、〔c2〕の あと、食堂かもめの 前の こねぎの 前 (31,17) 上向き（話すと〔ami〕）
  *   'in'     始まった あと、網小屋の 南の 戸の 上 (7,8)（入った ときの 1回）
  *   'a0'     入った あと、1つめの 破れの 前 (4,3) 上向き
  *   'a1'     1つめ すんだ あと、2つめの 前 (8,3)

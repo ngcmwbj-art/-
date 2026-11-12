@@ -27,7 +27,7 @@ const CUT_BEDS: Record<PgSecretCut, { id: string; vol: number }[]> = {
     { id: 'amb_pg_suzume', vol: 0.6 },
     { id: 'amb_pg_kuruma', vol: 0.5 },
   ],
-  // 昼の港（ナミエの店）：波とカモメ
+  // 昼の港（まさとの店）：波とカモメ
   minato: [
     { id: 'amb_c3_umi', vol: 0.5 },
     { id: 'amb_c3_tori', vol: 0.6 },

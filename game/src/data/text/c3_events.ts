@@ -201,10 +201,10 @@ export const S06_A = `@npc_c3_kid_a
 また 最初から 鳴るんよ。`;
 
 export const S06_B = `@npc_c3_kid_b
-市場の {name:npc_c3_seri}じいは、
+市場の {name:npc_c3_seri}の おっちゃんは、
 「ひゃく……」で 止まっとるし。
 @npc_c3_kid_c
-食堂の {name:npc_c3_shokudo}おばちゃんは、
+食堂の {name:npc_c3_shokudo}おっちゃんは、
 おかわりばっかり 出しよるし。
 @npc_c3_kid_a
 {name:npc_c3_mago}は、海に 入れんし。{w=300}
@@ -228,15 +228,15 @@ export const C3_TALK: Record<string, Record<string, string>> = {
 定食で ええね？
 おかわり、あるよ！
 /
-……あら、見ない 顔。
-{w=300}海の 子じゃ ないね。
+……おや、見ん 顔じゃね。
+{w=300}海の 子じゃ ないな。
 @npc_kanenari
 海の 子……では、
 ある かも しれへんな。`,
     c1_2: `@npc_c3_shokudo
-{name:npc_c3_jouren}さん、40杯目よ。{w=300}
-……あの 人、いつもは 1杯で
-「ごちそうさま」なのに。`,
+{name:npc_c3_jouren}さん、40杯目じゃ。
+{w=300}……いつもは 大盛り 3杯で、
+きっちり「ごちそうさま」なんじゃ。`,
   },
   npc_c3_jouren: {
     c1_1: `@npc_c3_jouren
@@ -255,14 +255,14 @@ export const C3_TALK: Record<string, Record<string, string>> = {
 ひゃく……{w=600}
 ひゃく……
 @narr
-{name:npc_c3_seri}の 声は、そこで
-止まったまま だ。`,
+{name:npc_c3_seri}の 大きな 声は、
+そこで 止まったまま だ。`,
   },
   npc_c3_seri_deshi: {
     c1_1: `@npc_c3_seri_deshi
-……あ、お客さん？{w=300}
-すみません、セリが
-終わらんのです。
+あらあ、お客さん！{w=300}
+ようこそ！ ……ごめんね、
+セリが 終わらんのよ！
 /
 師匠が 言い終わらんと、
 わたしは 言えん。{w=300}
@@ -329,8 +329,13 @@ export const C3_TALK: Record<string, Record<string, string>> = {
 陸の ぬしも、気ぃ 長かったで。`,
   },
   npc_c3_uketsuke: {
-    c1_1: `@npc_c3_uketsuke
-本日も、休館です。{w=300}
+    c1_1: `@narr
+鼻歌。{w=300}
+ほうきは、ほとんど
+動いていない。
+@npc_c3_uketsuke
+♪ふん、ふふん……{w=300}
+あ、本日も、休館です。
 ……10年、ずっと。`,
     c1_2: `@npc_c3_uketsuke
 ここの 飼育係の 子、
@@ -533,7 +538,7 @@ export const C3_OBJ: Record<string, C3Obj> = {
 『サイレンの 引退の お知らせ
 9月1日から チャイムに なります』`,
   },
-  // 〔ミナト〕塔の下の扉（S11 まで閉まっている。60 3.2）
+  // 〔ふーちゃん〕塔の下の扉（S11 まで閉まっている。60 3.2）
   obj_c3_siren_zaishitsu: {
     text: `@narr
 扉に 貼り紙。

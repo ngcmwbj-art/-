@@ -250,7 +250,7 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_rope_kui', 55, 30),
   PR('prop_c3_buoy', 55, 31),
   O('obj_c3_umi_kagami', 53, 31, { w: 14, flat: true }),
-  // the ending's lunch (S29, 60 10.29; 2026-10-20 依頼主「こんな狭い所でなく砂浜で広々と」): ナミエの 長机の 大きな
+  // the ending's lunch (S29, 60 10.29; 2026-10-20 依頼主「こんな狭い所でなく砂浜で広々と」): まさとの 長机の 大きな
   // 鉄板を 手前の まん中に、その 両がわの 手前に ござ 1枚ずつ（the scenario's flag_c3_end_goza）
   PR('prop_c3_end_yatai', 58, 29, {}, { cond: { flag: 'flag_c3_end_goza' } }),
   { t: 'prop', prop: 'prop_c3_goza', x: 53, y: 29, opts: { one: true }, cond: { flag: 'flag_c3_end_goza' } } as MapObj,
@@ -273,7 +273,7 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_c3_toudai', x: 10, y: 30, dir: 'left', cond: S2 },
   { t: 'npc', id: 'npc_c3_mago', x: 60, y: 30, dir: 'down', cond: S1 },
   { t: 'npc', id: 'npc_c3_mago', x: 34, y: 32, dir: 'down', cond: S2 },
-  // カイト up on the lifeguard chair (spoken to from (57,28)); at 12:01 under it, the flag folded
+  // よっしー up on the lifeguard chair (spoken to from (57,28)); at 12:01 under it, the flag folded
   { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 27, dir: 'down', pose: 'sit', off: [0, -18], noTurn: false, cond: S1 },
   { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 28, dir: 'down', cond: S2 },
   // the two keepers in the open front (y14, the shop's last row): their feet 1px south of the facade's

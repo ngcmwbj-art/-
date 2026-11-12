@@ -3,7 +3,7 @@
 // みました帳の ページは ui/menu/book_iso.ts。
 //
 //   ・券売所の ポコシャ（c3_poko_c4。クリア後、グソっ君と いっしょ）→ 1 開館の 準備中（flag_iso_start、
-//     item_iso_nafuda）。旧水族館の 前の ハキコ → 2（flag_iso_hakiko）。
+//     item_iso_nafuda）。旧水族館の 前の ぶろこり → 2（flag_iso_hakiko）。
 //   ・岬（map_c3_misaki）の 旧水族館の 前の 広場の 南の はし (25,16) の 石段 (25,17)：クリア後の 昼（11:00〜14:59）、グソっ君と、
 //     その 日 まだ 満ちていない 間だけ 下りられる（door_c3_iso）。第3章の 段階1〜2 は ロープ『潮が 止まって います』。
 //   ・岬の 磯 map_c3_iso：石・潮だまり・割れ目・乾いた 岩を 調べる → 大写し「石めくり」（IsoPanel）。
@@ -13,7 +13,7 @@
 //   ・券売所：見た 子の 名札を 1枚ずつ（flag_iso_card_<id>、磯の 杭に 立つ）→ 6枚で 深海の 展示室の
 //     いちばん 奥の 空の 水槽（flag_iso_oku）→ ちいさな 開館 → 順路（深海・磯）→ 入口で「本日は、開館です」
 //     （flag_iso_kaikan：やり残しの 行 yr_c3_iso の 済んだ 印）。朱肉 ぜんぶ、ページ。
-//   ・そのあと：入口の 貼り紙『本日 開館』、ハキコは 入口の ベンチ（iso_hakiko_bench）、ポコシャは「開館中」。
+//   ・そのあと：入口の 貼り紙『本日 開館』、ぶろこりは 入口の ベンチ（iso_hakiko_bench）、ポコシャは「開館中」。
 //     伝票・日誌・えさの 札は 今の まま 拾える（館の 中の 物は さわらない）。
 //
 // QA：__game.cmd.iso(step, auto)、isoState()、isoText()
@@ -134,7 +134,7 @@ addToMap('map_c3_misaki', [
   // after the opening: ポコシャ's paper on the glass door
   { t: 'prop', prop: 'prop_iso_harigami', x: 27, y: 10, cond: { flag: IF.kaikan } } as unknown as MapObj,
   { t: 'obj', id: 'obj_iso_harigami', x: 27, y: 10, face: 'up', script: 'obj_iso_harigami', cond: { flag: IF.kaikan } } as unknown as MapObj,
-  // the last scene at the door (7): ハキコ and ポコシャ in front of the glass
+  // the last scene at the door (7): ぶろこり and ポコシャ in front of the glass
   NPC({ id: 'iso_hakiko_front', sprite: 'npc_c3_uketsuke', x: 26, y: 12, dir: 'up', script: 'iso_hakiko_bench', cond: { when: sc(5) } }),
   NPC({ id: 'iso_poko_front', sprite: 'npc_pokosha', x: 28, y: 12, dir: 'left', script: 'iso_poko_quiet', cond: { when: sc(5) } }),
 ]);
@@ -146,7 +146,7 @@ addToMap('map_c3_aq_iriguchi', [
 ]);
 
 addToMap('map_c3_aq_shinkai', [
-  // ポコシャ by the empty tank (5), ハキコ on the route (6)
+  // ポコシャ by the empty tank (5), ぶろこり on the route (6)
   NPC({ id: 'iso_poko_oku', sprite: 'npc_pokosha', x: 13, y: 2, dir: 'left', script: 'iso_poko_quiet', cond: { when: sc(1) } }),
   NPC({ id: 'iso_hakiko_oku', sprite: 'npc_c3_uketsuke', x: 11, y: 2, dir: 'up', script: 'iso_hakiko_bench', cond: { when: sc(3) } }),
 ]);
@@ -768,7 +768,7 @@ wrap('c3_poko_c4', function* (_ctx, orig): Co {
   yield* kaikanScene();
 });
 
-/** 旧水族館の 前の ハキコ（クリア後、はじまった あと 1回）。 */
+/** 旧水族館の 前の ぶろこり（クリア後、はじまった あと 1回）。 */
 wrap('npc_c3_uketsuke', function* (_ctx, orig): Co {
   if (pgOn() && flag(IF.start) && !flag(IF.hakiko)) {
     setFlag(IF.hakiko, 1);
@@ -792,7 +792,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 /**
  * QA: __game.cmd.iso(step = 'start', auto = false)（クリア後の 昼 11:30、グソっ君と）
  *   'start'   券売所の ポコシャの 前（1）
- *   'hakiko'  1 の あと、旧水族館の 前の ハキコの 前（2）
+ *   'hakiko'  1 の あと、旧水族館の 前の ぶろこりの 前（2）
  *   'stairs'  石段の 上 (25,16)（岬。下へ 進むと 磯）
  *   'iso'     磯の 石の 前（大写し。auto：12の 石と 6つの 所を 順に）
  *   'cards'   6つ 見た あと、券売所の ポコシャの 前（4 → 5 いちばん 奥）

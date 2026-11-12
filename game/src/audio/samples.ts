@@ -75,9 +75,9 @@ export const VOICE_SAMPLES: Record<string, string> = {
   c3_mago: 'じいちゃん、また 時計 見とる！',
   c3_kanshiin: 'ピッ！ ……あ、つい。',
   c3_himono_otto: '干しすぎ！ 干物は 干しすぎ くらいが ええ。',
-  c3_himono_tsuma: '干したりない！ やわらかいのが ええの。',
+  c3_himono_tsuma: '干したりない！ やわらかいのが ええんじゃ。',
   c3_tsuri: '釣れん ねえ。……まあ、ええか。',
-  c3_uketsuke: 'ようこそ、お越し くださいました。',
+  c3_uketsuke: '♪ふん、ふふん……あ、本日も、休館です。',
   c3_kid: 'しゅん、どっから 来たん？',
   c3_kid_a: 'しゅん、どっから 来たん？',
   nariosame: '……マダ、鳴リ終ワリタク ナイ。',
@@ -102,9 +102,9 @@ export const VOICE_CAL: Record<string, string> = {
   pokosha: '自分、ポコシャ、です。ツガオ師匠の、弟子を して います。',
   // 海ぞいの町: their everyday lines (the whistle, 「売った！」 and the sigh ride apart)
   c3_kanshiin: '遊泳 区域は、旗の 内側 です。',
-  c3_seri_deshi: 'セリは 朝です。いまは、止まって います。',
+  c3_seri_deshi: 'セリは 朝よ！ いまは、止まっとるんよ！',
   c3_jouren: 'わしは 毎日、ここで 食う。',
-  c3_seri: 'きょうの 最後の 1箱 じゃ。',
+  c3_seri: 'きょうの 最後の 1箱 や！',
 };
 
 /** Characters per second of the dialog box (10.1: 40 chars/s; {spd=0.4} for the last line). */

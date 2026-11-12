@@ -9,7 +9,7 @@
 //   2  KKSSSScccccccccccccccccccccK
 //   3  KKSSSScccccccccccccccccccccK
 //   4  KcccccccccccccccccccccccTcccK   坂の 下 (0,4)→ 港へ、着く 所 (1,4)。塗料の 台 (23,4)
-//   5  KcccccccccFFFFFFFFFFcccccccK   ゴロウの 船（10–19,5–8。台車の 上。人は 船に 乗らない）
+//   5  KcccccccccFFFFFFFFFFcccccccK   こねぎの 船（10–19,5–8。台車の 上。人は 船に 乗らない）
 //   6  KcccccccccFFFFFFFFFFccccoccK   軍手と ヘラの 箱 (24,6)
 //   7  KcccccccccFFFFFFFFFFcccccccK
 //   8  KcccccccccFFFFFFFFFFoccccocK   台車の わきの 紙 (20,8)、ホースと バケツ (25,8)
@@ -17,7 +17,7 @@
 //  10  KzzzzzzzzzzRzzzzzzRzzzzzzzzK   水ぎわ（ぬれた コンクリ）
 //  11  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~   海（段階1 は 鏡の 水面。レールは 海の 中へ）
 //
-// 人：子ども 3人（段階1、〔funa〕の あと）。段階2 は ゴロウ（こすって いなければ 1人で こすっている／〔ぬる〕の あいだ）。
+// 人：子ども 3人（段階1、〔funa〕の あと）。段階2 は こねぎ（こすって いなければ 1人で こすっている／〔ぬる〕の あいだ）。
 // 敵は 置かない。台本は events/ch3/funaba.ts、文は data/text/c3_funaba.ts、絵は art/props/funaba_art.ts。
 
 import '../../art/props/funaba_art';
@@ -66,7 +66,7 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_fb_kami', x: 20, y: 8 } as unknown as MapObj,
   // the slope up to the harbour (west end)
   { t: 'door', id: 'door_c3_funaba_back', x: 0, y: 4, to: 'map_umizoi', tx: 51, ty: 21, dir: 'left', se: 'se_step_stone' } as unknown as MapObj,
-  // (the things to examine, obj_fb_*, the children and ゴロウ: events/ch3/funaba.ts)
+  // (the things to examine, obj_fb_*, the children and こねぎ: events/ch3/funaba.ts)
 ];
 
 const DEF: MapDef = {

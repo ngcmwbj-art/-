@@ -5,9 +5,9 @@
 //                鍋に『はなまる』（hanko_ch3.ts）で 決着
 //  ナリオサメ    正午の 音（2ラウンド目の 終わり、そのあと 3ラウンドごとに そのラウンドを まるごと
 //                巻きもどす）、錠（HP 260 より 下がらない。いただきますで 外れる）、第2段階（260 以下）、
-//                最終局面（104 以下：ミナトが ボタンを 押しなおし、サイレンが 鳴りきって 12:01）
+//                最終局面（104 以下：ふーちゃんが ボタンを 押しなおし、サイレンが 鳴りきって 12:01）
 // 中ボスでも 第1章・第2章の ラスボスの しくみ（チャイム・部位・白い フェード）は 通さない。
-// 画面の 左はしの 話者（ミナト・テル・ウミ）、ボスの 付箋（ふた・時計）は BattleScene.boss の フック。
+// 画面の 左はしの 話者（ふーちゃん・テル・やおちゃん）、ボスの 付箋（ふた・時計）は BattleScene.boss の フック。
 
 import type { Co } from '../engine/co';
 import type { Gfx } from '../engine/gfx';
@@ -249,7 +249,7 @@ function* rewind(s: BattleScene, e: EnemyUnit): Co {
   e.mem.rewinds = (e.mem.rewinds ?? 0) + 1;
   yield* s.say(e.def.texts.extra.shougoResult ?? []);
   if (e.mem.rewinds === 1) {
-    // the first one: ナリオサメ remembers what the noon was for, ミナト says it
+    // the first one: ナリオサメ remembers what the noon was for, ふーちゃん says it
     yield* sirenSay(s, e, e.def.texts.extra.voiceRewind?.[0] ?? '');
     yield* speakerSay(s, 'npc_c3_sirenban', e.def.texts.extra.hint ?? []);
     showSticky(s, 'itadaki', 'flag_tut_itadaki');
@@ -484,7 +484,7 @@ function* nariFinal(s: BattleScene, e: EnemyUnit): Co {
   stopBgm(1.0);
   e.status.bokemake = false;
   yield 600;
-  // ミナト walks to the button (600 ms)
+  // ふーちゃん walks to the button (600 ms)
   sp.walk = 1;
   yield 600;
   sp.walk = 2;
@@ -554,7 +554,7 @@ function* nariFinal(s: BattleScene, e: EnemyUnit): Co {
   e.mem.settled = 1;
 }
 
-/** cut_c3_siren's close-up: ミナトの 手 on the red button — up 2px, down again. */
+/** cut_c3_siren's close-up: ふーちゃんの 手 on the red button — up 2px, down again. */
 function* buttonCut(s: BattleScene): Co {
   const st = { a: 0, up: 0 };
   const fx = s.addFx({
@@ -628,7 +628,7 @@ function clockCard(s: BattleScene): void {
   });
 }
 
-// ---- speakers (61 11.6): ミナト・テル・ウミ at the left edge -----------------------------------
+// ---- speakers (61 11.6): ふーちゃん・テル・やおちゃん at the left edge -----------------------------------
 
 const sp = { walk: 0, t0: 0 };
 
@@ -687,13 +687,13 @@ function drawSpeakers(s: BattleScene, g: Gfx): void {
     let x = speakerX(i);
     let f = (c.idle?.right ?? c.walk.right)[Math.floor(s.t / 300) % (c.idle?.right ?? c.walk.right).length];
     if (i === 0 && sp.walk) {
-      // ミナト walks to the button's stand (the final, 600 ms)
+      // ふーちゃん walks to the button's stand (the final, 600 ms)
       if (!sp.t0) sp.t0 = s.t;
       const p = Math.min(1, (s.t - sp.t0) / 600);
       x += Math.round(48 * p);
       if (sp.walk === 1) f = walkFrame(c, 'right', s.t);
     }
-    // ウミ: at each noon sound, the hands go up to the ears and down again
+    // やおちゃん: at each noon sound, the hands go up to the ears and down again
     g.img(f, Math.round(x - f.width / 2), 138 - f.height);
   });
 }

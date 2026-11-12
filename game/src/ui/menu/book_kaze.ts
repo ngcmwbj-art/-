@@ -1,6 +1,6 @@
 // みました帳③の すみの 1ページ『日じゃ なくて、風』（03_ch3_index、events/ch3/kaze.ts）：干物屋の 路地の 角で
 // 干し網を ゆらした あと（flag_kz_done）、③の「ふしぎ」の 一覧の いちばん下に 番号なしの 1行（鉛筆の 字）。右の ページに
-// 題、路地の 出口で ゆれる 干し網と 物干しの 手ぬぐいの 鉛筆の 絵（風の すじ）、ホシオの 四角い「日」と ホシミの 丸い
+// 題、路地の 出口で ゆれる 干し網と 物干しの 手ぬぐいの 鉛筆の 絵（風の すじ）、シェフ男の 四角い「日」と ホシミの 丸い
 // 「風」を まとめる 矢印、すみに いっしょに ゆれて みる グソっ君、つるした 所 ○/3、「半分 当たりと、半分 当たり」。
 // ふしぎの 数（/10）には 入れない。
 //
@@ -58,7 +58,7 @@ export function drawKzPage(g: Gfx, x: number, y: number, w: number): void {
   g.rect(x + 74, ly + 6, 2, 2, '#4A8AC0');
   // the wind: three strokes from the harbour side
   for (let i = 0; i < 3; i++) g.line(x + 84 + i * 3, ly + 10 + i * 7, x + 96 + i * 3, ly + 10 + i * 7, '#A8A0B8');
-  // 「日」 (ホシオ's ink, brown) and 「風」 (ホシミ's, blue), an arrow bringing them together
+  // 「日」 (シェフ男's ink, brown) and 「風」 (シェフ次郎's, blue), an arrow bringing them together
   g.text('日', x + 3, ly + 1, { color: '#7A5A4A' });
   g.text('風', x + 3, ly + 19, { color: '#5A6A8A' });
   g.line(x + 18, ly + 9, x + 24, ly + 18, pen);

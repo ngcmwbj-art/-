@@ -105,7 +105,7 @@ const OBJ: Record<string, string> = {
   obj_c3_marine_snow: 'fushigi_ch3_09',
 };
 
-// 62 4.3: the tower of bowls on the counter in front of ゴロウ's stool (examined from beside him)
+// 62 4.3: the tower of bowls on the counter in front of こねぎ's stool (examined from beside him)
 addToMap('map_c3_shokudo', [{ t: 'obj', id: 'obj_c3_chawan', x: 2, y: 4, w: 3, face: 'up', fushigi: 'fushigi_ch3_02', priority: 1 } as unknown as MapObj]);
 registerScript('obj_c3_chawan', function* (): Co {
   sfx('se_examine');

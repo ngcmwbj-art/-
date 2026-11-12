@@ -124,7 +124,7 @@ registerProp('prop_c3_siren_shell', () => {
   p.strokeRect(rx, wy + 4, 40, 20, '#C8B898');
   for (let j = 0; j < 4; j++) for (let i = 0; i < 9; i++) p.set(rx + 3 + i * 4, wy + 8 + j * 4, ihash(i, j, 3711) % 5 ? '#2A2440' : '#E23B2E');
   p.hline(rx + 2, rx + 37, wy + 6, '#2A2440');
-  // the stopwatch's nail (empty: it hangs on ミナト's neck)
+  // the stopwatch's nail (empty: it hangs on ふーちゃん's neck)
   p.set(1 * 16 + 10, wy + 10, '#3A3F48');
   p.line(1 * 16 + 8, wy + 11, 1 * 16 + 12, wy + 11, '#9AA0A8');
   // the doorway out to the lookout (6–7,6–7): the iron frame, the bright air beyond
@@ -167,7 +167,7 @@ registerProp('prop_c3_siren_saku', () =>
  * the round drum with its slotted mouth (the rotor's teeth behind the
  * slots), the rusty cone hat, the red primed stand, the motor's housing at
  * its back. On its brass plate the black stamp 「まだ」 at 12:00; at 12:01
- * ミナト's chalk はなまる (62 6.2・7.3). 96 × 48.
+ * ふーちゃん's chalk はなまる (62 6.2・7.3). 96 × 48.
  */
 function nariosame(stage: number): HTMLCanvasElement {
   const p = new PixelCanvas(96, 56);

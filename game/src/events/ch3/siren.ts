@@ -1,7 +1,7 @@
 // S12 ナリオサメ・S13 ごちそうさま・S14 案A「いつもの 軽トラ」
 // （60_ch3_story 10.12〜10.14、61 11、62 4.4・3.4・1.4・1.6、63 12.10〜12.12）:
 //
-//   S12 サイレン塔（map_c3_siren）：入るとミナト（evt_ch3_siren）→ 見晴らし台の
+//   S12 サイレン塔（map_c3_siren）：入るとふーちゃん（evt_ch3_siren）→ 見晴らし台の
 //       サイレンの前（trig_ch3_siren_top）でナリオサメ・テル → 戦闘（最終局面と
 //       鳴りきり・12:01 は戦闘の中、61 11.8）→ 勝ったら flag_ch3_nariosame_beaten、
 //       flag_ch3_stage=2、flag_ch3_clock=1 → evt_ch3_nariosame_end（見晴らし台）。
@@ -62,7 +62,7 @@ addToMap('map_umizoi', [
 
 // ---------------------------------------------------------------- S12 evt_ch3_siren
 
-/** ミナト at the button (the room): 〔来たか〕. */
+/** ふーちゃん at the button (the room): 〔来たか〕. */
 export function* evtSiren(): Co {
   if (!ready() || flag('flag_ch3_siren_talk')) return;
   setFlag('flag_ch3_siren_talk', 1);
@@ -218,7 +218,7 @@ export function* gochisouTown(): Co {
   se('se_c3_hanko_float', { level: 9 });
   const shown = yield* hankoLearn('skill_gochisousama');
   if (!shown) yield* say3(T.S13_GOT);
-  // ナミエ calls it from the 食堂: the camera goes to her first (she spoke from off the frame's left —
+  // まさと calls it from the 食堂: the camera goes to him first (he spoke from off the frame's left —
   // 2026-10-25 改善会議「遠くから話す人はそばへ」, talkEdgeLog). panBack below brings it home.
   const namie = onUmi ? f.actorById('npc_c3_shokudo') : undefined;
   if (namie?.visible) yield* panTo(namie.tileX, namie.tileY, 700);

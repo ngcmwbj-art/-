@@ -73,7 +73,7 @@ registerMap({
     O('obj_c3_siren_ban', 3, 8, { w: 2, face: 'up' }),
     O('obj_c3_siren_kikai', 10, 8, { w: 2, face: 'up' }),
     O('obj_c3_nariosame', 4, 1, { w: 6, face: 'up' }),
-    // ミナト at his button, his finger on it (stage 1, 62 3.4); after S12 he is on the breakwater
+    // ふーちゃん at his button, his finger on it (stage 1, 62 3.4); after S12 he is on the breakwater
     { t: 'npc', id: 'npc_c3_sirenban', x: 3, y: 9, dir: 'up', cond: S1 },
     // (the battle's start in front of the siren, trig_ch3_siren_top, is the scenario's: events/ch3)
   ] as MapObj[],

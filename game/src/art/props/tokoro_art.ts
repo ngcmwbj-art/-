@@ -1,10 +1,10 @@
 // つるっと、終われる（03_ch3_index、events/ch3/tokoro.ts）の 絵：食堂かもめの 台所の 小さな 鍋と 湯気、
-// カウンターの 流し箱、ゴロウの 前の 小鉢。
+// カウンターの 流し箱、こねぎの 前の 小鉢。
 //
 //   prop_tk_nabe     カウンターの 西の はし (1,4) の カセットコンロと 小さな 鍋（flag_tk_nabe 1 煮ている：湯気、2 火を 止めた）。
 //                    湯気の 量と 鍋の 中の 高さは tkFx（煮る あいだ 少しずつ 減る。events/ch3/tokoro.ts が 動かす）。
 //   prop_tk_bako     カウンター (5,4) の 上の 流し箱（flag_tk_bako 1 とろりと した 汁、2 固まった、3 洗って ふせてある）。
-//   prop_tk_kobachi  ゴロウの 席の 前 (3,4) の 小鉢（flag_tk_goro）。細く 長い ところてん。
+//   prop_tk_kobachi  こねぎの 席の 前 (3,4) の 小鉢（flag_tk_goro）。細く 長い ところてん。
 //   (白い 物は 真っ白に しない：HD-2D の 光で 飛ばない よう、少し 色を のせる)
 
 import { PixelCanvas } from '../../engine/pixel';
@@ -144,7 +144,7 @@ registerProp('prop_tk_kobachi', () => {
   outline(p, { soft: true });
   const img = p.toCanvas();
   return {
-    // (left of ゴロウの 茶わんの 塔 on the counter, in front of his seat (3,5))
+    // (left of こねぎの 茶わんの 塔 on the counter, in front of his seat (3,5))
     ox: -6,
     oy: -2 - H,
     w: W,

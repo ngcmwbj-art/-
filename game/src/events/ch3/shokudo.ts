@@ -1,11 +1,11 @@
 // S08 ② 食堂かもめ「おかわりの まま」と S11 いただきます（60_ch3_story 10.8・10.11、
 // 62 4.3、63 12.6・12.9、61 10 オカワリナベ・6.1）:
 //
-//   ナミエ〔c1_1〕・ゴロウ〔c1_1〕→ ゴロウ〔c1_2〕の本音（flag_ch3_goro_honne）→
-//   ナミエ evt_ch3_shokudo（最後の日替わり定食。flag_ch3_shokudo_start）→ 品を集める
+//   まさと〔c1_1〕・こねぎ〔c1_1〕→ こねぎ〔c1_2〕の本音（flag_ch3_goro_honne）→
+//   まさと evt_ch3_shokudo（最後の日替わり定食。flag_ch3_shokudo_start）→ 品を集める
 //   （魚＝①の決着、干物＝干物屋の言い合いを「どっちも ほどよい」で止める、豆腐・
-//   トマト・コーヒー＝来た人。最低2品。flag_ch3_teishoku_<id>, _n）→ ナミエに話すと
-//   evt_ch3_okawari：盛りつけ（3問）→ オカワリナベ → ゴロウの「……ごちそうさま。」
+//   トマト・コーヒー＝来た人。最低2品。flag_ch3_teishoku_<id>, _n）→ まさとに話すと
+//   evt_ch3_okawari：盛りつけ（3問）→ オカワリナベ → こねぎの「……ごちそうさま。」
 //   （flag_ch3_shokudo_done, flag_ch3_part_gassho）。
 //   S11: 3つの部品がそろって食堂に入ると evt_ch3_itadakimasu（flag_ch3_got_itadakimasu）。
 
@@ -32,7 +32,7 @@ const SHOKUDO = 'map_c3_shokudo';
 const IN_L: [number, number][] = [[7, 7], [7, 6], [6, 6]];
 const IN_R: [number, number][] = [[8, 7], [8, 6], [5, 6]];
 
-// ---------------------------------------------------------------- ナミエ
+// ---------------------------------------------------------------- まさと
 
 function* talkNamie(): Co {
   if (flag('flag_ch3_shokudo_done')) {
@@ -66,7 +66,7 @@ function* talkNamie(): Co {
   yield* say3(dishes() === 0 && !flag('flag_ch3_ichiba_done') ? T.S08_MORE_SAKANA : T.S08_MORE);
 }
 
-/** evt_ch3_shokudo: after ゴロウ's true reason, ナミエ (10.8). */
+/** evt_ch3_shokudo: after こねぎ's true reason, まさと (10.8). */
 export function* evtShokudo(): Co {
   if (flag('flag_ch3_shokudo_start')) return;
   yield* say3(T.S08_START_A);
@@ -86,7 +86,7 @@ registerScript('npc_c3_shokudo', function* (): Co {
 });
 registerScript('evt_ch3_shokudo', evtShokudo);
 
-// ---------------------------------------------------------------- ゴロウ
+// ---------------------------------------------------------------- こねぎ
 
 registerScript('npc_c3_jouren', function* (): Co {
   if (!inCh3()) return;
@@ -98,7 +98,7 @@ registerScript('npc_c3_jouren', function* (): Co {
   if (!flag('flag_seen_npc_c3_jouren_c1_1')) {
     pickC3('npc_c3_jouren', t, 1);
     yield* say3(t.c1_1, 'npc_c3_jouren');
-    // ナミエ already said 「40杯目よ」: his reason comes at once
+    // まさと already said 「40杯目よ」: his reason comes at once
     if (!flag('flag_talked_npc_c3_shokudo')) return;
   }
   pickC3('npc_c3_jouren', t, 1);
@@ -160,7 +160,7 @@ export function* evtOkawari(): Co {
   yield* gochisou();
 }
 
-/** 〔オカワリナベのあと〕ゴロウの「ごちそうさま」— the siren doesn't sound (63 12.6). */
+/** 〔オカワリナベのあと〕こねぎの「ごちそうさま」— the siren doesn't sound (63 12.6). */
 function* gochisou(): Co {
   stopBgm(1.0);
   yield 1000;

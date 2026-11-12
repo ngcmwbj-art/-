@@ -17,10 +17,10 @@
 // end of summer with アブラゼミ and ミンミンゼミ (no ヒグラシ at noon: that is
 // the evening's and the dawn's insect), a small diesel boat's 「トトトト」 (no
 // hot-bulb 「ポンポン」), the fenders' 「ギュッ」, a market whose auction was in
-// the morning (12:00: only ゲン's frozen voice and the melting ice).
+// the morning (12:00: only えんまい's frozen voice and the melting ice).
 //
-// The town's voices inside the beds (ゲン, the children, the dried-fish
-// couple) are small blips of their own voices (9.1) played into the bed,
+// The town's voices inside the beds (えんまい, the children, the dried-fish
+// brothers) are small blips of their own voices (9.1) played into the bed,
 // never words (1.7).
 
 import { cur, hasGraph, PaChain, voice, type VoiceOpts, type Wave } from './engine';
@@ -388,7 +388,7 @@ registerAmbience('amb_c3_minato', (c) => {
 /**
  * amb_c3_ichiba — the auction hall, the morning's last crate still on the
  * floor at noon. Not undone yet (c3_ichiba 0): ① the air under the big roof
- * ② ice melting under the fish crates (se_drip) ③ ゲン's frozen voice every
+ * ② ice melting under the fish crates (se_drip) ③ えんまい's frozen voice every
  * 15 s — 「……はい、ひゃくえん、ひゃく……」, the last 「く」 cut short (9.2); no
  * crowd (everyone is stopped). ambientEvent(…, 'gen_loop') says it now.
  * Undone (c3_ichiba 1): ④ the crowd's murmur with far voices ⑤ crates
@@ -459,7 +459,7 @@ registerAmbience('amb_c3_ichiba_out', (c) => {
 
 /**
  * amb_c3_shokudo — 食堂かもめ at lunchtime: ① the extractor fan ② the pot
- * simmering ③ ゴロウ putting his bowl down every 30–40 s (12:00: the 40th
+ * simmering ③ こねぎ putting his bowl down every 30–40 s (12:00: the 40th
  * bowl that never ends) ⑤ chopsticks and rice bowls. After オカワリナベ
  * (c3_shokudo 1) ②③ stop: one last bowl, then quiet (the noren is down).
  */
@@ -515,7 +515,7 @@ registerAmbience('amb_c3_shokudo_out', (c) => {
 
 /**
  * amb_c3_himono — the dried-fish alley: ① the drying nets swaying (0.3 Hz)
- * ② ホシオ and ホシミ arguing every 20–30 s: their blips by turns, three each,
+ * ② シェフ男 and シェフ次郎 arguing every 20–30 s: their blips by turns, three each,
  * on the same shape 0 +3 +5 +3 +5 — he an octave under her (「干しすぎ！」
  * 「干したりない！」, 9.2); ambientEvent(…, 'iiai') says it now (with the
  * bubble). 12:00: the fish rattle dry (se_c3_himono level 1) every 40 s.
@@ -553,7 +553,7 @@ registerAmbience('amb_c3_himono', (c) => {
 
 /**
  * amb_c3_bouhatei — on the breakwater: ① the sea wind in gusts (0.1–0.3 Hz)
- * ② ツリノ's rod bells every 40–90 s (12:00: silent, the fish are stopped
+ * ② みちお's rod bells every 40–90 s (12:00: silent, the fish are stopped
  * too) ③ from 12:01 the waves hitting the breakwater 「どぷん」 every 6–11 s
  * (amb_c3_umi's ⑤, heard here where it happens).
  */
@@ -586,7 +586,7 @@ registerAmbience('amb_c3_bouhatei', (c) => {
 /**
  * amb_c3_kaisui — the beach and the beach hut: ① the swimming flag flapping
  * (12:00: the flag is stopped too — none) ② the wind in the reed screens ③
- * ウミ's friends playing far off, every 10–20 s (12:00 too: their lunch break
+ * やおちゃん's friends playing far off, every 10–20 s (12:00 too: their lunch break
  * never ends, so they are always playing — 60 S06).
  */
 registerAmbience('amb_c3_kaisui', (c) => {
@@ -804,7 +804,7 @@ registerAmbience('amb_c3_hirumae', (c) => {
 /**
  * amb_c3_siren_room — the top of the siren tower (map_c3_siren): ① the wind
  * up high, in gusts ② the impeller about to turn and not turning (the hum
- * of the tower's foot ×3, 12:00) ③ ミナト's stopwatch, one tick a second —
+ * of the tower's foot ×3, 12:00) ③ ふーちゃん's stopwatch, one tick a second —
  * in the stopped time only the stopwatch runs (「正午は、1秒も ずらさん」).
  * The far town (amb_c3_umi through the window) is the map's second bed.
  * ambientEvent(…, 'unari'): the siren groans low (S12, ナリオサメ wakes: ② ×2).

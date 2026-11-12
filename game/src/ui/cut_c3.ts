@@ -388,10 +388,12 @@ export function shuukaArt(heads: number = cameIds().length): StillArt {
     p.ellipse(hx, hy, 3, 3, '#C98A6A');
     p.rect(hx - 3, hy - 3, 7, 3, HAIR[i % HAIR.length]);
   }
-  // ナミエ climbing on at the back with her bundle of rice balls
-  p.rect(tx - 10, ty - 24, 7, 14, '#E8705A');
+  // まさと (a big man in his white cook's coat and cap, a navy 前掛け) climbing on at the back with his
+  // bundle of rice balls
+  p.rect(tx - 11, ty - 24, 9, 14, '#F4F1E8');
+  p.rect(tx - 10, ty - 19, 7, 9, '#2F4A7A');
   p.ellipse(tx - 7, ty - 28, 3, 3, '#C98A6A');
-  p.rect(tx - 10, ty - 32, 7, 3, '#3A2B24');
+  p.rect(tx - 10, ty - 33, 7, 4, '#F4F1E8');
   p.rect(tx - 16, ty - 20, 7, 6, '#F4F1E8');
   p.hline(tx - 16, tx - 10, ty - 17, '#3A6A4A');
   p.rect(tx - 9, ty - 10, 2, 8, '#3A3F48');

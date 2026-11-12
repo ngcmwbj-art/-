@@ -35,7 +35,7 @@ export const FUSHIGI3: Record<string, Fushigi3> = {
 いちばん 上の 茶わんが、
 カタッと 小さく 鳴った。`,
     after: `@narr
-ゴロウの 茶わんの 山。
+こねぎの 茶わんの 山。
 いちばん 上が、41杯目。`,
   },
   fushigi_ch3_03: {
@@ -137,13 +137,13 @@ export function fushigiRewardCh3(n: number): string {
 （ふしぎ③ ${n}/10）`;
 }
 
-/** 調べる物：ゴロウの茶わんの山（62 4.3 obj_c3_chawan。60 9.3 の文がないので、60 8章の文）。 */
+/** 調べる物：こねぎの茶わんの山（62 4.3 obj_c3_chawan。60 9.3 の文がないので、60 8章の文）。 */
 export const CHAWAN = `@narr
-ゴロウの 前に、茶わんの 山。
+こねぎの 前に、茶わんの 山。
 いちばん 上は、41杯目。
 /
 茶わんの 底に、小さな 字。
 『40年 ありがとう』。`;
 export const CHAWAN_LATER = `@narr
-ゴロウの 茶わんの 山。
+こねぎの 茶わんの 山。
 ……もう、ふえていない。`;

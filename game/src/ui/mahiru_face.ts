@@ -11,7 +11,7 @@ const cache = new Map<string, HTMLCanvasElement>();
 /**
  * One person's face at noon with the lid's light (`level` 0 low: only the throat lit, 1 just right, 2 too high:
  * screwed-up eyes in the glare; -1 no lid: the brim's and the brows' black shadows). The sprite as it is, the
- * light laid over it (source-atop). `br`: ウミ after her sea — wet hair, the shell bracelet.
+ * light laid over it (source-atop). `br`: やおちゃん after her sea — wet hair, the shell bracelet.
  */
 export function mhPortrait(id: string, level: number, br = false, pose?: string): HTMLCanvasElement | null {
   const key = `${id}|${level}|${br ? 1 : 0}|${pose ?? ''}`;

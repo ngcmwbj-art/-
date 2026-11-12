@@ -74,9 +74,9 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   // 旧水族館：開館の準備（9:00〜16:59。帯では朝・昼・夕方）
   c3_poko_c4: { asa: at('map_c3_aq_iriguchi', 6, 9), hiru: at('map_c3_aq_iriguchi', 6, 9), yu: at('map_c3_aq_iriguchi', 6, 9), yoru: null },
   c3_ego_c4: { asa: at('map_c3_aq_iriguchi', 9, 5), hiru: at('map_c3_aq_iriguchi', 9, 5), yu: at('map_c3_aq_iriguchi', 9, 5), yoru: null },
-  // ハキコ：旧水族館の 前（岬 map_c3_misaki、2026-10-20 町の 東の はしから 移した）
+  // ぶろこり：旧水族館の 前（岬 map_c3_misaki、2026-10-20 町の 東の はしから 移した）
   npc_c3_uketsuke: { asa: at('map_c3_misaki', 25, 13), hiru: at('map_c3_misaki', 25, 13), yu: null, yoru: null },
-  // 干物屋の夫婦：朝から夕方まで店先
+  // 干物屋の兄弟：朝から夕方まで店先
   npc_c3_himono_otto: { asa: at('map_umizoi', 17, 14), hiru: at('map_umizoi', 17, 14), yu: at('map_umizoi', 17, 14), yoru: null },
   npc_c3_himono_tsuma: { asa: at('map_umizoi', 19, 14), hiru: at('map_umizoi', 19, 14), yu: at('map_umizoi', 19, 14), yoru: null },
   // 食堂かもめ：朝はのれんを出す、昼・夕方は店の中、夜は片づけ（05 4.2）
@@ -89,7 +89,7 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   npc_c3_sirenban: { asa: at('map_c3_siren', 3, 9), hiru: at('map_umizoi', 44, 28), yu: at('map_c3_siren', 3, 9), yoru: null },
   // 灯台のテル：昼は防波堤、夜は灯台の中
   npc_c3_toudai: { asa: at('map_umizoi', 10, 30), hiru: at('map_umizoi', 10, 30), yu: at('map_umizoi', 10, 30), yoru: at('map_c3_toudai', 6, 4) },
-  // 監視員のカイト：昼は監視台の上、朝・夕方はその下
+  // 監視員のよっしー：昼は監視台の上、朝・夕方はその下
   npc_c3_kanshiin: { asa: at('map_umizoi', 57, 28), hiru: at('map_umizoi', 57, 27), yu: at('map_umizoi', 57, 28), yoru: null },
   // (防波堤は2マス。立つ人は海側の y32 に：y31 を通り道に空ける、fix1015)
   npc_c3_mago: { asa: null, hiru: at('map_umizoi', 60, 30), yu: at('map_umizoi', 34, 32), yoru: null },
@@ -140,8 +140,8 @@ export function pgObjPresent(o: MapObj, mapId: string): boolean | null {
   // シークレットエンディングの日（flag_pg_secret 2、05 10.2）：公園の時計塔の下は、ツガオ・グソっ君・しゅん
   // の場面（world/pg_secret.ts PG_SECRET_PARK）。そこに立つ夕方のさや（14,11）は出さない
   if (flag('flag_pg_secret') === 2 && objId(o) === 'npc_sae' && mapId === 'map_town') return false;
-  // 本日は、開館です（events/ch3/iso.ts）：開館の あと、ハキコは 入口を 掃かずに 館の 中の ベンチ（iso_hakiko_bench）。
-  // 開館の 場面の 間も 入口の 前には 場面の ハキコ（iso_hakiko_*）だけ
+  // 本日は、開館です（events/ch3/iso.ts）：開館の あと、ぶろこりは 入口を 掃かずに 館の 中の ベンチ（iso_hakiko_bench）。
+  // 開館の 場面の 間も 入口の 前には 場面の ぶろこり（iso_hakiko_*）だけ
   if (objId(o) === 'npc_c3_uketsuke' && (flag('flag_iso_kaikan') > 0 || flag('flag_iso_scene') >= 2)) return false;
   const band = pgBand();
   const row = PG_SCHEDULE[objId(o)];

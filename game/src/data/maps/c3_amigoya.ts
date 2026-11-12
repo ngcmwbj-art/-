@@ -8,7 +8,7 @@
 //   1  #WWWWWWWWWWWWWW#
 //   2  #WWWWWWWWWWWWWW#   （網の すそ。破れは (x,3) から 北を 向いて 調べる）
 //   3  #..............#   床に、網目の 影（窓の 光。床の 絵に 描いて ある：ちらつかない）
-//   4  #.......BB.....#   腰かけ (7,4)：ゴロウ（イベントの あいだ）、その 東に 道具箱 (8–9,4)
+//   4  #.......BB.....#   腰かけ (7,4)：こねぎ（イベントの あいだ）、その 東に 道具箱 (8–9,4)
 //   5  #YYY.........UU#   たたんだ 網の 山 (1–3,5–6)、浮きと おもりの 箱 (13–14,5–6)
 //   6  #YYY.........UU#
 //   7  #..............#
@@ -46,7 +46,7 @@ export const AG_ANA: [number, number][] = [
 ];
 /** 窓（北の 壁、14 列）。 */
 export const AG_MADO: [number, number] = [14, 1];
-/** 腰かけ（ゴロウ）。 */
+/** 腰かけ（こねぎ）。 */
 export const AG_KOSHI: [number, number] = [7, 4];
 
 const LEGEND: Record<string, TileSpec> = {
@@ -81,7 +81,7 @@ registerMap({
     PR('prop_ag_nagagutsu', 9, 8),
     PR('prop_ag_koshi', AG_KOSHI[0], AG_KOSHI[1]),
     { t: 'door', id: 'door_c3_amigoya_out', x: 7, y: 9, to: 'map_umizoi', tx: 5, ty: 16, dir: 'down', se: 'se_door' },
-    // (the holes, ゴロウ, the things to examine: events/ch3/amigoya.ts)
+    // (the holes, こねぎ, the things to examine: events/ch3/amigoya.ts)
   ] as MapObj[],
   onEnter: ['evt_ag_enter'],
   bgm: { 2: 'bgm_umi_noon' },

@@ -2,19 +2,19 @@
 // 文は data/text/c3_ukimachi.ts、みました帳の ページは ui/menu/book_ukimachi.ts。新しい 地図・新しい 人は ない。
 //
 //   段階2（12:01）、S13 の あと（flag_ch3_got_gochisou）から S14 の 前まで（flag_ch3_truck_trap が 立ったら 起きない）。
-//   ・監視台の 下の カイト npc_c3_kanshiin (57,28)：いつもの〔c2〕の あと、もう1回 話すと〔uku〕（flag_uk_start）。
-//     同じ カイトの 寄り道「穴は、だれかの ごちそうさま」（tsumeta.ts。グソっ君が いる とき、〔c2〕の すぐ あとに 始まる）と
+//   ・監視台の 下の よっしー npc_c3_kanshiin (57,28)：いつもの〔c2〕の あと、もう1回 話すと〔uku〕（flag_uk_start）。
+//     同じ よっしーの 寄り道「穴は、だれかの ごちそうさま」（tsumeta.ts。グソっ君が いる とき、〔c2〕の すぐ あとに 始まる）と
 //     重ならない よう、グソっ君が いる ときは あちらが 済んで から（flag_tm_done）。「！」も その あと だけ。
-//   ・ウミと 子ども 3人が 港の 岸壁の 見えない 所から 浜へ 走って きて、カイトの 東に ならぶ（暗転なし。防波堤から だと
+//   ・やおちゃんと 子ども 3人が 港の 岸壁の 見えない 所から 浜へ 走って きて、よっしーの 東に ならぶ（暗転なし。防波堤から だと
 //     10秒 かかるので、tsumeta と 同じく 岸壁から）。済んだら 防波堤の もとの 所へ 走って もどる（台本に しない）。
 //   ・大写し「背浮き」UkiPanel：すう（けってい）→ あご（↑。指で 遊ぶ 人の ため けっていでも）→ ぬく（何も 押さずに
 //     待つ。力の ゲージが 少しずつ 下がって 0 で 済む。押すと ゲージが もどるだけで 失敗に しない。はじめの 1回だけ
-//     カイトの 1行）。字の 合図「すう・あご・ぬく」は 左上、「そのまま」は 大きく。音は 使わない（押した ときの 小さな 音だけ）。
-//     もどるで やめると 台本は 止まり、子どもたちは もどる（済んだ 段は 残る。カイトに 話すと 前置き なしの 1ページ から）。
+//     よっしーの 1行）。字の 合図「すう・あご・ぬく」は 左上、「そのまま」は 大きく。音は 使わない（押した ときの 小さな 音だけ）。
+//     もどるで やめると 台本は 止まり、子どもたちは もどる（済んだ 段は 残る。よっしーに 話すと 前置き なしの 1ページ から）。
 //   ・グソっ君の お手本：大写しの 海の 絵（あおむけで 泳ぐ グソっ君。潜りの 地図は 使わない）。グソっ君が いない ときは とばす。
 //   ・かくし：来る人の ワイスタ巡査（flag_ch3_kita_npc_tsurumi）／潜りの 落とし物 4つ（flag_ch3_moguri_*）／ぬく を 一度も
 //     押さずに 済ませる（flag_uk_jouzu）。どれも 1回。
-//   ・段階1：S09 の あと（flag_ch3_umi_done）、監視台の 上の カイトに〔c2〕の あと もう1回 話すと 前ぶれ（1回。flag_uk_mae）。
+//   ・段階1：S09 の あと（flag_ch3_umi_done）、監視台の 上の よっしーに〔c2〕の あと もう1回 話すと 前ぶれ（1回。flag_uk_mae）。
 //   ・S14 から 先と クリア後は 足さない。止まった 正午の 決まりと ぶつけない（旗を 下ろした あとの 12:01 の 浜だけ）。
 //
 // QA：__game.cmd.ukimachi(step, auto)、ukState()、ukText()
@@ -62,7 +62,7 @@ const UMIZOI = 'map_umizoi';
 const KAITO = 'npc_c3_kanshiin';
 const UMI = 'npc_c3_mago';
 const KIDS = ['npc_c3_kid_a', 'npc_c3_kid_b', 'npc_c3_kid_c'] as const;
-/** 来る 人（ウミと 子ども 3人）と、ならぶ 所（カイトの 東、砂浜の まん中。tsumeta の 貝がら (59,29) を よける）。 */
+/** 来る 人（やおちゃんと 子ども 3人）と、ならぶ 所（よっしーの 東、砂浜の まん中。tsumeta の 貝がら (59,29) を よける）。 */
 const LINE: [string, number, number][] = [
   [UMI, 60, 28],
   ['npc_c3_kid_a', 61, 28],
@@ -89,7 +89,7 @@ export function ukOpen(): boolean {
   return inCh3() && !pgOn() && c3Stage() === 2 && flag('flag_ch3_got_gochisou') > 0 && !flag('flag_ch3_truck_trap');
 }
 
-/** 同じ カイトの「穴」（tsumeta）が 先：グソっ君が いる ときは あちらが 済んでから。 */
+/** 同じ よっしーの「穴」（tsumeta）が 先：グソっ君が いる ときは あちらが 済んでから。 */
 function tmFirst(): boolean {
   if (flag('flag_tm_done')) return false;
   if (flag('flag_tm_start')) return true;
@@ -140,7 +140,7 @@ function wrap(id: string, fn: (ctx: ScriptCtx, orig: () => Co) => Co): void {
   });
 }
 
-// カイトの 頭の 上の「！」（〔c2〕の あと もう1回 話す 所。見のがし 対策）
+// よっしーの 頭の 上の「！」（〔c2〕の あと もう1回 話す 所。見のがし 対策）
 addMarkSource((f) => {
   if (f.map.id !== UMIZOI || !ukReady()) return null;
   // (before the usual 〔c2〕 without グソっ君: the 「！」 waits for the second talk)
@@ -204,7 +204,7 @@ export class UkiPanel implements Widget {
   hit = false;
   /** ぬく：力の ゲージ（1 → 0）。 */
   gauge = 1;
-  /** ぬく：押して しまった 回数（台本が 読む：はじめの 1回で カイトの 1行）。 */
+  /** ぬく：押して しまった 回数（台本が 読む：はじめの 1回で よっしーの 1行）。 */
   presses = 0;
   /** 押した ときの「ゆっくり」の 字（ms）。 */
   private bumpT = 0;
@@ -541,7 +541,7 @@ function* closePanel(p: UkiPanel): Co {
 
 let qaAuto = false;
 
-// ================================================================ ウミと 子どもたち（港の 岸壁から 浜へ）
+// ================================================================ やおちゃんと 子どもたち（港の 岸壁から 浜へ）
 
 /** 来た 人（もとの 所に もどすため）。 */
 let came: { a: Actor; x: number; y: number }[] = [];
@@ -721,7 +721,7 @@ function* uku(resume: boolean): Co {
   field()?.refreshPresence();
 }
 
-/** 1 監視台の 下の カイト（段階2）／段階1 の 前ぶれ。 */
+/** 1 監視台の 下の よっしー（段階2）／段階1 の 前ぶれ。 */
 wrap(KAITO, function* (_ctx, orig): Co {
   if (onMap(UMIZOI) && ukOpen() && !flag(UF.done) && !tmFirst()) {
     if (flag(UF.start)) {
@@ -758,11 +758,11 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
 
 /**
  * QA: __game.cmd.ukimachi(step = 'start', auto = false, extra = false)（第3章の 段階2、S13 の あと）
- *   'start'   穴（tsumeta）は 済み、監視台の 下の カイト (57,28) の 前 (57,29) 上向き（「！」。話すと〔uku〕）
+ *   'start'   穴（tsumeta）は 済み、監視台の 下の よっしー (57,28) の 前 (57,29) 上向き（「！」。話すと〔uku〕）
  *   'notm'    穴が まだ（グソっ君が いる：話すと あちらが 始まる。「！」は あちらの 物）
  *   'resume'  練習の 途中で やめた 形（すう 済み、yame_seuki）。話すと「すぐ やる／はじめから」
  *   'done'    済んだ あと
- *   'mae'     段階1、S09 の あと、監視台の 上の カイトの 前（〔c2〕→ もう1回 で 前ぶれ）
+ *   'mae'     段階1、S09 の あと、監視台の 上の よっしーの 前（〔c2〕→ もう1回 で 前ぶれ）
  *   extra = true で ワイスタ巡査が 来て いて、潜りの 落とし物 4つ（かくし 2つ）
  */
 if (import.meta.env.DEV) {

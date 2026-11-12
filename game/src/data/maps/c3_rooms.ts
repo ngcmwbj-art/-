@@ -75,7 +75,7 @@ registerMap({
     // examine (60 9.3): the blackboard from the counter's end, the menu cards over the tatami's edge
     O('obj_c3_kokuban', 4, 1, { face: 'up' }),
     O('obj_c3_menu', 10, 5, { w: 5, face: 'up' }),
-    // ナミエ behind the counter, ゴロウ on his stool (62 4.3)
+    // まさと behind the counter, こねぎ on his stool (62 4.3)
     { t: 'npc', id: 'npc_c3_shokudo', x: 4, y: 3, dir: 'down', cond: S1 },
     { t: 'npc', id: 'npc_c3_jouren', x: 3, y: 5, dir: 'up', pose: 'sit', off: [0, 1], cond: S1 },
     // two of the town on the tatami, eating the meal that never ends (62 4.3: eat_loop; not to be spoken to)
@@ -146,7 +146,7 @@ registerMap({
     // ネフダマヨイ along the empty shops' back aisle (62 1.5 sym_c3_ichiba_01; stage 1; kept off the shop fronts
     // and the mouth's way in: y9, x20–26 instead of y10, x20–33)
     { t: 'sym', id: 'sym_c3_ichiba_01', enemies: ['enemy_nefuda'], x: 26, y: 9, dir: 'left', move: 'cone', to: [20, 9], cond: S1, restoreAt: [27, 8] },
-    // ゲン in front of the auction stand, ツグミ beside him (62 4.2)
+    // えんまい in front of the auction stand, すまこ beside him (62 4.2)
     { t: 'npc', id: 'npc_c3_seri', x: 9, y: 4, dir: 'down', cond: S1 },
     { t: 'npc', id: 'npc_c3_seri_deshi', x: 11, y: 4, dir: 'down', cond: S1 },
     // the customers (fix1015 G2, 依頼主「お客がいる雰囲気が欲しい」). 12:00: each stopped where the noon caught

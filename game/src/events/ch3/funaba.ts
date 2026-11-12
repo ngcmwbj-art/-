@@ -14,11 +14,11 @@
 //     もどるで やめても こすった 所は 残る（flag_fb_n_<k>）。3つ すむと ホース（自動）→ 軍手を 箱へ もどす。
 //   ・すんだ あと：落ちた 殻 (14,10) を 調べる → フジツボの なかま（1回）。
 //   段階2（S13 の あと〜S14 の 前）：
-//   ・こすって いれば、食堂かもめの 前の ゴロウ (31,16)：いつもの〔c2〕の あと、もう 1回 話すと〔ぬる〕（暗転で
+//   ・こすって いれば、食堂かもめの 前の こねぎ (31,16)：いつもの〔c2〕の あと、もう 1回 話すと〔ぬる〕（暗転で
 //     船揚げ場）→ 朱肉 +2、みました帳③の すみ（flag_fb_done）。網小屋〔ami〕（amigoya.ts）とは、〔ぬる〕が 先、
-//     すんだら〔ami〕。どちらも ゴロウの 頭の「！」は 1つ（amigoya.ts の しるしの まま。〔ぬる〕が あれば それが 先に 来る）。
-//   ・こすって いなければ、船揚げ場で ゴロウが 1人で こすっている（ページは 出ない）。
-//   かくし：S08 の 前の 食堂の ゴロウ（〔funa〕の あと 1回）、来た マサル（すんだ あとの 船揚げ場の 帰り、1回）。
+//     すんだら〔ami〕。どちらも こねぎの 頭の「！」は 1つ（amigoya.ts の しるしの まま。〔ぬる〕が あれば それが 先に 来る）。
+//   ・こすって いなければ、船揚げ場で こねぎが 1人で こすっている（ページは 出ない）。
+//   かくし：S08 の 前の 食堂の こねぎ（〔funa〕の あと 1回）、来た マサル（すんだ あとの 船揚げ場の 帰り、1回）。
 //
 // QA：__game.cmd.funaba(step, auto)、fbState()、fbText()
 
@@ -70,7 +70,7 @@ export const FBF = {
   masaru: 'flag_fb_masaru',
   goroC1: 'flag_fb_goro_c1',
   hitori: 'flag_fb_hitori',
-  /** 〔ぬる〕の あと、船揚げ場に いる あいだ（ゴロウと 子どもが いる。港へ 出たら 0）。 */
+  /** 〔ぬる〕の あと、船揚げ場に いる あいだ（こねぎと 子どもが いる。港へ 出たら 0）。 */
   scene: 'flag_fb_scene',
   nuru: 'flag_fb_nuru',
   done: 'flag_fb_done',
@@ -90,7 +90,7 @@ const KID_AT: [number, number][] = [
   [22, 9],
   [23, 9],
 ];
-/** 船揚げ場の ゴロウ（まん中の 腹の 前）。 */
+/** 船揚げ場の こねぎ（まん中の 腹の 前）。 */
 const GORO_AT: [number, number] = [14, 9];
 /** 落ちた 殻（水ぎわ）。 */
 const KARA_AT: [number, number] = [15, 10];
@@ -146,7 +146,7 @@ function kidsFunaba(): boolean {
   return c3Stage() === 2 && flag(FBF.scene) > 0;
 }
 
-/** 船揚げ場の ゴロウ：〔ぬる〕の あいだ、または こすって いない 段階2（1人で こする）。 */
+/** 船揚げ場の こねぎ：〔ぬる〕の あいだ、または こすって いない 段階2（1人で こする）。 */
 function goroFunaba(): boolean {
   if (!inCh3() || c3Stage() !== 2) return false;
   if (flag(FBF.scene)) return true;
@@ -722,7 +722,7 @@ registerScript('obj_fb_funa', function* (): Co {
 });
 
 // 軍手は こすらずに 窓が 閉じたら（段階2・ナリオサメの あと・クリア後）、何も 言わずに 箱へ もどる
-// （ゴロウが 1人で こする 船揚げ場の 箱。改善会議 2026-11-02 の5、docs/game/key_items.md）
+// （こねぎが 1人で こする 船揚げ場の 箱。改善会議 2026-11-02 の5、docs/game/key_items.md）
 registerWorldFx({
   map: '',
   update() {
@@ -751,7 +751,7 @@ registerScript('fb_goro', function* (): Co {
   yield* say3(flag(FBF.scene) ? T.FB_NURU_GORO : T.FB_HITORI_GORO);
 });
 
-/** 食堂の ゴロウ：段階1 の かくし、段階2 の〔ぬる〕。 */
+/** 食堂の こねぎ：段階1 の かくし、段階2 の〔ぬる〕。 */
 wrap(GORO, function* (_ctx, orig): Co {
   if (inCh3() && !pgOn() && c3Stage() === 1 && flag(FBF.start) && !flag('flag_ch3_shokudo_done') && !flag(FBF.goroC1)) {
     yield* orig();
@@ -775,7 +775,7 @@ wrap(GORO, function* (_ctx, orig): Co {
 /** 〔ぬる〕で 船揚げ場へ 移る あいだ（入った ときの 地の文を 出さない）。 */
 let nuruGoing = false;
 
-/** 5〔ぬる〕：食堂の 前 → 暗転で 船揚げ場 → ゴロウが 塗る → ごほうび。 */
+/** 5〔ぬる〕：食堂の 前 → 暗転で 船揚げ場 → こねぎが 塗る → ごほうび。 */
 function* nuruScene(): Co {
   const f = field();
   if (!f) return;
@@ -819,7 +819,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'in'     船揚げ場の 坂の 下 (1,4)（入った ときの 1回）
  *   'gunte'  紙・軍手の あと、まん中の 腹の 前 (14,9) 上向き
  *   'kosuri' こすった あと、落ちた 殻の 上 (15,10)
- *   'nuru'   段階2、こすった あと、食堂かもめの 前の ゴロウの 前 (31,17) 上向き（〔c2〕済み。話すと〔ぬる〕）
+ *   'nuru'   段階2、こすった あと、食堂かもめの 前の こねぎの 前 (31,17) 上向き（〔c2〕済み。話すと〔ぬる〕）
  *   'hitori' 段階2、こすって いない、船揚げ場 (1,4)
  */
 if (import.meta.env.DEV) {

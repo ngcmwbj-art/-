@@ -1,13 +1,13 @@
 // 灯台の 名のり（げむきか 10/15 の 案3、2026-10-15 依頼主の 採用。05_postgame 2.3・3.5、03_ch3_index）。
-// 第3章の クリア後の 夜（19:00〜4:59）、海ぞいの 町の 防波堤の 石の ベンチ (42,31)。サイレンを 引退した ミナトは、
+// 第3章の クリア後の 夜（19:00〜4:59）、海ぞいの 町の 防波堤の 石の ベンチ (42,31)。サイレンを 引退した ふーちゃんは、
 // 毎晩 テルの 灯台の 光を ストップウォッチで はかって「ずれとる」。テルは「ずれとらん」。しゅんが 予備の
-// ストップウォッチで 夜の 海の 光を はかると、ずれて いたのは 灯台ではなく ミナトの 指だった。
-// さいごに ミナトは 数えながら 眠り、しゅんは ストップウォッチを 止めずに おく。
+// ストップウォッチで 夜の 海の 光を はかると、ずれて いたのは 灯台ではなく ふーちゃんの 指だった。
+// さいごに ふーちゃんは 数えながら 眠り、しゅんは ストップウォッチを 止めずに おく。
 //
-//   1 ずれとる（夜、ベンチの ミナト）flag_nn_zure → 2 ずれとらん（灯室の テル）flag_nn_teru
-//   → 3 予備の ストップウォッチ（ミナト）item_nn_stopwatch → 4 大写し「夜の 海」：光5つ
+//   1 ずれとる（夜、ベンチの ふーちゃん）flag_nn_zure → 2 ずれとらん（灯室の テル）flag_nn_teru
+//   → 3 予備の ストップウォッチ（ふーちゃん）item_nn_stopwatch → 4 大写し「夜の 海」：光5つ
 //   → 5 ずれて いたのは（テルの 灯台を 3回）→ 6 止めない 時計（名場面）flag_nn_done
-//   → 7 朱肉 +2、みました帳③の すみ『名のり帳』、次の 夜から ミナトの 台詞、朝の テル（1回）。
+//   → 7 朱肉 +2、みました帳③の すみ『名のり帳』、次の 夜から ふーちゃんの 台詞、朝の テル（1回）。
 //
 // リードの 決めた こと：テルの「40年ぶりに」は「ひさしぶりに」（シークレットエンディングと 重ねない）。
 // 漁船は「夜の 漁の 船」に ぼかす。灯台・ブイの 光り方は 町の 作りもの（実在の 灯台名は 出さない）。
@@ -15,6 +15,7 @@
 // 名前は {name:npc_c3_*}（c3_names.ts）。地の文・名札の 名前に「さん」なし。1ページ 3行 × 336px。
 
 import { pgDay, pgMin } from '../../world/postgame';
+import { c3Name } from './c3_names';
 
 const MINATO = '{name:npc_c3_sirenban}';
 const TERU = '{name:npc_c3_toudai}';
@@ -108,7 +109,7 @@ export const NN_YOBI_2 = `@npc_c3_sirenban
 次に 光った とき、
 もう 1回 押す。`;
 
-/** はかる 前の たずね（ベンチの ミナト）。 */
+/** はかる 前の たずね（ベンチの ふーちゃん）。 */
 export const NN_ASK = `@npc_c3_sirenban
 ……はかるか。
 ? はかる | やめておく`;
@@ -314,7 +315,7 @@ export const NN_BOOK = {
 };
 
 export const NN_ITEM_DESC: [string, string] = ['予備の ストップウォッチ。', '止めずに おいた。'];
-export const NN_ITEM_DESC_BEFORE: [string, string] = ['ミナトの 予備。', '光った とき 押す。'];
+export const NN_ITEM_DESC_BEFORE: [string, string] = [`${c3Name('npc_c3_sirenban')}の 予備。`, '光った とき 押す。'];
 
 export const NN_TEXTS: Record<string, unknown> = {
   NN_ZURE, NN_MEGANE, NN_ZURE_AGAIN, NN_TERU, NN_TERU_AGAIN, NN_TERU_YU, NN_YOBI, NN_GET, NN_YOBI_2, NN_ASK, NN_RULE,

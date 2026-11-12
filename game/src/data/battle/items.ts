@@ -132,7 +132,7 @@ const items: ItemDef[] = [
   { id: 'item_c3_kanban_ka', name: '『か』の字', key: true, target: 'none', desc: ['看板の『か』。', '食堂かもめの もの。'], battleText: ['『か』を 見せた。\n$enemyは 読めずに いる。'] },
   // 本日は、開館です（クリア後の 昼、events/ch3/iso.ts）：ポコシャから あずかる からの 名札（6枚 わたすと なくなる）
   { id: 'item_iso_nafuda', name: 'からの名札', key: true, target: 'none', desc: ISO_ITEM_DESC, battleText: ['名札を 見せた。\n$enemyは 自分の 名前を 考えた。'] },
-  // 灯台の 名のり（クリア後の 夜、events/ch3/nanori.ts）：ミナトの 予備の ストップウォッチ（止めない 時計の あとは 説明が かわる：ui/menu/items.ts）
+  // 灯台の 名のり（クリア後の 夜、events/ch3/nanori.ts）：ふーちゃんの 予備の ストップウォッチ（止めない 時計の あとは 説明が かわる：ui/menu/items.ts）
   { id: 'item_nn_stopwatch', name: '予備のストップウォッチ', key: true, target: 'none', desc: [`${c3Name('npc_c3_sirenban')}の 予備。`, '光った とき 押す。'], battleText: ['ストップウォッチを 見せた。\n数字が 進んでいる。'] },
   { id: 'item_c3_megane', name: `${c3Name('npc_c3_sirenban')}のめがね`, key: true, target: 'none', desc: ['古い めがね。', `ふちに 小さく『${c3Name('npc_c3_sirenban').slice(0, 1)}』。`], battleText: ['めがねを 見せた。\n……度が 合わない。'] },
   { id: 'item_c3_shikake', name: '切れた仕掛け', key: true, target: 'none', desc: [`${c3Name('npc_c3_tsuri')}の 釣りの 仕掛け。`, '針は ついていない。'], battleText: ['仕掛けを 見せた。\n……針が ないので、釣れない。'] },
@@ -192,13 +192,13 @@ const items: ItemDef[] = [
   { id: 'item_c3_yosedofu', name: '海の寄せ豆腐', target: 'ally', heal: 70, desc: YD_ITEM_DOFU_DESC },
   // 紐の 番（02_ch2_index。案の ID の まま）：テツヤの 爪に からんでいた クズの 花（タケじいの 枕もとへ。h3 で 消える）
   { id: 'item_hoshi_tetsuya_kagi', name: 'クズの花', key: true, target: 'none', desc: HM_ITEM_HANA_DESC, battleText: ['クズの 花を 見せた。\n$enemyは ぶどうの においに 気づいた。'] },
-  // 掃除は 上から（03_ch3_index）：屋上の 排水口に つまっていた ゴムボール（「持っておく」に した とき。クリア後 ハキコに 返す）
+  // 掃除は 上から（03_ch3_index）：屋上の 排水口に つまっていた ゴムボール（「持っておく」に した とき。クリア後 ぶろこりに 返す）
   { id: 'item_c3_ball', name: 'ゴムボール', key: true, target: 'none', desc: OJ_ITEM_BALL_DESC, battleText: ['ゴムボールを 見せた。\n$enemyは ボールを 目で 追った。'] },
   // 落とすけえ、甘うなる（03_ch3_index）：摘果した 青い 実。値は かき氷の 回復と 同じ（61 7.1 の 小さい 回復）
   { id: 'item_c3_ao_mikan', name: '青いみかん', target: 'ally', heal: 20, desc: MK_ITEM_DESC },
   // 明日の 朝の 氷（03_ch3_index）：砕いた 角氷を 袋に 入れた 物。値は 青い みかんと 同じ（61 7.1 の 小さい 回復）
   { id: 'item_c3_kachiwari', name: 'かち割り', target: 'ally', heal: 20, desc: KR_ITEM_DESC },
-  // 破れたら、つくろう（03_ch3_index）：ゴロウの 古い 竹の 網針（使い道は ない）
+  // 破れたら、つくろう（03_ch3_index）：こねぎの 古い 竹の 網針（使い道は ない）
   { id: 'item_c3_amibari', name: '古い網針', key: true, target: 'none', desc: AG_ITEM_DESC, battleText: ['網針を 見せた。\n$enemyは 糸の あとを 見ている。'] },
   { id: 'item_fb_gunte', name: '軍手', key: true, target: 'none', desc: FB_ITEM_DESC, battleText: ['軍手を 見せた。\n$enemyは 指先を 数えている。'] },
   // 日じゃ なくて、風（03_ch3_index）：ホシミから あずかる 干し網（路地の 角に つるすと なくなる）と、みやげの アジの 開き

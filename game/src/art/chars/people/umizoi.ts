@@ -5,18 +5,20 @@
 // One body for the whole town, dressed per person: the sea-town tan (#C98A6A
 // and its shade #8A5A3A, 10.0), white hair for the old, black for the young,
 // and one thing each that tells the job at a glance (the silhouette's key):
-//   npc_c3_shokudo      the white triangle scarf and the big ladle, a red apron
+//   npc_c3_shokudo      a big man (40s): the white cook's cap, the big ladle, a navy 前掛け
 //   npc_c3_jouren       the twisted headband and yellow boots (sits at the counter)
-//   npc_c3_seri         the cap with its number plate, a hand up (the auction's signs)
-//   npc_c3_seri_deshi   the cap with a hand-written plate, a rubber apron, a short ponytail
+//   npc_c3_seri         the cap with its number plate, a hand up (the auction's signs); in his 40s, black hair
+//   npc_c3_seri_deshi   the cap with a hand-written plate, a rubber apron; a woman in her 60s, a grey bun, a little short
 //   npc_c3_sirenban     the stopwatch on his neck, an old grey work suit, a little bent
 //   npc_c3_toudai       the polishing cloth and the white sun hat, indigo もんぺ
 //   npc_c3_mago         the goggles up on the forehead, sunburnt, a T-shirt and shorts
 //   npc_c3_kanshiin     the red cap and the whistle (sits up on the lifeguard chair)
-//   npc_c3_himono_otto  the same 割烹着 as his wife, shaved head, yellow gloves
-//   npc_c3_himono_tsuma the same 割烹着, a bun, yellow gloves (side by side, a mirror)
+//   npc_c3_himono_otto  the elder brother: the same brown 前掛け as his brother, shaved head, yellow gloves
+//   npc_c3_himono_tsuma the younger brother: the same 前掛け, short black hair, yellow gloves (side by side,
+//                       a mirror. 2026-11-12: the couple in 割烹着 became brothers)
 //   npc_c3_tsuri        the straw hat and a vest of pockets, white beard (sits)
-//   npc_c3_uketsuke     the broom and the old navy uniform of the aquarium's desk
+//   npc_c3_uketsuke     a man in his 30s, the aquarium's cleaner: the broom, a sage-green work suit and
+//                       work cap (2026-11-12: was the old lady of the desk in navy)
 //   npc_c3_kid_a/b/c    a straw hat / a shaved, sunburnt head / pigtails
 // The real-time noon rim (a 1px white on the crown, 62 10.0) is the renderer's.
 
@@ -119,7 +121,7 @@ function kidHead(style: 'short' | 'bozu' | 'pig'): HeadT {
 
 // ---------------------------------------------------------------- the look of a person
 
-type Hat = 'cap' | 'cap_red' | 'sankaku' | 'hachimaki' | 'mugiwara' | 'hiyoke' | 'workcap' | 'goggles' | 'kid_mugi' | null;
+type Hat = 'cap' | 'cap_red' | 'sankaku' | 'wabou' | 'hachimaki' | 'mugiwara' | 'hiyoke' | 'workcap' | 'goggles' | 'kid_mugi' | null;
 type Thing = 'otama' | 'stopwatch' | 'whistle' | 'houki' | 'nuno' | 'gloves' | 'nafuda' | 'hand_up' | 'beard' | 'pigtails' | 'kago' | 'fukuro' | 'hako' | null;
 
 interface Look {
@@ -139,6 +141,8 @@ interface Look {
   things: Thing[];
   /** A little bent (the old siren keeper). */
   bent?: boolean;
+  /** A big build: the body 1 px wider each side (まさと, the big father of a cook). */
+  big?: boolean;
   /** Has a seated pose. */
   sit?: boolean;
   /**
@@ -216,6 +220,15 @@ function hat(f: Fig, p: Pose, L: Look, hy: number): void {
       else if (v === 'up') {
         f.rows(3, y - 1, ['..######..', '.########.', '##########', '.########.', '...####...', '....##....']);
       } else f.rows(3, y - 1, ['..######..', '.#########', '##########', '.......###', '........##']);
+      return;
+    }
+    case 'wabou': {
+      // a cook's white cap (和帽子): no brim, a fold line at the band
+      f.part('hat', { shade: 'rb', light: 't' });
+      if (v === 'down' || v === 'up') f.rows(3, y - 2, ['.########.', '##########', '##########', '##########']);
+      else f.rows(3, y - 2, ['.#######..', '#########.', '##########', '##########']);
+      f.part('hat', { flat: true });
+      f.t(-1).hl(v === 'left' ? 3 : 3, 12, y + 1).t(null);
       return;
     }
     case 'hachimaki': {
@@ -437,9 +450,10 @@ function makeDraw(L: Look): (f: Fig, p: Pose) => void {
       else legs(f, p, LEGS);
       // the body
       f.part('top', { shade: 'rb', light: 't' });
-      f.hl(4, 11, top);
-      f.rect(3, top + 1, 10, 2);
-      f.rect(4, top + 3, 8, Math.max(1, waist - (top + 3) + 1));
+      const bw = L.big ? 1 : 0;
+      f.hl(4 - bw, 11 + bw, top);
+      f.rect(3 - bw, top + 1, 10 + 2 * bw, 2);
+      f.rect(4 - bw, top + 3, 8 + 2 * bw, Math.max(1, waist - (top + 3) + 1));
       if (L.apron === 'kappogi') {
         // 割烹着: white over the whole body, its hem over the trousers
         f.part('apron', { shade: 'rb', light: 't' });
@@ -459,7 +473,7 @@ function makeDraw(L: Look): (f: Fig, p: Pose) => void {
           f.hl(4, 11, waist - 1);
         }
       }
-      hangArms(f, p, { lx: 3, rx: 12, sy: top + 2 - u + u, hy: 16 + (L.kid ? 1 : 0), segs: sleeve }, u - (L.kid ? 0 : 0));
+      hangArms(f, p, { lx: 3 - bw, rx: 12 + bw, sy: top + 2 - u + u, hy: 16 + (L.kid ? 1 : 0), segs: sleeve }, u - (L.kid ? 0 : 0));
       head(f, p, L.head, hy);
     } else {
       const sw = sideSwing(p);
@@ -467,8 +481,8 @@ function makeDraw(L: Look): (f: Fig, p: Pose) => void {
       if (seated) sitLegs(f, p, LEGS, 18);
       else legs(f, p, LEGS);
       f.part('top', { shade: 'rb', light: 't' });
-      f.hl(6 + bentX, 10 + bentX, top);
-      f.rect(5 + bentX, top + 1, 6, Math.max(1, waist - (top + 1) + 1));
+      f.hl(6 + bentX - (L.big ? 1 : 0), 10 + bentX, top);
+      f.rect(5 + bentX - (L.big ? 1 : 0), top + 1, L.big ? 8 : 6, Math.max(1, waist - (top + 1) + 1));
       if (L.apron) {
         f.part('apron', { shade: 'r', light: '' });
         f.vl(4 + bentX, top + 2, waist + (L.apron === 'kappogi' ? 1 : 3));
@@ -556,13 +570,15 @@ const P = (o: Record<string, Mat>): Mats => ({ ...BASE, ...o });
 const LOOKS: Look[] = [
   {
     id: 'npc_c3_shokudo',
+    // まさと (2026-11-12): a big father of a cook in his 40s — black hair, the white cook's coat and cap,
+    // a navy 前掛け, the big ladle (once a 60s おかみ in a white 三角巾 and a red apron)
     mats: P({
-      skin: SKIN_PALE, hair: HAIR_GREYMIX,
+      skin: SKIN_SEA, hair: HAIR_BLACK,
       top: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'), sleeve: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'),
-      apron: cloth('#C8452E', '#8A2E22', '#E06A4E', '#5A1E18'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
-      hat: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'), shoe: flat('#5A3A2A'), steel: cloth('#C8CDD4', '#9AA0A8', '#F4F1E8', '#6B7186'),
+      apron: cloth('#2F4A7A', '#1E3358', '#4A6A9A', '#14203A'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
+      hat: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'), shoe: flat('#3A3F48'), steel: cloth('#C8CDD4', '#9AA0A8', '#F4F1E8', '#6B7186'),
     }),
-    head: adultHead('bun', true), short: 2, sleeve: 'long', bottom: 'pants', apron: 'maekake', hat: 'sankaku', things: ['otama'], shoe: 'shoe',
+    head: adultHead('short', true), short: 0, big: true, sleeve: 'long', bottom: 'pants', apron: 'maekake', hat: 'wabou', things: ['otama'], shoe: 'shoe',
   },
   {
     id: 'npc_c3_jouren',
@@ -577,22 +593,22 @@ const LOOKS: Look[] = [
   {
     id: 'npc_c3_seri',
     mats: P({
-      skin: SKIN_SEA, hair: HAIR_WHITE,
+      skin: SKIN_SEA, hair: HAIR_BLACK,
       top: cloth('#2F3A5A', '#1B2440', '#4A5A7A', '#14182A'), sleeve: cloth('#2F3A5A', '#1B2440', '#4A5A7A', '#14182A'),
       pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'), hat: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'),
       plate: flat('#FFF6D8'), shoe: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'),
     }),
-    head: adultHead('white_short'), short: 2, sleeve: 'long', bottom: 'pants', hat: 'cap', things: ['hand_up'], shoe: 'boot',
+    head: adultHead('short'), short: 1, sleeve: 'long', bottom: 'pants', hat: 'cap', things: ['hand_up'], shoe: 'boot',
   },
   {
     id: 'npc_c3_seri_deshi',
     mats: P({
-      skin: SKIN_YOUNG, hair: HAIR_BLACK,
+      skin: SKIN_SEA, hair: HAIR_GREYMIX,
       top: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), sleeve: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'),
       apron: cloth('#2E6A72', '#1E4A52', '#4A8A90', '#14343A'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
       hat: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'), plate: flat('#FFF6D8'), shoe: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'),
     }),
-    head: adultHead('pony'), short: 2, sleeve: 'short', bottom: 'pants', apron: 'gom', hat: 'cap', things: [], shoe: 'boot',
+    head: adultHead('bun'), short: 3, sleeve: 'long', bottom: 'pants', apron: 'gom', hat: 'cap', things: [], shoe: 'boot',
   },
   {
     id: 'npc_c3_sirenban',
@@ -643,20 +659,20 @@ const LOOKS: Look[] = [
     mats: P({
       skin: SKIN_SEA, hair: HAIR_BLACK,
       top: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), sleeve: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'),
-      apron: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
+      apron: cloth('#7A5034', '#5A3A24', '#9A6A48', '#3A2416'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
       gloves: cloth('#E8C83A', '#B8981A', '#FFE07A', '#7A6410'), shoe: flat('#3A3F48'),
     }),
-    head: adultHead('bozu'), short: 2, sleeve: 'long', bottom: 'pants', apron: 'kappogi', hat: null, things: ['gloves'], shoe: 'boot',
+    head: adultHead('bozu'), short: 2, sleeve: 'long', bottom: 'pants', apron: 'maekake', hat: null, things: ['gloves'], shoe: 'boot',
   },
   {
     id: 'npc_c3_himono_tsuma',
     mats: P({
       skin: SKIN_SEA, hair: HAIR_BLACK,
       top: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), sleeve: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'),
-      apron: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
+      apron: cloth('#7A5034', '#5A3A24', '#9A6A48', '#3A2416'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
       gloves: cloth('#E8C83A', '#B8981A', '#FFE07A', '#7A6410'), shoe: flat('#3A3F48'),
     }),
-    head: adultHead('bun'), short: 3, sleeve: 'long', bottom: 'pants', apron: 'kappogi', hat: null, things: ['gloves'], shoe: 'boot',
+    head: adultHead('short'), short: 2, sleeve: 'long', bottom: 'pants', apron: 'maekake', hat: null, things: ['gloves'], shoe: 'boot',
   },
   {
     id: 'npc_c3_tsuri',
@@ -671,12 +687,13 @@ const LOOKS: Look[] = [
   {
     id: 'npc_c3_uketsuke',
     mats: P({
-      skin: SKIN_PALE, hair: HAIR_GREYMIX,
-      top: cloth('#2F3A5A', '#1B2440', '#4A5A7A', '#14182A'), sleeve: cloth('#2F3A5A', '#1B2440', '#4A5A7A', '#14182A'),
-      pants: cloth('#2F3A5A', '#1B2440', '#4A5A7A', '#14182A'), plate: flat('#FFF6D8'),
+      skin: SKIN_YOUNG, hair: HAIR_BLACK,
+      top: cloth('#8AA67A', '#6A865A', '#AAC69A', '#3E5A34'), sleeve: cloth('#8AA67A', '#6A865A', '#AAC69A', '#3E5A34'),
+      pants: cloth('#5A6E52', '#3E5A34', '#7A8E70', '#2A3A24'), plate: flat('#FFF6D8'),
+      hat: cloth('#4E7A3E', '#3A5E2E', '#6E9A5A', '#24401C'),
       stick: flat('#8A5A3A'), broom: cloth('#C8A06A', '#A87A4A', '#E8C890', '#7A5A3A'), shoe: flat('#3A3F48'),
     }),
-    head: adultHead('hikkume', true), short: 3, sleeve: 'long', bottom: 'pants', hat: null, things: ['houki', 'nafuda'], shoe: 'shoe',
+    head: adultHead('short', true), short: 1, sleeve: 'long', bottom: 'pants', hat: 'workcap', things: ['houki', 'nafuda'], shoe: 'shoe',
     // (本日は、開館です：開館の あとは 入口の 中の ベンチに すわる。events/ch3/iso.ts)
     sit: true,
   },

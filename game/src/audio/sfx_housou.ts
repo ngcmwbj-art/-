@@ -5,7 +5,7 @@
 //   se_hs_pa_down    下り 4音（放送の あと）。同じく 放送の あと
 //   se_hs_kachi      テープが 止まる「カチッ」
 //   se_hs_off        電源を 切る（つまみ）：「カチ」と、ジー が すっと 落ちる
-// 声：c3_uketsuke_tape（10年前の テープの ハキコ：館内の スピーカー、少し 高く 若く）、
+// 声：c3_uketsuke_tape（10年前の テープの ぶろこり（20代）：館内の スピーカー、少し 高く 若く）、
 //     gusokkun_pa（グソっ君の 迷子の お知らせ：館内の スピーカー）。
 // 4つの 音は どこにでも ある 音の 並び（ド・ミ・ソ・ド）。閉館の 曲は 使わない。
 
@@ -84,7 +84,7 @@ se('se_hs_off', {
 // the voices on the ceiling speakers (as pokosha_pa: the parent's trim, a little under it for the PA's lift)
 const uk = VOICES.c3_uketsuke;
 if (uk) {
-  VOICES.c3_uketsuke_tape = { ...uk, label: 'ハキコ（10年前の テープ。館内放送）', base: 'C5', pa: true };
+  VOICES.c3_uketsuke_tape = { ...uk, label: 'ぶろこり（10年前の テープ。館内放送）', base: 'F#3', pa: true };
   VOICE_TRIM.c3_uketsuke_tape = (VOICE_TRIM.c3_uketsuke ?? 16) - 1.5;
 }
 const kn = VOICES.gusokkun;

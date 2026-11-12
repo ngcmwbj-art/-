@@ -104,7 +104,7 @@ export const KH_C3 = {
 {w=300}市場、食堂、海水浴場……
 どこからでも ええで。`),
   ichiba: {
-    // fix1020c3: ゲンでも ツグミでも、1回 話せば 始まる（b は 使わなくなった。文は 残す）
+    // fix1020c3: えんまいでも すまこでも、1回 話せば 始まる（b は 使わなくなった。文は 残す）
     a: kn(`市場の {c=#E23B2E}セリ場{/c}の {name:npc_c3_seri}か
 {name:npc_c3_seri_deshi}に、話しかけて みよ。`),
     b: kn(`{name:npc_c3_seri_deshi}、まだ なんか

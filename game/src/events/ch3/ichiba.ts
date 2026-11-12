@@ -1,11 +1,11 @@
 // S07 ① 市場「ひゃくえんの まま」（60_ch3_story 10.7、62 4.2、63 12.5、61 9.1）:
 //
-//   ゲンか ツグミに 1回 話すと〔ゲン c1_1・ツグミ c1_1〕→ そのまま evt_ch3_ichiba（符丁ノートが
-//   ばらばら。fix1020c3：前は ツグミに 2回）→ 切れはし 5枚
+//   えんまいか すまこに 1回 話すと〔えんまい c1_1・すまこ c1_1〕→ そのまま evt_ch3_ichiba（符丁ノートが
+//   ばらばら。fix1020c3：前は すまこに 2回）→ 切れはし 5枚
 //   （市場のあちこち、最低3枚。flag_ch3_fucho_<01..05>, flag_ch3_fucho_n）→ 3枚以上で
-//   ゲンか ツグミに話すと（セリの輪に入っても）evt_ch3_seri: 買い手3人の手（符丁）を見て、いちばん高い人に札を
+//   えんまいか すまこに話すと（セリの輪に入っても）evt_ch3_seri: 買い手3人の手（符丁）を見て、いちばん高い人に札を
 //   上げる ×3（まちがえても進む）。2回目のあと ネフダマヨイ（必須戦）。3回目のあと
-//   ツグミの「はい、売った！」→ 割り箸＝部品①（flag_ch3_ichiba_done, flag_ch3_part_hashi）。
+//   すまこの「はい、売った！」→ 割り箸＝部品①（flag_ch3_ichiba_done, flag_ch3_part_hashi）。
 //
 // The fragments, the auction ring's trigger and the buyers are added to W's
 // map_c3_ichiba here; the fragments are drawn as little paper scraps (an
@@ -31,7 +31,7 @@ import { PG_FUCHO_TSUGUMI } from '../../data/text/pg_rows';
 
 // ---------------------------------------------------------------- places (62 4.2)
 
-/** The five scraps of ゲン's 符丁 note. */
+/** The five scraps of えんまい's 符丁 note. */
 const FUCHO_AT: [number, number][] = [
   [1, 5],
   [17, 3],
@@ -73,7 +73,7 @@ for (const [i] of FUCHO_AT.entries())
     giveKey('item_c3_fucho');
     se('se_c3_fucho', { level: n - 1 });
     yield* say3(T.fuchoGot(i, n));
-    // クリア後：セリのあとで拾うと、ツグミが1ページ（はじめの1回）
+    // クリア後：セリのあとで拾うと、すまこが1ページ（はじめの1回）
     if (pgOn() && flag('flag_ch3_ichiba_done') && !flag('flag_pg_fucho_tsugumi')) {
       setFlag('flag_pg_fucho_tsugumi', 1);
       yield* say3(PG_FUCHO_TSUGUMI);
@@ -102,12 +102,12 @@ registerWorldFx({
   },
 });
 
-// ---------------------------------------------------------------- ツグミ・ゲン
+// ---------------------------------------------------------------- すまこ・えんまい
 
 /**
  * The auction's one way in (fix1020c3, 依頼主「どちらから話しかけても同じ会話、1回で最後まで」):
- * ゲン or ツグミ, whoever is spoken to first, gives the same talk — ゲン's stopped voice and
- * ツグミ's 「セリが 終わらんのです」 (the ones not heard yet), then 〔evt_ch3_ichiba〕 straight on.
+ * えんまい or すまこ, whoever is spoken to first, gives the same talk — えんまい's stopped voice and
+ * すまこ's 「セリが 終わらんのです」 (the ones not heard yet), then 〔evt_ch3_ichiba〕 straight on.
  * Spoken to again, either gives the next step (S07_MORE, or the auction with 3 scraps).
  */
 function* talkSeri(who: 'npc_c3_seri' | 'npc_c3_seri_deshi'): Co {
@@ -137,7 +137,7 @@ function* talkSeri(who: 'npc_c3_seri' | 'npc_c3_seri_deshi'): Co {
 }
 for (const who of ['npc_c3_seri', 'npc_c3_seri_deshi'] as const)
   registerScript(who, function* (): Co {
-    // (outside chapter 3 as before: ゲン his words, ツグミ nothing)
+    // (outside chapter 3 as before: えんまい his words, すまこ nothing)
     if (!inCh3()) {
       if (who === 'npc_c3_seri') yield* (flag('flag_ch3_ichiba_done') ? say3(T.C2_TALK.npc_c3_seri) : talkC3(who));
       return;
@@ -152,7 +152,7 @@ registerScript('evt_ch3_ichiba', function* (): Co {
 
 // ---------------------------------------------------------------- evt_ch3_seri (the auction)
 
-/** Where the buyers stand (62 4.2): ナミエ (8,7) N, ホシミ (10,7) N, ヒロスケ (12,6) W. */
+/** Where the buyers stand (62 4.2): まさと (8,7) N, シェフ次郎 (10,7) N, ヒロスケ (12,6) W. */
 const BUYERS: [number, number, 'up' | 'left'][] = [
   [8, 7, 'up'],
   [10, 7, 'up'],
@@ -186,7 +186,7 @@ export function* evtSeri(): Co {
       const a = spawn('c3_seri_kucho', 6, 10, { sprite: 'npc_hoshi_kucho', dir: 'up', ghost: true });
       a.data.scripted = true;
       staged.push(a.id);
-      // (behind ナミエ's shoulder at (7,8): (6,7) is the market's own customer's square — 改善会議 10-23 の3)
+      // (behind まさと's shoulder at (7,8): (6,7) is the market's own customer's square — 改善会議 10-23 の3)
       game.scripts.run(walk(a.id, [[7, 8]], { speed: 4, face: 'up' }));
     }
     if (kita('npc_madam')) {
@@ -236,7 +236,7 @@ function* seriRound(r: number): Co {
   const round = T.SERI_ROUNDS[r];
   const known = knownSigns();
   yield* say3(T.seriAsk(r));
-  // retry until right? No: wrong goes on (ツグミ「……もう 1回、見ます」) — one more look, then on
+  // retry until right? No: wrong goes on (すまこ「……もう 1回、見ます」) — one more look, then on
   for (let tries = 0; tries < 2; tries++) {
     const lines = round.hands.map((h, b) => T.seriHandLine(b, h, known.has(h))).join('\n');
     const opts = T.SERI_BUYER_NAMES.join(' | ');
@@ -269,7 +269,7 @@ function* utta(): Co {
   duckMusic(0.25, 0.6);
   yield 600;
   yield* say3(T.S07_UTTA_A);
-  // (the mallet and the bell; ゲン's stopped voice ends with c3_ichiba = 1)
+  // (the mallet and the bell; えんまい's stopped voice ends with c3_ichiba = 1)
   se('se_c3_utta');
   yield 1000;
   yield* say3(T.S07_UTTA_B);

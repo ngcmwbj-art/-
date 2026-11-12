@@ -7,17 +7,17 @@
 //     もう1回 話すと〔tokoro〕（flag_tk_start）。グソっ君が いない ときは 言いださない。頭の 上に「！」（world/marks.ts）。
 //   ・港の 乾物屋 obj_c3_kanbutsuya (33–37,23)：今の 文の あと、天草の 袋 → 大事なもの item_c3_tengusa（flag_tk_got）。
 //     代金は 箱へ（80円。足りない ときは おばあの つけ：flag_tk_tsuke）。かくし：もらった あと、札を もう1回（flag_tk_fuda2）。
-//   ・食堂かもめ（map_c3_shokudo）の ナミエ (4,3)：天草を 持って 話すと 煮る。おばあが 戸から 入って 台の 内 (6,3) に 立つ
+//   ・食堂かもめ（map_c3_shokudo）の まさと (4,3)：天草を 持って 話すと 煮る。おばあが 戸から 入って 台の 内 (6,3) に 立つ
 //     （その あいだだけ。kitaComeIn）。カウンターの 西の はし (1,4) に カセットコンロと 小さな 鍋（台の 内に 人が 立つと 透けるので、だれも 立たない 西の はし）（湯気は 暗転なしで 少しずつ 減る）、カウンター
 //     (5,4) に 流し箱（汁 → 固まる）。
 //   ・大写し「天突き」TentsukiPanel：←→ で 筒を まっすぐに 立てる → けっていを 押さえて 突く（はなすと 止まる。押さえて
 //     いる あいだ ←→ は きかない：会議 10-25「押さえる」と「傾ける」を 同時に しない）。曲がった まま 突くと「ぷつん」と
-//     短い（しくじりに しない）。3杯。3杯目は ゴロウの 前 (3,4) に（小鉢の 絵 flag_tk_goro）。もどる で やめると、残りは
-//     ナミエが 突く（flag_tk_yameta）。
+//     短い（しくじりに しない）。3杯。3杯目は こねぎの 前 (3,4) に（小鉢の 絵 flag_tk_goro）。もどる で やめると、残りは
+//     まさとが 突く（flag_tk_yameta）。
 //   ・食べ方：しゅんが 1つ 選ぶ（flag_tk_kata 1 酢じょうゆ・2 からし・3 黒蜜）。グソっ君は 酢じょうゆと 黒蜜。
 //   ・ごほうび：ところてん item_c3_tokoroten 2つ、朱肉 +2、みました帳③の すみ（flag_tk_done）。流し箱は ふせて 置く。
 //   ・段階1 で 済んだ あと：流し箱を 調べると 1行。おばあに 1回（flag_tk_after）。
-//   ・段階2（S13〜S14）：済んで いれば、店の 前の ナミエの〔c2〕の あと 1回（flag_tk_c2）。煮る 前なら、おばあに
+//   ・段階2（S13〜S14）：済んで いれば、店の 前の まさとの〔c2〕の あと 1回（flag_tk_c2）。煮る 前なら、おばあに
 //     話すと 天草を 返して おしまい（flag_tk_end）。段階3 から 先は 天草を 持ち歩かない。
 //   ・かくし：くま吉に ところてんを 見せる（flag_tk_kuma。寄せ豆腐を 済ませて いれば 別の 1行）。3杯とも まっすぐ
 //     長く（flag_tk_meijin）。
@@ -188,7 +188,7 @@ export class TentsukiPanel implements Widget {
 
   /**
    * もどる で やめられるのは 筒を 立てて いる あいだだけ（会話の あいだ・突いて いる あいだは パネルの 物）。
-   * やめると 残りの 杯は ナミエが 突く（台本は 先へ 進む：天草は もう 鍋の 中）。
+   * やめると 残りの 杯は まさとが 突く（台本は 先へ 進む：天草は もう 鍋の 中）。
    */
   quittable(): boolean {
     return this.active && this.phase === 'tilt' && !this.cancel;
@@ -405,7 +405,7 @@ function* closePanel(p: TentsukiPanel): Co {
 
 let qaAuto = false;
 let qaCrooked: number[] = [];
-/** QA：ナミエに 話すと 天突きから（'tsuki'）。 */
+/** QA：まさとに 話すと 天突きから（'tsuki'）。 */
 let qaTsuki = false;
 
 /** 5 天突き：突いた 杯の でき（やめたら 残りは 入らない）。 */
@@ -630,7 +630,7 @@ wrap('obj_c3_kanbutsuya', function* (_ctx, orig): Co {
   }
 });
 
-// ---------------------------------------------------------------- 食堂かもめ（ナミエ・流し箱・鍋）
+// ---------------------------------------------------------------- 食堂かもめ（まさと・流し箱・鍋）
 
 wrap(NAMIE, function* (_ctx, orig): Co {
   if (tkOpen() && onMap(SHOKUDO) && hasTengusa() && !flag(TF.done)) {
@@ -685,10 +685,10 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  * QA: __game.cmd.tokoro(step = 'obaa', auto = false)（第3章の 段階1、②の 決着の あと、おばあが 来た）
  *   'obaa'     いつもの 会話の あと、おばあの 前 (22,4) 上向き（話すと〔tokoro〕）
  *   'kanbutsu' 〔tokoro〕の あと、乾物屋の 前 (35,24) 上向き（調べると 天草）
- *   'namie'    天草を 持って、食堂かもめの 台所の ナミエの 右 (5,3) 左向き（話すと 煮る → 天突き）。
+ *   'namie'    天草を 持って、食堂かもめの 台所の まさとの 右 (5,3) 左向き（話すと 煮る → 天突き）。
  *              'mix' は auto の 版で 2杯目を 曲げて 突く。'tsuki' は 話すと 天突きから（前の 会話を とばす）
  *   'done'     済んだ あと、食堂かもめの 流し箱の 前 (5,5) 上向き
- *   'c2'       済んだ あと 段階2、店の 前の ナミエ（umizoi）
+ *   'c2'       済んだ あと 段階2、店の 前の まさと（umizoi）
  *   'end'      天草を 持った まま 段階2、おばあの 前
  *   'kuma'     ところてんを 持って、くま吉の 前 (27,4) 上向き
  */
@@ -790,7 +790,7 @@ export function tkTextCheck(): { pages: number; bad: string[] } {
           if (t.startsWith('@')) who = t.slice(1);
           continue;
         }
-        const plain = raw.replace(/\{name:npc_c3_jouren\}/g, 'ゴロウ').replace(/\{name:npc_c3_shokudo\}/g, 'ナミエ').replace(/\{[^}]*\}/g, '');
+        const plain = raw.replace(/\{name:npc_c3_jouren\}/g, 'こねぎ').replace(/\{name:npc_c3_shokudo\}/g, 'まさと').replace(/\{[^}]*\}/g, '');
         if (measure(plain) > 336) bad.push(`${name}: ${measure(plain)}px: ${plain}`);
         for (const b of BANNED) if (plain.includes(b)) bad.push(`${name}: 「${b}」: ${plain}`);
         if (/\d+:\d\d/.test(plain)) bad.push(`${name}: time: ${plain}`);

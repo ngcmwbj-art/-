@@ -1,7 +1,7 @@
 // The buildings of 海ぞいの町 (62_ch3_level_art 3.3・7.1・7.3): every
 // building faces south, to the sea. Along the harbour road the 漁協, the
 // dried-fish shop (its open front and counter), 食堂かもめ (red noren, the
-// sign that has lost its 「か」), ゴロウ's house, a house, ミナトとテル's
+// sign that has lost its 「か」), こねぎ's house, a house, ふーちゃんとテル's
 // house; south of the road the market under its big folded-plate roof with
 // its two open mouths, the dried-goods shop, the harbour store; on the beach
 // the 海の家 under its reed screens; on the cape the old aquarium in white
@@ -332,7 +332,7 @@ registerBuilding((opts) => ({
 
 /**
  * 食堂かもめののれん: red with 「かもめ」 in white and a small gull (32×20); it
- * hangs still at 12:00 (motion 0). At 12:01 it is taken in (ナミエ holds it
+ * hangs still at 12:00 (motion 0). At 12:01 it is taken in (まさと holds it
  * at the door, S13: 62 6.2).
  */
 registerProp('prop_c3_noren', () => {

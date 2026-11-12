@@ -107,7 +107,7 @@ function sirenTower(stage: number): HTMLCanvasElement {
     p.ellipse(mx + 4, my + 3, 3, 2, '#0B0B14');
     p.set(mx + 3, my + 3, '#2A2440');
   } else {
-    // ミナト's chalk はなまる on the siren (12:01)
+    // ふーちゃん's chalk はなまる on the siren (12:01)
     p.ring(mx + 4, my + 2, 3, 2, '#E23B2E');
   }
   outline(p, { bottom: true, soft: true });
@@ -237,7 +237,7 @@ registerProp('prop_c3_toudai', () => {
 
 /**
  * A small fishing boat side-on, bow to the west: the white hull and its blue
- * stripe, the wheelhouse, the mast; `name`: ゴロウ's boat carries 『第三 かもめ丸』
+ * stripe, the wheelhouse, the mast; `name`: こねぎ's boat carries 『第三 かもめ丸』
  * (readable, 60 9.3). `v` 'fuse': the old wooden boat upturned on the
  * children's lot, a はなまる on its belly.
  */
@@ -576,7 +576,7 @@ registerProp('prop_c3_tetsubou', () =>
 /**
  * 監視台 (16×40): the white wooden tower, its ladder, the sunshade; the flag
  * on its pole spread by a wind that has stopped (stage 1) — white with blue
- * waves (62 7.3 仮の決め). At 12:01 the flag is taken in (カイトがたたむ).
+ * waves (62 7.3 仮の決め). At 12:01 the flag is taken in (よっしーがたたむ).
  */
 registerProp('prop_c3_kanshidai', () => {
   const mk = (flag: boolean) =>
@@ -1307,7 +1307,7 @@ registerProp('prop_c3_uwaya', () => {
 // ---------------------------------------------------------------- the ending on the breakwater (S29・S31)
 
 /**
- * S29 (60 10.29 カット1, 62 5.4): ナミエの 店から 運んだ 鉄板 on a low gas stand at the goza
+ * S29 (60 10.29 カット1, 62 5.4): まさとの 店から 運んだ 鉄板 on a low gas stand at the goza
  * (30–31,32): the yakisoba on it, the 青のり kept apart in a little dish (「……青のりは、別。」),
  * the steam rising. Shown while flag_c3_end_teppan (the scenario's).
  */
@@ -1352,7 +1352,7 @@ registerProp('prop_c3_end_teppan', () =>
 
 /**
  * S29 on the beach (2026-10-20 依頼主「焼きそば焼いてる2人が後ろの方で何かやってるなって感じで全く良さが
- * 出てない。砂浜で広々と」): ナミエの 店の 長机に のせた 大きな 鉄板、5マス (80 px)。手前の 布は 食堂かもめの
+ * 出てない。砂浜で広々と」): まさとの 店の 長机に のせた 大きな 鉄板、5マス (80 px)。手前の 布は 食堂かもめの
  * 波の 柄、鉄板の 上に 焼きそばの 山（ソース色、キャベツ、紅しょうが）、左の はしに ソースと 油の びん、右の はしに
  * 白い パックの 山と 青のりの 小皿（「……青のりは、別。」）。机の 下の ガスの 火が ちらちら。湯気と
  * ソースの においは events/ch3/ending.ts の 場面の 層（2D・HD-2D とも 鉄板の 上に 立つ）。

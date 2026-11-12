@@ -211,7 +211,7 @@ export const S28_B = `@npc_pokosha
 @npc_c3_shokudo
 防波堤で、みんなで 食べよう！
 {w=300}……あんたらの ぶん、
-ちゃんと とってあるよ！`;
+ちゃんと とってあるけえ！`;
 
 // ================================================================ 10.29 エンディング（S29〜S33）
 
@@ -240,7 +240,7 @@ export const S29_MINNA: [string, string][] = [
   ['npc_c3_shokudo', 'おかわり、あるよ！'],
   ['npc_c3_jouren', '……もう 1パック。'],
   ['npc_c3_himono_otto', 'ほどよい！'],
-  ['npc_c3_himono_tsuma', '……あんたが 言うな！'],
+  ['npc_c3_himono_tsuma', '……兄貴が 言うな！'],
   ['npc_hirosuke', '焼き芋も、食うか？'],
 ];
 
@@ -248,7 +248,7 @@ export const S29_B = `@npc_kanenari
 ……きょう、何回目の
 昼ごはんや。
 @npc_c3_shokudo
-何回でも ええのよ。{w=300}
+何回でも ええんよ。{w=300}
 ……ちゃんと、
 ごちそうさま すればね。`;
 

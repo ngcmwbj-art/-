@@ -92,7 +92,7 @@ function partHere(p: Part, w: GoalWhere): boolean {
 }
 
 function ichibaHint(): string {
-  // (fix1020c3: one talk with ゲン or ツグミ starts it, so there is no 「もう いっぺん」 step)
+  // (fix1020c3: one talk with えんまい or すまこ starts it, so there is no 「もう いっぺん」 step)
   if (!flag('flag_ch3_ichiba_start')) return KH_C3.ichiba.a;
   const n = flag('flag_ch3_fucho_n');
   return n < 3 ? KH_C3.ichiba.c(3 - n) : KH_C3.ichiba.d;
@@ -112,7 +112,7 @@ function shokudoHint(): string {
     if (!flag('flag_ch3_goro_honne')) return S.b;
     return S.c;
   }
-  // ①の魚は、ナミエに話すと品になる（shokudo.ts talkNamie）
+  // ①の魚は、まさとに話すと品になる（shokudo.ts talkNamie）
   const dishes = flag('flag_ch3_teishoku_n') + (flag('flag_ch3_ichiba_done') && !flag('flag_ch3_teishoku_sakana') ? 1 : 0);
   if (dishes >= 2) return S.e;
   const n = 2 - dishes;
@@ -301,7 +301,7 @@ const DEST = new Map<string, Dest>([
   [KH_C3.tomato, [['map_hinoya', { npc: 'npc_obaa' }]]],
   [KH_C3.truck, [['map_town', { npc: 'c3_truck' }]]],
   [KH_C3.truckNap, [['map_town', { npc: 'c3_truck' }]]],
-  // (fix1020c3: ゲン or ツグミ, either starts it — ツグミ first, ゲン if she can't be seen)
+  // (fix1020c3: えんまい or すまこ, either starts it — すまこ first, えんまい if she can't be seen)
   [KH_C3.ichiba.a, [['*', { npc: 'npc_c3_seri_deshi' }], ['*', { npc: 'npc_c3_seri' }]]],
   [KH_C3.ichiba.d, [['*', { npc: 'npc_c3_seri_deshi' }], ['*', { npc: 'npc_c3_seri' }]]],
   [KH_C3.shokudo.a, [['*', { npc: 'npc_c3_shokudo' }]]],

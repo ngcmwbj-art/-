@@ -9,9 +9,9 @@
 //   3  #ffffffTTTTTfffffff#   大水槽の ホールの 上の 天窓 (7–11,3–5)（くもりガラス。乗れない）
 //   6  #ffofffffffffffffff#   古い 室外機 (3,6)
 //   8  #fhffffffffffffffhf#   排水口：南西 (2,8)（つまっている）、南東 (17,8)（通っている。くらべる 用）
-//   9  #FFFFFFFFFFFFFFFFFF#   南の ふちの 手すり（(8–12,8) から 下を のぞくと ハキコ）
+//   9  #FFFFFFFFFFFFFFFFFF#   南の ふちの 手すり（(8–12,8) から 下を のぞくと ぶろこり）
 //
-// 人は いない（ハキコは 下の 旧水族館の 前）。敵は 置かない。光は 真上の 日ざし（館の 中と 同じ 正午：
+// 人は いない（ぶろこりは 下の 旧水族館の 前）。敵は 置かない。光は 真上の 日ざし（館の 中と 同じ 正午：
 // world/umizoi.ts ch3GradeStage）。屋上の 外の 町と 海は 12:01 で 動く（雲・波の 光。絵の glow）。
 // 止まった カモメは 手すりの 線より 内側、屋上の 上で 羽を 広げた まま 宙に（12,6）。
 // 台本は events/ch3/okujou.ts、文は data/text/c3_okujou.ts、絵は art/props/okujou_art.ts。

@@ -23,7 +23,7 @@ export interface PgSecretCut {
 export const PG_SECRET_CUTS: readonly PgSecretCut[] = [
   { shot: 'pg_hoshi_yoake', at: { map: 'map_hoshimidai', x: 41, y: 44, dir: 'up' }, min: 4 * 60 + 30, note: '夜明け前の星見台。転回場の軽トラにマサルのキャベツ' },
   { shot: 'pg_ginza_asa', at: { map: 'map_town', x: 28, y: 24, dir: 'up' }, min: 7 * 60, note: '朝の夕鳴町。焼きそばのたかしに卸す' },
-  { shot: 'pg_minato_hiru', at: { map: 'map_umizoi', x: 29, y: 18, dir: 'up' }, min: 12 * 60, note: '昼の港。食堂かもめのナミエへ' },
+  { shot: 'pg_minato_hiru', at: { map: 'map_umizoi', x: 29, y: 18, dir: 'up' }, min: 12 * 60, note: '昼の港。食堂かもめのまさとへ' },
   { shot: 'pg_aq_iriguchi', at: { map: 'map_c3_aq_iriguchi', x: 6, y: 7, dir: 'left' }, min: 14 * 60 + 30, note: '旧水族館の入口。エゴがタイムカードに『休』の欄' },
 ];
 

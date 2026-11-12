@@ -87,7 +87,7 @@ export const HS_TAPE_A = `@narr
 /
 机に、手書きの 台本。{w=300}
 すみに、名前。
-『ハキコ』。
+『{name:npc_c3_uketsuke}』。
 @npc_kanenari
 館の 前を {w=300}
 掃いとる 人や。`;
@@ -98,7 +98,7 @@ export const HS_TAPE_PLAY = `@narr
 押した。`;
 
 /** 10年前の テープの 声（館じゅうの スピーカーから）。 */
-export const HS_TAPE_VOICE = `@ハキコ（テープ）:c3_uketsuke_tape
+export const HS_TAPE_VOICE = `@{name:npc_c3_uketsuke}（テープ）:c3_uketsuke_tape
 ……本日を もちまして、{w=300}
 閉館 いたします。
 /
@@ -267,7 +267,7 @@ export const HS_OFF = `@narr
 止まった。
 /
 台本の すみに、{w=300}
-ハキコの 字。
+{name:npc_c3_uketsuke}の 字。
 /
 『終わりの チャイムまでが、{w=300}
 放送です。』`;
@@ -281,7 +281,7 @@ export const HS_OFF_KN = `@npc_kanenari
 わいが 言う ことや
 ないな。`;
 
-/** かくし：屋上の 手すりから ハキコを 見ている（flag_oj_talk）。 */
+/** かくし：屋上の 手すりから ぶろこりを 見ている（flag_oj_talk）。 */
 export const HS_OKUJOU_KN = `@npc_kanenari
 ……屋上から 見えた {w=300}
 ほうきの 人の
@@ -316,8 +316,8 @@ export const HS_ISU = `@narr
 export const HS_S18_KN = `@npc_kanenari
 ……下がったな。`;
 
-/** S25 の 回廊で、来た 人の 中の ハキコ（済ませた あと。吹き出し、／で 2つ）。 */
-export const HS_S25_HAKIKO = '……チャイム、／下がって おりましたね。';
+/** S25 の 回廊で、来た 人の 中の ぶろこり（済ませた あと。吹き出し、／で 2つ）。 */
+export const HS_S25_HAKIKO = '♪……チャイム、／下がって いましたね。';
 
 // ================================================================ 大写し・帳面
 

@@ -19,7 +19,7 @@ import { c3Stage, knOnce, pickC3, say3 } from './common';
 
 // ---------------------------------------------------------------- the people (3.2)
 
-/** Talk tables by npc id (the 干物屋 couple share one, so do the three children). */
+/** Talk tables by npc id (the 干物屋 brothers share one, so do the three children). */
 const TABLE_OF: Record<string, string> = {
   npc_c3_himono_otto: 'npc_c3_himono',
   npc_c3_himono_tsuma: 'npc_c3_himono',
@@ -69,12 +69,12 @@ for (const id of [
 
 // 港の 市場's customer (fix1015 G2, map_c3_ichiba): a nameless one of the town — her name tag is the
 // role, and she is not in C3_NAMES (the people who come and よぶ count only those, minna.ts・yobu.ts)
-SPEAKERS.c3_ichiba_kyaku = { name: 'お客', voice: 'c3_himono_tsuma' };
+SPEAKERS.c3_ichiba_kyaku = { name: 'お客', voice: 'c3_ichiba_kyaku' };
 registerScript('c3_ichiba_kyaku', function* (): Co {
   yield* talkC3('c3_ichiba_kyaku');
 });
 
-// ミナト stays up the tower till S12 (60 3.2): if a map stands him at its door, the door's paper speaks
+// ふーちゃん stays up the tower till S12 (60 3.2): if a map stands him at its door, the door's paper speaks
 registerScript('npc_c3_sirenban', function* (): Co {
   yield* say3(C3_OBJ.obj_c3_siren_zaishitsu.text);
 });

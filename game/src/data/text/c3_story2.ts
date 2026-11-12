@@ -8,20 +8,24 @@
 
 import { c3Name, fillNames } from './c3_names';
 
-/** The first letter of ミナト's name (written on his glasses). */
+/** The first letter of ふーちゃん's name (written on his glasses). */
 const MI = c3Name('npc_c3_sirenban').slice(0, 1);
 
 // ================================================================ 10.7 S07 ① 市場
 
-/** 〔evt_ch3_ichiba〕ツグミに2回目に話したとき。 */
+/** 〔evt_ch3_ichiba〕すまこに2回目に話したとき。 */
 export const S07_START = `@npc_c3_seri_deshi
-……セリは、買い手の 手を
-見るんです。{w=300}
-指の 形が、値段。
+セリはね、買い手の 手を
+見るんよ！{w=300}
+指の 形が、値段なんよ！
 /
 でも、師匠の 符丁ノートが
-ばらばらに なって。{w=300}
-……わたし、まだ 読めんのです。
+ばらばらに なってねえ！{w=300}
+わたし、まだ 読めんのよ。
+/
+それに わたし、セリの 台に
+立つと、声が 出んのよ。{w=300}
+……ふだんは、この 声なのに。
 @npc_kanenari
 ほな、わいらで
 拾うて きたるわ。`;
@@ -45,20 +49,23 @@ ${f.hand}……『${f.word}』。
 符丁ノートの 切れはしを 拾った！\n切れはし ${n}/5`;
 }
 
-/** 3枚までのあいだ、ツグミにもう一度話すと（E 作）。 */
+/** 3枚までのあいだ、すまこにもう一度話すと（E 作）。 */
 export const S07_MORE = `@npc_c3_seri_deshi
-……もう 少し、集めて
-みて ください。{w=300}
-市場の あちこちに、あるはず。`;
+もう ちょっと、集めて
+みてちょうだい！{w=300}
+市場の あちこちに、あるけえ！`;
 
-/** 3枚以上でツグミに話すと〔セリ〕へ（E 作）。 */
+/** 3枚以上ですまこに話すと〔セリ〕へ（E 作）。 */
 export const S07_SERI_GO = `@npc_c3_seri_deshi
-……これだけ あれば、
-読めるかも しれません。
+これだけ あれば、
+読めるかも しれんねえ！
+/
+……でも、台の 上じゃ
+わたし、声が 出んけえ。
 /
 わたしの 横で、
 いちばん 高い 人に、
-札を 上げて ください。`;
+札を 上げて ちょうだい。`;
 
 /** セリの はじめ（E 作）。買い手3人が前に立つ。 */
 export const S07_SERI_BUYERS = `@narr
@@ -80,7 +87,7 @@ export const S07_SERI_MADAM = `@npc_madam
 ……手の 合図は、
 大きい ほうが すてきよ。`;
 
-/** セリの3回：買い手（0 ナミエ 1 ホシミ 2 ヒロスケ）の指（FUCHO の番号）。いちばん高い人が正しい。 */
+/** セリの3回：買い手（0 まさと 1 シェフ次郎 2 ヒロスケ）の指（FUCHO の番号）。いちばん高い人が正しい。 */
 export const SERI_ROUNDS: { hands: [number, number, number]; best: number }[] = [
   { hands: [0, 2, 1], best: 1 },
   { hands: [2, 1, 3], best: 2 },
@@ -92,7 +99,7 @@ export const SERI_BUYER_NAMES = ['{name:npc_c3_shokudo}', '{name:npc_c3_himono_t
 /** 1回の セリの 見出し（E 作）。 */
 export function seriAsk(round: number): string {
   return `@npc_c3_seri_deshi
-${round + 1}回目。{w=300}……手を、見て ください。`;
+……${round + 1}回目。{w=300}……手を、見て ください。`;
 }
 /** 手の形の1行（切れはしで意味が分かれば『…』、なければ『？』）。 */
 export function seriHandLine(buyer: number, hand: number, known: boolean): string {
@@ -133,16 +140,17 @@ export const S07_UTTA_B = `@npc_c3_seri
 ……ひゃく……{w=300}
 ……いや。
 /
-……わしより、ええ 声じゃ。
+……おれより、ええ 声や。
 @npc_kanenari
 師匠に ほめられたで！
 @npc_c3_seri_deshi
 ……あ。{w=300}
-……あの、これ。
+あらまあ、出たわ！{w=300}
+……あ、そうそう、これ！
 /
-市場の 割り箸です。{w=300}
+市場の 割り箸よ。{w=300}
 今日の 魚、{name:npc_c3_shokudo}さんの
-店に 届きます。`;
+店に 届くけえね！`;
 
 export const S07_GOT_HASHI = `@sys
 割り箸を 受けとった！
@@ -155,13 +163,13 @@ export const S07_KOUIKA = `@npc_hirosuke
 
 // ================================================================ 10.8 S08 ② 食堂かもめ
 
-/** 〔evt_ch3_shokudo〕ゴロウの本音のあと、ナミエに話す。 */
+/** 〔evt_ch3_shokudo〕こねぎの本音のあと、まさとに話す。 */
 export const S08_START_A = `@npc_c3_shokudo
 ……え？ はっち先生の？{w=300}
 あんた、はっち先生の
 教え子の 教え子かい！
 /
-わたしも、2年 教わったのよ。
+おれも、2年 教わったんよ。
 {w=300}赤ペンの はなまる、
 もらいそこねたけど。`;
 
@@ -173,15 +181,19 @@ export const S08_OBAA = `@npc_obaa
 先生！？`;
 
 export const S08_START_B = `@npc_c3_shokudo
-ねえ、手伝って くれる？
+なあ、手伝って くれんか？
 {w=300}最後の 日替わり、
 黒板が 空白 なんよ。
 /
+おやじが、体を こわしてな。
+{w=300}この 店を 始めた 人じゃ。
+そばに おって やりたいんよ。
+/
 今日の 魚と、何か 1品。
 ……町じゅうの 物で、
-最後の 定食を 作りたいの。`;
+最後の 定食を 作りたいんじゃ。`;
 
-/** 定食の品（60 10.8 の表。台詞はナミエ）。 */
+/** 定食の品（60 10.8 の表。台詞はまさと）。 */
 export const TEISHOKU = {
   sakana: { name: '煮つけの 魚', nami: `@npc_c3_shokudo
 これこれ、今日の 魚！` },
@@ -205,12 +217,12 @@ export function teishokuGot(name: string, n: number): string {
 
 /** 2品に足りないとき（E 作。5.4「もう 少し 集めて みて」）。 */
 export const S08_MORE = `@npc_c3_shokudo
-あと 1品、ほしいねえ。
+あと 1品、ほしいなあ。
 {w=300}干物屋さんの 言い合い、
-止めて きて くれる？`;
+止めて きて くれんか？`;
 export const S08_MORE_SAKANA = `@npc_c3_shokudo
 魚は、市場の セリが
-終わらんと 届かんのよ。
+終わらんと 届かんのじゃ。
 {w=300}ほかの 物でも ええよ。`;
 
 /** 干物屋（〔c1_2〕S08 の材料。60 10.8：選択肢「どっちも ほどよい」で止める。E 作）。 */
@@ -249,10 +261,10 @@ export const KITA_COFFEE = `@npc_master
 食堂さんに 届けて ください。
 {w=300}豆は、タケじいの。`;
 
-/** 盛りつけ（台所。ナミエの指示で皿を置く。並べ方は ふつうの 和食の 置き方。E 作）。 */
+/** 盛りつけ（台所。まさとの指示で皿を置く。並べ方は ふつうの 和食の 置き方。E 作）。 */
 export const MORI_INTRO = `@npc_c3_shokudo
-さ、盛りつけよ。{w=300}
-置く 所、まちがえんでね。
+さ、盛りつけじゃ。{w=300}
+置く 所、まちがえんでな。
 @npc_kanenari
 足、14本 あるからな。
 {w=300}……手は 2本や。`;
@@ -271,7 +283,7 @@ export const MORI_OK = `@npc_c3_shokudo
 そう、そこ！`;
 export const MORI_NG = `@npc_c3_shokudo
 おしい！{w=300}
-……ここよ、ここ。`;
+……ここじゃ、ここ。`;
 export const MORI_DONE = `@narr
 最後の 日替わり定食が、
 カウンターに 並んだ。`;
@@ -290,7 +302,7 @@ export const S08_NABE = `@narr
 台所の 大鍋の ふたが、
 ガタガタ 鳴りだした。
 @npc_c3_shokudo
-あらあら、また……。{w=300}
+おっとっと、また……。{w=300}
 おかわり、あるよ！
 @npc_kanenari
 鍋が 言うとるんかい！`;
@@ -306,14 +318,15 @@ export const S08_GOCHISOU_B = `@narr
 おしまいじゃ なくて、
 ありがとう なんだね。`;
 export const S08_GOCHISOU_C = `@npc_c3_shokudo
-40年、ありがとう ございました。
+おやじの 代から 40年、
+ありがとう ございました。
 @npc_c3_jouren
 明日から、わしが 船で
 弁当を 作るわい。{w=300}
 ……まずいぞ。
 @npc_c3_shokudo
-あはは！{w=300}
-しょうゆは、ひかえめにね。`;
+わっはっは！{w=300}
+ごはんは、3合じゃ 足らんよ。`;
 /** かずゆきが来ていれば（S08 のしめ。60 3.4。E 作）。 */
 export const S08_COFFEE = `@npc_master
 食後の コーヒーです。
@@ -325,7 +338,7 @@ export const S08_GOT_GASSHO = `@sys
 /** 60 10.8 の注。 */
 export const S08_OUTSIDE = `@npc_c3_shokudo
 ……店の 中だけ、正午が
-終わった みたい。`;
+終わった みたいじゃ。`;
 
 // ================================================================ 10.9 S09 ③ 海水浴場
 
@@ -420,11 +433,11 @@ export const S09_TERU = `@npc_c3_toudai
 灯台の 上へ おいで。
 {w=300}レンズの みがき方、
 教えて あげる。`;
-/** ブレスレットを まだ 見つけていないとき、ウミにまた話すと（E 作）。 */
+/** ブレスレットを まだ 見つけていないとき、やおちゃんにまた話すと（E 作）。 */
 export const S09_MAGO_WAIT = `@npc_c3_mago
 ……貝の ブレスレット。
 {w=300}白い 貝が、7つ。`;
-/** レンズのあいだ、ウミにまた話すと（E 作）。 */
+/** レンズのあいだ、やおちゃんにまた話すと（E 作）。 */
 export const S09_MAGO_LENS = `@npc_c3_mago
 波が もどったら、
 入れる 気が する。`;
@@ -499,10 +512,10 @@ export const S09_FIN_D = `@npc_c3_kanshiin
 海の 家の お昼！{w=300}
 {name:npc_c3_kanshiin}兄ちゃんが、笛で
 合図 したもん！`;
-/** 来ていれば：さや（「最後の 海」の絵をウミに見せる。60 3.4。E 作）。 */
+/** 来ていれば：さや（「最後の 海」の絵をやおちゃんに見せる。60 3.4。E 作）。 */
 export const S09_SAE = `@npc_sae
 『最後の 海』、描けた。
-{w=300}……{name:npc_c3_mago}ちゃん、
+{w=300}……{name:npc_c3_mago}、
 まん中に 入れといたよ。`;
 export const S09_GOT_KOE = `@sys
 部品③『いただきます の 声』が
@@ -533,7 +546,7 @@ export const KITA_LINE: Record<string, string> = {
   npc_tsurumi: '本官、休暇で あります！\n……鉄棒は、ありますか！',
   npc_sae: '海の 絵、描きに 来た。\n……13枚目、まだ 題が ないの。',
   npc_ojii: 'みかんの 斜面が あると、\n聞いてな。',
-  npc_tamotsu: '海の ぬし。……待つ 釣りは、\n海でも できる。',
+  npc_tamotsu: '父さんの 釣り、見に 来た。\n……待つ 釣りは、海でも できる。',
   npc_tokio: '町の 時計が、ぜんぶ 12時。\n見て おきたくて。',
   npc_master: '海の 店、1日だけ 出します。\n豆は、タケじいの。',
   npc_madam: 'コタロウ、海は はじめてよ。\n……日傘、正解ね。',
@@ -608,11 +621,11 @@ export const S11_GOT = `@sys
 ハンコ『いただきます』を
 手に 入れた！`;
 export const S11_C = `@npc_c3_shokudo
-{c=#E23B2E}サイレン塔{/c}の {name:npc_c3_sirenban}さん、
+{c=#E23B2E}サイレン塔{/c}の {name:npc_c3_sirenban}、
 最後の 1回を、押したまま
-はなせずに いるの。
+はなせずに おるんよ。
 /
-……行って あげて。`;
+……行って やって くれ。`;
 /** 部品がそろう前に食堂に入ると（2つまで。E 作）。 */
 export const S11_PARTS_NOT_YET = `@npc_kanenari
 部品、あと いくつや？`;
@@ -718,7 +731,7 @@ export const S14_A = `@npc_tsugao
 防波堤から、{name:npc_c3_shokudo}の 声。
 @npc_c3_shokudo
 あんたらの ぶん、
-とっとくからね！`;
+とっとくけえね！`;
 export const S14_KAIRAN = `@narr
 野菜の かごの 下に、
 黒い 回覧板。
@@ -817,17 +830,20 @@ export const C3_OBJ2: Record<string, { text: string; after?: string }> = {
 export const C2_TALK: Record<string, string> = {
   npc_c3_shokudo: `@npc_c3_shokudo
 のれん、下ろしたら、
-肩が かるう なったわ。{w=300}
-……ふしぎ じゃね。`,
+肩が かるう なった。{w=300}
+……ふしぎ じゃね。
+/
+あしたからは、おやじの
+そばで 飯を 作るんよ。`,
   npc_c3_jouren: `@npc_c3_jouren
 明日から、わしが 船で
 弁当を 作るわい。{w=300}
 ……まずいぞ。`,
   npc_c3_seri: `@npc_c3_seri
-……わしより、ええ 声じゃ。`,
+……おれより、ええ 声や。`,
   npc_c3_seri_deshi: `@npc_c3_seri_deshi
 明日の 朝も、
-わたしが 言います。`,
+わたしが 言うけえね！`,
   npc_c3_mago: `@npc_c3_mago
 来年の 最初の 海、
 いっしょに 入ろうね。
@@ -841,12 +857,16 @@ export const C2_TALK: Record<string, string> = {
 ちょうど ええのが できた。
 @npc_c3_himono_tsuma
 ほどよい！{w=300}
-……あんたが 言うな！`,
-  // ミナト（段階2：防波堤の根元。E 作）
+……兄貴が 言うな！`,
+  // ふーちゃん（段階2：防波堤の根元。E 作）
   npc_c3_sirenban: `@npc_c3_sirenban
 明日からは、チャイムじゃ。
 {w=300}……正午は、ちゃんと
-来るけえ、ええ。`,
+来るけえ、ええ。
+/
+春の タケノコ 掘りも、
+正午までに 山を 下りよった。
+{w=300}……来年は、昼まで 掘れる。`,
   // 子どもたち（段階2。E 作）
   npc_c3_kid: `@npc_c3_kid_a
 昼休み、終わった！
@@ -867,7 +887,7 @@ export const RETURN_KA = `@npc_kanenari
 看板の『か』、海に
 落ちとったで。
 @npc_c3_shokudo
-あら！{w=300}
+おっ！{w=300}
 ……これで『かもめ』に もどるね。`;
 export const RETURN_SHIKAKE = `@npc_c3_tsuri
 ……わしの 仕掛けじゃ。
@@ -960,7 +980,7 @@ export function c3Texts2(): Record<string, unknown> {
     s09: {
       S09_START, S09_WHERE, DIVE_ASK, DIVE_NOT_YET, MOGURI, UMI_UP_ASK, MOGURI_DARK, S09_BRACELET, S09_TERU, S09_MAGO_WAIT, S09_MAGO_LENS,
       LENS_TERU, LENS_FUMI, LENS_MISS, LENS_AGAIN, LENS_DONE, LENS_GEN, S09_FIN_A, S09_FIN_B, S09_FIN_C, S09_FIN_D, S09_SAE, S09_GOT_KOE,
-      got: ['『か』の 字', 'ミナトの めがね', '切れた 仕掛け', '貝の ブレスレット'].map(moguriGot),
+      got: ['『か』の 字', `${c3Name('npc_c3_sirenban')}の めがね`, '切れた 仕掛け', '貝の ブレスレット'].map(moguriGot),
     },
     lens,
     s10: { BIN_FIRST, BIN_AGAIN, YOSHIE_TEA, shop: Object.values(OBAA_SHOP).flat().map((t) => `@npc_obaa\n${t}`) },

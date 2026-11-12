@@ -9,7 +9,7 @@
 //  - where it moves: everywhere at 12:01 (flag_ch3_stage 2+); before that,
 //    S09's lens wakes the sea round each spot the light hits
 //    (flag_ch3_lens_n: the harbour's mouth, outside the breakwater, off the
-//    beach) and after the third the whole beach's sea (ウミの「入れる海」);
+//    beach) and after the third the whole beach's sea (やおちゃんの「入れる海」);
 //  - fx_c3_ugokidasu: the ring from the siren tower across the town (about
 //    3 s to the edges); what it has passed moves (startUgokidasu(): S12's
 //    scene calls it on map_umizoi; it also runs by itself when the stage turns

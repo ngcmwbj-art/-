@@ -1,5 +1,5 @@
 // bgm_boss_nariosame — 中ボス2：ナリオサメ (63_ch3_audio 5.3). 126.
-// The retiring noon siren that does not want to finish sounding, and ミナト
+// The retiring noon siren that does not want to finish sounding, and ふーちゃん
 // who cannot lift his finger off the button. Not frightening: lonely and a
 // little comic — the siren clinging to its own voice. Over the band its
 // voice (ins_siren) climbs in long glissandi and is cut each time it gets to

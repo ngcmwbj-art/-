@@ -2769,7 +2769,7 @@ const BEATS3 = [
       await advance({ label: 'kaito' });
       await need(['flag_ch3_kaisui_start'], 'S09 start');
       // into the sea from the beach: グソっ君 alone
-      // to the water's edge beside ウミ (she stands on (60,30)); the dive asks when pushing south
+      // to the water's edge beside やおちゃん (she stands on (60,30)); the dive asks when pushing south
       // from the edge (a run that bumps into the sea on the way has its question answered
       // already — that is where we were going)
       await travel(62, 30).catch(async (e) => {

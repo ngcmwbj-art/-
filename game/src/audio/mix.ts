@@ -168,7 +168,7 @@ export const SE_LOUD_TARGET: Record<string, number> = {
   se_h_ressha: -21,
   // 63 10.2: the one full siren over a silent song — under chapter 1's 17:00 chime at the tower's top (d 0)
   se_c3_siren_full: -15,
-  // ゴロウ's 「ごちそうさま。」 and the children's 「いただきます」: a voice-sized tune over the town's song
+  // こねぎ's 「ごちそうさま。」 and the children's 「いただきます」: a voice-sized tune over the town's song
   se_c3_gochisou: -20,
   se_c3_part_koe: -20,
   se_c3_hanko_float: -19,
@@ -577,7 +577,7 @@ export const VOICE_TRIM: Record<string, number> = {
   h_driver: 17, h_kucho: 14, h_yoshie: 17, h_fumi: 14, h_mitsu: 16, h_gen: 12.5, h_tome: 16, h_sawako: 18,
   // chapter 3 (audioMixSuggest on samples.ts' everyday lines)
   c3_shokudo: 11, c3_jouren: 14.5, c3_seri: 14.5, c3_seri_deshi: 18, c3_sirenban: 19, c3_toudai: 16, c3_mago: 15,
-  c3_kanshiin: 18, c3_himono_otto: 15, c3_himono_tsuma: 14, c3_tsuri: 14.5, c3_uketsuke: 16, c3_kid: 18.5,
+  c3_kanshiin: 18, c3_himono_otto: 15, c3_himono_tsuma: 14, c3_tsuri: 14.5, c3_uketsuke: 16, c3_ichiba_kyaku: 14, c3_kid: 18.5,
   c3_kid_a: 18.5, c3_kid_b: 18, c3_kid_c: 17.5,
   nariosame: 6.5, okawarinabe: 17.5,
   // the third period: the variants keep their parent's trim so their own ×0.7 / ×1.4 is heard

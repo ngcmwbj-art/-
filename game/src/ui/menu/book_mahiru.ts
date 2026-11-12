@@ -25,6 +25,8 @@ const PH_W = 30;
 const PH_H = 34;
 /** 写真の 間（2枚 ずつ 2段）。 */
 const COL = 70;
+/** 4枚目だけ 少し 右へ（左の 名前「やおちゃん」が 長い。2026-11-12）。 */
+const COL4 = 84;
 const ROW = 56;
 
 /** 1枚の 写真（白い ふち、顔、下に 名前と ちょうど／惜しい）。 */
@@ -55,7 +57,7 @@ export function drawMhPage(g: Gfx, x: number, y: number, w: number): void {
     ['teru', 'npc_c3_toudai'],
     ['umi', 'npc_c3_mago'],
   ] as const;
-  // two by two: カイト・テル / ウミ・（4枚目）
+  // two by two: よっしー・テル / やおちゃん・（4枚目）
   const at = (i: number): [number, number] => [x + (i % 2) * COL, ly + Math.floor(i / 2) * ROW];
   who.forEach(([k, id], i) => {
     const r = shotOf(k);
@@ -66,7 +68,8 @@ export function drawMhPage(g: Gfx, x: number, y: number, w: number): void {
     pageText(g, MH_BOOK.marks[r === 1 ? 0 : 1], px + PH_W + 2, py + 1, { color: r === 1 ? UI.accent : UI.pencil });
   });
   if (shotOf('four')) {
-    const [px, py] = at(3);
+    const [, py] = at(3);
+    const px = x + COL4;
     photo(g, px, py, MH_BOOK.names[3], [['minato'], ['kanenari', 'happy']], 1);
   }
   pageText(g, MH_BOOK.pencil, x + 4, ly + ROW * 2, { color: UI.pencil });
@@ -79,7 +82,11 @@ export function mhBookCheck(): { pages: number; bad: string[] } {
   if (row.lines.length > 2 || row.forced) bad.push(`一覧: ${row.lines.join('／')}`);
   const room = RP.w - 6;
   if (textW(MH_BOOK.title) > room) bad.push(`${MH_BOOK.title}: ${textW(MH_BOOK.title)}px`);
-  for (const n of MH_BOOK.names) if (textW(n) > COL - 4) bad.push(`${n}: ${textW(n)}px`);
+  // 左の 列は 右の 写真まで、右の 列は ページの はしまで（4枚目は COL4）
+  const lim = [COL - 4, room - COL, COL4 - 4, room - COL4];
+  MH_BOOK.names.forEach((n, i) => {
+    if (textW(n) > lim[i]) bad.push(`${n}: ${textW(n)}px`);
+  });
   for (const m of MH_BOOK.marks) if (COL + PH_W + 2 + textW(m) > room) bad.push(`mark ${m}: wide`);
   if (4 + textW(MH_BOOK.pencil) > room) bad.push(`${MH_BOOK.pencil}: wide`);
   if (PH_H + 1 + 16 > ROW) bad.push('写真と 名前が 次の 段に かかる');

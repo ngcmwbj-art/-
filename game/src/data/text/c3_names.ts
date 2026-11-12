@@ -5,7 +5,7 @@
 // c3Name() / fillNames() が表示名に置きかえる。名前を変えたら、文の検査
 // （__game.cmd.textcheck2()・wrapCheck()）をやりなおす。
 //
-// 名札と地の文では、名前に「さん」をつけない（台詞の中の「ナミエさん」はよい）。
+// 名札と地の文では、名前に「さん」をつけない（台詞の中の「まさとさん」はよい）。
 
 export const C3_NAMES: Record<string, string> = {
   npc_c3_shokudo: 'まさと',

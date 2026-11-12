@@ -3,22 +3,22 @@
 // みました帳の ページは ui/menu/book_kori.ts。調べ物（$SP/research/koori.md）に 合わせた 直しは 文の ファイルの 頭。
 //
 //   段階1（S07 の あと〜S12）：前ぶれ。荷さばき場の 製氷機 (39–40,19)（氷が 宙で 止まる。グソっ君「浮いとる」）→
-//     市場の 中の ツグミに 話すと、いつもの 文の あと「サイレンが 鳴り終わったら」（1回）。蔵の 戸の 札『製氷中』。
+//     市場の 中の すまこに 話すと、いつもの 文の あと「サイレンが 鳴り終わったら」（1回）。蔵の 戸の 札『製氷中』。
 //   段階2、S13 の あと（flag_ch3_got_gochisou）から S14 の 前まで（flag_ch3_truck_trap）：
-//   ・市場の 口の ゲン (9,24)・ツグミ (12,24)：いつもの〔c2〕の あと、もう 1回 話すと〔kori〕（flag_kr_start）。
-//     遊べる あいだ、ゲンの 頭の 上に「！」（addMarkSource）。始まった あとは 蔵の 戸の 上に「！」。
+//   ・市場の 口の えんまい (9,24)・すまこ (12,24)：いつもの〔c2〕の あと、もう 1回 話すと〔kori〕（flag_kr_start）。
+//     遊べる あいだ、えんまいの 頭の 上に「！」（addMarkSource）。始まった あとは 蔵の 戸の 上に「！」。
 //   ・暗転で 蔵の 戸の 前 (45,24)（2人も そこへ）→ 135キロ → 戸の 暗転で map_c3_kori (7,8)。
 //   ・蔵：息が 白い、グソっ君に 防寒着（よろいの 上に よろい）、機械の 決まり。
 //   ・角氷 3本（1本ずつ）：積み場 (1–4,2) を 調べる → 鉤で 引いて 氷道の 口 (2,4)。分かれ道 A (4,4)・B (7,7) と
-//     止め板 (8,4)・(9,7) を しゅんが 動かす → プッシャー (1,4) の レバー → ツグミの 合図（だんだん 大きく）→
+//     止め板 (8,4)・(9,7) を しゅんが 動かす → プッシャー (1,4) の レバー → すまこの 合図（だんだん 大きく）→
 //     角氷は 氷道を すべって、砕く 機械の 口 (14,4) まで つながって いれば 砕ける。行き止まり (7,6) か、
-//     下りた 止め板の 前で 止まったら、ゲン「……もどすか。」で 口へ もどす（何度でも。失敗に しない）。
-//     すべる 先に しゅん（グソっ君）が いたら ゲン「前に 立つな！」で 1歩 よける。
-//     1本目 まっすぐ・2本目 ゲンが 分かれ道を 2つ 変える・3本目 分かれ道と 止め板 2つ（2か所 直す）。
-//     苦手な 人の 逃げ道：蔵の ゲンに 2回 話すか、1回 止めて しまうと「わしが、道を 合わせるか？」。
+//     下りた 止め板の 前で 止まったら、えんまい「……もどすか。」で 口へ もどす（何度でも。失敗に しない）。
+//     すべる 先に しゅん（グソっ君）が いたら えんまい「前に 立つな！」で 1歩 よける。
+//     1本目 まっすぐ・2本目 えんまいが 分かれ道を 2つ 変える・3本目 分かれ道と 止め板 2つ（2か所 直す）。
+//     苦手な 人の 逃げ道：蔵の えんまいに 2回 話すか、1回 止めて しまうと「わしが、道を 合わせるか？」。
 //   ・3本 すんだら 暗転で 荷さばき場（砕いた 氷の 山）→ 明日の 朝 → 朱肉 +2、『かち割り』2つ、帳面③の すみ。
-//   ・かくし：3本目を もどさず 手伝いなしで（ゲン「……ええ 手じゃ」）、来た マサル（荷さばき場へ）、
-//     『かち割り』を 持って 食堂かもめの 前の ナミエ。
+//   ・かくし：3本目を もどさず 手伝いなしで（えんまい「……ええ 手じゃ」）、来た マサル（荷さばき場へ）、
+//     『かち割り』を 持って 食堂かもめの 前の まさと。
 //   S15 から 先と クリア後は 足さない（蔵の 戸は 札『本日 休み』だけ）。
 //
 // QA：__game.cmd.kori(step)、krState()、krSolve()、krText()
@@ -68,7 +68,7 @@ export const KRF = {
   ita1: 'flag_kr_ita_1',
   /** プッシャーを 押した 回数（帳面）。 */
   push: 'flag_kr_push',
-  /** その 本で 止めて しまった 回数・ゲンに ヒントを 聞いた・もどした・手伝って もらった。 */
+  /** その 本で 止めて しまった 回数・えんまいに ヒントを 聞いた・もどした・手伝って もらった。 */
   miss: 'flag_kr_miss',
   hint: 'flag_kr_hint',
   modo: 'flag_kr_modo',
@@ -163,7 +163,7 @@ function krAway(): boolean {
     if (r && r[TO[0]] === 'W') {
       def.rows[TO[1]] = r.slice(0, TO[0]) + 'D' + r.slice(TO[0] + 1);
     }
-    // ゲン and ツグミ at the auction floor's mouth are in the cold store meanwhile
+    // えんまい and すまこ at the auction floor's mouth are in the cold store meanwhile
     for (const o of def.objects) {
       if (o.t !== 'npc' || (o.id !== SERI && o.id !== DESHI)) continue;
       const c = (o.cond ?? {}) as Record<string, unknown>;
@@ -258,7 +258,7 @@ export function route(): Route {
   return { path, end: 'hashi' };
 }
 
-/** 段ごとに ゲンが 置く 道（1本目 そのまま、2本目 分かれ道 2つ、3本目 分かれ道 2つと 止め板 2つ）。 */
+/** 段ごとに えんまいが 置く 道（1本目 そのまま、2本目 分かれ道 2つ、3本目 分かれ道 2つと 止め板 2つ）。 */
 function setRound(n: number): void {
   setFlag(KRF.sw0, n >= 1 ? 1 : 0);
   setFlag(KRF.sw1, n >= 1 ? 1 : 0);
@@ -488,7 +488,7 @@ function* osu(): Co {
   yield* modosuAsk();
 }
 
-/** ゲン「……もどすか。」 */
+/** えんまい「……もどすか。」 */
 function* modosuAsk(): Co {
   const f = field();
   const a = f?.actorById(KAKU);
@@ -532,7 +532,7 @@ function* nextRound(done: number): Co {
     se('se_c3_nidai_gata', { vol: 0.4 });
     return;
   }
-  // the third: without pulling it back and without help → ゲン's words (once)
+  // the third: without pulling it back and without help → えんまい's words (once)
   if (!flag(KRF.modo) && !flag(KRF.help) && !flag(KRF.miss) && !flag(KRF.eete)) {
     setFlag(KRF.eete, 1);
     yield* say3(T.KR_EETE);
@@ -546,7 +546,7 @@ function* nextRound(done: number): Co {
 /** 1・2 市場の 口の 2人（〔kori〕）。 */
 for (const who of [SERI, DESHI])
   wrap(who, function* (_ctx, orig): Co {
-    // 段階1 の 前ぶれ：製氷機を 見た あと、市場の 中の ツグミ（1回）
+    // 段階1 の 前ぶれ：製氷機を 見た あと、市場の 中の すまこ（1回）
     if (who === DESHI && inCh3() && !pgOn() && c3Stage() === 1 && onMap('map_c3_ichiba') && flag('flag_ch3_ichiba_done') && flag(KRF.pre) && !flag(KRF.tsugumi1)) {
       yield* orig();
       setFlag(KRF.tsugumi1, 1);
@@ -709,7 +709,7 @@ registerScript('obj_kr_kakekugi', function* (): Co {
   yield* say3(T.KR_KAKEKUGI);
 });
 
-/** 蔵の ゲン：止まって いれば もどす。ヒント、2回目からは 手伝い（逃げ道）。 */
+/** 蔵の えんまい：止まって いれば もどす。ヒント、2回目からは 手伝い（逃げ道）。 */
 registerScript('kr_gen', function* (): Co {
   if (!inKura()) return;
   const n = Math.min(2, flag(KRF.n));
@@ -798,7 +798,7 @@ function* asa(): Co {
   yield* game.fadeIn(300);
 }
 
-/** 食堂かもめの ナミエ（かち割りを 持って、段階2、1回）。 */
+/** 食堂かもめの まさと（かち割りを 持って、段階2、1回）。 */
 wrap('npc_c3_shokudo', function* (_ctx, orig): Co {
   yield* orig();
   if (inCh3() && !pgOn() && c3Stage() === 2 && state.inventory.includes(KACHIWARI) && !flag(KRF.namie)) {
@@ -823,7 +823,7 @@ function solve(): void {
  * QA: __game.cmd.kori(step = 'start')
  *   'c1'     段階1、荷さばき場の 製氷機の 前 (40,20) 上向き（前ぶれ）
  *   'c1to'   段階1、蔵の 戸の 前 (45,24) 上向き（札『製氷中』）
- *   'start'  段階2、〔c2〕の あと、市場の 口の ゲンの 前 (9,25) 上向き（話すと〔kori〕）
+ *   'start'  段階2、〔c2〕の あと、市場の 口の えんまいの 前 (9,25) 上向き（話すと〔kori〕）
  *   'in'     始まった あと、蔵の 南の 戸の 上 (7,8)（入った ときの 1回）
  *   'r0'     決まりの あと、積み場の 前 (3,3) 上向き（1本目）
  *   'r1'     1本 すんだ あと（2本目。分かれ道 2つ 変わっている）、積み場の 前
@@ -831,7 +831,7 @@ function solve(): void {
  *   'push'   'r2' で 角氷を 口に 出して、プッシャーの 前 (1,3) 下向き
  *   'asa'    3本 すんだ ところから「明日の 朝」（荷さばき場）の 場面
  *   'done'   すんだ あと、段階2 の 荷さばき場 (40,21) 上向き
- *   'namie'  すんだ あと、かち割りを 持って 食堂かもめの ナミエの 前
+ *   'namie'  すんだ あと、かち割りを 持って 食堂かもめの まさとの 前
  */
 if (import.meta.env.DEV) {
   registerDebug('kori', (step = 'start') => {
