@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CRATE } from './world.js';
 import { paprikaVariants, paprikaStem, paprikaMaterial, paprikaStemMaterial, PAPRIKA_COLORS } from './paprika.js';
 import { rand } from './util.js';
+import { regLo } from './lod.js';
 import * as TX from './textures.js';
 
 const SPH = new THREE.SphereGeometry(1, 24, 16);
@@ -15,6 +16,8 @@ function mesh(geo, mat, shadow = true) {
 }
 // 体の軸が前後（z）を向いた球（UV の縦方向が前後になる）
 const SPH_Z = (() => { const g = new THREE.SphereGeometry(1, 28, 20); g.rotateX(Math.PI / 2); return g; })();
+// 省エネ用のあらい丸（ゴキブリの体・脚の節など）
+regLo(SPH_Z, (() => { const g = new THREE.SphereGeometry(1, 12, 9); g.rotateX(Math.PI / 2); return g; })());
 
 // 共有の素材（毎回作るとメモリを食うので使い回す）
 let RM = null;

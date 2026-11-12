@@ -5,6 +5,7 @@
 // ・太く曲がった緑の軸と、星形にひろがるがく。軸の切り口は明るい黄緑
 // ・表面はロウを引いたような強いツヤ。みぞは少し暗く、ほんの少しのでこぼこ
 import * as THREE from 'three';
+import { regLo } from './lod.js';
 import { fbm, noise } from './textures.js';
 
 // 小さな決まった乱数（形のちがいを毎回同じにする）
@@ -107,6 +108,11 @@ export function paprikaVariants(seg = 32) {
     paprikaBody({ lobes: 3, tall: 1.1, seed: 3, seg }),
     paprikaBody({ lobes: 4, tall: 0.96, seed: 4, seg }),
   ];
+  // 省エネ用のあらい形（同じ形の作りかたで、細かさだけ下げる）
+  if (seg > 10) {
+    const lo = paprikaVariants(10);
+    VARIANTS[seg].forEach((g, k) => regLo(g, lo[k]));
+  }
   return VARIANTS[seg];
 }
 
@@ -138,11 +144,14 @@ function merge(list) {
 }
 
 let STEM = null;
-export function paprikaStem() {
-  if (STEM) return STEM;
+let STEM_LO = null;
+export function paprikaStem(lo = false) {
+  if (!lo && STEM) return STEM;
+  if (lo && STEM_LO) return STEM_LO;
+  const S = lo ? 0.3 : 1; // 省エネ用はまわりの分け目を3割に
   const base = TOP * 1.06 - 0.06;
   // がく：くぼみに張りつく星形
-  const calyx = new THREE.CylinderGeometry(0.13, 0.38, 0.1, 36, 2);
+  const calyx = new THREE.CylinderGeometry(0.13, 0.38, 0.1, lo ? 12 : 36, lo ? 1 : 2);
   {
     const p = calyx.attributes.position;
     for (let i = 0; i < p.count; i++) {
@@ -165,20 +174,24 @@ export function paprikaStem() {
     new THREE.Vector3(0.09, base + 0.46, 0.02),
     new THREE.Vector3(0.24, base + 0.58, 0.05),
   ]);
-  const tube = new THREE.TubeGeometry(curve, 14, 0.1, 12, false);
+  const tube = new THREE.TubeGeometry(curve, lo ? 5 : 14, 0.1, lo ? 5 : 12, false);
   setColor(tube, 0.06, 0.16, 0.03);
   // 付け根のふくらみ
-  const flare = new THREE.CylinderGeometry(0.1, 0.17, 0.1, 16);
+  const flare = new THREE.CylinderGeometry(0.1, 0.17, 0.1, lo ? 6 : 16);
   flare.translate(0, base + 0.1, 0);
   setColor(flare, 0.055, 0.15, 0.028);
   // 切り口
-  const tip = new THREE.CircleGeometry(0.099, 12);
+  const tip = new THREE.CircleGeometry(0.099, lo ? 5 : 12);
   const end = curve.getPoint(1), dir = curve.getTangent(1);
   tip.lookAt(dir);
   tip.translate(end.x, end.y, end.z);
   setColor(tip, 0.42, 0.5, 0.2);
-  STEM = merge([calyx, tube, flare, tip]);
-  STEM.computeBoundingSphere();
+  void S;
+  const out = merge([calyx, tube, flare, tip]);
+  out.computeBoundingSphere();
+  if (lo) { STEM_LO = out; return out; }
+  STEM = out;
+  regLo(STEM, paprikaStem(true));
   return STEM;
 }
 

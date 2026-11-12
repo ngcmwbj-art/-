@@ -15,6 +15,7 @@ import {
   HATS, unlockedHats, totalStars, seasonOf, SEASON_LABEL, unusedTech, PATTERN_UNLOCK, unlockedPatterns, WEEK_GOALS, weekKey, weekState,
 } from './features.js';
 import { PRANKS } from './game.js';
+import { setLowDetail, syncLo } from './lod.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -329,6 +330,7 @@ let lastDiff = 's1';
 function startGame(diff, opt = {}) {
   closeJack();
   $('blackout').hidden = true; blackoutOn = false;
+  lodT = 0; // 新しいステージの物も、すぐに軽い形へ
   resetTruck();
   sfx.unlock();
   sfx.startAmbience();
@@ -1728,8 +1730,19 @@ function targetFps() {
   if (screen === 'title' || screen === 'book') return ecoOn ? 20 : 60;
   return ecoOn ? 8 : 30; // 一時停止・結果画面
 }
+// 第22回：省エネのときは、細かい形をあらい形に・重いつやを軽いつやに（1秒ごとに新しく出た物も入れかえる）
+let lodT = 0, lodOn = false;
+function lodTick() {
+  if (ecoOn) {
+    const nowT = performance.now();
+    if (nowT >= lodT || !lodOn) { lodT = nowT + 1000; lodOn = true; setLowDetail(scene, true); }
+    syncLo();
+  } else if (lodOn) { lodOn = false; setLowDetail(scene, false); }
+}
+window.__rh.lodTick = lodTick;
 function applyEco() {
   game.eco = ecoOn;
+  lodT = 0;
   fx.maxDpr = ecoOn ? 1.1 : 9;
   // 省エネ：画面全体にかける「光のにじみ」と「色の仕上げ」を切る（いちばん重い所）
   if (fx.eco !== ecoOn) { fx.eco = ecoOn; const lv = fx.level; fx.level = null; fx.setLevel(lv); }
@@ -1778,6 +1791,7 @@ function frame(now) {
         const tA = $('tAction'); if (tA.textContent !== 'ダッシュ') tA.textContent = 'ダッシュ';
       }
       world.update(now / 1000, camera);
+      lodTick();
       fx.render(dt, 4.2, now / 1000);
       return;
     }
@@ -1864,6 +1878,7 @@ function frame(now) {
     ecoFrame++;
     renderer.shadowMap.autoUpdate = !ecoOn;
     if (ecoOn && ecoFrame % 3 === 0) renderer.shadowMap.needsUpdate = true; // 影の描きなおしは3回に1回
+    lodTick();
     fx.render(dt, focusD, tNow);
     // 名場面の写真（描いた直後に小さく撮る）
     if (game.snapRequests && game.snapRequests.length) {
