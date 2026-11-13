@@ -9,11 +9,11 @@
 import { readFileSync, statSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { PORTAL, DIST, PREVIEWS, loadGames, serveStatic, loadPlaywright, log } from './lib.mjs';
+import { PORTAL, DIST, PREVIEWS, loadGames, searchText, serveStatic, loadPlaywright, log } from './lib.mjs';
 
 const results = [];
 const check = (group, name, ok, detail = '') => results.push({ group, name, ok: !!ok, detail });
-const { games } = loadGames();
+const { games, site } = loadGames();
 
 // ── 0. 検証（validate.mjs）をもう一度
 let validateOut = '';
@@ -88,7 +88,8 @@ await playback('スマホ・WebM非対応（MP4）', { viewport: { width: 390, h
   const { ctx, page, net, errs } = await open({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const shown = await page.$$eval('.gp-card', (cards) => cards.map((c) => ({
     id: c.dataset.id, title: c.querySelector('.gp-name')?.textContent.trim(), tagline: c.querySelector('.gp-tagline')?.textContent.trim(),
-    genre: c.querySelector('.gp-genre')?.textContent.trim(), tags: [...c.querySelectorAll('.gp-tags li')].map((l) => l.textContent.trim()),
+    genre: c.querySelector('.gp-genre')?.textContent.trim(), facts: [...c.querySelectorAll('.gp-facts li')].map((l) => l.textContent.trim()),
+    caption: c.querySelector('.gp-caption')?.textContent.trim() ?? null, selfLink: c.querySelector('.gp-name a')?.getAttribute('href') ?? null,
     dev: !!c.querySelector('.gp-status'), href: c.querySelector('a.gp-cta')?.getAttribute('href') ?? null,
     target: c.querySelector('a.gp-cta')?.getAttribute('target') ?? null, disabled: c.querySelector('.gp-cta')?.getAttribute('aria-disabled') === 'true',
     color: c.style.getPropertyValue('--tc').trim(),
@@ -102,10 +103,12 @@ await playback('スマホ・WebM非対応（MP4）', { viewport: { width: 390, h
     if (s.title !== g.title) diffs.push(`題名 ${s.title}`);
     if (s.tagline !== g.tagline) diffs.push(`一言 ${s.tagline}`);
     if (s.genre !== g.genre) diffs.push(`ジャンル ${s.genre}`);
-    if (s.tags.join('|') !== g.tags.join('|')) diffs.push(`タグ ${s.tags}`);
+    if (s.facts.join('|') !== [g.playTime, g.difficulty, g.moods.slice(0, 2).join('・')].join('|')) diffs.push(`時間・むずかしさ・気分 ${s.facts}`);
+    if (s.caption !== g.caption) diffs.push(`動画の一言 ${s.caption}`);
+    if (s.selfLink !== `#game-${g.id}`) diffs.push(`直接リンク ${s.selfLink}`);
     if (s.color.toLowerCase() !== g.themeColor.toLowerCase()) diffs.push(`色 ${s.color}`);
     if (s.dev !== (g.status === '開発中')) diffs.push('状態の表示');
-    check('JSONと表示', `${g.id}：題名・一言・ジャンル・タグ・色・状態が一致`, !diffs.length, diffs.join(', '));
+    check('JSONと表示', `${g.id}：題名・一言・ジャンル・時間・むずかしさ・気分・動画の一言・色・状態が一致`, !diffs.length, diffs.join(', '));
     if (g.status === '公開中') check('リンク', `${g.id}：リンク先が games.json と同じで新しいタブで開く`, s.href === g.url && s.target === '_blank', `${s.href} ${s.target}`);
     else check('リンク', `${g.id}：開発中なのでリンクが無効`, s.href === null && s.disabled, JSON.stringify(s));
   }
@@ -118,22 +121,38 @@ await playback('スマホ・WebM非対応（MP4）', { viewport: { width: 390, h
   check('重さ', `最初の表示の転送量が 1.5MB 以下（${((net.bytes || 0) / 1024).toFixed(0)}KB、外部フォント除く手元分）`, (net.bytes || 0) < 1.5 * 1024 * 1024);
 
   // 5. 絞り込み
-  const genres = [...new Set(games.map((g) => g.genre))];
-  for (const ge of genres) {
-    await page.click(`.gp-chip[data-genre="${ge}"]`);
+  for (const mo of site.moods.filter((m) => games.some((g) => g.moods.includes(m)))) {
+    await page.click(`.gp-chip[data-mood="${mo}"]`);
     const vis = await page.$$eval('.gp-card:not([hidden])', (c) => c.map((x) => x.dataset.id));
-    const want = games.filter((g) => g.genre === ge).map((g) => g.id);
-    check('絞り込み', `ジャンル「${ge}」で ${want.length} 本`, vis.join() === want.join(), vis.join());
+    const want = games.filter((g) => g.moods.includes(mo)).map((g) => g.id);
+    check('絞り込み', `気分「${mo}」で ${want.length} 本`, vis.join() === want.join(), vis.join());
   }
-  await page.click('.gp-chip[data-genre="all"]');
-  for (const q of ['農業', 'ぐそく', 'RPG', 'ないゲーム名xyz']) {
+  await page.click('.gp-chip[data-mood="all"]');
+  for (const q of ['農業', 'ぐそく', 'かんたん', '5分', 'ないゲーム名xyz']) {
     await page.fill('.gp-search input', q);
     const vis = await page.$$eval('.gp-card:not([hidden])', (c) => c.map((x) => x.dataset.id));
     const nq = (s) => s.normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-    const want = games.filter((g) => nq([g.title, g.tagline, g.genre, ...g.tags, g.howToPlay || '', g.status].join(' ')).includes(nq(q))).map((g) => g.id);
+    const want = games.filter((g) => nq(searchText(g)).includes(nq(q))).map((g) => g.id);
     const emptyShown = await page.isVisible('.gp-empty');
     check('絞り込み', `検索「${q}」で ${want.length} 本${want.length ? '' : '（「見つかりません」を表示）'}`, vis.join() === want.join() && emptyShown === (want.length === 0), vis.join());
   }
+  // 「あそぶ」ボタンの色が全ゲームで同じ（色がばらばらだと、暗いボタンが押せないように見える）
+  await page.fill('.gp-search input', '');
+  const ctaColors = await page.$$eval('a.gp-cta', (as) => [...new Set(as.map((a) => getComputedStyle(a).backgroundColor))]);
+  check('表示', `「あそぶ」ボタンの色が全ゲームで同じ（${ctaColors.join(' / ')}）`, ctaColors.length === 1);
+  check('表示', '「別の画面で開きます」の一言がボタンにある', (await page.$$eval('a.gp-cta small', (e) => e.length)) === games.filter((g) => g.status === '公開中').length);
+  // ゲームごとの直接リンク：#game-<id> で開くとそのカードが画面に入る
+  const last = games[games.length - 1];
+  await page.goto(url + `/index.html#game-${last.id}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1500);
+  const inViewLast = await page.$eval(`#game-${last.id}`, (c) => { const r = c.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; });
+  check('リンク', `直接リンク（#game-${last.id}）で開くとそのカードが画面に出る`, inViewLast);
+  for (const g of games) {
+    const f = path.join(DIST, 'g', `${g.id}.html`);
+    const t = existsSync(f) ? readFileSync(f, 'utf8') : '';
+    check('リンク', `${g.id}：貼ったとき用の小さなページ（題名・説明・一覧のカードへ移る）`, t.includes(`og:title" content="${g.title}`) && t.includes(`#game-${g.id}`));
+  }
+  check('リンク', 'ページ全体の貼ったとき用の絵（og.jpg）がある', existsSync(path.join(DIST, 'og.jpg')) && statSync(path.join(DIST, 'og.jpg')).size > 10 * 1024);
   check('JSONと表示', 'ページにエラーがない', errs.length === 0, errs.join(' / '));
   await ctx.close();
 }

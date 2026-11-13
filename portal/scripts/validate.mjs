@@ -10,7 +10,8 @@ const errors = [], warns = [];
 const err = (id, msg) => errors.push(`[${id}] ${msg}`);
 const warn = (id, msg) => warns.push(`[${id}] ${msg}`);
 
-const REQUIRED = ['id', 'title', 'tagline', 'genre', 'tags', 'url', 'themeColor', 'status'];
+const REQUIRED = ['id', 'title', 'tagline', 'genre', 'tags', 'url', 'themeColor', 'status', 'playTime', 'difficulty', 'moods', 'caption'];
+const DIFFICULTY = ['かんたん', 'ふつう', 'むずかしめ'];
 const STATUS = ['公開中', '開発中'];
 const isUnknown = (v) => typeof v === 'string' && v.includes('未確認');
 const len = (s) => [...s].length; // 絵文字・全角も1字
@@ -32,6 +33,11 @@ for (const [i, g] of (data.games || []).entries()) {
   if (g.themeColor && !/^#[0-9a-fA-F]{6}$/.test(g.themeColor)) err(id, `themeColor は #rrggbb 形式で：${g.themeColor}`);
   if (g.tags && (!Array.isArray(g.tags) || g.tags.some((t) => typeof t !== 'string' || !t.trim()))) err(id, 'tags は文字列の配列');
   if (g.tags && new Set(g.tags).size !== g.tags.length) err(id, 'tags に重複があります');
+  // 遊ぶ時間・むずかしさ・気分・動画の一言（入れ忘れると、カードの行や絞り込みから抜ける）
+  if (g.difficulty && !DIFFICULTY.includes(g.difficulty)) err(id, `difficulty は ${DIFFICULTY.join('／')} のどれか：${g.difficulty}`);
+  if (g.moods && (!Array.isArray(g.moods) || g.moods.some((m) => !(data.site.moods || []).includes(m)))) err(id, `moods は site.moods（${(data.site.moods || []).join('／')}）から選ぶ：${g.moods}`);
+  if (typeof g.caption === 'string' && len(g.caption) > 18) err(id, `caption は18字以内（${len(g.caption)}字）：${g.caption}`);
+  if (typeof g.playTime === 'string' && len(g.playTime) > 8) err(id, `playTime は8字以内：${g.playTime}`);
   for (const k of REQUIRED) if (isUnknown(g[k]) && !(k === 'url' && g.status === '開発中')) err(id, `${k} が「未確認」のままです（公開中のゲームには必要）`);
 
   // 重複

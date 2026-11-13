@@ -56,12 +56,12 @@ for (const v of VIEWS) {
       const rect = el.getBoundingClientRect();
       const inScroller = el.closest('.gp-chips') && getComputedStyle(el.closest('.gp-chips')).overflowX === 'auto';
       if (rect.width && !inScroller && (rect.right > de.clientWidth + 1 || rect.left < -1)) out.push(`画面外：${el.className || el.tagName}「${(el.textContent || '').trim().slice(0, 20)}」`);
-      if (['gp-name', 'gp-tagline', 'gp-how', 'gp-cta', 'gp-chip'].some((c) => el.classList.contains(c)) && el.scrollWidth > el.clientWidth + 1) out.push(`文字があふれています：${el.className}「${el.textContent.trim().slice(0, 20)}」`);
+      if (['gp-name', 'gp-tagline', 'gp-how', 'gp-cta', 'gp-chip', 'gp-caption'].some((c) => el.classList.contains(c)) && el.scrollWidth > el.clientWidth + 1) out.push(`文字があふれています：${el.className}「${el.textContent.trim().slice(0, 20)}」`);
     }
     // カードの中身がカードからはみ出していないか
     for (const card of document.querySelectorAll('.gp-card:not([hidden])')) {
       const c = card.getBoundingClientRect();
-      for (const el of card.querySelectorAll('.gp-body > *, .gp-badges > *')) {
+      for (const el of card.querySelectorAll('.gp-body > *, .gp-badges > *, .gp-caption, .gp-facts > *')) {
         const b = el.getBoundingClientRect();
         if (b.width && (b.right > c.right + 1 || b.left < c.left - 1)) out.push(`カードからはみ出し：${card.dataset.id} の ${el.className}`);
       }

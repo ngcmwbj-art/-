@@ -1,12 +1,21 @@
 {
   "site": {
     "title": "ゲームあそび場",
-    "lead": "ブラウザですぐ遊べる、自作ゲームの一覧です。",
+    "lead": "農家がつくった、畑と田んぼと生きもののゲームです。",
     "pagesBase": "https://ngcmwbj-art.github.io/-/",
     "pagesRef": "origin/claude/kei-truck-runner-game-ngc2ni",
-    "pagesNote": "GitHub Pages の公開元ブランチ（farm-roguelike/CLAUDE.md の記録による）"
+    "pagesNote": "GitHub Pages の公開元ブランチ（farm-roguelike/CLAUDE.md の記録による）",
+    "about": "農家が、仕事の合間に作っているゲームです。畑や田んぼ、生きものの話が多めです。",
+    "moods": [
+      "さくっと",
+      "じっくり",
+      "子どもと",
+      "のんびり"
+    ],
+    "publicUrl": "",
+    "publicUrlNote": "誰でも開ける場所に載せたら、その URL（末尾は /）を入れる。入れると、LINE や X に貼ったときの絵と題名の設定が出る"
   },
-  "builtAt": "2026/11/02 15:39",
+  "builtAt": "2026/11/13 23:52",
   "springs": {
     "frame": {
       "duration": 859,
@@ -30,8 +39,8 @@
       "tags": [
         "パズル",
         "農業",
-        "学べる",
-        "スマホ向け"
+        "家庭菜園",
+        "学べる"
       ],
       "url": "https://claude.ai/artifact/NV5Lz6BQWdB41STHP2Zypi",
       "themeColor": "#7fb77e",
@@ -77,19 +86,28 @@
         "recipe": "recipes/farm-puzzle.mjs"
       },
       "unverified": [
-        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
-      ]
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）。遊ぶ時間は README の「5分ずつ」から"
+      ],
+      "playTime": "5分から",
+      "difficulty": "かんたん",
+      "moods": [
+        "さくっと",
+        "子どもと",
+        "のんびり"
+      ],
+      "caption": "ブロックを置いて、列をそろえる"
     },
     {
       "id": "farm-roguelike",
       "title": "追い返せ！ボクらの防農作戦！",
-      "tagline": "農業×デッキ構築で1年を守る",
-      "genre": "ローグライク",
+      "tagline": "カードで畑と牛を守る1年",
+      "genre": "カードバトル",
       "tags": [
         "カードゲーム",
-        "ローグライク",
+        "毎回変わる冒険",
         "農業",
-        "スマホ対応"
+        "畜産"
       ],
       "url": "https://ngcmwbj-art.github.io/-/farm-roguelike/",
       "themeColor": "#1c1a16",
@@ -135,8 +153,15 @@
         "recipe": "recipes/farm-roguelike.mjs"
       },
       "unverified": [
-        "公開URLへの到達（この作業環境から github.io に接続できないため。公開元ブランチにファイルがあることは確認済み）"
-      ]
+        "公開URLへの到達（この作業環境から github.io に接続できないため。公開元ブランチにファイルがあることは確認済み）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
+      ],
+      "playTime": "30分から",
+      "difficulty": "ふつう",
+      "moods": [
+        "じっくり"
+      ],
+      "caption": "カードを上に引っぱって使う"
     },
     {
       "id": "keitora",
@@ -145,9 +170,9 @@
       "genre": "アクション",
       "tags": [
         "アクション",
-        "ランゲーム",
-        "ワンタップ",
-        "スマホ対応"
+        "走るゲーム",
+        "タップだけ",
+        "軽トラ"
       ],
       "url": "https://ngcmwbj-art.github.io/-/keitora/",
       "themeColor": "#1b2216",
@@ -193,8 +218,16 @@
         "recipe": "recipes/keitora.mjs"
       },
       "unverified": [
-        "公開URLへの到達（この作業環境から github.io に接続できないため。公開元ブランチにファイルがあることは確認済み）"
-      ]
+        "公開URLへの到達（この作業環境から github.io に接続できないため。公開元ブランチにファイルがあることは確認済み）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
+      ],
+      "playTime": "1分から",
+      "difficulty": "かんたん",
+      "moods": [
+        "さくっと",
+        "子どもと"
+      ],
+      "caption": "タップでジャンプ！"
     },
     {
       "id": "gusoku",
@@ -254,8 +287,15 @@
         "recipe": "recipes/gusoku.mjs"
       },
       "unverified": [
-        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
-      ]
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
+      ],
+      "playTime": "毎日少しずつ",
+      "difficulty": "かんたん",
+      "moods": [
+        "のんびり"
+      ],
+      "caption": "うまれる瞬間から見守る"
     },
     {
       "id": "gusoku-yuru",
@@ -266,7 +306,8 @@
         "育成",
         "深海生物",
         "3D",
-        "会話"
+        "会話",
+        "ゆるキャラ"
       ],
       "url": "https://claude.ai/artifact/1SywA5xmvNzjcbKU9BvYEW",
       "themeColor": "#02080d",
@@ -315,19 +356,27 @@
         "recipe": "recipes/gusoku-yuru.mjs"
       },
       "unverified": [
-        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
-      ]
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
+      ],
+      "playTime": "毎日少しずつ",
+      "difficulty": "かんたん",
+      "moods": [
+        "のんびり",
+        "子どもと"
+      ],
+      "caption": "グソっ君、たんじょう"
     },
     {
       "id": "masato",
       "title": "がんばれマサトくん！",
       "tagline": "量子力学とギターで台風を撃退",
-      "genre": "タワーディフェンス",
+      "genre": "守るアクション",
       "tags": [
-        "タワーディフェンス",
+        "畑を守る",
         "アクション",
         "3D",
-        "スマホ対応"
+        "台風"
       ],
       "url": "https://claude.ai/artifact/ESZcPVFyVEhNrpHzXasSbV",
       "themeColor": "#f3d08a",
@@ -374,8 +423,15 @@
       },
       "statusNote": "README で「ブラウザ版プロトタイプ」と書かれているため開発中としています",
       "unverified": [
-        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
-      ]
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
+      ],
+      "playTime": "15分から",
+      "difficulty": "むずかしめ",
+      "moods": [
+        "じっくり"
+      ],
+      "caption": "ギターの音波で追いはらう"
     },
     {
       "id": "shun",
@@ -386,7 +442,7 @@
         "RPG",
         "ドット絵",
         "ストーリー",
-        "スマホ対応"
+        "冒険"
       ],
       "url": "https://claude.ai/artifact/XzD85uj7q8xGhLvjs6HCTd",
       "themeColor": "#2b1e1a",
@@ -437,8 +493,15 @@
         "recipe": "recipes/shun.mjs"
       },
       "unverified": [
-        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）"
-      ]
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）。遊ぶ時間は README の「約10分」から"
+      ],
+      "playTime": "約10分",
+      "difficulty": "ふつう",
+      "moods": [
+        "じっくり"
+      ],
+      "caption": "輪が重なったら「いま！」"
     }
   ]
 }

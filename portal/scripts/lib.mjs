@@ -75,4 +75,7 @@ export function serveStatic(root, port = 0) {
   return new Promise((ok) => server.listen(port, '127.0.0.1', () => ok({ server, url: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((r) => server.close(r)) })));
 }
 
+/** 検索にかかる言葉（build.mjs がカードに埋め込み、qc.mjs が同じ計算で確かめる） */
+export const searchText = (g) => [g.title, g.tagline, g.genre, ...g.tags, g.howToPlay || '', g.status, g.playTime, g.difficulty, ...(g.moods || [])].join(' ');
+
 export const log = (...a) => console.log(...a);

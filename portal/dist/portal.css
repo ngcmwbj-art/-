@@ -10,6 +10,8 @@
   --gp-chip-on: #2a2620;
   --gp-chip-on-ink: #fffdf8;
   --gp-focus: #2f6fd6;
+  --gp-cta: #2f6a3d;
+  --gp-cta-ink: #ffffff;
   --gp-dev: #8a5a00;
   --gp-dev-bg: #fbe9c4;
   --gp-shadow: 0 1px 2px rgb(60 45 20 / .06), 0 8px 24px -8px rgb(60 45 20 / .18);
@@ -20,7 +22,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --gp-bg: #17150f; --gp-surface: #221f18; --gp-ink: #f1ebdf; --gp-ink-2: #c4bbab; --gp-ink-3: #978e80;
-    --gp-line: #3a352b; --gp-chip: #2e2a22; --gp-chip-on: #f1ebdf; --gp-chip-on-ink: #17150f; --gp-focus: #7fb0ff;
+    --gp-line: #3a352b; --gp-chip: #2e2a22; --gp-chip-on: #f1ebdf; --gp-chip-on-ink: #17150f; --gp-focus: #7fb0ff; --gp-cta: #8fd09a; --gp-cta-ink: #10210f;
     --gp-dev: #f3c46b; --gp-dev-bg: #3d2f12; color-scheme: dark;
     --gp-shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px -8px rgb(0 0 0 / .5);
     --gp-shadow-hover: 0 2px 4px rgb(0 0 0 / .35), 0 18px 36px -12px rgb(0 0 0 / .65);
@@ -28,7 +30,7 @@
 }
 :root[data-theme="dark"] {
   --gp-bg: #17150f; --gp-surface: #221f18; --gp-ink: #f1ebdf; --gp-ink-2: #c4bbab; --gp-ink-3: #978e80;
-  --gp-line: #3a352b; --gp-chip: #2e2a22; --gp-chip-on: #f1ebdf; --gp-chip-on-ink: #17150f; --gp-focus: #7fb0ff;
+  --gp-line: #3a352b; --gp-chip: #2e2a22; --gp-chip-on: #f1ebdf; --gp-chip-on-ink: #17150f; --gp-focus: #7fb0ff; --gp-cta: #8fd09a; --gp-cta-ink: #10210f;
   --gp-dev: #f3c46b; --gp-dev-bg: #3d2f12; color-scheme: dark;
   --gp-shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px -8px rgb(0 0 0 / .5);
   --gp-shadow-hover: 0 2px 4px rgb(0 0 0 / .35), 0 18px 36px -12px rgb(0 0 0 / .65);
@@ -52,6 +54,13 @@ body { margin: 0; background: var(--gp-bg); color: var(--gp-ink); font-family: v
 .gp-eyebrow { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .18em; color: var(--gp-ink-3); }
 .gp-title { margin: 0; font-size: clamp(30px, 6vw, 52px); font-weight: 900; letter-spacing: .04em; line-height: 1.15; }
 .gp-lead { margin: 12px 0 0; color: var(--gp-ink-2); font-size: 15px; line-height: 1.8; }
+.gp-support { margin: 6px 0 0; color: var(--gp-ink-3); font-size: 13px; line-height: 1.8; }
+.gp-support:empty { display: none; }
+.gp-about { margin-top: 44px; display: grid; gap: 20px 40px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.gp-about h2 { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .12em; color: var(--gp-ink-3); }
+.gp-about p, .gp-about ul { margin: 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.9; color: var(--gp-ink-2); }
+.gp-about time { display: inline-block; min-width: 5.2em; color: var(--gp-ink-3); font-variant-numeric: tabular-nums; }
+.gp-about a { color: inherit; text-underline-offset: 3px; }
 .gp-foot { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--gp-line); color: var(--gp-ink-3); font-size: 12px; line-height: 1.8; }
 
 /* ── ポータル本体（組み込み可） ── */
@@ -119,12 +128,28 @@ body { margin: 0; background: var(--gp-bg); color: var(--gp-ink); font-family: v
 .gp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .gp-tags li { padding: 2px 9px; border-radius: 6px; background: var(--gp-chip); font-size: 12px; color: var(--gp-ink-2); }
 .gp-meta { margin: 0; font-size: 12px; color: var(--gp-ink-3); }
+.gp-name a { color: inherit; text-decoration: none; }
+.gp-name a:hover { text-decoration: underline; text-underline-offset: 4px; }
+/* 遊ぶ時間・むずかしさ・こんなときに（タグの列の代わり。1行に収める） */
+.gp-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gp-facts li { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--gp-chip); font-size: 12.5px; font-weight: 700; color: var(--gp-ink-2); line-height: 1.5; }
+.gp-facts svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.2; flex: none; }
+.gp-facts .gp-mood { background: none; box-shadow: inset 0 0 0 1px var(--gp-line); font-weight: 500; }
+/* 動画の中に重ねる一言（音なしでも何をしているか分かるように） */
+.gp-caption {
+  position: absolute; left: 10px; bottom: 10px; right: 56px; margin: 0; width: fit-content; max-width: calc(100% - 66px);
+  padding: 5px 11px; border-radius: 8px; background: rgb(20 18 14 / .72); color: #fff; font-size: 13px; font-weight: 700; line-height: 1.4;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.gp-card.gp-target { outline: 3px solid var(--gp-focus); outline-offset: 3px; }
 .gp-cta {
-  margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 16px;
-  border-radius: 12px; background: var(--tc); color: var(--tc-ink); font-weight: 900; font-size: 15px; letter-spacing: .08em; text-decoration: none;
+  margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 8px; min-height: 52px; padding: 7px 16px;
+  border-radius: 12px; background: var(--gp-cta); color: var(--gp-cta-ink); font-weight: 900; font-size: 15px; letter-spacing: .08em; text-decoration: none;
   transition: filter .2s, transform .15s;
 }
+/* ボタンの色は全ゲーム共通（ゲームごとに変えると、暗い色のボタンが「押せない」ように見えるため） */
 .gp-cta svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.4; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.gp-cta small { flex-basis: 100%; text-align: center; font-size: 11px; font-weight: 500; letter-spacing: .04em; opacity: .85; line-height: 1.3; }
 .gp-cta:hover { filter: brightness(1.08); }
 .gp-cta:hover svg { transform: translateX(3px); }
 .gp-cta:active { transform: scale(.98); }

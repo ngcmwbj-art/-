@@ -85,12 +85,12 @@
 
   /* ── 絞り込み・検索 ── */
   const norm = (s) => s.normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-  let genre = 'all';
+  let mood = 'all';
   function apply() {
     const q = norm(input.value.trim());
     let n = 0, order = 0;
     for (const c of cards) {
-      const okGenre = genre === 'all' || c.dataset.genre === genre;
+      const okGenre = mood === 'all' || c.dataset.moods.split(' ').includes(mood);
       const okText = !q || norm(c.dataset.search).includes(q);
       const show = okGenre && okText;
       const was = !c.hidden;
@@ -101,14 +101,27 @@
     empty.hidden = n > 0;
   }
   chips.forEach((chip) => chip.addEventListener('click', () => {
-    genre = chip.dataset.genre;
+    mood = chip.dataset.mood;
     chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
     apply();
   }));
   input.addEventListener('input', apply);
+  /* ── ゲームごとの直接リンク（…#game-keitora）：開いたらそのカードまで動かして、少しの間だけ目立たせる ── */
+  function goToHash() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const card = id && document.getElementById(id);
+    if (!card || !card.classList.contains('gp-card')) return;
+    if (card.hidden) { input.value = ''; mood = 'all'; chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.mood === 'all'))); apply(); }
+    card.scrollIntoView({ block: 'center', behavior: reduce.matches ? 'auto' : 'smooth' });
+    card.classList.add('gp-target');
+    setTimeout(() => card.classList.remove('gp-target'), 2600);
+  }
+  addEventListener('hashchange', goToHash);
+  if (location.hash) setTimeout(goToHash, 60);
+
   root.querySelector('.gp-reset')?.addEventListener('click', () => {
-    input.value = ''; genre = 'all';
-    chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.genre === 'all')));
+    input.value = ''; mood = 'all';
+    chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.mood === 'all')));
     apply(); input.focus();
   });
 })();
