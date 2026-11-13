@@ -2,15 +2,60 @@
   "note": "Claude の Artifact 一覧（action:list）の写し。検証スクリプトは claude.ai/artifact の URL がここにあるか、題名が合うかを照合する。ゲームを追加・URLを変えたら Artifact 一覧を取り直してここを更新する。",
   "fetchedAt": "2026-11-02",
   "artifacts": [
-    { "url": "https://claude.ai/artifact/HHcjAiRcdYKJa47QuJvr1o", "title": "追い返せ！ボクらの防農作戦！", "updated": "2026-10-30" },
-    { "url": "https://claude.ai/artifact/NV5Lz6BQWdB41STHP2Zypi", "title": "はたけパズル", "updated": "2026-10-27" },
-    { "url": "https://claude.ai/artifact/XzD85uj7q8xGhLvjs6HCTd", "title": "しゅんの夕暮れあぜ道戦記", "updated": "2026-11-01" },
-    { "url": "https://claude.ai/artifact/1SywA5xmvNzjcbKU9BvYEW", "title": "グソっ君", "updated": "2026-11-01" },
-    { "url": "https://claude.ai/artifact/Xef7rsbpgRwrxUvA65hzsJ", "title": "爆走！つがおのビバベジ便！", "updated": "2026-09-29" },
-    { "url": "https://claude.ai/artifact/VCSWzRaQQtac2qgh99aycX", "title": "しゅんの夕暮れあぜ道戦記 HD-2D 試作", "updated": "2026-10-10" },
-    { "url": "https://claude.ai/artifact/ESZcPVFyVEhNrpHzXasSbV", "title": "がんばれマサトくん！", "updated": "2026-10-25" },
-    { "url": "https://claude.ai/artifact/H5MhEW3xZ716piW946Gv2J", "title": "グソク", "updated": "2026-11-01" },
-    { "url": "https://claude.ai/artifact/A1jvFAnFaUDjzWDMJ9QfHZ", "title": "しゅんの夕暮れあぜ道戦記", "updated": "2026-09-28" },
-    { "url": "https://claude.ai/artifact/S1bszGkRo8qfRn1FvjZwbz", "title": "しゅんの夕暮れあぜ道戦記 第2章", "updated": "2026-09-29" }
+    {
+      "url": "https://claude.ai/artifact/5zoMKr8ykKjw3MpqCzi3rq",
+      "title": "侵略のG",
+      "updated": "2026-11-03"
+    },
+    {
+      "url": "https://claude.ai/artifact/HHcjAiRcdYKJa47QuJvr1o",
+      "title": "追い返せ！ボクらの防農作戦！",
+      "updated": "2026-10-30"
+    },
+    {
+      "url": "https://claude.ai/artifact/NV5Lz6BQWdB41STHP2Zypi",
+      "title": "はたけパズル",
+      "updated": "2026-10-27"
+    },
+    {
+      "url": "https://claude.ai/artifact/XzD85uj7q8xGhLvjs6HCTd",
+      "title": "しゅんの夕暮れあぜ道戦記",
+      "updated": "2026-11-01"
+    },
+    {
+      "url": "https://claude.ai/artifact/1SywA5xmvNzjcbKU9BvYEW",
+      "title": "グソっ君",
+      "updated": "2026-11-01"
+    },
+    {
+      "url": "https://claude.ai/artifact/Xef7rsbpgRwrxUvA65hzsJ",
+      "title": "爆走！つがおのビバベジ便！",
+      "updated": "2026-09-29"
+    },
+    {
+      "url": "https://claude.ai/artifact/VCSWzRaQQtac2qgh99aycX",
+      "title": "しゅんの夕暮れあぜ道戦記 HD-2D 試作",
+      "updated": "2026-10-10"
+    },
+    {
+      "url": "https://claude.ai/artifact/ESZcPVFyVEhNrpHzXasSbV",
+      "title": "がんばれマサトくん！",
+      "updated": "2026-10-25"
+    },
+    {
+      "url": "https://claude.ai/artifact/H5MhEW3xZ716piW946Gv2J",
+      "title": "グソク",
+      "updated": "2026-11-01"
+    },
+    {
+      "url": "https://claude.ai/artifact/A1jvFAnFaUDjzWDMJ9QfHZ",
+      "title": "しゅんの夕暮れあぜ道戦記",
+      "updated": "2026-09-28"
+    },
+    {
+      "url": "https://claude.ai/artifact/S1bszGkRo8qfRn1FvjZwbz",
+      "title": "しゅんの夕暮れあぜ道戦記 第2章",
+      "updated": "2026-09-29"
+    }
   ]
 }

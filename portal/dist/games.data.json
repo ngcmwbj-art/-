@@ -15,7 +15,7 @@
     "publicUrl": "",
     "publicUrlNote": "誰でも開ける場所に載せたら、その URL（末尾は /）を入れる。入れると、LINE や X に貼ったときの絵と題名の設定が出る"
   },
-  "builtAt": "2026/11/13 23:52",
+  "builtAt": "2026/11/13 23:55",
   "springs": {
     "frame": {
       "duration": 859,
@@ -380,8 +380,8 @@
       ],
       "url": "https://claude.ai/artifact/ESZcPVFyVEhNrpHzXasSbV",
       "themeColor": "#f3d08a",
-      "status": "開発中",
-      "howToPlay": "WASDで走り、ギターの音波とタワーで、迫る台風からキャベツ畑を守る。",
+      "status": "公開中",
+      "howToPlay": "走り回ってギターの音波とタワーで、迫る台風からキャベツ畑を守る。iPadは横向きでタッチ操作。",
       "platform": [
         "PC",
         "スマホ（横向き）",
@@ -421,7 +421,6 @@
         "sourceCommit": "0afa6e7",
         "recipe": "recipes/masato.mjs"
       },
-      "statusNote": "README で「ブラウザ版プロトタイプ」と書かれているため開発中としています",
       "unverified": [
         "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
         "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
@@ -502,6 +501,65 @@
         "じっくり"
       ],
       "caption": "輪が重なったら「いま！」"
+    },
+    {
+      "id": "roach-house",
+      "title": "侵略のG",
+      "tagline": "ゴキブリ目線で出荷前の野菜を狙え",
+      "genre": "アクション",
+      "tags": [
+        "3D",
+        "潜入",
+        "かくれる",
+        "農業"
+      ],
+      "url": "https://claude.ai/artifact/5zoMKr8ykKjw3MpqCzi3rq",
+      "themeColor": "#e0412b",
+      "status": "公開中",
+      "howToPlay": "農場主の目を盗んで収穫コンテナをかじり、卵を産んで仲間をふやし、出荷トラックが出る前に目標の箱数をダメにする。",
+      "platform": [
+        "PC",
+        "スマホ",
+        "タブレット"
+      ],
+      "source": {
+        "ref": "origin/claude/roach-paprika-house",
+        "path": "roach-house",
+        "serve": ".",
+        "entry": "index.html"
+      },
+      "preview": {
+        "id": "roach-house",
+        "capturedAt": "2026-11-03T18:36:30.154Z",
+        "mode": "play",
+        "fps": 12.5,
+        "frames": 83,
+        "seconds": 6.64,
+        "webm": "previews/roach-house.webm",
+        "mp4": "previews/roach-house.mp4",
+        "poster": "previews/roach-house.jpg",
+        "bytes": {
+          "webm": 506286,
+          "mp4": 398847,
+          "poster": 52419
+        },
+        "deterministic": null,
+        "note": "",
+        "pageErrors": [],
+        "sourceCommit": "375a87e",
+        "recipe": "recipes/roach-house.mjs"
+      },
+      "unverified": [
+        "url の共有設定（Artifact は既定で非公開。他の人が開けるかは未確認）",
+        "実機（スマホ・タブレット）での滑らかさ（この作業環境はソフトウェア描画のみ。タッチ操作はスマホの画面をまねた自動テストで確認済み）",
+        "遊ぶ時間・むずかしさ・気分の分け方は Claude の見立て（作者の確認待ち）"
+      ],
+      "playTime": "10分から",
+      "difficulty": "ふつう",
+      "moods": [
+        "じっくり"
+      ],
+      "caption": "農場主に見つからないように"
     }
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "id": "roach-house",
+  "capturedAt": "2026-11-03T18:36:30.154Z",
+  "mode": "play",
+  "fps": 12.5,
+  "frames": 83,
+  "seconds": 6.64,
+  "webm": "previews/roach-house.webm",
+  "mp4": "previews/roach-house.mp4",
+  "poster": "previews/roach-house.jpg",
+  "bytes": {
+    "webm": 506286,
+    "mp4": 398847,
+    "poster": 52419
+  },
+  "deterministic": null,
+  "note": "",
+  "pageErrors": [],
+  "sourceCommit": "375a87e",
+  "recipe": "recipes/roach-house.mjs"
+}
