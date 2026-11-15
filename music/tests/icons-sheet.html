@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>アイコンの一覧（確認用）</title>
+<style>
+  body { margin: 0; padding: 16px; font: 13px/1.4 "Helvetica Neue", Helvetica, sans-serif; background: #e9ecf0; color: #222; }
+  h2 { margin: 18px 0 8px; font-size: 14px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-radius: 8px; }
+  .light { background: #fff; color: #333; }
+  .dark { background: #111; color: #fff; }
+  .cell { width: 84px; text-align: center; font-size: 10px; }
+  .cell .ic { display: block; margin: 0 auto 4px; }
+  .s24 .ic { width: 24px; height: 24px; }
+  .s30 .ic { width: 30px; height: 30px; }
+  .s40 .ic { width: 40px; height: 40px; }
+  .s96 .ic { width: 96px; height: 96px; }
+  .tabbar { display: flex; height: 49px; background: #000 linear-gradient(#484848 0%, #2e2e2e 4%, #1b1b1b 49%, #000 50%, #000 100%); border-radius: 6px; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 2px; font-size: 10px; font-weight: bold; color: #9a9a9a; }
+  .tab i { width: 30px; height: 30px; background: linear-gradient(#b4b4b4, #7c7c7c); -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+  .tab.on { color: #fff; }
+  .tab.on i { background: linear-gradient(#e9f4ff 0%, #8cc6ff 40%, #2f86ec 52%, #5fb0ff 100%); }
+  .apps { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .apps img { border-radius: 22.5%; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+</style>
+</head>
+<body>
+<h2>下のタブ（選んでいない・選んだ）</h2>
+<div class="tabbar" id="tabs-off"></div>
+<div style="height:8px"></div>
+<div class="tabbar" id="tabs-on"></div>
+<h2>明るい背景（実寸）</h2>
+<div class="grid light" id="light"></div>
+<h2>黒い背景（実寸）</h2>
+<div class="grid dark" id="dark"></div>
+<h2>アプリのアイコン</h2>
+<div class="apps">
+  <img src="../icons/icon-512.png" width="180" height="180" alt="">
+  <img src="../icons/apple-touch-icon.png" width="60" height="60" alt="">
+  <img src="../icons/icon-maskable-512.png" width="120" height="120" alt="" style="border-radius:50%">
+  <img src="../icons/favicon-32.png" width="32" height="32" alt="" style="border-radius:0;box-shadow:none">
+  <img src="../icons/favicon.svg" width="16" height="16" alt="" style="border-radius:0;box-shadow:none">
+</div>
+<script type="module">
+  import { ICONS, svg, maskUrl } from '../js/icons.js';
+  const TABS = ['playlists', 'artists', 'songs', 'albums', 'more', 'genres', 'recent', 'storage'];
+  const BIG = ['play', 'pause', 'prev', 'next'];
+  const sizeOf = (n) => (TABS.includes(n) ? 's30' : BIG.includes(n) ? 's40' : n === 'note-large' ? 's96' : 's24');
+  for (const id of ['light', 'dark']) {
+    const box = document.getElementById(id);
+    for (const name of Object.keys(ICONS)) {
+      const c = document.createElement('div');
+      c.className = `cell ${sizeOf(name)}`;
+      c.innerHTML = svg(name) + name;
+      box.appendChild(c);
+    }
+  }
+  for (const [id, on] of [['tabs-off', false], ['tabs-on', true]]) {
+    const bar = document.getElementById(id);
+    for (const name of TABS) {
+      const t = document.createElement('div');
+      t.className = `tab${on ? ' on' : ''}`;
+      t.innerHTML = `<i style='--m:${maskUrl(name)}'></i>${name}`;
+      bar.appendChild(t);
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ジャケットが流れる画面の見本</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../css/coverflow.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  #toast {
+    position: fixed; left: 10px; bottom: 10px; z-index: 10;
+    padding: 5px 12px; border-radius: 14px; background: rgba(40, 40, 44, .9); color: #fff;
+    font: 600 12px/1.4 "Helvetica Neue", Helvetica, "Hiragino Sans", sans-serif;
+    white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .25s;
+  }
+  #toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<!--
+  ジャケットが流れる画面（js/coverflow.js）だけを動かす見本ページ。
+  色つきのダミージャケットを canvas で作って並べます。
+
+  アドレスの後ろに付けられるもの:
+    ?n=1000        アルバムの数（何も付けなければ 40）
+    ?focus=12      はじめに中央に出す番号（0 から）
+    ?reflect=copy  床への映りこみを「上下反転した複製」で作る（-webkit-box-reflect が無いブラウザのふり）
+    ?delay=300     ジャケット画像が届くまでの待ち時間（ミリ秒）のふり
+
+  操作: ドラッグで流す / 横のジャケットをタップで中央へ / 中央をタップで裏返す
+        ← → で1枚ずつ / Enter で裏返す / Esc で戻す / ホイールでも流れる
+-->
+<div id="stage"></div>
+<div id="toast" aria-live="polite"></div>
+
+<script type="module">
+import { createCoverFlow } from '../js/coverflow.js';
+
+const q = new URLSearchParams(location.search);
+const N = Math.max(0, Math.min(5000, parseInt(q.get('n') || '40', 10) || 0));
+const DELAY = Math.max(0, parseInt(q.get('delay') || '0', 10) || 0);
+
+const WORDS_A = ['なつ', 'あさ', 'よる', 'うみ', 'そら', 'かぜ', 'ゆき', 'はる', 'もり', 'ほし', 'あめ', 'ひかり'];
+const WORDS_B = ['のおと', 'のうた', 'のさんぽ', 'のリズム', 'のきおく', 'のてがみ', 'のワルツ', 'のまち', 'のゆめ', 'のはなし'];
+const ARTISTS = ['みなと楽団', 'ねこのピアノ', 'The Paper Boats', 'ひるねクラブ', 'Sora & Umi', '夜ふかしカルテット', 'やまびこ', 'Tiny Lanterns'];
+
+/** ダミーのアルバムを作る。7 枚に 1 枚はジャケットなし */
+function makeAlbums(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let title = WORDS_A[i % WORDS_A.length] + WORDS_B[(i * 7 + 3) % WORDS_B.length];
+    if (i % 11 === 5) title += '（とても長い名前のアルバムはここで切れて点々になるはずです・完全版）';
+    out.push({
+      key: 'al-' + i,
+      title,
+      artist: ARTISTS[(i * 5 + 1) % ARTISTS.length],
+      artId: i % 7 === 3 ? null : 'art-' + i,
+    });
+  }
+  return out;
+}
+
+/** 色つきのダミージャケットを canvas でかく */
+function paintJacket(i) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 480;
+  const g = c.getContext('2d');
+  const hue = (i * 47) % 360;
+  const bg = g.createLinearGradient(0, 0, 480, 480);
+  bg.addColorStop(0, `hsl(${hue}, 72%, 56%)`);
+  bg.addColorStop(1, `hsl(${(hue + 50) % 360}, 68%, 30%)`);
+  g.fillStyle = bg;
+  g.fillRect(0, 0, 480, 480);
+
+  const kind = i % 5;
+  g.globalAlpha = 0.9;
+  if (kind === 0) {            // 太陽と水平線
+    g.fillStyle = `hsl(${(hue + 180) % 360}, 85%, 72%)`;
+    g.beginPath(); g.arc(330, 170, 96, 0, Math.PI * 2); g.fill();
+    g.fillStyle = `hsl(${(hue + 30) % 360}, 60%, 18%)`;
+    g.fillRect(0, 320, 480, 160);
+  } else if (kind === 1) {     // ななめのしま
+    g.strokeStyle = `hsl(${(hue + 150) % 360}, 80%, 78%)`;
+    g.lineWidth = 26;
+    for (let x = -480; x < 480; x += 84) { g.beginPath(); g.moveTo(x, 480); g.lineTo(x + 480, 0); g.stroke(); }
+  } else if (kind === 2) {     // わっか
+    g.strokeStyle = `hsl(${(hue + 200) % 360}, 90%, 82%)`;
+    for (let r = 40; r < 300; r += 44) { g.lineWidth = 14; g.beginPath(); g.arc(150, 190, r, 0, Math.PI * 2); g.stroke(); }
+  } else if (kind === 3) {     // 四角のならび
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+      g.fillStyle = `hsl(${(hue + (x + y) * 28) % 360}, 75%, ${40 + ((x * 3 + y * 5) % 4) * 11}%)`;
+      g.fillRect(40 + x * 104, 40 + y * 104, 88, 88);
+    }
+  } else {                     // 山
+    g.fillStyle = `hsl(${(hue + 120) % 360}, 55%, 78%)`;
+    g.beginPath(); g.moveTo(0, 480); g.lineTo(170, 150); g.lineTo(300, 360); g.lineTo(380, 250); g.lineTo(480, 400); g.lineTo(480, 480); g.fill();
+  }
+  g.globalAlpha = 1;
+
+  // 番号（どの1枚かが、写真でも分かるように）
+  g.fillStyle = 'rgba(0,0,0,.45)';
+  g.fillRect(0, 372, 480, 108);
+  g.fillStyle = '#fff';
+  g.font = '700 84px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  g.textBaseline = 'middle';
+  g.fillText(String(i).padStart(2, '0'), 24, 428);
+  g.font = '700 26px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  g.textAlign = 'right';
+  g.fillText('DEMO', 456, 430);
+  return c;
+}
+
+const artCache = new Map();   // artId → Promise<string>（呼び出し側がキャッシュする約束）
+let artCalls = 0;
+function getArtUrl(album) {
+  artCalls++;
+  if (!album.artId) return Promise.resolve(null);
+  let p = artCache.get(album.artId);
+  if (!p) {
+    const i = Number(album.artId.slice(4));
+    p = new Promise((resolve) => {
+      const run = () => paintJacket(i).toBlob((b) => resolve(b ? URL.createObjectURL(b) : null), 'image/jpeg', 0.86);
+      if (DELAY) setTimeout(run, DELAY); else run();
+    });
+    artCache.set(album.artId, p);
+  }
+  return p;
+}
+
+/** ダミーの曲。10 番のアルバムだけ 60 曲（縦スクロールの確認用） */
+function getAlbumTracks(album) {
+  const i = Number(album.key.slice(3));
+  const count = i === 10 ? 60 : 5 + (i * 3) % 11;
+  const out = [];
+  for (let t = 0; t < count; t++) {
+    out.push({
+      id: i * 1000 + t,
+      title: (t % 6 === 4 ? 'とてもとても長い曲名はここで切れて点々になるはずです、どうでしょうか ' : '') + WORDS_A[(i + t * 5) % WORDS_A.length] + WORDS_B[(t * 3 + i) % WORDS_B.length],
+      duration: t % 9 === 7 ? undefined : 95 + ((i * 37 + t * 53) % 260),
+      track: t % 8 === 6 ? undefined : t + 1,
+    });
+  }
+  return out;
+}
+
+const state = { nowPlayingId: null, plays: [] };
+const toast = document.getElementById('toast');
+let toastTimer = 0;
+
+const albums = makeAlbums(N);
+const cf = createCoverFlow(document.getElementById('stage'), {
+  getArtUrl,
+  getAlbumTracks,
+  getNowPlayingId: () => state.nowPlayingId,
+  onPlayTrack(album, index) {
+    const tr = getAlbumTracks(album)[index];
+    state.plays.push({ key: album.key, index, id: tr ? tr.id : null });
+    state.nowPlayingId = tr ? tr.id : null;
+    cf.refresh();
+    toast.textContent = `▶ ${album.title.slice(0, 14)} の ${index + 1} 曲目`;
+    toast.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('on'), 1600);
+  },
+  reflection: q.get('reflect') || undefined,
+});
+cf.setAlbums(albums);
+const focus = q.has('focus') ? parseInt(q.get('focus'), 10) : Math.min(12, N - 1);
+cf.show({ focusKey: focus >= 0 ? 'al-' + focus : undefined });
+
+// 確かめ用のスクリプト（tests/e2e/coverflow.check.mjs）から使う
+window.__cf = cf;
+window.__demo = { state, albums, makeAlbums, artCalls: () => artCalls };
+</script>
+</body>
+</html>

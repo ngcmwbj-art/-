@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- ミュージックのアイコン（自作）。角は丸めていません（端末が自動で丸めます） -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9bdd8"/>
+      <stop offset=".5" stop-color="#6f8db8"/>
+      <stop offset="1" stop-color="#3a5680"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".08"/>
+    </linearGradient>
+    <linearGradient id="note" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e3ebf6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7"/>
+      <feOffset dy="9"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".45"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- 上半分のつや -->
+  <path d="M0 0h512v196C420 252 92 252 0 196z" fill="url(#gloss)"/>
+  <!-- 連桁でつながった八分音符 -->
+  <g id="mark" filter="url(#shadow)" fill="url(#note)">
+    <ellipse cx="176" cy="358" rx="58" ry="44" transform="rotate(-20 176 358)"/>
+    <ellipse cx="346" cy="326" rx="58" ry="44" transform="rotate(-20 346 326)"/>
+    <path d="M208 142l196-36v220h-26V176l-144 27v157h-26z"/>
+  </g>
+</svg>
