@@ -8,6 +8,7 @@ import { Player } from './player.js';
 import { VList } from './vlist.js';
 import { ArtStore } from './art.js';
 import { importFiles, summarize } from './importer.js';
+import { makeDemoFiles } from './demo.js';
 import { alertBox, promptBox, actionSheet, progressBox, toast } from './ui.js';
 import { svg, maskUrl } from './icons.js';
 import { renderRow, ROW_HEIGHTS, h, songSub } from './rows.js';
@@ -401,6 +402,18 @@ function emptyLibraryView() {
   b.type = 'button';
   b.addEventListener('click', () => startImport());
   box.appendChild(b);
+  // まず動くところを見たい人のために：短い見本の曲をこの場で作って入れる（あとで、ふつうの曲と同じように消せる）
+  const demo = h('button', 'bigbtn gray small', '見本の曲を入れてみる');
+  demo.type = 'button';
+  demo.addEventListener('click', async () => {
+    if (importing) return;
+    demo.disabled = true;
+    let files = [];
+    try { files = await makeDemoFiles(); } catch (_) { files = []; }
+    if (files.length) runImport(files);
+    else { demo.disabled = false; toast('見本の曲を作れませんでした'); }
+  });
+  box.appendChild(demo);
   if (isPreview) {
     box.appendChild(h('div', 'empty-hint',
       'これは、見た目と操作を試すための版です。開くのに通信が必要で、入れた曲はこのブラウザの中だけに置かれ、消えることがあります。'

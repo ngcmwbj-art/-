@@ -6,7 +6,7 @@
 // VERSION が変わると、次に開いたときに新しい版へ入れかわります。
 
 /* build-sw:begin */
-const VERSION = 'c71347b2e8bb';
+const VERSION = 'fae0b4e9f0a1';
 const FILES = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const FILES = [
   './js/art.js',
   './js/coverflow.js',
   './js/db.js',
+  './js/demo.js',
   './js/icons.js',
   './js/importer.js',
   './js/library.js',

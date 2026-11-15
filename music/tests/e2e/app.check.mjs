@@ -81,6 +81,45 @@ try {
   ok(!(await page.locator('.bb.nowp').count()), '「再生中」ボタンは出ていない');
 
   // ──────────────────────────────────────────────
+  section('見本の曲');
+  await page.locator('.page:not([hidden]) .bigbtn.gray', { hasText: '見本の曲を入れてみる' }).click();
+  await page.waitForFunction(() => window.__music.library.size === 4, null, { timeout: 20000 });
+  await settle(2300);
+  {
+    const demo = await M(() => {
+      const { library } = window.__music;
+      const tracks = Array.from(library.tracks.values());
+      return {
+        titles: tracks.map((t) => t.title).sort(),
+        albums: library.albumRows().map((r) => `${r.item.title}/${r.item.artist}/${r.item.tracks.length}/${r.item.year}`),
+        art: tracks.every((t) => !!t.artId),
+        arts: new Set(tracks.map((t) => t.artId)).size,
+        durations: tracks.every((t) => t.duration > 8 && t.duration < 40),
+        tracks: tracks.map((t) => t.track).sort().join(''),
+      };
+    });
+    ok(JSON.stringify(demo.titles) === JSON.stringify(['あさのチャイム', 'ひるのさんぽ', 'ほしのこもりうた', 'ゆうやけこみち'].sort()), '見本の4曲が入る');
+    ok(JSON.stringify(demo.albums) === JSON.stringify(['あさの牧場/見本の楽団/2/2024', 'ゆうぐれの丘/見本の楽団/2/2025']), 'アルバム2枚にまとまる（題名・年もタグから読めている）');
+    ok(demo.art && demo.arts === 2 && demo.durations && demo.tracks === '1122', 'ジャケット・長さ・曲番号が入っている');
+  }
+  await page.locator('.page:not([hidden]) .vl-song', { hasText: 'あさのチャイム' }).click();
+  await waitPlaying();
+  ok((await state()).title === 'あさのチャイム', '見本の曲が鳴る');
+  await page.click('#np-play');
+  await closeNp();
+  // 見本を消して、まっさらにもどす
+  await M(async () => {
+    const { library, db, player, art } = window.__music;
+    const ids = Array.from(library.tracks.keys());
+    await db.clearMusic();
+    player.tracksRemoved(ids);
+    art.reset();
+    library.load([], []);
+  });
+  await settle(300);
+  ok(await page.locator('.empty-title').first().isVisible(), '消すと「曲がありません」にもどる');
+
+  // ──────────────────────────────────────────────
   section('取り込み');
   await page.setInputFiles('#file-input', [
     ...payload(FILES),

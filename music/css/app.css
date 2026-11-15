@@ -629,6 +629,8 @@ input { font-family: inherit; }
 .bigbtn.red:active { background: linear-gradient(#cf7474 0%, #b93030 50%, #a80f0f 50%, #b42222 100%); }
 .bigbtn.gray { border-color: #6f7781; background: linear-gradient(#fff 0%, #e9ecef 50%, #dadee3 50%, #e6e9ed 100%); color: #2c3e5a; text-shadow: 0 1px 0 #fff; }
 .bigbtn.gray:active { background: linear-gradient(#d5d9de, #c2c8cf); }
+.bigbtn.small { margin-top: 12px; height: 38px; font-size: 15px; }
+.bigbtn:disabled { opacity: .55; }
 
 /* ── 細いしまの背景のページ（保存容量・使い方）──────── */
 
