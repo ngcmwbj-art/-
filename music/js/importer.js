@@ -29,6 +29,9 @@ const CONTAINER_MIME = {
 // （iPhone で一度にたくさん選ぶと、中身のない小さなファイルが混ざることがある）
 const MIN_BYTES = 1024;
 
+// これより大きいファイルは入れない（再生のときに1曲ぶんをメモリに広げるので、端末のメモリが足りなくなる）
+const MAX_BYTES = 300 * 1024 * 1024;
+
 // 保存するときに付ける種類（MIME）。同じ形式でも端末によって通じる書き方がちがうので、
 // その端末が「鳴らせる」と答える書き方を選ぶ。どれも答えなければ、いちばんふつうの書き方にする
 function bestMime(audio, container, fallback) {
@@ -107,7 +110,7 @@ const collator = (() => {
 
 // files: File のならび（FileList でもよい）
 // ctx: { db, library, art, audio, onProgress(done, total, name), isCancelled() }
-// 返すもの: { added, duplicates, unsupported: [名前], failed: [名前], notAudio, quota, cancelled }
+// 返すもの: { added, duplicates, unsupported: [名前], failed: [名前], tooBig: [名前], notAudio, quota, cancelled }
 export async function importFiles(files, ctx) {
   const { db, library, art, audio } = ctx;
   const list = Array.from(files);
@@ -115,7 +118,7 @@ export async function importFiles(files, ctx) {
   if (collator) list.sort((a, b) => collator.compare(pathOf(a), pathOf(b)));
 
   const result = {
-    added: 0, duplicates: 0, unsupported: [], failed: [], notAudio: 0, quota: false, cancelled: false,
+    added: 0, duplicates: 0, unsupported: [], failed: [], tooBig: [], notAudio: 0, quota: false, cancelled: false,
   };
   const total = list.length;
   const now = Date.now();
@@ -128,6 +131,7 @@ export async function importFiles(files, ctx) {
 
     if (!isAudioFile(file.name, file.type)) { result.notAudio++; continue; }
     if (file.size < MIN_BYTES) { result.failed.push(file.name); continue; }
+    if (file.size > MAX_BYTES) { result.tooBig.push(file.name); continue; }
     const sig = `${file.name}|${file.size}`;
     if (library.hasSig(sig)) { result.duplicates++; continue; }
 
@@ -211,6 +215,7 @@ export function summarize(result) {
   if (result.unsupported.length) {
     lines.push(`この端末で再生できない形式のため、${result.unsupported.length}件を入れませんでした（${sample(result.unsupported)}）。`);
   }
+  if (result.tooBig.length) lines.push(`300MB をこえる大きなファイル ${result.tooBig.length}件は入れられませんでした（${sample(result.tooBig)}）。`);
   if (result.notAudio) lines.push(`音楽ではないファイル ${result.notAudio}件はとばしました。`);
   if (result.failed.length) {
     lines.push(`読み込めなかったファイルが ${result.failed.length}件ありました（${sample(result.failed)}）。もう一度選ぶと、入っていない曲だけが入ります。`);

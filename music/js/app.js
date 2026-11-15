@@ -1241,7 +1241,7 @@ async function runImport(files) {
     return;
   }
   const clean = result.added && !result.duplicates && !result.unsupported.length
-    && !result.failed.length && !result.notAudio && !result.quota && !result.cancelled;
+    && !result.failed.length && !result.tooBig.length && !result.notAudio && !result.quota && !result.cancelled;
   if (clean) toast(`${result.added}曲を追加しました`);
   else await alertBox({ title: result.added ? '読み込みが終わりました' : '曲を追加できませんでした', message: summarize(result) });
 }

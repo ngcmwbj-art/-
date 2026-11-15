@@ -6,7 +6,7 @@
 // VERSION が変わると、次に開いたときに新しい版へ入れかわります。
 
 /* build-sw:begin */
-const VERSION = '110e93622f77';
+const VERSION = 'c71347b2e8bb';
 const FILES = [
   './',
   './index.html',
