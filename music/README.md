@@ -160,8 +160,10 @@ npm test            # 単体テスト（タグ読み・ライブラリ・sw.js �
 ```
 
 - 単体テスト：`node --test "tests/unit/*.test.mjs"`
-- 画面を動かすテスト：`node tests/e2e/run-all.mjs`（Playwright の Chromium で、取り込み → 再生 → 次の曲 →
-  開きなおし → 通信なしでの起動 まで通します）
+- 画面を動かすテスト：`node tests/e2e/run-all.mjs`（Playwright の Chromium で実際に操作します）
+  - `app.check.mjs`：取り込み → 一覧 → 再生 → 次の曲 → 開きなおし → 削除 → プレイリスト → 検索 → 通信なしでの起動
+  - `player.check.mjs`：連打・シャッフル・再生中の削除などで再生エンジンを揺さぶり、状態がずれないかを確かめる
+  - `coverflow.check.mjs`：横向きのジャケットの流れ
 - テスト用の小さな音源は `tests/fixtures/`（作り方は `tests/make-fixtures.sh`）
 
 ## 分かっている制限

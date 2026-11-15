@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 let failed = 0;
-for (const file of ['app.check.mjs', 'coverflow.check.mjs']) {
+for (const file of ['app.check.mjs', 'player.check.mjs', 'coverflow.check.mjs']) {
   console.log(`\n══════ ${file} ══════`);
   const r = spawnSync(process.execPath, [join(here, file)], { stdio: 'inherit' });
   if (r.status !== 0) failed++;
