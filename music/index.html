@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ミュージック</title>
+<meta name="description" content="ファイルの音楽を入れるだけで、通信なしで聴ける自分用の音楽プレイヤー。">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ミュージック">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/coverflow.css">
+</head>
+<body>
+
+<div id="app" class="app">
+
+  <!-- ライブラリ（上のバー・一覧・下のタブ） -->
+  <div id="main" class="main">
+    <header id="navbar" class="navbar"></header>
+    <div id="pages" class="pages"></div>
+    <nav id="tabbar" class="tabbar" aria-label="ならべ方">
+      <button type="button" class="tab" data-tab="playlists"><span class="tab-ic" data-ic="playlists"></span><span class="tab-label">プレイリスト</span></button>
+      <button type="button" class="tab" data-tab="artists"><span class="tab-ic" data-ic="artists"></span><span class="tab-label">アーティスト</span></button>
+      <button type="button" class="tab" data-tab="songs"><span class="tab-ic" data-ic="songs"></span><span class="tab-label">曲</span></button>
+      <button type="button" class="tab" data-tab="albums"><span class="tab-ic" data-ic="albums"></span><span class="tab-label">アルバム</span></button>
+      <button type="button" class="tab" data-tab="more"><span class="tab-ic" data-ic="more"></span><span class="tab-label">その他</span></button>
+    </nav>
+  </div>
+
+  <!-- 再生中の画面 -->
+  <section id="np" class="np" hidden aria-label="再生中">
+    <header id="np-top" class="np-top">
+      <button type="button" id="np-back" class="np-back" aria-label="一覧にもどる"><span class="np-back-ic" data-ic="back"></span></button>
+      <div class="np-titles" aria-live="polite">
+        <div id="np-artist" class="np-artist"></div>
+        <div id="np-title" class="np-title"></div>
+        <div id="np-album" class="np-album"></div>
+      </div>
+      <button type="button" id="np-flip" class="np-flipbtn" aria-label="再生する順番を見る" aria-pressed="false">
+        <span class="np-flipbtn-face np-flipbtn-list" data-ic="list"></span>
+        <span class="np-flipbtn-face np-flipbtn-art"><img id="np-flip-art" alt="" hidden></span>
+      </button>
+    </header>
+
+    <div class="np-stage">
+      <div id="np-card" class="np-card">
+        <div id="np-front" class="np-face np-front">
+          <div class="np-art-ph" data-ic="note-large" aria-hidden="true"></div>
+          <img id="np-art" class="np-art" alt="" hidden>
+          <div id="np-lyrics" class="np-lyrics" hidden></div>
+          <div id="np-overlay" class="np-overlay">
+            <div class="np-scrub-row">
+              <span id="np-elapsed" class="np-time">0:00</span>
+              <div id="np-scrub" aria-label="再生位置"></div>
+              <span id="np-remain" class="np-time">-0:00</span>
+            </div>
+            <div class="np-mode-row">
+              <button type="button" id="np-repeat" class="np-mode" aria-label="リピート"><span data-ic="repeat"></span></button>
+              <span id="np-count" class="np-count"></span>
+              <button type="button" id="np-shuffle" class="np-mode" aria-label="シャッフル" aria-pressed="false"><span data-ic="shuffle"></span></button>
+            </div>
+          </div>
+        </div>
+        <div id="np-backface" class="np-face np-backface" aria-hidden="true">
+          <div id="np-queue" class="np-queue"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="np-bottom">
+      <div class="np-controls">
+        <button type="button" id="np-prev" class="np-btn" aria-label="前の曲"><span data-ic="prev"></span></button>
+        <button type="button" id="np-play" class="np-btn np-btn-play" aria-label="再生"><span id="np-play-ic" data-ic="play"></span></button>
+        <button type="button" id="np-next" class="np-btn" aria-label="次の曲"><span data-ic="next"></span></button>
+      </div>
+      <div id="np-volume" class="np-volume" hidden>
+        <span class="np-vol-ic" data-ic="speaker-low" aria-hidden="true"></span>
+        <div id="np-vol" class="slider-vol" aria-label="音量"></div>
+        <span class="np-vol-ic" data-ic="speaker-high" aria-hidden="true"></span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- 横向きにしたときのジャケットの流れ -->
+  <div id="coverflow" class="coverflow" hidden></div>
+
+  <!-- お知らせ・選択肢などの窓 -->
+  <div id="overlays"></div>
+
+  <!-- 起動中の表示（JavaScript が動きだしたら消える） -->
+  <div id="boot" class="boot" aria-hidden="true"></div>
+</div>
+
+<!-- ファイル選び。accept に拡張子も並べてあるのは、iPhone の「ファイル」で灰色になって選べないのを防ぐため -->
+<input id="file-input" class="file-input" type="file" multiple tabindex="-1" aria-hidden="true"
+  accept="audio/*,.mp3,.m4a,.m4b,.mp4,.aac,.flac,.ogg,.oga,.opus,.wav,.wave,.aif,.aiff,.aifc,.caf">
+<input id="dir-input" class="file-input" type="file" multiple webkitdirectory tabindex="-1" aria-hidden="true">
+
+<audio id="audio" preload="auto"></audio>
+
+<noscript><p style="padding:2em;color:#fff;background:#000">このアプリは JavaScript が必要です。</p></noscript>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
