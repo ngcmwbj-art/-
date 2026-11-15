@@ -68,9 +68,24 @@ Ogg Vorbis・Opus は端末やブラウザによります（「その他 → 使
 
 ## 置き場所（公開のしかた）
 
+**公開先： https://ngcmwbj-art.github.io/-/music/**
+
 オフラインで使うには、**https で始まるアドレス**に置く必要があります（Service Worker の決まりです）。
-GitHub Pages なら、公開元のブランチにこの `music/` フォルダがあれば、
-`https://<ユーザー名>.github.io/<リポジトリ名>/music/` で開けます。
+このリポジトリの GitHub Pages は `claude/kei-truck-runner-game-ngc2ni` ブランチの中身を公開しているので、
+そのブランチに `music/` フォルダを入れると、上のアドレスで開けます。
+
+開発は別のブランチでして、できあがった `music/` をそのまま公開元のブランチへ写します。
+
+```sh
+# 公開元のブランチに、開発ブランチの music/ を写して push する
+git fetch origin claude/kei-truck-runner-game-ngc2ni
+git worktree add -B claude/kei-truck-runner-game-ngc2ni ../pages origin/claude/kei-truck-runner-game-ngc2ni
+cd ../pages
+git rm -r -q --ignore-unmatch music && git checkout <開発ブランチ> -- music
+git commit -m "ミュージック：…" && git push origin claude/kei-truck-runner-game-ngc2ni
+```
+
+push すると 1 分ほどで公開されます。使う側は、アプリを一度完全に閉じて開きなおすと新しい版になります。
 
 手元で試すとき：
 
