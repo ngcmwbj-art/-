@@ -692,7 +692,7 @@ async function savePlaylist(pl) {
 async function newPlaylist(firstTrackIds = null) {
   const name = await promptBox({
     title: '新規プレイリスト',
-    message: 'プレイリストの名前を入れてください。',
+    message: '名前を入れてください。',
     placeholder: '名前',
     okLabel: '保存',
   });

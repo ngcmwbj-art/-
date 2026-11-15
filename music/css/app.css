@@ -1052,6 +1052,7 @@ input { font-family: inherit; }
   -webkit-user-select: text;
   user-select: text;
 }
+.alert-input:focus-visible { outline: none; }
 .alert-btns { display: flex; gap: 8px; }
 .alert-btns.stack { flex-direction: column; }
 .alert-btn {
