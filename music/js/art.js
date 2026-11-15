@@ -3,7 +3,7 @@
 // 再生画面用の大きい絵（full）を作って保存します。同じ絵は1回しか保存しません。
 
 const THUMB_SIZE = 200;     // 一覧用（長いほうの辺）
-const MID_SIZE = 512;       // ロック画面用
+const MID_SIZE = 512;       // ロック画面・横向きの流れ用
 const FULL_SIZE = 1200;     // 再生画面用の上限
 const KEEP_ORIGINAL_BYTES = 700 * 1024;   // これ以下の JPEG / PNG はそのまま大きい絵として使う
 const MAX_THUMB_URLS = 400;
@@ -49,7 +49,14 @@ export class ArtStore {
       }
       if (img.close) img.close();
       if (!thumb || !full) return null;
-      await this.db.putArt({ id, thumb, mid: mid || thumb, full });
+      // Blob のままではなく ArrayBuffer にして保存する（理由は db.js の先頭に）
+      await this.db.putArt({
+        id,
+        thumb: await thumb.arrayBuffer(),
+        mid: await (mid || thumb).arrayBuffer(),
+        full: await full.arrayBuffer(),
+        fullType: full.type || 'image/jpeg',
+      });
       known.add(id);
       return id;
     } catch (_) {
@@ -76,7 +83,7 @@ export class ArtStore {
       return p;
     }
     p = this.db.getArt(id).then((rec) => {
-      const blob = rec && (rec[field] || rec.full || rec.thumb);
+      const blob = artBlob(rec, field);
       return blob ? URL.createObjectURL(blob) : null;
     }).catch(() => null);
     cache.set(id, p);
@@ -91,21 +98,22 @@ export class ArtStore {
   }
 
   // ロック画面・コントロールセンターに出す絵（Media Session 用）。
-  // blob: の URL を読めない端末があるので、data: の URL にして渡す
+  // iPhone は blob: や data: の絵を出さないことがあるという報告があるので、
+  // Service Worker が動いているときは、ふつうの URL（sw.js が保存場所から絵を返す）で渡す。
+  // 動いていないとき（最初の1回・パソコンでファイルを直接開いたとき）は data: の URL で渡す
   artwork(id) {
     if (!id) return Promise.resolve(null);
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      const src = new URL(`__art/${encodeURIComponent(id)}`, document.baseURI).href;
+      return Promise.resolve([{ src, sizes: '512x512', type: 'image/jpeg' }]);
+    }
     let p = this.dataUrls.get(id);
     if (!p) {
       p = this.db.getArt(id).then(async (rec) => {
-        const blob = rec && (rec.mid || rec.thumb || rec.full);
+        const blob = artBlob(rec, 'mid');
         if (!blob) return null;
         const src = await blobToDataUrl(blob);
-        const type = blob.type || 'image/jpeg';
-        return [
-          { src, sizes: '512x512', type },
-          { src, sizes: '256x256', type },
-          { src, sizes: '96x96', type },
-        ];
+        return [{ src, sizes: '512x512', type: 'image/jpeg' }];
       }).catch(() => null);
       this.dataUrls.set(id, p);
       if (this.dataUrls.size > 3) this.dataUrls.delete(this.dataUrls.keys().next().value);
@@ -139,6 +147,17 @@ export class ArtStore {
     this.dataUrls.clear();
     this.known = new Set();
   }
+}
+
+// 保存してある絵（ArrayBuffer）を、表示に使える Blob にする。field: 'thumb' | 'mid' | 'full'
+function artBlob(rec, field) {
+  if (!rec) return null;
+  if (rec[field]) {
+    return new Blob([rec[field]], { type: field === 'full' ? (rec.fullType || 'image/jpeg') : 'image/jpeg' });
+  }
+  if (rec.full) return new Blob([rec.full], { type: rec.fullType || 'image/jpeg' });
+  if (rec.thumb) return new Blob([rec.thumb], { type: 'image/jpeg' });
+  return null;
 }
 
 // 絵の中身から短い id を作る（同じ絵なら同じ id）

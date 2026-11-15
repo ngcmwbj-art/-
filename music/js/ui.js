@@ -96,6 +96,8 @@ export function promptBox({ title, message, value = '', placeholder = '', okLabe
     const finish = (v) => {
       document.removeEventListener('keydown', onKey, true);
       input.blur();
+      // iPhone では、キーボードをしまったあと画面がずれたままになることがあるので、元の位置に戻す
+      window.scrollTo(0, 0);
       closeLayer(layer);
       resolve(v);
     };

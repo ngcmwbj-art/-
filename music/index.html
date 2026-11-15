@@ -61,7 +61,7 @@
           <div id="np-overlay" class="np-overlay">
             <div class="np-scrub-row">
               <span id="np-elapsed" class="np-time">0:00</span>
-              <input id="np-scrub" class="slider" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+              <div id="np-scrub" aria-label="再生位置"></div>
               <span id="np-remain" class="np-time">-0:00</span>
             </div>
             <div class="np-mode-row">
@@ -85,7 +85,7 @@
       </div>
       <div id="np-volume" class="np-volume" hidden>
         <span class="np-vol-ic" data-ic="speaker-low" aria-hidden="true"></span>
-        <input id="np-vol" class="slider slider-vol" type="range" min="0" max="100" value="100" step="1" aria-label="音量">
+        <div id="np-vol" class="slider-vol" aria-label="音量"></div>
         <span class="np-vol-ic" data-ic="speaker-high" aria-hidden="true"></span>
       </div>
     </footer>

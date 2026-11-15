@@ -1,9 +1,9 @@
 // 曲の取り込み。
 // 選んだファイルを1つずつ、タグを読む → ジャケットを保存 → 本体を保存、の順に入れます。
-// ファイル全体をメモリに読むことはしません（タグの部分だけ読みます）。
+// タグは必要な部分だけを読み、本体は保存のときに数MBずつ読みます。
 
 import { parseTags, guessMime, parseFileName, isAudioFile } from './tags.js';
-import { isQuotaError, requestPersist } from './db.js';
+import { isQuotaError, requestPersist, CHUNK_BYTES } from './db.js';
 
 // 入れ物（コンテナ）ごとの、ブラウザに「鳴らせる？」と聞くときの種類の書き方
 const PROBE_TYPES = {
@@ -24,6 +24,33 @@ const CONTAINER_MIME = {
   wav: 'audio/wav',
   aiff: 'audio/aiff',
 };
+
+// これより小さいファイルは、こわれているとみなす
+// （iPhone で一度にたくさん選ぶと、中身のない小さなファイルが混ざることがある）
+const MIN_BYTES = 1024;
+
+// 保存するときに付ける種類（MIME）。同じ形式でも端末によって通じる書き方がちがうので、
+// その端末が「鳴らせる」と答える書き方を選ぶ。どれも答えなければ、いちばんふつうの書き方にする
+function bestMime(audio, container, fallback) {
+  const candidates = PROBE_TYPES[container];
+  if (candidates) {
+    for (const t of candidates) {
+      try { if (audio.canPlayType(t)) return t; } catch (_) { /* 何もしない */ }
+    }
+  }
+  return CONTAINER_MIME[container] || fallback || '';
+}
+
+// ファイルの中身を、数MBずつの ArrayBuffer に分けて読む
+async function readChunks(file) {
+  const chunks = [];
+  for (let off = 0; off < file.size; off += CHUNK_BYTES) {
+    const buf = await file.slice(off, Math.min(file.size, off + CHUNK_BYTES)).arrayBuffer();
+    if (!buf.byteLength) throw new Error('ファイルを読めませんでした');
+    chunks.push(buf);
+  }
+  return chunks;
+}
 
 const playableCache = new Map();   // 'ogg/opus' など → true / false
 
@@ -100,14 +127,14 @@ export async function importFiles(files, ctx) {
     if (ctx.onProgress) ctx.onProgress(i, total, file.name);
 
     if (!isAudioFile(file.name, file.type)) { result.notAudio++; continue; }
-    if (!file.size) { result.failed.push(file.name); continue; }
+    if (file.size < MIN_BYTES) { result.failed.push(file.name); continue; }
     const sig = `${file.name}|${file.size}`;
     if (library.hasSig(sig)) { result.duplicates++; continue; }
 
     try {
       const tags = await parseTags(file, file.name);
       const container = tags.container || 'unknown';
-      const mime = CONTAINER_MIME[container] || guessMime(file.name, file.type) || file.type || '';
+      const mime = bestMime(audio, container, guessMime(file.name, file.type) || file.type);
 
       if (!(await canPlay(audio, file, container, tags.codec, mime))) {
         result.unsupported.push(file.name);
@@ -148,9 +175,9 @@ export async function importFiles(files, ctx) {
         lastPlayed: 0,
       };
 
-      // 種類（MIME）を付けた Blob として保存する。slice は中身を写さないので速い
-      const body = mime && file.type !== mime ? file.slice(0, file.size, mime) : file;
-      const id = await db.addTrack(track, body, tags.lyrics || '');
+      // 中身を読んで保存する（読むのはここで1回だけ。保存はトランザクション1つで、半端には残らない）
+      const chunks = await readChunks(file);
+      const id = await db.addTrack(track, chunks, tags.lyrics || '');
       track.id = id;
       library.add(track);
       result.added++;
@@ -185,7 +212,9 @@ export function summarize(result) {
     lines.push(`この端末で再生できない形式のため、${result.unsupported.length}件を入れませんでした（${sample(result.unsupported)}）。`);
   }
   if (result.notAudio) lines.push(`音楽ではないファイル ${result.notAudio}件はとばしました。`);
-  if (result.failed.length) lines.push(`読み込めなかったファイルが ${result.failed.length}件ありました（${sample(result.failed)}）。`);
+  if (result.failed.length) {
+    lines.push(`読み込めなかったファイルが ${result.failed.length}件ありました（${sample(result.failed)}）。もう一度選ぶと、入っていない曲だけが入ります。`);
+  }
   if (result.quota) lines.push('保存できる容量がいっぱいになったため、途中で止めました。いらない曲を消すか、端末の空きを増やしてください。');
   return lines.join('\n');
 }

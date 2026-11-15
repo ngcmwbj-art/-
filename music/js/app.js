@@ -2,7 +2,7 @@
 // 起動 → 保存してある曲の一覧を読む → タブとページを出す、という流れです。
 // ページ（一覧の画面）は積み重ねて管理し、進むときは右から、戻るときは左から滑り込みます。
 
-import { db, storageEstimate, requestPersist } from './db.js';
+import { db, storageUsage, requestPersist } from './db.js';
 import { Library, formatBytes, formatMinutes } from './library.js';
 import { Player } from './player.js';
 import { VList } from './vlist.js';
@@ -17,10 +17,19 @@ import { createCoverFlow } from './coverflow.js';
 const APP_VERSION = '1.0.0';
 const $ = (id) => document.getElementById(id);
 
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.navigator.standalone === true
+  || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+const canPickFolder = 'webkitdirectory' in HTMLInputElement.prototype
+  && window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+// Claude の中で試すための版（1つのファイルにまとめたもの）かどうか
+const isPreview = !!window.__MUSIC_PREVIEW__;
+
 const library = new Library();
 const art = new ArtStore(db);
 const audio = $('audio');
-const player = new Player({ audio, db, library });
+const player = new Player({ audio, db, library, earlySwitchWhenHidden: isIOS });
 player.artworkProvider = (track) => art.artwork(track.artId);
 
 let ui = { tab: 'songs', overlay: true, volume: 1 };   // こまかい設定（保存する）
@@ -33,13 +42,6 @@ function saveUi() {
 let nowPlaying = null;
 let coverFlow = null;
 let importing = false;
-
-const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
-  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isStandalone = () => window.navigator.standalone === true
-  || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-const canPickFolder = 'webkitdirectory' in HTMLInputElement.prototype
-  && window.matchMedia && window.matchMedia('(pointer: fine)').matches;
 
 // ════════════════════════════════════════════════════════
 //  ページの積み重ね（タブごと）
@@ -399,7 +401,11 @@ function emptyLibraryView() {
   b.type = 'button';
   b.addEventListener('click', () => startImport());
   box.appendChild(b);
-  if (isIOS && !isStandalone()) {
+  if (isPreview) {
+    box.appendChild(h('div', 'empty-hint',
+      'これは、見た目と操作を試すための版です。開くのに通信が必要で、入れた曲はこのブラウザの中だけに置かれ、消えることがあります。'
+      + 'ふだん使う版は、https の置き場所に置いたものをホーム画面に追加して使います。'));
+  } else if (isIOS && !isStandalone()) {
     box.appendChild(h('div', 'empty-hint',
       'はじめに、Safari の共有ボタン（□に↑）から「ホーム画面に追加」をして、ホーム画面のアイコンから開いてください。'
       + 'アプリのように全画面で使え、入れた曲が消えにくくなります。曲はそのあとで入れてください'
@@ -475,6 +481,8 @@ function openSearch() {
     }, 120);
   });
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') input.blur(); });
+  // iPhone では、キーボードをしまったあと画面がずれたままになることがあるので、元の位置に戻す
+  input.addEventListener('blur', () => { window.scrollTo(0, 0); });
   cancel.addEventListener('click', () => { input.blur(); popPage(); });
   // 一覧をさわったらキーボードをしまう
   page.vlist.scroller.addEventListener('pointerdown', () => input.blur());
@@ -967,27 +975,14 @@ function storagePage() {
       ]));
 
       const usedRow = gRow('このアプリの使用量', '…');
-      const freeRow = gRow('まだ使える量のめやす', '…');
-      const meterRow = h('div', 'g-row');
-      const meter = h('div', 'meter');
-      const fill = h('i');
-      fill.style.width = '0%';
-      meter.appendChild(fill);
-      meterRow.appendChild(meter);
       const keepRow = gRow('消えにくくする設定', '…');
-      root.appendChild(group('端末の保存場所', [usedRow, freeRow, meterRow, keepRow],
-        '曲はこの端末のブラウザの中に保存されます。ブラウザの「サイトのデータを消去」をしたり、ホーム画面のアイコンを消したりすると、入れた曲も消えます（元のファイルは消えません）。'));
+      root.appendChild(group('端末の保存場所', [usedRow, keepRow],
+        '曲はこの端末のブラウザの中に保存されます。ホーム画面のアイコンを消したり、ブラウザの「Web サイトのデータを消去」をしたりすると、入れた曲も消えます。'
+        + '端末の空きが少なくなると、端末が自動で消すこともあります。元の音楽ファイルは消さずに取っておいてください。'));
 
-      storageEstimate().then((e) => {
+      storageUsage().then((usage) => {
         if (!page.el.isConnected) return;
-        if (!e || !e.quota) {
-          usedRow.lastChild.textContent = 'わかりません';
-          freeRow.lastChild.textContent = 'わかりません';
-          return;
-        }
-        usedRow.lastChild.textContent = formatBytes(e.usage);
-        freeRow.lastChild.textContent = formatBytes(Math.max(0, e.quota - e.usage));
-        fill.style.width = `${Math.min(100, Math.max(1, Math.round((e.usage / e.quota) * 100)))}%`;
+        usedRow.lastChild.textContent = usage == null ? 'わかりません' : formatBytes(usage);
       });
       const showPersist = async () => {
         let on = false;
@@ -1025,17 +1020,23 @@ function helpPage() {
       const root = h('div', 'grouped');
       root.appendChild(group('曲の入れ方', [gText(
         '<ol><li>左上の <b>＋</b>（または「その他」→「曲を追加」）を押します。</li>'
-        + '<li>端末の中の音楽ファイルを選びます。<b>まとめていくつでも</b>選べます。</li>'
+        + '<li>端末の中の音楽ファイルを選びます。<b>まとめて</b>選べます。'
+        + 'iPhone・iPad では、出てきた中から<b>「ファイルを選択」</b>を選びます。</li>'
         + '<li>読み込みが終わると一覧に並びます。あとは通信がなくても聴けます。</li></ol>'
+        + 'とても多いときは、<b>数十曲ずつ</b>に分けて入れると確実です。読み込みが終わるまで、アプリを閉じたり切りかえたりしないでください。'
+        + '同じ曲をもう一度選んでも、二重には入りません。<br>'
         + 'パソコンでは、ファイルやフォルダを画面に<b>ドラッグして落とす</b>だけでも入ります。',
       )]));
       root.appendChild(group('iPhone・iPad で使うとき', [gText(
         '<ol><li>Safari でこのページを開きます。</li>'
         + '<li>共有ボタン（□に↑）→ <b>ホーム画面に追加</b>。</li>'
-        + '<li>ホーム画面にできたアイコンから開き、そこで曲を入れます。</li></ol>'
+        + '<li>通信できるうちに、ホーム画面にできたアイコンから一度開きます（これで、次からは通信なしで開けます）。</li>'
+        + '<li>そこで曲を入れます。</li></ol>'
         + 'Safari で開いたときと、ホーム画面のアイコンから開いたときでは、保存場所が別々です。'
         + '<b>曲はホーム画面のアイコンから開いて入れてください。</b>'
-        + '音楽ファイルは、先に「ファイル」アプリ（この iPhone 内 や iCloud Drive）に入れておきます。',
+        + '選べるのは「ファイル」アプリ（この iPhone 内 や iCloud Drive）にある音楽ファイルです。'
+        + '「ミュージック」アプリ（Apple Music）の中の曲は選べません。<br>'
+        + '音量は、本体の音量ボタンで変えます。',
       )]));
       root.appendChild(group('操作のこつ', [gText(
         '<ul><li>曲を押すと再生がはじまり、再生中の画面になります。</li>'
@@ -1043,7 +1044,8 @@ function helpPage() {
         + '<li>右上のボタンでジャケットが裏返り、これから流れる順番が見られます。</li>'
         + '<li>行を<b>横になぞる</b>と「削除」が出ます。<b>長押し</b>すると「次に再生」「プレイリストに追加」が選べます。</li>'
         + '<li>スマホを<b>横向き</b>にすると、ジャケットを流して選べます。</li>'
-        + '<li>画面を消しても再生は続き、ロック画面やイヤホンのボタンで操作できます。</li>'
+        + '<li>画面を消しても再生は続き、ロック画面やイヤホンのボタンで操作できます。'
+        + '（iPhone では、画面を消している間だけ、曲の終わりのごく短い部分をとばして次の曲へ進みます。）</li>'
         + '<li>下のタブをもう一度押すと、その一覧の最初にもどります。</li></ul>',
       )]));
 
@@ -1379,8 +1381,44 @@ function bindKeys() {
   });
 }
 
+// iPhone / iPad 向けの下ごしらえ
+function setupTouch() {
+  // これが1つあると、iPhone でもボタンを押している間の見た目（:active）が効く
+  document.addEventListener('touchstart', () => {}, { passive: true });
+  // 2本指での拡大をさせない（アプリの画面なので）
+  document.addEventListener('gesturestart', (ev) => ev.preventDefault());
+  // iPhone の「ファイル」では、種類をしぼる指定（accept）のせいで音楽ファイルが
+  // 灰色になって選べないことがある。iPhone / iPad ではしぼらず、選んだあとでこちらで見分ける
+  if (isIOS) fileInput.removeAttribute('accept');
+}
+
+// オフラインでも開けるように、アプリ本体を端末に控えておく（Service Worker）
+function setupServiceWorker() {
+  if (isPreview || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  const sw = navigator.serviceWorker;
+  const hadController = !!sw.controller;
+  let reg = null;
+  let lastCheck = Date.now();
+  const register = () => {
+    sw.register('sw.js').then((r) => { reg = r; }).catch(() => {});
+  };
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register);
+  // 新しい版が入ったら知らせるだけ（再生を止めないよう、勝手に読みこみなおさない）
+  sw.addEventListener('controllerchange', () => {
+    if (hadController) toast('新しい版を用意しました。次に開くと切りかわります', 3200);
+  });
+  // ホーム画面のアプリは長く開いたままになるので、表に戻ったときに（1時間に1回まで）新しい版をさがす
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !reg || Date.now() - lastCheck < 60 * 60 * 1000) return;
+    lastCheck = Date.now();
+    reg.update().catch(() => {});
+  });
+}
+
 async function boot() {
   setupIcons();
+  setupTouch();
   bindTabs();
   bindKeys();
   bindDrop();
@@ -1454,11 +1492,9 @@ async function boot() {
     });
   }
 
-  // オフラインでも開けるように、アプリ本体を端末に控えておく
-  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
-    if (document.readyState === 'complete') navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  setupServiceWorker();
+  // 曲が入っているなら、端末に「勝手に消さないで」とお願いしておく
+  if (library.size) requestPersist();
 }
 
 // テストから中を見られるように（ふだんは使いません）

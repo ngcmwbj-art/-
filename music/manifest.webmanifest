@@ -4,7 +4,6 @@
   "description": "ファイルの音楽を入れるだけで、通信なしで聴ける自分用の音楽プレイヤー。",
   "lang": "ja",
   "dir": "ltr",
-  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

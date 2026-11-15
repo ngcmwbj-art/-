@@ -5,6 +5,7 @@
 import { svg } from './icons.js';
 import { VList } from './vlist.js';
 import { renderRow, ROW_HEIGHTS } from './rows.js';
+import { createSlider } from './slider.js';
 import { formatTime, UNKNOWN_ARTIST, UNKNOWN_ALBUM } from './library.js';
 
 const $ = (id) => document.getElementById(id);
@@ -18,7 +19,6 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   const artImg = $('np-art');
   const overlay = $('np-overlay');
   const lyricsBox = $('np-lyrics');
-  const scrub = $('np-scrub');
   const elapsed = $('np-elapsed');
   const remain = $('np-remain');
   const flipBtn = $('np-flip');
@@ -29,8 +29,6 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   const shuffleBtn = $('np-shuffle');
   const countEl = $('np-count');
   const volBox = $('np-volume');
-  const vol = $('np-vol');
-
   const bottom = np.querySelector('.np-bottom');
 
   let isOpen = false;
@@ -111,10 +109,7 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
       syncLyrics();
     }
     syncTime();
-    if (flipped && queueList) {
-      queueList.refresh();
-      scrollQueueToCurrent();
-    }
+    if (flipped) { buildQueue(); scrollQueueToCurrent(); }
   }
 
   function syncState() {
@@ -123,19 +118,17 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
     playBtn.setAttribute('aria-label', playing ? '一時停止' : '再生');
   }
 
-  function syncTime() {
-    if (scrubbing) return;
-    const d = player.duration;
-    const t = Math.min(player.time, d || player.time);
-    setScrub(d > 0 ? t / d : 0);
+  function showTimes(t, d) {
     elapsed.textContent = formatTime(t);
     remain.textContent = d > 0 ? `-${formatTime(Math.max(0, d - t))}` : '--:--';
   }
 
-  function setScrub(ratio) {
-    const v = Math.round(Math.min(1, Math.max(0, ratio)) * 1000);
-    scrub.value = String(v);
-    scrub.style.setProperty('--p', `${v / 10}%`);
+  function syncTime() {
+    if (scrubbing) return;
+    const d = player.duration;
+    const t = d > 0 ? Math.min(player.time, d) : player.time;
+    scrub.value = d > 0 ? t / d : 0;
+    showTimes(t, d);
   }
 
   function syncQueue() {
@@ -167,6 +160,7 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   // 画面がたてに長い端末では、つまみをジャケットの下（操作ボタンの上）に常に出す。
   // 昔の小さな画面と同じくらいの縦横比のときだけ、ジャケットの上に重ねる
   function layout() {
+    if (np.hidden) return;
     const space = np.clientHeight - $('np-top').offsetHeight - np.clientWidth;
     const want = space >= 215;
     if (want === docked) return;
@@ -201,39 +195,41 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   });
 
   // ── 再生位置のつまみ ──
-  scrub.addEventListener('input', () => {
-    scrubbing = true;
-    const ratio = Number(scrub.value) / 1000;
-    scrub.style.setProperty('--p', `${ratio * 100}%`);
-    const d = player.duration;
-    elapsed.textContent = formatTime(d * ratio);
-    remain.textContent = d > 0 ? `-${formatTime(Math.max(0, d - d * ratio))}` : '--:--';
+  const scrub = createSlider($('np-scrub'), {
+    text: (v) => { const d = player.duration; return d > 0 ? `${formatTime(d * v)} / ${formatTime(d)}` : '0:00'; },
+    onInput: (v) => {
+      scrubbing = true;
+      const d = player.duration;
+      showTimes(d * v, d);
+    },
+    onChange: (v) => {
+      scrubbing = false;
+      const d = player.duration;
+      if (d > 0) player.seek(v * d);
+      else syncTime();
+    },
+    onCancel: () => { scrubbing = false; syncTime(); },
   });
-  const commitScrub = () => {
-    if (!scrubbing) return;
-    scrubbing = false;
-    const d = player.duration;
-    if (d > 0) player.seek((Number(scrub.value) / 1000) * d);
-  };
-  scrub.addEventListener('change', commitScrub);
-  scrub.addEventListener('pointerup', () => setTimeout(commitScrub, 0));
-  scrub.addEventListener('pointercancel', () => { scrubbing = false; syncTime(); });
 
-  // ── 音量（アプリから変えられる端末だけ）──
-  if (player.volumeSupported) {
-    volBox.hidden = false;
-    const v = typeof ui.volume === 'number' ? ui.volume : 1;
-    player.setVolume(v);
-    vol.value = String(Math.round(v * 100));
-    vol.style.setProperty('--p', `${Math.round(v * 100)}%`);
-    vol.addEventListener('input', () => {
-      const value = Number(vol.value) / 100;
-      vol.style.setProperty('--p', `${vol.value}%`);
-      player.setVolume(value);
-      ui.volume = value;
-      saveUi();
+  // ── 音量（アプリから変えられる端末だけ。iPhone は本体のボタンで変える）──
+  let volumeReady = false;
+  function setupVolume() {
+    if (volumeReady || !player.volumeSupported) return;
+    volumeReady = true;
+    const start = typeof ui.volume === 'number' ? ui.volume : 1;
+    const vol = createSlider($('np-vol'), {
+      thumb: 26,
+      text: (v) => `${Math.round(v * 100)}%`,
+      onInput: (v) => player.setVolume(v),
+      onChange: (v) => { player.setVolume(v); ui.volume = v; saveUi(); },
     });
+    vol.value = start;
+    player.setVolume(start);
+    volBox.hidden = false;
+    if (isOpen) layout();
   }
+  player.addEventListener('volumesupport', setupVolume);
+  setupVolume();
 
   // ── ボタン ──
   $('np-back').addEventListener('click', close);
@@ -290,12 +286,17 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   }
 
   // ── 再生エンジンからのお知らせ ──
-  player.addEventListener('track', () => { syncTrack(); if (flipped) buildQueue(); });
+  player.addEventListener('track', syncTrack);
   player.addEventListener('state', syncState);
   player.addEventListener('time', syncTime);
   player.addEventListener('queue', syncQueue);
 
-  window.addEventListener('resize', () => { if (isOpen) layout(); });
+  // 回した直後は画面の大きさがまだ古いことがあるので、少し待ってもう一度合わせる
+  window.addEventListener('resize', () => {
+    if (!isOpen) return;
+    layout();
+    setTimeout(() => { if (isOpen) layout(); }, 300);
+  });
 
   syncAll();
 

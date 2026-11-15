@@ -6,7 +6,7 @@
 // VERSION が変わると、次に開いたときに新しい版へ入れかわります。
 
 /* build-sw:begin */
-const VERSION = 'd8537f7110be';
+const VERSION = '110e93622f77';
 const FILES = [
   './',
   './index.html',
@@ -23,6 +23,7 @@ const FILES = [
   './js/nowplaying.js',
   './js/player.js',
   './js/rows.js',
+  './js/slider.js',
   './js/tags.js',
   './js/ui.js',
   './js/vlist.js',
@@ -42,14 +43,23 @@ const CACHE = `${PREFIX}${VERSION}`;
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    // HTTP キャッシュを通さずに取りなおす（古いファイルを控えてしまわないように）
-    await cache.addAll(FILES.map((url) => new Request(url, { cache: 'reload' })));
+    await Promise.all(FILES.map(async (url) => {
+      // HTTP キャッシュを通さずに取りなおす（古いファイルを控えてしまわないように）
+      const res = await fetch(new Request(url, { cache: 'reload' }));
+      if (!res.ok) throw new Error(`控えられませんでした: ${url}`);
+      // 転送（リダイレクト）を経た応答をそのままページに返すと Safari が断るので、中身だけの応答に作りなおす
+      const clean = res.redirected
+        ? new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers })
+        : res;
+      await cache.put(url, clean);
+    }));
     await self.skipWaiting();
   })());
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    // 消すのは自分の古い控えだけ（同じ置き場所に、ほかのページの控えがあるかもしれない）
     const keys = await caches.keys();
     await Promise.all(keys
       .filter((key) => key.startsWith(PREFIX) && key !== CACHE)
@@ -61,10 +71,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  if (req.headers.has('range')) return;   // 音声などの「一部だけください」には手を出さない
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   const scope = new URL('./', self.location.href).pathname;
   if (!url.pathname.startsWith(scope)) return;
+
+  // ロック画面に出すジャケットの絵（js/art.js の artwork が、この URL を端末に渡す）
+  const rest = url.pathname.slice(scope.length);
+  if (rest.startsWith('__art/')) {
+    event.respondWith(artResponse(rest.slice('__art/'.length)));
+    return;
+  }
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
@@ -86,3 +104,36 @@ self.addEventListener('fetch', (event) => {
     }
   })());
 });
+
+// ── 保存場所（IndexedDB）からジャケットの絵を取り出して返す ──
+
+function openMusicDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('music-box');
+    // まだ保存場所が無いときに、ここで空のものを作ってしまわない（作るのはページの側の仕事）
+    request.onupgradeneeded = () => { try { request.transaction.abort(); } catch (_) { /* 何もしない */ } };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function artResponse(encodedId) {
+  try {
+    const id = decodeURIComponent(encodedId);
+    const db = await openMusicDb();
+    db.onversionchange = () => db.close();
+    const rec = await new Promise((resolve, reject) => {
+      const tx = db.transaction('art', 'readonly');
+      const r = tx.objectStore('art').get(id);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+    const buf = rec && (rec.mid || rec.thumb);
+    if (buf) {
+      return new Response(buf, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' } });
+    }
+  } catch (_) { /* 下の「ありません」を返す */ }
+  return new Response('', { status: 404 });
+}

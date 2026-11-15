@@ -147,12 +147,11 @@ try {
   section('再生位置のつまみ・前へ・シャッフル・リピート');
   await page.click('#np-play');
   await waitPlaying();
-  await M(() => {
-    const r = document.getElementById('np-scrub');
-    r.value = '600';
-    r.dispatchEvent(new Event('input', { bubbles: true }));
-    r.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  {
+    // つまみの線の 60% のあたりを押す
+    const sb = await page.locator('#np-scrub').boundingBox();
+    await page.mouse.click(sb.x + 11 + (sb.width - 22) * 0.6, sb.y + sb.height / 2);
+  }
   await settle(250);
   s = await state();
   ok(s.time > 1.5 && s.time < 2.6, `つまみを動かすと再生位置が移る（${s.time.toFixed(2)}秒）`);
@@ -219,6 +218,49 @@ try {
   await closeNp();
 
   // ──────────────────────────────────────────────
+  section('画面を消している間は、終わる少し手前で次の曲へ（iPhone 向けの備え）');
+  {
+    // iPhone のふり：早めの切りかえを入れ、「画面が消えている」ことにする
+    const r = await M(async () => {
+      const { player, library } = window.__music;
+      const byTitle = (t) => Array.from(library.tracks.values()).find((x) => x.title === t);
+      const a = document.getElementById('audio');
+      let ended = 0;
+      const onEnded = () => { ended++; };
+      a.addEventListener('ended', onEnded);
+      player.earlySwitch = true;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      const first = byTitle('notag-vbr');   // 約4秒
+      const second = byTitle('ゆうやけ');
+      const before = first.playCount || 0;
+      player.playList([first.id, second.id], 0, { shuffle: false });
+      const t0 = performance.now();
+      let leftAtSwitch = null;
+      const onTrack = () => { if (player.current === second && leftAtSwitch === null) leftAtSwitch = a.duration - a.currentTime; };
+      await new Promise((resolve) => {
+        const tick = () => {
+          if (player.current === second && !a.paused && a.currentTime > 0.05) resolve();
+          else if (performance.now() - t0 > 9000) resolve();
+          else setTimeout(tick, 30);
+        };
+        tick();
+      });
+      const out = {
+        title: player.current && player.current.title, ended, counted: (first.playCount || 0) - before,
+        playing: !a.paused, ms: Math.round(performance.now() - t0),
+      };
+      a.removeEventListener('ended', onEnded);
+      delete document.hidden;
+      player.earlySwitch = false;
+      player.pause();
+      return out;
+    });
+    ok(r.title === 'ゆうやけ' && r.playing, `次の曲へ進んで鳴っている（${r.ms} ミリ秒後）`);
+    ok(r.ended === 0, '前の曲が「終わった」状態になる前に切りかえている');
+    ok(r.counted === 1, '聴いた回数は1回だけ数える');
+  }
+
+  // ──────────────────────────────────────────────
   section('長押しのメニュー・削除');
   await page.locator('.page:not([hidden]) .vl-song', { hasText: 'Wave Info Title' }).dispatchEvent('contextmenu');
   await settle(400);
@@ -233,9 +275,10 @@ try {
   ok(!(await titles('.page:not([hidden]) .vl-song .r-title')).includes('Wave Info Title'), '一覧から消える');
   ok(await M(async () => {
     const all = await window.__music.db.getAllTracks();
-    const files = await Promise.all(all.map((t) => window.__music.db.getFile(t.id)));
-    return all.length === 10 && files.every((f) => f && f.size > 0);
-  }), '保存場所からも消え、残りの 10曲のファイルはそろっている');
+    const files = await Promise.all(all.map((t) => window.__music.db.getFile(t.id, t.mime)));
+    const ids = await window.__music.db.fileIds();
+    return all.length === 10 && ids.length === 10 && files.every((f, i) => f && f.size === all[i].size && f.type === all[i].mime);
+  }), '保存場所からも消え、残りの 10曲のファイルは大きさも種類もそろっている');
 
   // 横になぞって削除
   const row = page.locator('.page:not([hidden]) .vl-song', { hasText: 'Both Tags' });
@@ -318,6 +361,15 @@ try {
   await page.reload({ waitUntil: 'load' });
   await ready();
   ok(await M(() => !!navigator.serviceWorker.controller), 'ページが Service Worker の管理下にある');
+  ok(await M(async () => {
+    const t = Array.from(window.__music.library.tracks.values()).find((x) => x.artId);
+    const list = await window.__music.art.artwork(t.artId);
+    if (!list || !/\/__art\//.test(list[0].src)) return false;
+    const res = await fetch(list[0].src);
+    const blob = await res.blob();
+    const miss = await fetch(new URL('__art/zzz', document.baseURI));
+    return res.ok && res.headers.get('Content-Type') === 'image/jpeg' && blob.size > 500 && miss.status === 404;
+  }), 'ロック画面用のジャケットを、ふつうの URL で取り出せる');
   await context.setOffline(true);
   await page.reload({ waitUntil: 'load' });
   await ready();

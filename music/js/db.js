@@ -3,32 +3,39 @@
 // 起動のときは軽い「曲の情報」だけを読めばよく、すぐに一覧を出せます。
 //
 //   tracks    曲の情報（題名・アーティスト・アルバムなど）   キー: id（自動の連番）
-//   files     音声ファイルそのもの（Blob）                   キー: 曲の id
-//   art       ジャケット画像（full: 大 / thumb: 小）          キー: 画像の中身から作った id
+//   files     音声ファイルの中身（ArrayBuffer を数MBずつに分けたもの）  キー: [曲の id, 何番目か]
+//   art       ジャケット画像（thumb: 小 / mid: 中 / full: 大。どれも ArrayBuffer）  キー: 画像の中身から作った id
 //   lyrics    歌詞（文字）                                    キー: 曲の id
 //   playlists プレイリスト（名前と曲 id のならび）            キー: id（自動の連番）
 //   kv        こまかい設定や「前回どこまで聴いたか」          キー: 名前
+//
+// 音声や画像を Blob / File のまま入れず ArrayBuffer で入れているのは、iPhone の Safari に
+// 「IndexedDB に入れた Blob を保存できない・読み出せない・再生できない」という不具合が
+// 版をまたいで何度も報告されているためです（ArrayBuffer なら、どの版でも同じように動きます）。
 
 const DB_NAME = 'music-box';
 const DB_VERSION = 1;
+
+// 音声を分けて入れるときの、ひとかたまりの大きさ
+export const CHUNK_BYTES = 8 * 1024 * 1024;
 
 let dbPromise = null;
 
 function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    let req;
+    let request;
     try {
-      req = indexedDB.open(DB_NAME, DB_VERSION);
+      request = indexedDB.open(DB_NAME, DB_VERSION);
     } catch (err) {
+      dbPromise = null;
       reject(err);
       return;
     }
-    req.onupgradeneeded = () => {
-      const db = req.result;
+    request.onupgradeneeded = () => {
+      const db = request.result;
       if (!db.objectStoreNames.contains('tracks')) {
-        const s = db.createObjectStore('tracks', { keyPath: 'id', autoIncrement: true });
-        s.createIndex('sig', 'sig', { unique: false });
+        db.createObjectStore('tracks', { keyPath: 'id', autoIncrement: true });
       }
       if (!db.objectStoreNames.contains('files')) db.createObjectStore('files');
       if (!db.objectStoreNames.contains('art')) db.createObjectStore('art', { keyPath: 'id' });
@@ -38,21 +45,21 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
     };
-    req.onsuccess = () => {
-      const db = req.result;
+    request.onsuccess = () => {
+      const db = request.result;
       // ほかのタブが新しい版を開こうとしたら、こちらは閉じて道をゆずる
       db.onversionchange = () => { db.close(); dbPromise = null; };
-      // iOS では、長く裏にいたあと接続が切れていることがある。切れたら次の操作で開きなおす
+      // iPhone では、長く裏にいたあと接続が切れていることがある。切れたら次の操作で開きなおす
       db.onclose = () => { dbPromise = null; };
       resolve(db);
     };
-    req.onerror = () => { dbPromise = null; reject(req.error || new Error('IndexedDB を開けませんでした')); };
-    req.onblocked = () => { /* 古いタブが閉じるのを待つ */ };
+    request.onerror = () => { dbPromise = null; reject(request.error || new Error('IndexedDB を開けませんでした')); };
+    request.onblocked = () => { /* 古いタブが閉じるのを待つ */ };
   });
   return dbPromise;
 }
 
-// 接続が切れていたとき用の「開きなおして1回だけやり直す」
+// 接続が切れていたときの失敗かどうか（このときは開きなおして、もう1回だけやり直す）
 function isConnectionError(err) {
   const name = err && err.name;
   const msg = String((err && err.message) || '');
@@ -60,91 +67,86 @@ function isConnectionError(err) {
     || /connection.*(lost|clos)/i.test(msg) || /database.*clos/i.test(msg);
 }
 
+function dropConnection(db) {
+  try { if (db) db.close(); } catch (_) { /* 何もしない */ }
+  dbPromise = null;
+}
+
 // stores: 入れ物の名前（配列）、mode: 'readonly' | 'readwrite'
-// work(tx) の中では、IndexedDB 以外の await をしないこと（トランザクションが閉じてしまう）。
-// work が返した値（または Promise の結果）を、トランザクションが無事に終わってから返します。
+// work(tx, done) の中では IndexedDB の操作だけを、その場で（await をはさまずに）発行すること。
+// 返したい値があるときは done(値) を呼ぶ。トランザクションが無事に終わってから、その値を返します。
+// 失敗したトランザクションは丸ごと取り消されるので、やり直しても二重にはなりません。
 async function withTx(stores, mode, work, retried = false) {
   let db;
-  let tx;
   try {
     db = await openDB();
-    tx = db.transaction(stores, mode);
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(stores, mode);
+      let result;
+      let failed = null;
+      tx.oncomplete = () => resolve(result);
+      tx.onerror = () => reject(failed || tx.error || new Error('保存に失敗しました'));
+      tx.onabort = () => reject(failed || tx.error || new Error('保存が取り消されました'));
+      try {
+        work(tx, (value) => { result = value; });
+      } catch (err) {
+        failed = err;
+        try { tx.abort(); } catch (_) { reject(err); }
+      }
+    });
   } catch (err) {
     if (!retried && isConnectionError(err)) {
-      try { if (db) db.close(); } catch (_) { /* 何もしない */ }
-      dbPromise = null;
+      dropConnection(db);
       return withTx(stores, mode, work, true);
     }
     throw err;
   }
-  return new Promise((resolve, reject) => {
-    let result;
-    let failed = null;
-    tx.oncomplete = () => resolve(result);
-    tx.onerror = () => reject(failed || tx.error || new Error('保存に失敗しました'));
-    tx.onabort = () => reject(failed || tx.error || new Error('保存が取り消されました'));
-    try {
-      const out = work(tx);
-      if (out && typeof out.then === 'function') {
-        out.then((v) => { result = v; }, (err) => {
-          failed = err;
-          try { tx.abort(); } catch (_) { reject(err); }
-        });
-      } else {
-        result = out;
-      }
-    } catch (err) {
-      failed = err;
-      try { tx.abort(); } catch (_) { reject(err); }
-    }
+}
+
+// 1つ読むだけの操作
+function getOne(store, key) {
+  return withTx([store], 'readonly', (tx, done) => {
+    const r = tx.objectStore(store).get(key);
+    r.onsuccess = () => done(r.result);
   });
 }
 
-// IDBRequest を Promise にする
-function req(request) {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+function getAll(store) {
+  return withTx([store], 'readonly', (tx, done) => {
+    const r = tx.objectStore(store).getAll();
+    r.onsuccess = () => done(r.result);
   });
+}
+
+// ある曲の、音声のかたまり全部を指す範囲
+function chunkRange(id) {
+  return IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER]);
 }
 
 export const db = {
   open: openDB,
 
   // ── 曲 ─────────────────────────────────────────────
-  getAllTracks() {
-    return withTx(['tracks'], 'readonly', (tx) => req(tx.objectStore('tracks').getAll()));
-  },
+  getAllTracks() { return getAll('tracks'); },
 
-  // 曲を1つ足す。track に id は付けないで渡す。足した曲の id を返す。
-  // blob を IndexedDB に入れられない端末（古い iOS の一部）では、いったん全部を
-  // メモリに読んでから入れなおす（呼び出し側が toBuffer を渡す）。
-  async addTrack(track, blob, lyrics) {
-    const put = (body) => withTx(['tracks', 'files', 'lyrics'], 'readwrite', async (tx) => {
-      const id = await req(tx.objectStore('tracks').add(track));
-      tx.objectStore('files').put(body, id);
-      if (lyrics) tx.objectStore('lyrics').put(lyrics, id);
-      return id;
+  // 曲を1つ足す。track に id は付けないで渡す。chunks は音声の中身（ArrayBuffer のならび）。
+  // 曲の情報・音声・歌詞を1つのトランザクションで入れるので、途中で失敗しても半端には残らない。
+  // 足した曲の id を返す。
+  addTrack(track, chunks, lyrics) {
+    return withTx(['tracks', 'files', 'lyrics'], 'readwrite', (tx, done) => {
+      const r = tx.objectStore('tracks').add(track);
+      r.onsuccess = () => {
+        const id = r.result;
+        const files = tx.objectStore('files');
+        chunks.forEach((buf, n) => files.put(buf, [id, n]));
+        if (lyrics) tx.objectStore('lyrics').put(lyrics, id);
+        done(id);
+      };
     });
-    try {
-      return await put(blob);
-    } catch (err) {
-      if (isQuotaError(err)) throw err;
-      // 「Blob/File を保存できません」系の失敗は、ArrayBuffer から作りなおした Blob で試す
-      const buf = await blob.arrayBuffer();
-      return put(new Blob([buf], { type: blob.type }));
-    }
   },
 
   updateTrack(track) {
     return withTx(['tracks'], 'readwrite', (tx) => { tx.objectStore('tracks').put(track); });
-  },
-
-  updateTracks(tracks) {
-    return withTx(['tracks'], 'readwrite', (tx) => {
-      const s = tx.objectStore('tracks');
-      for (const t of tracks) s.put(t);
-    });
   },
 
   deleteTracks(ids) {
@@ -152,25 +154,39 @@ export const db = {
       const t = tx.objectStore('tracks');
       const f = tx.objectStore('files');
       const l = tx.objectStore('lyrics');
-      for (const id of ids) { t.delete(id); f.delete(id); l.delete(id); }
+      for (const id of ids) { t.delete(id); f.delete(chunkRange(id)); l.delete(id); }
     });
   },
 
-  getFile(id) {
-    return withTx(['files'], 'readonly', (tx) => req(tx.objectStore('files').get(id)));
+  // 曲の音声を、再生できる形（Blob）にして返す。無ければ undefined
+  async getFile(id, mime) {
+    const chunks = await withTx(['files'], 'readonly', (tx, done) => {
+      const r = tx.objectStore('files').getAll(chunkRange(id));
+      r.onsuccess = () => done(r.result);
+    });
+    if (!chunks || !chunks.length) return undefined;
+    return new Blob(chunks, { type: mime || '' });
   },
 
-  getLyrics(id) {
-    return withTx(['lyrics'], 'readonly', (tx) => req(tx.objectStore('lyrics').get(id)));
+  // 音声が入っている曲の id の一覧（点検用）
+  async fileIds() {
+    const keys = await withTx(['files'], 'readonly', (tx, done) => {
+      const r = tx.objectStore('files').getAllKeys();
+      r.onsuccess = () => done(r.result);
+    });
+    return Array.from(new Set((keys || []).map((k) => k[0])));
   },
+
+  getLyrics(id) { return getOne('lyrics', id); },
 
   // ── ジャケット ─────────────────────────────────────
-  getArt(id) {
-    return withTx(['art'], 'readonly', (tx) => req(tx.objectStore('art').get(id)));
-  },
+  getArt(id) { return getOne('art', id); },
 
   getArtKeys() {
-    return withTx(['art'], 'readonly', (tx) => req(tx.objectStore('art').getAllKeys()));
+    return withTx(['art'], 'readonly', (tx, done) => {
+      const r = tx.objectStore('art').getAllKeys();
+      r.onsuccess = () => done(r.result);
+    });
   },
 
   putArt(rec) {
@@ -185,13 +201,14 @@ export const db = {
   },
 
   // ── プレイリスト ───────────────────────────────────
-  getPlaylists() {
-    return withTx(['playlists'], 'readonly', (tx) => req(tx.objectStore('playlists').getAll()));
-  },
+  getPlaylists() { return getAll('playlists'); },
 
   // id が無ければ新しく作る。保存したプレイリストの id を返す
   putPlaylist(pl) {
-    return withTx(['playlists'], 'readwrite', (tx) => req(tx.objectStore('playlists').put(pl)));
+    return withTx(['playlists'], 'readwrite', (tx, done) => {
+      const r = tx.objectStore('playlists').put(pl);
+      r.onsuccess = () => done(r.result);
+    });
   },
 
   deletePlaylist(id) {
@@ -199,9 +216,7 @@ export const db = {
   },
 
   // ── 設定・続きの位置 ───────────────────────────────
-  kvGet(key) {
-    return withTx(['kv'], 'readonly', (tx) => req(tx.objectStore('kv').get(key)));
-  },
+  kvGet(key) { return getOne('kv', key); },
 
   kvSet(key, value) {
     return withTx(['kv'], 'readwrite', (tx) => { tx.objectStore('kv').put(value, key); });
@@ -209,8 +224,11 @@ export const db = {
 
   // ── ぜんぶ消す ─────────────────────────────────────
   clearMusic() {
-    return withTx(['tracks', 'files', 'lyrics', 'art', 'playlists'], 'readwrite', (tx) => {
+    return withTx(['tracks', 'files', 'lyrics', 'art', 'playlists', 'kv'], 'readwrite', (tx) => {
       for (const name of ['tracks', 'files', 'lyrics', 'art', 'playlists']) tx.objectStore(name).clear();
+      // 「前回の続き」も忘れる（設定は残す）
+      tx.objectStore('kv').delete('queue');
+      tx.objectStore('kv').delete('pos');
     });
   },
 };
@@ -220,12 +238,12 @@ export function isQuotaError(err) {
   return err.name === 'QuotaExceededError' || /quota/i.test(String(err.message || ''));
 }
 
-// 保存容量のめやす（わからない端末では null）
-export async function storageEstimate() {
+// このアプリが使っている保存容量（わからない端末では null）
+export async function storageUsage() {
   try {
     if (navigator.storage && navigator.storage.estimate) {
       const e = await navigator.storage.estimate();
-      return { usage: e.usage || 0, quota: e.quota || 0 };
+      if (e && typeof e.usage === 'number') return e.usage;
     }
   } catch (_) { /* 何もしない */ }
   return null;
