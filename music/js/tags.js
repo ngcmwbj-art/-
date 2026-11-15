@@ -593,7 +593,7 @@ function looksWestern(bytes) {
 }
 
 /** 外字や「読めなかった印」が混ざっていたら、その読み方はまちがい */
-const BAD_CHARS = /[-�]/;
+const BAD_CHARS = /[\uE000-\uF8FF\uFFFD]/;
 
 /**
  * 文字コードが書かれていない（または当てにならない）8ビットの文字列を読む。
@@ -637,7 +637,7 @@ function decodeUtf8(bytes) {
 /** 前後の空白と NUL（と BOM）を落とす */
 function clean(value) {
   if (typeof value !== 'string') return '';
-  return value.replace(/^[\s\0﻿]+|[\s\0﻿]+$/g, '');
+  return value.replace(/^[\s\0\uFEFF]+|[\s\0\uFEFF]+$/g, '');
 }
 
 /** 歌詞用：改行をそろえてから前後を整える */

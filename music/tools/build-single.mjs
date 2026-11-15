@@ -56,8 +56,9 @@ export function buildSingle({ artifact = false } = {}) {
   const css = `${read('css/app.css')}\n${read('css/coverflow.css')}`;
   // </script> という文字が中に出てきても、そこで切れないようにする
   const js = bundleScripts().replace(/<\/script/gi, '<\\/script');
+  const title = artifact ? 'ミュージック お試し版' : 'ミュージック';
   const inner = [
-    '<title>ミュージック</title>',
+    `<title>${title}</title>`,
     `<style>\n${css}\n</style>`,
     body.trim(),
     '<script>window.__MUSIC_PREVIEW__ = true;</script>',
@@ -77,7 +78,7 @@ export function buildSingle({ artifact = false } = {}) {
     '</body>',
     '</html>',
     '',
-  ].join('\n').replace('</head>\n<body>\n<title>ミュージック</title>', '<title>ミュージック</title>\n</head>\n<body>');
+  ].join('\n').replace(`</head>\n<body>\n<title>${title}</title>`, `<title>${title}</title>\n</head>\n<body>`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

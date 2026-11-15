@@ -29,7 +29,7 @@ test('1ファイル版は、ほかのファイルを読みに行かない', () =
     assert.ok(!/<link\b/i.test(html), '<link> が残っています');
     assert.ok(!/<script[^>]+\bsrc=/i.test(html), '<script src> が残っています');
     assert.ok(html.includes('window.__MUSIC_PREVIEW__ = true'), 'お試し版の印がありません');
-    assert.ok(html.includes('<title>ミュージック</title>'));
+    assert.ok(html.includes(artifact ? '<title>ミュージック お試し版</title>' : '<title>ミュージック</title>'));
     assert.equal(/<!DOCTYPE html>/i.test(html), !artifact);
     // <script> の中身に </script> がそのまま出ていない（そこで切れてしまう）
     const scripts = html.split(/<script>/).slice(1).map((part) => part.slice(0, part.lastIndexOf('</script>')));
