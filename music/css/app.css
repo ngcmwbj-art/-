@@ -1173,9 +1173,22 @@ input { font-family: inherit; }
   pointer-events: none;
 }
 
-/* ── 大きな画面（パソコン・タブレット）では、端末の形の枠に入れる ── */
+/* ── タブレット（指で使う大きな画面）では、まんなかに読みやすい幅で置く ── */
 
-@media (min-width: 700px) and (min-height: 560px) {
+@media (min-width: 700px) and (pointer: coarse) {
+  html, body { background: #0b0c0e; }
+  .app {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: min(100%, 620px);
+    box-shadow: 0 0 0 1px #000, 0 0 70px rgba(0, 0, 0, .7);
+  }
+}
+
+/* ── パソコン（マウスで使う大きな画面）では、端末の形の枠に入れる ── */
+
+@media (min-width: 700px) and (min-height: 560px) and (hover: hover) and (pointer: fine) {
   html, body { background: #23272e; }
   body {
     background: radial-gradient(120% 90% at 50% 40%, #4a5261 0%, #262a32 60%, #14161a 100%);
