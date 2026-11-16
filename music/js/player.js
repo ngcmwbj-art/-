@@ -33,7 +33,8 @@ export class Player extends EventTarget {
     this.library = library;
     this.earlySwitch = !!earlySwitchWhenHidden;
 
-    this.base = [];        // もとのならび（曲 id）
+    this.source = [];      // playList に渡された、もとの一覧（「いま流しているのはこの一覧か」を見分けるため）
+    this.base = [];        // もとのならび（曲 id。「次に再生」で差しこんだ曲もふくむ）
     this.queue = [];       // 実際に流す順（シャッフルのときは混ぜた順）
     this.index = -1;
     this.shuffle = false;
@@ -45,6 +46,9 @@ export class Player extends EventTarget {
     this.volumeSupported = false;
 
     this._url = null;          // いまの曲の objectURL
+    this._urlId = null;        // その URL がどの曲のものか
+    this._dir = 1;             // いま読みこんでいる曲へ進んだ向き（前へ = -1）。鳴らせなかったとき、同じ向きに進む
+    this._resumeFailedAt = 0;  // 裏で鳴らしそこねた時刻
     this._loadToken = 0;       // 読み込みの世代（古い読み込みの結果を捨てるための番号）
     this._ready = new Map();   // 先に用意した「となりの曲」  曲 id → objectURL
     this._prepToken = 0;
@@ -94,6 +98,7 @@ export class Player extends EventTarget {
     if (!ids || !ids.length) return;
     this._unlock();
     if (typeof opts.shuffle === 'boolean') this.shuffle = opts.shuffle;
+    this.source = ids.slice();
     this.base = ids.slice();
     if (this.shuffle) {
       if (startIndex >= 0) {
@@ -130,6 +135,9 @@ export class Player extends EventTarget {
     if (!this._loaded) {
       // 起動したあと最初の再生：前回の続きの位置から
       this._load(this.index, { autoplay: true, position: this._restoreTime });
+    } else if (this.audio.error) {
+      // 鳴らせなかった曲で止まっている：読みこみなおす（だめなら、知らせて次の曲へ進むか止まる）
+      this._load(this.index, { autoplay: true, position: this._lastTime });
     } else {
       this._play();
     }
@@ -139,7 +147,8 @@ export class Player extends EventTarget {
   pause() {
     this.wantPlay = false;
     this._resumeOnVisible = false;
-    if (this._loaded) this.audio.pause();
+    // 次の曲の読みこみを待っている間（_loaded が false）でも、鳴っている前の曲を止める
+    if (this._loaded || !this._silent) { try { this.audio.pause(); } catch (_) { /* 何もしない */ } }
     this._emit('state');
     this._setPlaybackState();
     this._savePos(true);
@@ -173,7 +182,7 @@ export class Player extends EventTarget {
       return;
     }
     const pi = this.index > 0 ? this.index - 1 : this.queue.length - 1;
-    this._load(pi, { autoplay: this.wantPlay });
+    this._load(pi, { autoplay: this.wantPlay, dir: -1 });
   }
 
   // ならびの中の i 番目へ
@@ -260,6 +269,7 @@ export class Player extends EventTarget {
     if (!this.queue.some((id) => gone.has(id))) return;
     const curId = this.hasQueue ? this.queue[this.index] : null;
     const before = this.queue.slice(0, Math.max(0, this.index)).filter((id) => gone.has(id)).length;
+    this.source = this.source.filter((id) => !gone.has(id));
     this.base = this.base.filter((id) => !gone.has(id));
     this.queue = this.queue.filter((id) => !gone.has(id));
     if (!this.queue.length) {
@@ -272,6 +282,7 @@ export class Player extends EventTarget {
       this.wantPlay = autoplay;
       this._load(ni, { autoplay });
       this._emit('state');
+      this._setPlaybackState();
     } else {
       this.index -= before;
       this._prepareNeighbors();
@@ -298,9 +309,10 @@ export class Player extends EventTarget {
     const alive = (id) => this.library.get(id);
     this.queue = q.queue.filter(alive);
     this.base = (Array.isArray(q.base) ? q.base : q.queue).filter(alive);
+    this.source = (Array.isArray(q.source) ? q.source : this.base).filter(alive);
     this.shuffle = !!q.shuffle;
     this.repeat = REPEAT_MODES.includes(q.repeat) ? q.repeat : 'off';
-    if (!this.queue.length) { this.base = []; return; }
+    if (!this.queue.length) { this.base = []; this.source = []; return; }
     let index = 0;
     let time = 0;
     if (pos && typeof pos.id === 'number') {
@@ -338,8 +350,10 @@ export class Player extends EventTarget {
     } catch (_) { /* 何もしない */ }
   }
 
-  async _load(index, { autoplay, position = 0 }) {
+  // dir: 進んだ向き（前へ = -1、それ以外 = 1）。この曲が鳴らせなかったとき、同じ向きのとなりへ進む
+  async _load(index, { autoplay, position = 0, dir = 1 }) {
     const token = ++this._loadToken;
+    this._dir = dir < 0 ? -1 : 1;
     const id = this.queue[index];
     const track = this.library.get(id);
     this.index = index;
@@ -371,14 +385,17 @@ export class Player extends EventTarget {
       if (!blob) { this._failCurrent('ファイルが見つかりません', token); return; }
       url = URL.createObjectURL(blob);
     }
-    this._setSource(url, { autoplay, position });
+    // 読みこみを待っている間に、一時停止やつまみの移動があったかもしれない。いまの値を使う
+    this._setSource(url, id, { autoplay: this.wantPlay && !!autoplay, position: this._restoreTime });
   }
 
-  _setSource(url, { autoplay, position = 0 }) {
+  _setSource(url, id, { autoplay, position = 0 }) {
     const a = this.audio;
     const old = this._url;
+    const oldId = this._urlId;
     this._silent = false;
     this._url = url;
+    this._urlId = id;
     this._pendingSeek = position > 0 ? position : null;
     this._loaded = true;
     this._sourceSetAt = Date.now();
@@ -388,8 +405,12 @@ export class Player extends EventTarget {
     } else {
       try { a.load(); } catch (_) { /* 何もしない */ }
     }
-    // 前の曲の URL は、もう <audio> から外れたので手放してよい
-    if (old && old !== url) URL.revokeObjectURL(old);
+    // 前の曲の URL は、もう <audio> から外れた。すぐ戻るかもしれないので「用意ずみ」に回す
+    // （となりの曲でなければ、次の _prepareNeighbors が手放す）
+    if (old && old !== url) {
+      if (oldId != null && !this._ready.has(oldId)) this._ready.set(oldId, old);
+      else URL.revokeObjectURL(old);
+    }
     this._prepareNeighbors();
   }
 
@@ -404,13 +425,17 @@ export class Player extends EventTarget {
         if (!err || err.name === 'AbortError') return;    // 曲の差し替えで取り消されただけ
         if (err.name === 'NotAllowedError') {
           // タップなしでは鳴らせない状況。止まった表示にして、次のタップ（または表に戻るの）を待つ
-          if (document.hidden) this._resumeOnVisible = true;
+          if (document.hidden) { this._resumeOnVisible = true; this._resumeFailedAt = Date.now(); }
           this.wantPlay = false;
           this._unlocked = false;
           this._emit('state');
           this._setPlaybackState();
+        } else if (this.audio.paused) {
+          // 読めない音源など（NotSupportedError）。音は出ていないので、表示も「止まった」にする
+          this.wantPlay = false;
+          this._emit('state');
+          this._setPlaybackState();
         }
-        // NotSupportedError は <audio> の error イベントのほうで扱う
       });
     }
   }
@@ -435,7 +460,8 @@ export class Player extends EventTarget {
       }
     }
     for (const id of Array.from(this._ready.keys())) {
-      if (!want.has(id)) this._dropReady(id);
+      const track = this.library.get(id);
+      if (!want.has(id) || !track || (track.size || 0) > want.get(id)) this._dropReady(id);
     }
     for (const [id, limit] of want) {
       if (this._ready.has(id)) continue;
@@ -471,6 +497,8 @@ export class Player extends EventTarget {
     this.audio.removeAttribute('src');
     try { this.audio.load(); } catch (_) { /* 何もしない */ }
     if (this._url) { URL.revokeObjectURL(this._url); this._url = null; }
+    this._urlId = null;
+    this.source = [];
     for (const id of Array.from(this._ready.keys())) this._dropReady(id);
     this._meta = null;
     this._emit('track');
@@ -486,25 +514,30 @@ export class Player extends EventTarget {
     const track = this.current;
     this._errorStreak++;
     this._emit('error', { track, message });
-    const limit = Math.min(this.queue.length, 5);
-    if (this.wantPlay && this._errorStreak < limit && this.queue.length > 1) {
-      let ni = this.index + 1;
-      if (ni >= this.queue.length) {
-        if (this.repeat !== 'all') { this.wantPlay = false; this._emit('state'); this._setPlaybackState(); return; }
-        ni = 0;
-      }
-      this._load(ni, { autoplay: true });
-    } else {
-      this.wantPlay = false;
-      this._emit('state');
-      this._setPlaybackState();
+    const n = this.queue.length;
+    const limit = Math.min(n, 5);
+    let ni = -1;
+    if (this.wantPlay && this._errorStreak < limit && n > 1) {
+      // 「前へ」で来たのなら、さらに前へ。それ以外は次へ
+      ni = this.index + this._dir;
+      if (ni >= n) ni = this.repeat === 'all' ? 0 : -1;
+      else if (ni < 0) ni = this.repeat === 'all' ? n - 1 : -1;
     }
+    if (ni >= 0) {
+      this._load(ni, { autoplay: true, dir: this._dir });
+      return;
+    }
+    // ここで止める。読みこみを待っていた間、前の曲が鳴りつづけているなら、それも止める
+    this.wantPlay = false;
+    if (!this._loaded && !this._silent) { try { this.audio.pause(); } catch (_) { /* 何もしない */ } }
+    this._emit('state');
+    this._setPlaybackState();
   }
 
   // 曲が終わった（または、終わる直前に早めに切りかえる）ときの進め方
   _afterEnd(early) {
     const a = this.audio;
-    if (this.repeat === 'one') {
+    if (this.repeat === 'one' || (this.repeat === 'all' && this.queue.length === 1)) {
       this._countPlay();
       try { a.currentTime = 0; } catch (_) { /* 何もしない */ }
       if (!early) this._play();
@@ -571,6 +604,7 @@ export class Player extends EventTarget {
         if (!this._loaded) a.pause();
         return;
       }
+      if (!this._loaded) return;
       this._errorStreak = 0;
       this._resumeOnVisible = false;
       if (!this.wantPlay) { this.wantPlay = true; this._emit('state'); }
@@ -628,18 +662,39 @@ export class Player extends EventTarget {
   _recover() {
     if (!this.hasQueue || !this._loaded) { this._resumeOnVisible = false; return; }
     const a = this.audio;
-    const resume = this._resumeOnVisible || this.wantPlay;
+    // 鳴らしなおすのは、鳴らしそこねてから間もないときだけ
+    // （何時間もたってからアプリを開いたとたんに、音が出たりしないように）
+    const recent = (t) => Date.now() - t < 2 * 60 * 1000;
+    const failedJustNow = this._resumeOnVisible && recent(this._resumeFailedAt);
     this._resumeOnVisible = false;
+    if (a.error) {
+      // 鳴らせない形式（code 4）は、読みこみなおしても同じ。次に再生を押したときにまかせる
+      if (a.error.code === 4 || !(failedJustNow || this.wantPlay)) return;
+      this.wantPlay = true;
+      this._load(this.index, { autoplay: true, position: this._lastTime });
+      this._emit('state');
+      return;
+    }
     // 入れたばかり（読み込みがこれから始まるところ）は「失われた」と見なさない
     const lost = a.readyState === 0 && a.networkState === 3 && Date.now() - this._sourceSetAt > 3000;
-    if (a.error || lost) {
+    if (lost) {
+      const resume = failedJustNow || this.wantPlay;
       this.wantPlay = resume;
       this._load(this.index, { autoplay: resume, position: this._lastTime });
       this._emit('state');
-    } else if (resume && a.paused && !a.ended) {
+      return;
+    }
+    if (!a.paused || a.ended) return;
+    if (failedJustNow || (this.wantPlay && recent(this._sourceSetAt))) {
+      // 裏で次の曲を入れたのに鳴りだせなかった：鳴らしなおす
       this.wantPlay = true;
       this._play();
       this._emit('state');
+    } else if (this.wantPlay) {
+      // 鳴っていないのに「再生中」の表示のままになっている：表示を実際に合わせる
+      this.wantPlay = false;
+      this._emit('state');
+      this._setPlaybackState();
     }
   }
 
@@ -716,7 +771,7 @@ export class Player extends EventTarget {
     clearTimeout(this._queueSaveTimer);
     this._queueSaveTimer = setTimeout(() => {
       this.db.kvSet('queue', {
-        base: this.base, queue: this.queue, shuffle: this.shuffle, repeat: this.repeat,
+        source: this.source, base: this.base, queue: this.queue, shuffle: this.shuffle, repeat: this.repeat,
       }).catch(() => {});
     }, 250);
   }

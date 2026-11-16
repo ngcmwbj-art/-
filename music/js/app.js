@@ -350,7 +350,7 @@ function playFromList(page, item, index) {
   page.vlist.select(index);
   // いま流れている曲そのものを押したときは、頭出しせずに再生中の画面を開くだけ
   const cur = player.current;
-  const same = cur && cur.id === item.track.id && sameList(player.base, ids);
+  const same = cur && cur.id === item.track.id && sameList(player.source, ids);
   if (!same) player.playList(ids, start);
   else if (!player.playing) player.play();
   nowPlaying.open();
@@ -857,17 +857,30 @@ function bindReorder(page, id) {
       settle();
     }, 30);
 
+    // 指の動きを聞く相手。押した行は描きなおしで画面から外れるので、
+    // 外れた要素にイベントが届きつづける端末（iPhone）でも受けとれるよう、押した要素そのものにも付ける。
+    // あわせて、ページ（外れない要素）に指をつかまえさせる
+    const src = ev.target;
+    const listenOn = [document, src];
+    try { page.el.setPointerCapture(ev.pointerId); } catch (_) { /* 何もしない */ }
+    let ended = false;
     const move = (e) => {
+      if (ended) return;
       lastY = e.clientY - hostRect.top;
       place(lastY);
       settle();
       e.preventDefault();
     };
     const end = () => {
+      if (ended) return;
+      ended = true;
       clearInterval(scrollTimer);
-      document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', end);
-      document.removeEventListener('pointercancel', end);
+      for (const t of listenOn) {
+        t.removeEventListener('pointermove', move);
+        t.removeEventListener('pointerup', end);
+        t.removeEventListener('pointercancel', end);
+      }
+      try { page.el.releasePointerCapture(ev.pointerId); } catch (_) { /* 何もしない */ }
       ghost.remove();
       item.gap = false;
       const pl = findPlaylist(id);
@@ -879,9 +892,11 @@ function bindReorder(page, id) {
         page.update();
       }
     };
-    document.addEventListener('pointermove', move, { passive: false });
-    document.addEventListener('pointerup', end);
-    document.addEventListener('pointercancel', end);
+    for (const t of listenOn) {
+      t.addEventListener('pointermove', move, { passive: false });
+      t.addEventListener('pointerup', end);
+      t.addEventListener('pointercancel', end);
+    }
   });
 }
 

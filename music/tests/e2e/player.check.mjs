@@ -76,6 +76,104 @@ try {
   await page.click('#np-back');
   await settle(450);
 
+  console.log('\n■ 読みこみの最中の一時停止・鳴らせない曲');
+  // 鳴らせない曲（Chromium は ALAC を鳴らせない）を1つ足す
+  await page.setInputFiles('#file-input', [{ name: 'c2-alac.m4a', mimeType: '', buffer: readFileSync(join(fixtures, 'c2-alac.m4a')) }]);
+  await page.waitForFunction((n) => window.__music.library.size === n, FILES.length + 1, { timeout: 30000 });
+  await settle(2300);
+  const r0 = await P(async () => {
+    const { player, library, db } = window.__music;
+    const a = document.getElementById('audio');
+    const byTitle = (t) => Array.from(library.tracks.values()).find((x) => x.title === t);
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const X = byTitle('Lossless Tune').id;
+    const A = byTitle('notag-vbr').id;
+    const B = byTitle('Seaside Walk').id;
+    const C = byTitle('ゆうやけ').id;
+    const out = {};
+
+    // 読みこみを遅くして、その間に一時停止を押す
+    const realGet = db.getFile.bind(db);
+    db.getFile = async (id, mime) => { await wait(300); return realGet(id, mime); };
+    player.playList([A, B, C], 0, { shuffle: false });
+    await wait(900);
+    player.jumpTo(2);            // C は用意していないので、読みこみを待つ
+    await wait(60);
+    player.pause();
+    await wait(1000);
+    out.pauseDuringLoad = { playing: player.playing, paused: a.paused, title: player.current.title };
+    db.getFile = realGet;
+
+    // 次の曲のファイルが読めず、そこで止まるとき、前の曲も止まる
+    player.playList([A, B], 0, { shuffle: false });
+    await wait(700);
+    for (const id of Array.from(player._ready.keys())) player._dropReady(id);
+    db.getFile = async (id, mime) => (id === B ? undefined : realGet(id, mime));
+    player.next(true);
+    await wait(600);
+    out.missingNext = { playing: player.playing, paused: a.paused };
+    db.getFile = realGet;
+
+    // 鳴らせない曲で止まったあと、再生を押しても「再生中」の表示のまま無音にならない
+    player.playList([X], 0, { shuffle: false });
+    await wait(900);
+    const afterFail = { playing: player.playing, paused: a.paused };
+    player.play();
+    await wait(900);
+    out.stuck = { afterFail, playing: player.playing, paused: a.paused };
+
+    // 「前へ」で鳴らせない曲に当たったら、もとの曲へはね返らずに、さらに前へ
+    player.playList([A, X, B], 2, { shuffle: false });
+    await wait(700);
+    player.prev();
+    await wait(1200);
+    out.prevSkips = { title: player.current.title, playing: player.playing, paused: a.paused };
+    player.pause();
+
+    // 片づけ：鳴らせない曲を消す
+    await db.deleteTracks([X]);
+    player.tracksRemoved([X]);
+    library.remove([X]);
+    return out;
+  });
+  ok(!r0.pauseDuringLoad.playing && r0.pauseDuringLoad.paused && r0.pauseDuringLoad.title === 'ゆうやけ', `読みこみを待っている間に一時停止を押すと、止まったままになる ${JSON.stringify(r0.pauseDuringLoad)}`);
+  ok(!r0.missingNext.playing && r0.missingNext.paused, `次の曲のファイルが読めずに止まるとき、前の曲の音も止まる ${JSON.stringify(r0.missingNext)}`);
+  ok(!r0.stuck.afterFail.playing && !r0.stuck.playing && r0.stuck.paused, `鳴らせない曲で再生を押しても、無音のまま「再生中」にならない ${JSON.stringify(r0.stuck)}`);
+  ok(r0.prevSkips.title === 'notag-vbr' && r0.prevSkips.playing && !r0.prevSkips.paused, `「前へ」で鳴らせない曲に当たったら、その前の曲へ進む ${JSON.stringify(r0.prevSkips)}`);
+  await settle();
+  ok((await check()).length === 0, `つじつまが合う ${JSON.stringify(await check())}`);
+
+  console.log('\n■ 1曲だけのならびを「全体をくり返す」（画面を消している間）');
+  const r00 = await P(async () => {
+    const { player, library } = window.__music;
+    const a = document.getElementById('audio');
+    const t = Array.from(library.tracks.values()).find((x) => x.title === 'notag-vbr');   // 約4秒
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    let ended = 0;
+    let emptied = 0;
+    const onEnded = () => { ended++; };
+    const onEmptied = () => { emptied++; };
+    while (player.repeat !== 'all') player.cycleRepeat();
+    player.playList([t.id], 0, { shuffle: false });
+    await wait(400);
+    a.addEventListener('ended', onEnded);
+    a.addEventListener('emptied', onEmptied);
+    const count0 = t.playCount || 0;
+    player.earlySwitch = true;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    await wait(8800);
+    const out = { ended, emptied, loops: (t.playCount || 0) - count0, playing: !a.paused };
+    delete document.hidden;
+    player.earlySwitch = false;
+    a.removeEventListener('ended', onEnded);
+    a.removeEventListener('emptied', onEmptied);
+    while (player.repeat !== 'off') player.cycleRepeat();
+    // このあとの試験のために、全部の曲のならびで鳴らしておく
+    player.playList(library.allSongs().map((x) => x.id), 0, { shuffle: false });
+    return out;
+  });
+  ok(r00.ended === 0 && r00.emptied === 0 && r00.loops >= 2 && r00.playing, `曲を入れなおさず、頭に戻ってくり返す ${JSON.stringify(r00)}`);
+
   console.log('\n■ 連打');
   await P(() => { const p = window.__music.player; for (let i = 0; i < 12; i++) p.next(true); });
   await settle();

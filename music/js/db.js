@@ -85,7 +85,9 @@ async function withTx(stores, mode, work, retried = false) {
       let result;
       let failed = null;
       tx.oncomplete = () => resolve(result);
-      tx.onerror = () => reject(failed || tx.error || new Error('保存に失敗しました'));
+      // 中の操作が失敗したときは、ここでは理由を覚えるだけにする（このあと必ず onabort が来る）。
+      // ここで返してしまうと、「容量がいっぱい」などの理由の名前が分からなくなる
+      tx.onerror = (ev) => { if (!failed && ev.target && ev.target.error) failed = ev.target.error; };
       tx.onabort = () => reject(failed || tx.error || new Error('保存が取り消されました'));
       try {
         work(tx, (value) => { result = value; });
@@ -145,8 +147,14 @@ export const db = {
     });
   },
 
+  // 曲の情報を書きかえる。もう消された曲は書き戻さない
+  // （削除の最中に「聴いた回数」の書きこみが重なっても、消した曲が一覧に戻らないように）
   updateTrack(track) {
-    return withTx(['tracks'], 'readwrite', (tx) => { tx.objectStore('tracks').put(track); });
+    return withTx(['tracks'], 'readwrite', (tx) => {
+      const store = tx.objectStore('tracks');
+      const r = store.getKey(track.id);
+      r.onsuccess = () => { if (r.result !== undefined) store.put(track); };
+    });
   },
 
   deleteTracks(ids) {

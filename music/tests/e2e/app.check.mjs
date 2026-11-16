@@ -300,11 +300,48 @@ try {
   }
 
   // ──────────────────────────────────────────────
+  section('「次に再生」のあと、いまの曲の行を押す');
+  {
+    await page.locator('.page:not([hidden]) .vl-song', { hasText: 'notag-vbr' }).click();
+    await waitPlaying(0.3);
+    await closeNp();
+    const before2 = await M(() => {
+      const { player, library } = window.__music;
+      const other = Array.from(library.tracks.values()).find((t) => t.title === 'Seaside Walk');
+      player.playNext([other.id]);
+      return { len: player.queue.length };
+    });
+    await settle(700);
+    await page.locator('.page:not([hidden]) .vl-song', { hasText: 'notag-vbr' }).click();
+    await settle(500);
+    const after2 = await M(() => {
+      const { player } = window.__music;
+      return { len: player.queue.length, t: document.getElementById('audio').currentTime, title: player.current.title, next: window.__music.library.get(player.queue[player.index + 1]).title };
+    });
+    ok(after2.title === 'notag-vbr' && after2.t > 0.9, `曲は頭から鳴りなおさない（${after2.t.toFixed(2)}秒）`);
+    ok(after2.len === before2.len && after2.next === 'Seaside Walk', '差しこんだ曲がならびに残っている');
+    ok(await page.locator('#np').isVisible(), '再生中の画面が開く');
+    await page.click('#np-play');
+    await closeNp();
+  }
+
+  // ──────────────────────────────────────────────
   section('長押しのメニュー・削除');
-  await page.locator('.page:not([hidden]) .vl-song', { hasText: 'Wave Info Title' }).dispatchEvent('contextmenu');
-  await settle(400);
+  {
+    // 本物の指のように、押したまま 0.8 秒待って、はなす
+    const target = page.locator('.page:not([hidden]) .vl-song', { hasText: 'Wave Info Title' });
+    const b = await target.boundingBox();
+    const cdp = await context.newCDPSession(page);
+    const pt = { x: Math.round(b.x + 120), y: Math.round(b.y + b.height / 2) };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+    await settle(800);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await settle(500);
+    await cdp.detach();
+  }
   ok(JSON.stringify(await page.locator('.sheet-btn').allTextContents())
-    === JSON.stringify(['次に再生', 'プレイリストに追加…', 'この曲を削除', 'キャンセル']), '長押しでメニューが出る');
+    === JSON.stringify(['次に再生', 'プレイリストに追加…', 'この曲を削除', 'キャンセル']), '長押しでメニューが出て、指をはなしても開いたまま');
+  ok(!(await page.locator('#np').isVisible()), '長押しでは再生がはじまらない');
   await page.locator('.sheet-btn', { hasText: 'この曲を削除' }).click();
   await settle(450);
   ok(/Wave Info Title.*削除しますか/s.test(await page.locator('.sheet-title').innerText()), '削除の前に確かめる');
@@ -318,6 +355,23 @@ try {
     const ids = await window.__music.db.fileIds();
     return all.length === 10 && ids.length === 10 && files.every((f, i) => f && f.size === all[i].size && f.type === all[i].mime);
   }), '保存場所からも消え、残りの 10曲のファイルは大きさも種類もそろっている');
+
+  {
+    const dbr = await M(async () => {
+      const { db, library } = window.__music;
+      const some = Array.from(library.tracks.values())[0];
+      let name = '';
+      try { await db.addTrack({ ...some }, [new ArrayBuffer(16)], ''); } catch (err) { name = err && err.name; }
+      const countAfterFail = (await db.getAllTracks()).length;
+      // 消した曲への書きこみ（聴いた回数など）が、曲を一覧に戻さない
+      const ghost = { ...some, id: 987654, title: 'もういない曲' };
+      await db.updateTrack(ghost);
+      const all = await db.getAllTracks();
+      return { name, countAfterFail, ghost: all.some((t) => t.id === 987654), n: all.length };
+    });
+    ok(dbr.name === 'ConstraintError' && dbr.countAfterFail === 10, `保存に失敗したとき、理由の名前が伝わり、半端に残らない（${dbr.name}）`);
+    ok(!dbr.ghost && dbr.n === 10, '保存場所にない曲への書きこみは、曲を増やさない');
+  }
 
   // 横になぞって削除
   const row = page.locator('.page:not([hidden]) .vl-song', { hasText: 'Both Tags' });
@@ -409,6 +463,17 @@ try {
     const miss = await fetch(new URL('__art/zzz', document.baseURI));
     return res.ok && res.headers.get('Content-Type') === 'image/jpeg' && blob.size > 500 && miss.status === 404;
   }), 'ロック画面用のジャケットを、ふつうの URL で取り出せる');
+  {
+    // 同じ置き場所の別のページに、控えを消されたことにする → 通信があるうちに開けば、入れなおす
+    await M(async () => { for (const k of await caches.keys()) await caches.delete(k); });
+    await page.reload({ waitUntil: 'load' });
+    await ready();
+    await page.waitForFunction(async () => {
+      for (const k of await caches.keys()) { if ((await (await caches.open(k)).keys()).length > 20) return true; }
+      return false;
+    }, null, { timeout: 15000 });
+    ok(true, '控えが消されていても、開いたときに入れなおす');
+  }
   await context.setOffline(true);
   await page.reload({ waitUntil: 'load' });
   await ready();
@@ -459,6 +524,10 @@ try {
   await page.setViewportSize({ width: 844, height: 390 });
   await settle(700);
   ok(await page.locator('#coverflow').isVisible(), '横向きで出る');
+  {
+    const cb = await page.locator('#coverflow').boundingBox();
+    ok(cb.x === 0 && cb.width === 844 && cb.height === 390, `横向きのスマホで、画面いっぱいに出る（幅 ${cb.width}）`);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
   await settle(500);
   ok(!(await page.locator('#coverflow').isVisible()), 'たて向きにもどすと消える');

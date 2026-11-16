@@ -293,6 +293,8 @@ export class VList {
           if (this._press !== press) return;
           this._suppressClick = true;
           this._cancelPress();
+          // 指をはなした瞬間の「押した」が、いま出したメニューに届かないようにする
+          swallowNextClick();
           this.opts.onLongPress(hit.item, hit.node, hit.i);
         }, 520);
       }
@@ -421,4 +423,19 @@ function el(tag, cls) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   return e;
+}
+
+// 長押しのあと、指をはなしたときに届く click を、どこに届いても1回だけ捨てる。
+// これをしないと、長押しで出したメニューが、はなした瞬間に閉じたり、指の下のボタンが押されたりする
+function swallowNextClick() {
+  const kill = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+  const off = () => {
+    window.removeEventListener('pointerup', off, true);
+    window.removeEventListener('pointercancel', off, true);
+    // click は pointerup のすぐあとに届く。届かなかったとき（指を動かしたときなど）のために、少し待って外す
+    setTimeout(() => window.removeEventListener('click', kill, true), 350);
+  };
+  window.addEventListener('click', kill, { capture: true, once: true });
+  window.addEventListener('pointerup', off, true);
+  window.addEventListener('pointercancel', off, true);
 }
