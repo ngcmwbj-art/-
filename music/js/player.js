@@ -23,7 +23,7 @@ const READY_NEXT_MAX = 160 * 1024 * 1024;
 const READY_PREV_MAX = 48 * 1024 * 1024;
 
 export class Player extends EventTarget {
-  // earlySwitchWhenHidden: 画面を消している間は、曲が終わるほんの少し手前で次の曲へ切りかえる。
+  // earlySwitchWhenHidden: 画面を消している間は、曲が終わるほんの少し手前（約 0.08 秒前）で次の曲へ切りかえる。
   //   iPhone のホーム画面アプリには「曲を最後まで流しきると、裏では次の曲を鳴らしはじめられない」
   //   という不具合の報告があるため（音が鳴っているうちに切りかえれば通る）。iPhone / iPad だけで使う
   constructor({ audio, db, library, earlySwitchWhenHidden = false }) {
@@ -588,9 +588,19 @@ export class Player extends EventTarget {
         const d = a.duration;
         if (isFinite(d) && d > 2) {
           const left = d - a.currentTime;
-          if (left < 0.7 && this._earlyFor !== this._loadToken) {
-            this._earlyFor = this._loadToken;
-            this._afterEnd(true);
+          if (left < 0.9 && this._earlyFor !== this._loadToken) {
+            // 位置のお知らせ（timeupdate）はとびとびにしか来ないので、ここから先は時計で待ち、
+            // 終わる 0.08 秒前に切りかえる（切り上げる長さを、聞いて分からないくらいに短くするため）。
+            // 時計がおくれて先に曲が終わったときは、ふつうの「終わったら次へ」が働く
+            const token = this._loadToken;
+            this._earlyFor = token;
+            const fire = () => {
+              if (token !== this._loadToken || a.paused || a.ended || !this.wantPlay) return;
+              const rest = (isFinite(a.duration) ? a.duration : d) - a.currentTime;
+              if (rest > 0.12) { setTimeout(fire, Math.max(10, (rest - 0.08) * 1000)); return; }
+              this._afterEnd(true);
+            };
+            setTimeout(fire, Math.max(0, (left - 0.08) * 1000));
           } else if (left > 1.2) {
             this._earlyFor = -1;   // 1曲リピートで頭に戻ったあと、もう一度使えるように
           }
