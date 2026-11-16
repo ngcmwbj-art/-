@@ -80,8 +80,9 @@ async function run(family, { offline = false } = {}) {
   const Req = offline
     ? class { constructor() { this.headers = {}; } async loadJSON() { throw new Error("オフライン"); } async loadString() { throw new Error("オフライン"); } }
     : Request;
-  const fn = new AsyncFunction("Color", "Font", "Size", "ListWidget", "Request", "FileManager", "config", "Script", "args", code);
-  await fn(Color, Font, Size, ListWidget, Req, FileManager, config, Script, { widgetParameter: null });
+  // Scriptable ではこれらが最初から「どこからでも使える名前」になっている（入口→本体の2段でも届くように同じ形にする）
+  Object.assign(globalThis, { Color, Font, Size, ListWidget, Request: Req, FileManager, config, Script, args: { widgetParameter: null } });
+  await new AsyncFunction(code)();
   if (!captured) throw new Error(`${family}: ウィジェットが設定されなかった`);
   return captured;
 }
