@@ -51,6 +51,8 @@ button {
 }
 button:disabled { cursor: default; }
 input { font-family: inherit; }
+/* iPhone で絵を長押ししても、浮き上がったりメニューが出たりしないように */
+img { -webkit-user-drag: none; -webkit-touch-callout: none; }
 [hidden] { display: none !important; }
 
 :focus { outline: none; }
@@ -1175,7 +1177,7 @@ input { font-family: inherit; }
 
 /* ── タブレット（指で使う大きな画面）では、まんなかに読みやすい幅で置く ── */
 
-@media (min-width: 700px) and (pointer: coarse) {
+@media (min-width: 700px) and (min-height: 560px) and (pointer: coarse) {
   html, body { background: #0b0c0e; }
   .app {
     left: 0;

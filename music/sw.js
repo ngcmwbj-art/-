@@ -6,7 +6,7 @@
 // VERSION が変わると、次に開いたときに新しい版へ入れかわります。
 
 /* build-sw:begin */
-const VERSION = '5f60d2e1628a';
+const VERSION = '6b84fae3ea7e';
 const FILES = [
   './',
   './index.html',
@@ -41,21 +41,23 @@ const FILES = [
 const PREFIX = 'music-shell-';
 const CACHE = `${PREFIX}${VERSION}`;
 
+// アプリ本体を控える
+async function precache() {
+  const cache = await caches.open(CACHE);
+  await Promise.all(FILES.map(async (url) => {
+    // HTTP キャッシュを通さずに取りなおす（古いファイルを控えてしまわないように）
+    const res = await fetch(new Request(url, { cache: 'reload' }));
+    if (!res.ok) throw new Error(`控えられませんでした: ${url}`);
+    // 転送（リダイレクト）を経た応答をそのままページに返すと Safari が断るので、中身だけの応答に作りなおす
+    const clean = res.redirected
+      ? new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers })
+      : res;
+    await cache.put(url, clean);
+  }));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE);
-    await Promise.all(FILES.map(async (url) => {
-      // HTTP キャッシュを通さずに取りなおす（古いファイルを控えてしまわないように）
-      const res = await fetch(new Request(url, { cache: 'reload' }));
-      if (!res.ok) throw new Error(`控えられませんでした: ${url}`);
-      // 転送（リダイレクト）を経た応答をそのままページに返すと Safari が断るので、中身だけの応答に作りなおす
-      const clean = res.redirected
-        ? new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers })
-        : res;
-      await cache.put(url, clean);
-    }));
-    await self.skipWaiting();
-  })());
+  event.waitUntil(precache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -91,6 +93,9 @@ self.addEventListener('fetch', (event) => {
       // ページそのものは、いつも控えてある index.html を返す（通信なしで開ける）
       const page = await cache.match('./index.html');
       if (page) return page;
+      // 控えが無くなっている（同じ置き場所の別のページが、控えをまとめて消すことがある）。
+      // 通信があるうちに入れなおしておく
+      event.waitUntil(precache().catch(() => {}));
     }
     const hit = await cache.match(req, { ignoreSearch: true });
     if (hit) return hit;

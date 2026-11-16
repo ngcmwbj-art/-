@@ -30,7 +30,7 @@ const CONTAINER_MIME = {
 const MIN_BYTES = 1024;
 
 // これより大きいファイルは入れない（再生のときに1曲ぶんをメモリに広げるので、端末のメモリが足りなくなる）
-const MAX_BYTES = 300 * 1024 * 1024;
+const MAX_BYTES = 200 * 1024 * 1024;
 
 // 保存するときに付ける種類（MIME）。同じ形式でも端末によって通じる書き方がちがうので、
 // その端末が「鳴らせる」と答える書き方を選ぶ。どれも答えなければ、いちばんふつうの書き方にする
@@ -215,7 +215,7 @@ export function summarize(result) {
   if (result.unsupported.length) {
     lines.push(`この端末で再生できない形式のため、${result.unsupported.length}件を入れませんでした（${sample(result.unsupported)}）。`);
   }
-  if (result.tooBig.length) lines.push(`300MB をこえる大きなファイル ${result.tooBig.length}件は入れられませんでした（${sample(result.tooBig)}）。`);
+  if (result.tooBig.length) lines.push(`200MB をこえる大きなファイル ${result.tooBig.length}件は入れられませんでした（${sample(result.tooBig)}）。`);
   if (result.notAudio) lines.push(`音楽ではないファイル ${result.notAudio}件はとばしました。`);
   if (result.failed.length) {
     lines.push(`読み込めなかったファイルが ${result.failed.length}件ありました（${sample(result.failed)}）。もう一度選ぶと、入っていない曲だけが入ります。`);

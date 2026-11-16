@@ -30,11 +30,13 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   const countEl = $('np-count');
   const volBox = $('np-volume');
   const bottom = np.querySelector('.np-bottom');
+  const stage = np.querySelector('.np-stage');
 
   let isOpen = false;
   let docked = false;
   let flipped = false;
   let scrubbing = false;
+  let scrubTrack = null;   // つまみを持ちはじめたときの曲
   let shownArtId;          // いま出しているジャケットの id（同じなら入れ替えない）
   let shownTrackId = null;
   let queueList = null;
@@ -161,6 +163,10 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   // 昔の小さな画面と同じくらいの縦横比のときだけ、ジャケットの上に重ねる
   function layout() {
     if (np.hidden) return;
+    // ジャケットの舞台は正方形（一辺 = 画面の幅）。高さを数字で入れておく
+    // （CSS の aspect-ratio だけにまかせると、古い iPhone の Safari でつぶれることがある）。
+    // 画面が低いときは、flex のはたらきでここから縮む
+    stage.style.height = `${np.clientWidth}px`;
     const space = np.clientHeight - $('np-top').offsetHeight - np.clientWidth;
     const want = space >= 215;
     if (want === docked) return;
@@ -198,6 +204,7 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   const scrub = createSlider($('np-scrub'), {
     text: (v) => { const d = player.duration; return d > 0 ? `${formatTime(d * v)} / ${formatTime(d)}` : '0:00'; },
     onInput: (v) => {
+      if (!scrubbing) scrubTrack = player.current;
       scrubbing = true;
       const d = player.duration;
       showTimes(d * v, d);
@@ -205,7 +212,8 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
     onChange: (v) => {
       scrubbing = false;
       const d = player.duration;
-      if (d > 0) player.seek(v * d);
+      // つまみを持っている間に曲が変わっていたら、新しい曲の位置は動かさない
+      if (d > 0 && player.current === scrubTrack) player.seek(v * d);
       else syncTime();
     },
     onCancel: () => { scrubbing = false; syncTime(); },
