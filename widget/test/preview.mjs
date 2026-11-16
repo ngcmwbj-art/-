@@ -136,7 +136,7 @@ const lock = await run("accessoryRectangular");
 const offline = await run("medium", { offline: true });
 
 // 控えを古くして、通信できないときに「前回」の値が出るか
-const cacheFile = fs.readdirSync(cacheDir).map((f) => path.join(cacheDir, f))[0];
+const cacheFile = fs.readdirSync(cacheDir).filter((f) => f.endsWith(".json")).map((f) => path.join(cacheDir, f))[0];
 const old = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
 old.fetchedAt = new Date(Date.now() - 3 * 3600e3).toISOString();
 fs.writeFileSync(cacheFile, JSON.stringify(old));
