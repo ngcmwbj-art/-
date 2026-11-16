@@ -214,7 +214,8 @@ export class VList {
   _layoutIndex() {
     if (this.index.hidden) return;
     const labels = this.headers.map((i) => this.items[i].label);
-    const avail = Math.max(60, (this.host.clientHeight || 400) - 12);
+    // 索引そのものの高さ（上のバーと下の部品のぶんを除いた高さ）に入る数だけ出す
+    const avail = Math.max(60, (this.index.clientHeight || (this.host.clientHeight || 400) - 150) - 8);
     const per = 14;
     let shown = labels;
     if (labels.length * per > avail) {
@@ -245,7 +246,7 @@ export class VList {
       if (!r.height || !this.headers.length) return;
       const p = Math.min(0.9999, Math.max(0, (ev.clientY - r.top) / r.height));
       const hi = this.headers[Math.floor(p * this.headers.length)];
-      const max = Math.max(0, this.offsets[this.items.length] - this.scroller.clientHeight);
+      const max = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
       this.scroller.scrollTop = Math.min(this.offsets[hi], max);
       this._render();
     };

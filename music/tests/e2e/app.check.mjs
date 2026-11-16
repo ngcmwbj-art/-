@@ -68,8 +68,8 @@ const waitTitle = (t, timeout = 12000) => page.waitForFunction(
 const waitPlaying = (min = 0.25) => page.waitForFunction(
   (m) => !document.getElementById('audio').paused && document.getElementById('audio').currentTime > m, min, { timeout: 10000 },
 );
-const openNp = async () => { await page.click('.bb.nowp'); await settle(500); };
-const closeNp = async () => { await page.click('#np-back'); await settle(500); };
+const openNp = async () => { await page.click('#mini-open'); await settle(600); };
+const closeNp = async () => { await page.click('#np-back'); await settle(600); };
 
 try {
   // ──────────────────────────────────────────────
@@ -78,7 +78,7 @@ try {
   await ready();
   ok(await page.locator('.empty-title').first().innerText() === '曲がありません', '「曲がありません」の案内が出る');
   ok(await page.locator('.tab.on').getAttribute('data-tab') === 'songs', '最初は「曲」タブ');
-  ok(!(await page.locator('.bb.nowp').count()), '「再生中」ボタンは出ていない');
+  ok(!(await page.locator('#mini').isVisible()), '下の「いまの曲」は出ていない');
 
   // ──────────────────────────────────────────────
   section('見本の曲');
@@ -234,7 +234,7 @@ try {
   ok(await M(() => window.__music.library.size) === 11, '開きなおしても 11曲が残っている');
   s = await state();
   ok(s.title === 'ゆうやけ' && !s.playing && Math.abs(s.time - 1.2) < 0.2, `前回の曲と位置を覚えている（${s.title} ${s.time.toFixed(2)}秒）`);
-  ok(await page.locator('.bb.nowp').isVisible(), '「再生中」ボタンが出ている');
+  ok(await page.locator('#mini').isVisible() && (await page.locator('#mini-title').innerText()) === 'ゆうやけ', '下に「いまの曲」が出ている');
   await openNp();
   await page.click('#np-play');
   await waitPlaying(1.0);
@@ -242,6 +242,43 @@ try {
   ok(s.playing && s.time >= 1.0, '再生を押すと、続きの位置から鳴る');
   await page.click('#np-play');
   await closeNp();
+
+  // ──────────────────────────────────────────────
+  section('下に浮かぶ「いまの曲」・大きな題名・「再生」ボタン');
+  {
+    await tab('songs');
+    ok((await page.locator('.page:not([hidden]) .vl-bigtitle').innerText()) === '曲', '一覧の頭に大きな題名');
+    ok(await M(() => getComputedStyle(document.querySelector('.nav-title')).opacity === '0'), '送る前は、上の小さな題名は出ていない');
+    await M(() => { document.querySelector('.page:not([hidden]) .vl-scroll').scrollTop = 200; });
+    await settle(350);
+    ok(await M(() => getComputedStyle(document.querySelector('.nav-title')).opacity === '1'), '一覧を送ると、上に小さな題名が出る');
+    await M(() => { document.querySelector('.page:not([hidden]) .vl-scroll').scrollTop = 0; });
+    await settle(200);
+    await page.click('#mini-play');
+    await waitPlaying(0.1);
+    ok((await page.locator('#mini-play').getAttribute('aria-label')) === '一時停止', '「いまの曲」の再生ボタンで鳴る');
+    const t1 = (await state()).title;
+    await page.click('#mini-next');
+    await page.waitForFunction((t) => window.__music.player.current.title !== t, t1, { timeout: 8000 });
+    ok((await page.locator('#mini-title').innerText()) === (await state()).title, '「次へ」で曲が変わり、表示も変わる');
+    await page.click('#mini-play');
+    await settle(200);
+    ok(!(await state()).playing, '「いまの曲」の同じボタンで止まる');
+    const first = (await titles('.page:not([hidden]) .vl-song .r-title'))[0];
+    await page.locator('.page:not([hidden]) .vl-buttons .cap', { hasText: '再生' }).click();
+    await waitPlaying(0.1);
+    s = await state();
+    ok(s.title === first && s.index === 0 && s.queue === 11 && !s.shuffle, `「再生」で、一覧の頭の「${first}」から順に流れる`);
+    await page.click('#np-play');
+    await closeNp();
+    const insets = await M(() => {
+      const sc = document.querySelector('.page:not([hidden]) .vl-scroll');
+      const cs = getComputedStyle(sc);
+      const dock = document.querySelector('.dock').getBoundingClientRect();
+      return { top: parseFloat(cs.paddingTop), bottom: parseFloat(cs.paddingBottom), dockH: innerHeight - dock.top };
+    });
+    ok(insets.top >= 54 && insets.bottom >= insets.dockH, `一覧の上下に、バーと下の部品のぶんの余白がある（下 ${insets.bottom}px ≥ ${Math.round(insets.dockH)}px）`);
+  }
 
   // ──────────────────────────────────────────────
   section('鳴らせない曲は、知らせて次へ進む');
@@ -404,7 +441,7 @@ try {
   ok((await page.locator('.nav-title').innerText()) === 'ドライブ', '「完了」でプレイリストにもどる');
   ok(JSON.stringify(await titles('.page:not([hidden]) .vl-pltrack .r-title')) === JSON.stringify(['Seaside Walk', '夏のはじまり']), '入れた順に2曲ならぶ');
   // 編集：赤い丸 → 削除
-  await page.locator('.pl-btn', { hasText: '編集' }).click();
+  await page.locator('.page:not([hidden]) .vl-plhead .cap', { hasText: '編集' }).click();
   await settle(150);
   await page.locator('.page:not([hidden]) .vl-pltrack .r-minus').first().click();
   await settle(250);
@@ -412,7 +449,7 @@ try {
   await settle(350);
   ok(JSON.stringify(await titles('.page:not([hidden]) .vl-pltrack .r-title')) === JSON.stringify(['夏のはじまり']), '編集で曲をはずせる（曲そのものは消えない）');
   ok(await M(() => window.__music.library.size) === 10, 'ライブラリは 10曲のまま');
-  await page.locator('.pl-btn', { hasText: '完了' }).click();
+  await page.locator('.page:not([hidden]) .vl-plhead .cap', { hasText: '完了' }).click();
   await page.locator('.bb.back').click();
   await settle(500);
   ok((await titles('.page:not([hidden]) .vl-row .r-title')).includes('ドライブ'), 'プレイリストの一覧に出る');
@@ -545,7 +582,7 @@ try {
   ok(await M(async () => (await window.__music.db.getAllTracks()).length === 0 && (await window.__music.db.getArtKeys()).length === 0), '曲もジャケットも保存場所から消える');
   await tab('songs');
   ok(await page.locator('.empty-title').first().isVisible(), '「曲がありません」にもどる');
-  ok(!(await page.locator('.bb.nowp').count()), '「再生中」ボタンも消える');
+  ok(!(await page.locator('#mini').isVisible()), '下の「いまの曲」も消える');
 
   // ──────────────────────────────────────────────
   section('エラーが出ていないこと');

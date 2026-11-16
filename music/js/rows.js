@@ -7,18 +7,20 @@ import { formatTime, formatMinutes, UNKNOWN_ARTIST, UNKNOWN_ALBUM } from './libr
 
 // 行の高さ（px）
 export const ROW_HEIGHTS = {
-  header: 23,
-  search: 44,
-  action: 44,
-  song: 44,
-  track: 44,
-  album: 56,
-  row: 44,
-  albumhead: 110,
-  plhead: 50,
-  note: 44,
-  pick: 44,
-  pltrack: 44,
+  header: 32,
+  bigtitle: 60,
+  search: 52,
+  buttons: 62,
+  action: 54,
+  song: 60,
+  track: 50,
+  album: 68,
+  row: 54,
+  albumhead: 356,
+  plhead: 62,
+  note: 56,
+  pick: 60,
+  pltrack: 60,
 };
 
 export function h(tag, cls, text) {
@@ -38,18 +40,32 @@ function chevron() {
   return icon('chevron', 'r-chev');
 }
 
-// ジャケットの小さい絵を、読めたら入れる（行が画面から外れていたら何もしない）
-function loadArt(box, artId, ctx) {
-  if (!artId) return;
-  ctx.art.thumbUrl(artId).then((url) => {
-    if (!url || !box.isConnected) return;
-    const img = new Image();
-    img.alt = '';
-    img.decoding = 'async';
-    img.onload = () => img.classList.add('ready');
-    img.src = url;
-    box.appendChild(img);
-  });
+// ジャケットの小さい絵。読めたら入れる（行が画面から外れていたら何もしない）
+function artBox(cls, artId, ctx) {
+  const box = h('div', cls);
+  box.innerHTML = svg('note-large');
+  if (artId) {
+    ctx.art.thumbUrl(artId).then((url) => {
+      if (!url || !box.isConnected) return;
+      const img = new Image();
+      img.alt = '';
+      img.decoding = 'async';
+      img.onload = () => img.classList.add('ready');
+      img.src = url;
+      box.appendChild(img);
+    });
+  }
+  return box;
+}
+
+// カプセルのボタン（data-act に、押されたときの合図を入れる）
+function capButton(b) {
+  const btn = h('button', `cap${b.on ? ' on' : ''}${b.red ? ' red' : ''}`);
+  btn.type = 'button';
+  btn.dataset.act = b.act;
+  if (b.icon) btn.innerHTML = svg(b.icon);
+  btn.appendChild(h('span', '', b.label));
+  return btn;
 }
 
 export function songSub(track) {
@@ -63,6 +79,11 @@ export function renderRow(item, node, ctx) {
   const playingId = ctx.player.current ? ctx.player.current.id : null;
 
   switch (item.kind) {
+    case 'bigtitle': {
+      node.textContent = item.label;
+      break;
+    }
+
     case 'search': {
       const f = h('div', 'searchfield');
       f.innerHTML = svg('search');
@@ -72,21 +93,24 @@ export function renderRow(item, node, ctx) {
       break;
     }
 
+    case 'buttons':
+    case 'plhead': {
+      for (const b of item.buttons) node.appendChild(capButton(b));
+      break;
+    }
+
     case 'action': {
+      if (item.icon) node.appendChild(icon(item.icon, 'r-icon'));
       const main = h('div', 'r-main');
       main.appendChild(h('div', 'r-title', item.label));
       node.appendChild(main);
-      if (item.icon) {
-        const r = h('div', 'r-right');
-        r.innerHTML = svg(item.icon);
-        node.appendChild(r);
-      }
       break;
     }
 
     case 'song':
     case 'pick': {
       const t = item.track;
+      node.appendChild(artBox('r-art sm', t.artId, ctx));
       const main = h('div', 'r-main');
       main.appendChild(h('div', 'r-title', t.title));
       main.appendChild(h('div', 'r-sub', item.sub || songSub(t)));
@@ -98,6 +122,7 @@ export function renderRow(item, node, ctx) {
         node.appendChild(b);
         node.setAttribute('aria-label', `${t.title}${item.added ? '（追加ずみ）' : ' を追加'}`);
       } else if (t.id === playingId) {
+        node.classList.add('playing');
         node.appendChild(icon('speaker', 'r-right r-playing'));
       }
       break;
@@ -112,6 +137,8 @@ export function renderRow(item, node, ctx) {
         m.dataset.act = 'minus';
         m.setAttribute('aria-label', `${t.title} をプレイリストからはずす`);
         node.appendChild(m);
+      } else {
+        node.appendChild(artBox('r-art sm', t.artId, ctx));
       }
       const main = h('div', 'r-main');
       main.appendChild(h('div', 'r-title', t.title));
@@ -124,6 +151,7 @@ export function renderRow(item, node, ctx) {
         hd.setAttribute('aria-hidden', 'true');
         node.appendChild(hd);
       } else if (t.id === playingId) {
+        node.classList.add('playing');
         node.appendChild(icon('speaker', 'r-right r-playing'));
       }
       break;
@@ -149,10 +177,7 @@ export function renderRow(item, node, ctx) {
 
     case 'album': {
       const a = item.album;
-      const box = h('div', 'r-art');
-      box.innerHTML = svg('note-large');
-      loadArt(box, a.artId, ctx);
-      node.appendChild(box);
+      node.appendChild(artBox('r-art', a.artId, ctx));
       const main = h('div', 'r-main');
       main.appendChild(h('div', 'r-title', a.title));
       main.appendChild(h('div', 'r-sub', item.sub || a.artist));
@@ -163,29 +188,20 @@ export function renderRow(item, node, ctx) {
 
     case 'albumhead': {
       const a = item.album;
-      const box = h('div', 'ah-art');
-      box.innerHTML = svg('note-large');
-      loadArt(box, a.artId, ctx);
-      node.appendChild(box);
+      node.appendChild(artBox('ah-art', a.artId, ctx));
       const info = h('div', 'ah-info');
-      info.appendChild(h('div', 'ah-artist', a.artist));
       info.appendChild(h('div', 'ah-album', a.title));
+      info.appendChild(h('div', 'ah-artist', a.artist));
       const bits = [];
       if (a.year) bits.push(`${a.year}年`);
       bits.push(`${a.tracks.length}曲`);
       if (a.duration) bits.push(formatMinutes(a.duration));
       info.appendChild(h('div', 'ah-meta', bits.join('、')));
       node.appendChild(info);
-      break;
-    }
-
-    case 'plhead': {
-      for (const b of item.buttons) {
-        const btn = h('button', `pl-btn${b.on ? ' on' : ''}`, b.label);
-        btn.type = 'button';
-        btn.dataset.act = b.act;
-        node.appendChild(btn);
-      }
+      const btns = h('div', 'ah-btns');
+      btns.appendChild(capButton({ label: '再生', icon: 'play', act: 'playall' }));
+      btns.appendChild(capButton({ label: 'シャッフル', icon: 'shuffle', act: 'shuffle' }));
+      node.appendChild(btns);
       break;
     }
 
@@ -197,7 +213,7 @@ export function renderRow(item, node, ctx) {
     case 'row':
     default: {
       if (item.icon) node.appendChild(icon(item.icon, 'r-icon'));
-      const main = h('div', `r-main${item.sub ? '' : ' r-big'}`);
+      const main = h('div', 'r-main');
       main.appendChild(h('div', 'r-title', item.label));
       if (item.sub) main.appendChild(h('div', 'r-sub', item.sub));
       node.appendChild(main);

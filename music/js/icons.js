@@ -1,8 +1,7 @@
 // 画面の中で使う小さなアイコン（すべて自作の SVG）。
 // どれも単色の形で、色は CSS の color で決まります（fill / stroke = currentColor）。
 //   svg(name)      … <svg> の文字列を返す（innerHTML に入れて使う）
-//   maskUrl(name)  … CSS の mask-image に入れる url(...) を返す。
-//                    グラデーションの背景をアイコンの形で切り抜いて、つやのある絵にするときに使う
+//   maskUrl(name)  … CSS の mask-image に入れる url(...) を返す（背景をアイコンの形で切り抜きたいとき用）
 
 // 線で描くアイコン用の決まり文句
 const LINE = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
@@ -95,6 +94,9 @@ export const ICONS = {
   },
   // 左向きの太い矢印
   back: { vb: '0 0 24 24', body: '<path d="M11 3.6L2.8 12l8.2 8.4v-5.2h10.2V8.8H11z"/>' },
+  // 「もどる」「とじる」の矢印
+  'chevron-left': { vb: '0 0 24 24', body: `<path ${LINE} stroke-width="2.8" d="M14.6 4.6L7.2 12l7.4 7.4"/>` },
+  'chevron-down': { vb: '0 0 24 24', body: `<path ${LINE} stroke-width="2.8" d="M4.6 8.6L12 16l7.4-7.4"/>` },
   // 行の右はしの「›」
   chevron: { vb: '0 0 10 14', body: `<path ${LINE} stroke-width="2.6" d="M2.2 1.8L7.8 7l-5.6 5.2"/>` },
   add: { vb: '0 0 24 24', body: '<path d="M10.3 3h3.4v7.3H21v3.4h-7.3V21h-3.4v-7.3H3v-3.4h7.3z"/>' },

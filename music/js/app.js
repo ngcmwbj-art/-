@@ -3,14 +3,14 @@
 // ページ（一覧の画面）は積み重ねて管理し、進むときは右から、戻るときは左から滑り込みます。
 
 import { db, storageUsage, requestPersist } from './db.js';
-import { Library, formatBytes, formatMinutes } from './library.js';
+import { Library, formatBytes, formatMinutes, UNKNOWN_ARTIST } from './library.js';
 import { Player } from './player.js';
 import { VList } from './vlist.js';
 import { ArtStore } from './art.js';
 import { importFiles, summarize } from './importer.js';
 import { makeDemoFiles } from './demo.js';
 import { alertBox, promptBox, actionSheet, progressBox, toast } from './ui.js';
-import { svg, maskUrl } from './icons.js';
+import { svg } from './icons.js';
 import { renderRow, ROW_HEIGHTS, h, songSub } from './rows.js';
 import { createNowPlaying } from './nowplaying.js';
 import { createCoverFlow } from './coverflow.js';
@@ -33,7 +33,7 @@ const audio = $('audio');
 const player = new Player({ audio, db, library, earlySwitchWhenHidden: isIOS });
 player.artworkProvider = (track) => art.artwork(track.artId);
 
-let ui = { tab: 'songs', overlay: true, volume: 1 };   // こまかい設定（保存する）
+let ui = { tab: 'songs', lyrics: true, volume: 1 };   // こまかい設定（保存する）
 let uiSaveTimer = 0;
 function saveUi() {
   clearTimeout(uiSaveTimer);
@@ -71,8 +71,9 @@ function listPage(def) {
     dirty: true,
     items: [],
     left: def.left || null,       // 'add' なら「＋」
-    right: def.right || null,     // { label, onTap } なら右に青いボタン
+    right: def.right || null,     // { label, onTap } なら右に色つきのボタン
     searchNav: null,
+    big: false,                   // 一覧の頭に大きな題名を出しているか
   };
   const host = h('div');
   page.el.appendChild(host);
@@ -84,25 +85,37 @@ function listPage(def) {
     onLongPress: def.onLongPress ? (item, node, i) => def.onLongPress(item, i, page) : null,
     onDelete: def.onDelete ? (item, i) => def.onDelete(item, i, page) : null,
   });
+  // 一覧を送って大きな題名が隠れたら、上のバーに小さな題名を出す
+  const syncScrolled = () => {
+    if (page.navEl) page.navEl.classList.toggle('scrolled', page.vlist.scroller.scrollTop > 34);
+  };
+  page.syncScrolled = syncScrolled;
+  page.vlist.scroller.addEventListener('scroll', syncScrolled, { passive: true });
   page.update = () => {
     page.dirty = false;
     const items = def.build(page);
     if (items === null) return false;
     const empty = def.empty && def.empty();
+    if (def.title instanceof Function) page.title = def.title();
     if (empty) {
       if (page.emptyEl) page.emptyEl.remove();
       page.emptyEl = empty;
       page.el.appendChild(empty);
       host.hidden = true;
       page.items = [];
+      page.big = false;
       page.vlist.setItems([]);
     } else {
       if (page.emptyEl) { page.emptyEl.remove(); page.emptyEl = null; }
       host.hidden = false;
+      // いちばん上の一覧には、頭に大きな題名を付ける
+      page.big = !!def.big;
+      if (page.big) items.unshift({ kind: 'bigtitle', label: page.title, tap: false });
       page.items = items;
       page.vlist.setItems(items, { keepScroll: true });
     }
-    if (def.title instanceof Function) page.title = def.title();
+    if (page.navEl) page.navEl.classList.toggle('big', page.big);
+    syncScrolled();
     return true;
   };
   return page;
@@ -111,7 +124,7 @@ function listPage(def) {
 // 一覧ではない、自由な中身のページ（保存容量・使い方）
 function customPage(def) {
   const page = {
-    title: def.title, def, el: h('div', 'page'), vlist: null, dirty: true, left: null, right: null, searchNav: null,
+    title: def.title, def, el: h('div', 'page'), vlist: null, dirty: true, left: null, right: null, searchNav: null, big: false,
   };
   page.update = () => {
     page.dirty = false;
@@ -131,7 +144,7 @@ function buildNavItem(page, depth) {
   const title = h('h1', 'nav-title', typeof page.title === 'function' ? page.title() : page.title);
 
   if (page.left === 'add') {
-    const b = h('button', 'bb');
+    const b = h('button', 'bb icon');
     b.type = 'button';
     b.innerHTML = svg('add');
     b.setAttribute('aria-label', '曲を追加');
@@ -142,7 +155,7 @@ function buildNavItem(page, depth) {
     const b = h('button', 'bb back');
     b.type = 'button';
     const label = typeof prev.title === 'function' ? prev.title() : prev.title;
-    b.appendChild(h('span', '', shorten(label, 7)));
+    b.innerHTML = svg('chevron-left');
     b.setAttribute('aria-label', `${label} にもどる`);
     b.addEventListener('click', () => popPage());
     left.appendChild(b);
@@ -154,26 +167,15 @@ function buildNavItem(page, depth) {
     b.appendChild(h('span', '', page.right.label));
     b.addEventListener('click', () => page.right.onTap(page));
     right.appendChild(b);
-  } else if (player.current) {
-    const b = h('button', 'bb nowp');
-    b.type = 'button';
-    b.appendChild(h('span', '', '再生中'));
-    b.setAttribute('aria-label', '再生中の画面を開く');
-    b.addEventListener('click', () => nowPlaying.open());
-    right.appendChild(b);
   }
 
+  if (page.big) item.classList.add('big');
+  if (page.vlist && page.vlist.scroller.scrollTop > 34) item.classList.add('scrolled');
   item.append(left, title, right);
   return item;
 }
 
-function shorten(text, max) {
-  const s = String(text || '');
-  const chars = Array.from(s);
-  return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : s;
-}
-
-// いま見えているページの上のバーを作りなおす（「再生中」ボタンが出る・消えるとき）
+// いま見えているページの上のバーを作りなおす
 function refreshNav() {
   const page = nav.top;
   if (!page || page.searchNav) return;
@@ -370,11 +372,32 @@ function shuffleList(page) {
   nowPlaying.open();
 }
 
+// 一覧の頭から順に流す
+function playAll(page) {
+  const ids = songIdsOf(page.items);
+  if (!ids.length) return;
+  player.playList(ids, 0, { shuffle: false });
+  nowPlaying.open();
+}
+
+// 「再生」「シャッフル」のカプセルのボタンの行
+const playButtons = () => ({
+  kind: 'buttons',
+  buttons: [
+    { label: '再生', icon: 'play', act: 'playall' },
+    { label: 'シャッフル', icon: 'shuffle', act: 'shuffle' },
+  ],
+});
+
 // 曲の行によく使う、押したとき・長押し・削除のひとまとめ
 const songHandlers = {
-  onTap(item, i, page) {
+  onTap(item, i, page, act) {
     if (item.kind === 'search') { openSearch(); return; }
-    if (item.kind === 'action' && item.act === 'shuffle') { shuffleList(page); return; }
+    if (item.kind === 'buttons' || item.kind === 'albumhead') {
+      if (act === 'shuffle') shuffleList(page);
+      else if (act === 'playall') playAll(page);
+      return;
+    }
     if (item.track) playFromList(page, item, i);
   },
   onLongPress(item) { if (item.track) songMenu(item.track); },
@@ -435,12 +458,13 @@ function emptyLibraryView() {
 function songsRoot() {
   return listPage({
     title: '曲',
+    big: true,
     left: 'add',
     showIndex: true,
     empty: emptyLibraryView,
     build() {
       const rows = library.songRows();
-      const items = [{ kind: 'search' }, { kind: 'action', label: 'シャッフル', icon: 'shuffle', act: 'shuffle' }];
+      const items = [{ kind: 'search' }, playButtons()];
       items.push(...withSections(rows, (t) => songItem(t)));
       items.push(countNote(rows.length));
       return items;
@@ -508,6 +532,7 @@ function openSearch() {
 function albumsRoot() {
   return listPage({
     title: 'アルバム',
+    big: true,
     left: 'add',
     showIndex: true,
     empty: emptyLibraryView,
@@ -534,8 +559,7 @@ function albumPage(key) {
     build() {
       const a = library.album(key);
       if (!a) return null;
-      const items = [{ kind: 'albumhead', album: a, tap: false }];
-      if (a.tracks.length > 1) items.push({ kind: 'action', label: 'シャッフル', icon: 'shuffle', act: 'shuffle' });
+      const items = [{ kind: 'albumhead', album: a }];
       const multiDisc = a.tracks.some((t) => (t.disc || 1) > 1);
       let disc = 0;
       a.tracks.forEach((t, i) => {
@@ -556,6 +580,7 @@ function albumPage(key) {
 function artistsRoot() {
   return listPage({
     title: 'アーティスト',
+    big: true,
     left: 'add',
     showIndex: true,
     empty: emptyLibraryView,
@@ -609,7 +634,7 @@ function artistSongsPage(name) {
       const ar = library.artist(name);
       if (!ar) return null;
       const rows = library.rowsForTracks(ar.tracks);
-      const items = [{ kind: 'action', label: 'シャッフル', icon: 'shuffle', act: 'shuffle' }];
+      const items = [playButtons()];
       items.push(...withSections(rows, (t) => songItem(t, { sub: t.album || '' })));
       items.push(countNote(rows.length));
       return items;
@@ -643,7 +668,7 @@ function genrePage(name) {
       const g = library.genre(name);
       if (!g) return null;
       const rows = library.rowsForTracks(g.tracks);
-      const items = [{ kind: 'action', label: 'シャッフル', icon: 'shuffle', act: 'shuffle' }];
+      const items = [playButtons()];
       items.push(...withSections(rows, (t) => songItem(t)));
       items.push(countNote(rows.length));
       return items;
@@ -662,6 +687,7 @@ const SMART_LISTS = {
 function playlistsRoot() {
   return listPage({
     title: 'プレイリスト',
+    big: true,
     left: 'add',
     build() {
       const items = [{ kind: 'action', label: '新規プレイリスト…', icon: 'add', act: 'new' }];
@@ -692,7 +718,7 @@ function smartPage(key) {
     build() {
       const tracks = def.get();
       if (!tracks.length) return [{ kind: 'note', label: def.empty, tap: false }];
-      const items = [{ kind: 'action', label: 'シャッフル', icon: 'shuffle', act: 'shuffle' }];
+      const items = [playButtons()];
       for (const t of tracks) items.push(songItem(t));
       items.push(countNote(tracks.length));
       return items;
@@ -756,10 +782,10 @@ function playlistPage(id) {
         buttons: [
           { label: editing ? '完了' : '編集', act: 'edit', on: editing },
           { label: '曲を追加', act: 'add' },
-          { label: '削除', act: 'delete' },
+          { label: '削除', act: 'delete', red: true },
         ],
       }];
-      if (tracks.length > 1 && !editing) items.push({ kind: 'action', label: 'シャッフル', icon: 'shuffle', act: 'shuffle' });
+      if (tracks.length && !editing) items.push(playButtons());
       tracks.forEach((t, n) => items.push({
         kind: 'pltrack', track: t, pos: n, edit: editing, swipe: !editing, longPress: !editing,
       }));
@@ -776,7 +802,11 @@ function playlistPage(id) {
         else if (act === 'delete') confirmDeletePlaylist(pl);
         return;
       }
-      if (item.act === 'shuffle') { shuffleList(pg); return; }
+      if (item.kind === 'buttons') {
+        if (act === 'shuffle') shuffleList(pg);
+        else if (act === 'playall') playAll(pg);
+        return;
+      }
       if (item.kind !== 'pltrack') return;
       if (editing) {
         if (act === 'minus') pg.vlist.showConfirm(i);
@@ -948,6 +978,7 @@ async function confirmDeletePlaylist(pl) {
 function moreRoot() {
   return listPage({
     title: 'その他',
+    big: true,
     build() {
       const items = [{ kind: 'row', label: '曲を追加', icon: 'add', act: 'import', chevron: false }];
       if (canPickFolder) items.push({ kind: 'row', label: 'フォルダごと追加', icon: 'folder', act: 'folder', chevron: false });
@@ -1067,14 +1098,15 @@ function helpPage() {
         + '音量は、本体の音量ボタンで変えます。',
       )]));
       root.appendChild(group('操作のこつ', [gText(
-        '<ul><li>曲を押すと再生がはじまり、再生中の画面になります。</li>'
-        + '<li>再生中の画面でジャケットを押すと、再生位置のつまみ・シャッフル・リピートを出し入れできます。</li>'
-        + '<li>右上のボタンでジャケットが裏返り、これから流れる順番が見られます。</li>'
+        '<ul><li>曲を押すと再生がはじまり、再生中の画面が下からせり上がります。左上の <b>∨</b> で閉じます。</li>'
+        + '<li>再生中は、下に<b>「いまの曲」</b>が浮かびます。押すと再生中の画面が開き、再生・一時停止と「次へ」はそこからも押せます。</li>'
+        + '<li>再生中の画面の右上のボタンでジャケットが裏返り、これから流れる順番が見られます。</li>'
         + '<li>行を<b>横になぞる</b>と「削除」が出ます。<b>長押し</b>すると「次に再生」「プレイリストに追加」が選べます。</li>'
         + '<li>スマホを<b>横向き</b>にすると、ジャケットを流して選べます。</li>'
         + '<li>画面を消しても再生は続き、ロック画面やイヤホンのボタンで操作できます。'
         + '（iPhone では、画面を消している間だけ、曲の終わりのごく短い部分をとばして次の曲へ進みます。）</li>'
-        + '<li>下のタブをもう一度押すと、その一覧の最初にもどります。</li></ul>',
+        + '<li>下のタブをもう一度押すと、その一覧の最初にもどります。</li>'
+        + '<li>明るい画面・暗い画面は、端末の設定（ダークモード）に合わせて切りかわります。</li></ul>',
       )]));
 
       const fmts = [
@@ -1387,11 +1419,50 @@ function syncCoverFlow() {
 //  起動
 // ════════════════════════════════════════════════════════
 
+// 下に浮かぶ「いまの曲」（押すと再生中の画面が開く。再生・一時停止と「次へ」はここからも押せる）
+function setupMini() {
+  const mini = $('mini');
+  const artImg = $('mini-art');
+  let shownArt;
+  const syncTrack = () => {
+    const t = player.current;
+    mini.hidden = !t;
+    $('main').classList.toggle('has-mini', !!t);
+    if (!t) { shownArt = undefined; return; }
+    $('mini-title').textContent = t.title || '';
+    $('mini-artist').textContent = t.artist || UNKNOWN_ARTIST;
+    if (shownArt !== t.artId) {
+      shownArt = t.artId;
+      const want = t.artId;
+      artImg.hidden = true;
+      artImg.removeAttribute('src');
+      if (want) {
+        art.thumbUrl(want).then((url) => {
+          if (shownArt !== want || !url) return;
+          artImg.src = url;
+          artImg.hidden = false;
+        });
+      }
+    }
+  };
+  const syncState = () => {
+    const playing = player.playing;
+    $('mini-play-ic').innerHTML = svg(playing ? 'pause' : 'play');
+    $('mini-play').setAttribute('aria-label', playing ? '一時停止' : '再生');
+  };
+  $('mini-open').addEventListener('click', () => nowPlaying.open());
+  $('mini-play').addEventListener('click', () => player.toggle());
+  $('mini-next').addEventListener('click', () => player.next(true));
+  player.addEventListener('track', syncTrack);
+  player.addEventListener('state', syncState);
+  syncTrack();
+  syncState();
+}
+
 function setupIcons() {
   for (const node of document.querySelectorAll('[data-ic]')) {
     const name = node.dataset.ic;
-    if (node.classList.contains('tab-ic')) node.style.setProperty('--m', maskUrl(name));
-    else node.innerHTML = svg(name);
+    node.innerHTML = svg(name);
   }
 }
 
@@ -1474,6 +1545,7 @@ async function boot() {
 
   nowPlaying = createNowPlaying({ player, library, art, db, ui, saveUi });
   nowPlaying.onClose(() => { const p = nav.top; if (p && p.vlist) p.vlist.deselect(true); });
+  setupMini();
 
   // 最初のタブ
   nav.tab = '';
@@ -1485,10 +1557,7 @@ async function boot() {
     syncCoverFlow();
   });
 
-  let hadTrack = false;
   player.addEventListener('track', () => {
-    const has = !!player.current;
-    if (has !== hadTrack) { hadTrack = has; if (!nav.busy) refreshNav(); }
     const p = nav.top;
     if (p && p.vlist && !nowPlaying.isOpen) p.vlist.refresh();
     if (coverFlow && coverFlow.isVisible()) coverFlow.refresh();

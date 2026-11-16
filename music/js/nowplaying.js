@@ -1,6 +1,6 @@
 // 再生中の画面。
-// 上に 題名など、まんなかにジャケット（タップで再生位置のつまみを出し入れ、右上のボタンで裏返して
-// 再生する順番を表示）、下に 前へ・再生／一時停止・次へ。
+// ジャケットの色がにじむ背景の上に、大きなジャケット・題名・再生位置のつまみ・操作ボタンが並びます。
+// 右上のボタンでジャケットが裏返り、これから流れる順番が出ます。下からせり上がり、左上のボタンで下へ閉じます。
 
 import { svg } from './icons.js';
 import { VList } from './vlist.js';
@@ -13,32 +13,31 @@ const $ = (id) => document.getElementById(id);
 export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   const np = $('np');
   const main = $('main');
+  const bg = $('np-bg');
+  const stage = $('np-stage');
   const card = $('np-card');
   const front = $('np-front');
   const backface = $('np-backface');
   const artImg = $('np-art');
-  const overlay = $('np-overlay');
   const lyricsBox = $('np-lyrics');
+  const lyricsBtn = $('np-lyrics-btn');
   const elapsed = $('np-elapsed');
   const remain = $('np-remain');
   const flipBtn = $('np-flip');
-  const flipArt = $('np-flip-art');
   const playBtn = $('np-play');
   const playIc = $('np-play-ic');
   const repeatBtn = $('np-repeat');
   const shuffleBtn = $('np-shuffle');
   const countEl = $('np-count');
   const volBox = $('np-volume');
-  const bottom = np.querySelector('.np-bottom');
-  const stage = np.querySelector('.np-stage');
 
   let isOpen = false;
-  let docked = false;
   let flipped = false;
   let scrubbing = false;
   let scrubTrack = null;   // つまみを持ちはじめたときの曲
   let shownArtId;          // いま出しているジャケットの id（同じなら入れ替えない）
   let shownTrackId = null;
+  let hasLyrics = false;
   let queueList = null;
   let closeTimer = 0;
   let openTimer = 0;
@@ -53,9 +52,9 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
     clearTimeout(closeTimer);
     np.hidden = false;
     layout();
-    void np.offsetWidth;            // ここで一度配置させてから動かす（横からすべり込む）
+    void np.offsetWidth;            // ここで一度配置させてから動かす（下からせり上がる）
     np.classList.remove('off');
-    openTimer = setTimeout(() => { if (isOpen) main.classList.add('away'); }, 380);
+    openTimer = setTimeout(() => { if (isOpen) main.classList.add('away'); }, 470);
     syncAll();
   }
 
@@ -69,8 +68,20 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
       if (isOpen) return;
       np.hidden = true;
       if (flipped) setFlipped(false, false);
-    }, 380);
+    }, 470);
     for (const fn of listeners.close) fn();
+  }
+
+  // ジャケットを、あいている場所に入るいちばん大きな正方形にする。
+  // 大きさを数字で入れるのは、CSS まかせ（aspect-ratio）だと古い iPhone の Safari でつぶれることがあるため
+  function layout() {
+    if (np.hidden) return;
+    const cs = getComputedStyle(stage);
+    const w = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const h = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const size = Math.max(80, Math.floor(Math.min(w, h, 460)));
+    card.style.width = `${size}px`;
+    card.style.height = `${size}px`;
   }
 
   // ── 表示を合わせる ──
@@ -81,8 +92,8 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
       shownTrackId = null;
       return;
     }
-    $('np-artist').textContent = t.artist || UNKNOWN_ARTIST;
     $('np-title').textContent = t.title || '';
+    $('np-artist').textContent = t.artist || UNKNOWN_ARTIST;
     $('np-album').textContent = t.album || UNKNOWN_ALBUM;
     countEl.textContent = `${player.index + 1} / ${player.queue.length}`;
 
@@ -92,16 +103,16 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
       if (!want) {
         artImg.hidden = true;
         artImg.removeAttribute('src');
-        flipArt.hidden = true;
-        flipArt.removeAttribute('src');
+        bg.style.backgroundImage = '';
       } else {
         art.fullUrl(want).then((url) => {
           if (shownArtId !== want) return;
           if (url) { artImg.src = url; artImg.hidden = false; } else { artImg.hidden = true; }
         });
-        art.thumbUrl(want).then((url) => {
+        // 背景には、小さい絵を大きくぼかして使う（色だけがにじむ）
+        art.midUrl(want).then((url) => {
           if (shownArtId !== want) return;
-          if (url) { flipArt.src = url; flipArt.hidden = false; } else { flipArt.hidden = true; }
+          bg.style.backgroundImage = url ? `url("${url}")` : '';
         });
       }
     }
@@ -118,6 +129,8 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
     const playing = player.playing;
     playIc.innerHTML = svg(playing ? 'pause' : 'play');
     playBtn.setAttribute('aria-label', playing ? '一時停止' : '再生');
+    // 止めている間は、ジャケットが少し小さくなる
+    np.classList.toggle('paused', !playing);
   }
 
   function showTimes(t, d) {
@@ -134,7 +147,6 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
   }
 
   function syncQueue() {
-    shuffleBtn.classList.toggle('on', player.shuffle);
     shuffleBtn.setAttribute('aria-pressed', String(player.shuffle));
     const rep = player.repeat;
     repeatBtn.classList.toggle('on', rep !== 'off');
@@ -149,56 +161,41 @@ export function createNowPlaying({ player, library, art, db, ui, saveUi }) {
     syncTrack();
     syncState();
     syncQueue();
-    syncOverlay();
+    syncLyricsShown();
   }
 
-  // ── ジャケットの上の表示（つまみ・歌詞）──
-  function syncOverlay() {
-    const show = ui.overlay !== false;
-    overlay.classList.toggle('hide', !show && !docked);
-    lyricsBox.hidden = !(show && lyricsBox.dataset.has === '1');
-  }
-
-  // 画面がたてに長い端末では、つまみをジャケットの下（操作ボタンの上）に常に出す。
-  // 昔の小さな画面と同じくらいの縦横比のときだけ、ジャケットの上に重ねる
-  function layout() {
-    if (np.hidden) return;
-    // ジャケットの舞台は正方形（一辺 = 画面の幅）。高さを数字で入れておく
-    // （CSS の aspect-ratio だけにまかせると、古い iPhone の Safari でつぶれることがある）。
-    // 画面が低いときは、flex のはたらきでここから縮む
-    stage.style.height = `${np.clientWidth}px`;
-    const space = np.clientHeight - $('np-top').offsetHeight - np.clientWidth;
-    const want = space >= 215;
-    if (want === docked) return;
-    docked = want;
-    np.classList.toggle('docked', docked);
-    if (docked) bottom.insertBefore(overlay, bottom.firstChild);
-    else front.appendChild(overlay);
-    syncOverlay();
+  // ── 歌詞（タグに入っているとき。ジャケットを押すか、歌詞のボタンで出し入れ）──
+  function syncLyricsShown() {
+    const show = hasLyrics && ui.lyrics !== false;
+    lyricsBox.hidden = !show;
+    lyricsBtn.hidden = !hasLyrics;
+    lyricsBtn.setAttribute('aria-pressed', String(show));
   }
 
   function syncLyrics() {
     const t = player.current;
     lyricsBox.textContent = '';
-    lyricsBox.dataset.has = '';
-    lyricsBox.hidden = true;
+    hasLyrics = false;
+    syncLyricsShown();
     if (!t || !t.hasLyrics) return;
     const id = t.id;
     db.getLyrics(id).then((text) => {
       if (!text || !player.current || player.current.id !== id) return;
       lyricsBox.textContent = text;
-      lyricsBox.dataset.has = '1';
       lyricsBox.scrollTop = 0;
-      syncOverlay();
+      hasLyrics = true;
+      syncLyricsShown();
     }).catch(() => {});
   }
 
-  front.addEventListener('click', (ev) => {
-    if (ev.target.closest('.np-overlay')) return;
-    ui.overlay = ui.overlay === false;
+  const toggleLyrics = () => {
+    if (!hasLyrics) return;
+    ui.lyrics = ui.lyrics === false;
     saveUi();
-    syncOverlay();
-  });
+    syncLyricsShown();
+  };
+  front.addEventListener('click', toggleLyrics);
+  lyricsBtn.addEventListener('click', toggleLyrics);
 
   // ── 再生位置のつまみ ──
   const scrub = createSlider($('np-scrub'), {
