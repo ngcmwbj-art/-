@@ -151,7 +151,8 @@ export function actionSheet({ title, buttons }) {
     document.addEventListener('keydown', onKey, true);
     requestAnimationFrame(() => {
       layer.classList.add('in');
-      const first = sheet.querySelector('.sheet-btn');
+      // 最初は「キャンセル」に合わせる（開いた直後の Enter で、うっかり削除してしまわないように）
+      const first = sheet.querySelector('.sheet-btn.cancel') || sheet.querySelector('.sheet-btn');
       if (first) first.focus({ preventScroll: true });
     });
   });
