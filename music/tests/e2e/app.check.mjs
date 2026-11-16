@@ -326,7 +326,13 @@ try {
       player.playList([first.id, second.id], 0, { shuffle: false });
       const t0 = performance.now();
       let leftAtSwitch = null;
-      const onTrack = () => { if (player.current === second && leftAtSwitch === null) leftAtSwitch = a.duration - a.currentTime; };
+      const onTrack = () => { if (player.current === second && leftAtSwitch === null) leftAtSwitch = lastLeft; };
+      let lastLeft = null;
+      const onTime = () => { if (player.current === first && isFinite(a.duration)) lastLeft = a.duration - a.currentTime; };
+      a.addEventListener('timeupdate', onTime);
+      player.addEventListener('track', onTrack);
+      const realAfterEnd = player._afterEnd.bind(player);
+      player._afterEnd = (early) => { if (early && player.current === first) lastLeft = a.duration - a.currentTime; return realAfterEnd(early); };
       await new Promise((resolve) => {
         const tick = () => {
           if (player.current === second && !a.paused && a.currentTime > 0.05) resolve();
@@ -337,8 +343,11 @@ try {
       });
       const out = {
         title: player.current && player.current.title, ended, counted: (first.playCount || 0) - before,
-        playing: !a.paused, ms: Math.round(performance.now() - t0),
+        playing: !a.paused, ms: Math.round(performance.now() - t0), cut: leftAtSwitch,
       };
+      player._afterEnd = realAfterEnd;
+      a.removeEventListener('timeupdate', onTime);
+      player.removeEventListener('track', onTrack);
       a.removeEventListener('ended', onEnded);
       delete document.hidden;
       player.earlySwitch = false;
@@ -347,6 +356,7 @@ try {
     });
     ok(r.title === 'ゆうやけ' && r.playing, `次の曲へ進んで鳴っている（${r.ms} ミリ秒後）`);
     ok(r.ended === 0, '前の曲が「終わった」状態になる前に切りかえている');
+    ok(r.cut !== null && r.cut < 0.2, `切り上げたのは、曲の終わりの ${r.cut === null ? '?' : r.cut.toFixed(3)} 秒だけ`);
     ok(r.counted === 1, '聴いた回数は1回だけ数える');
   }
 
