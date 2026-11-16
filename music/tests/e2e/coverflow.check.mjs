@@ -510,9 +510,9 @@ async function flowMain(browser, base) {
   check('裏返ったあとは、表のジャケットがかくれて曲の一覧が出ている', s.flipped && panel.visible && !c12.visible);
   check('一覧は画面のまん中に、画面からはみ出さずに出る', near((panel.left + panel.right) / 2, W / 2, 1) && panel.top >= 0 && panel.bottom <= H && panel.left >= 0 && panel.bottom - panel.top > H * 0.8,
     `${panel.left},${panel.top} 〜 ${panel.right},${panel.bottom}`);
-  check('上は青灰色のグラデーションの見出し帯（アルバム名・アーティスト名）', panel.headBg.includes('linear-gradient') && panel.headTitle === cap.want.title && panel.headArtist === cap.want.artist && near(panel.headBottom, panel.listTop, 0.6),
+  check('上は見出し（アルバム名・アーティスト名）', panel.headTitle === cap.want.title && panel.headArtist === cap.want.artist && near(panel.headBottom, panel.listTop, 0.6),
     `「${panel.headTitle}」/「${panel.headArtist}」`);
-  check('下は白地の曲リスト（行の高さ 44px・縦スクロール）', panel.listBg === 'rgb(255, 255, 255)' && panel.rowH === 44 && panel.overflowY === 'auto' && panel.rows === want.count, `${panel.rows} 行 × ${panel.rowH}px`);
+  check('下は曲リスト（行の高さ 44px・縦スクロール）', panel.rowH === 44 && panel.overflowY === 'auto' && panel.rows === want.count, `${panel.rows} 行 × ${panel.rowH}px`);
   const fmtOk = panel.texts.every((t) => /^\d+$/.test(t[0]) && t[1].length > 0 && (t[2] === '' || /^\d+:\d\d$/.test(t[2])));
   check('各行に 番号・題名・長さ（m:ss）', fmtOk && panel.texts[0][0] === '1' && panel.texts[6][0] === '7' && panel.texts[7][2] === '', JSON.stringify(panel.texts.slice(0, 2)));
   await shot(page, '10-667x375-back.png');

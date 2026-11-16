@@ -14,8 +14,8 @@ const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'icons');
 const icon = readFileSync(join(dir, 'icon.svg'), 'utf8');
 const favicon = readFileSync(join(dir, 'favicon.svg'), 'utf8');
 
-// maskable 用：背景は端まで、絵（音符）だけを中央の 62% に収める
-const maskable = icon.replace('<g id="mark"', '<g transform="translate(256 256) scale(.62) translate(-256 -246)"><g id="mark"').replace('</g>\n</svg>', '</g></g>\n</svg>');
+// maskable 用：背景は端まで、絵（ガラスの丸と音符）を少し小さくして、丸く切りぬかれても欠けないようにする
+const maskable = icon.replace('<g id="mark"', '<g transform="translate(256 256) scale(.84) translate(-256 -256)"><g id="mark"').replace('</g>\n</svg>', '</g></g>\n</svg>');
 
 const jobs = [
   { file: 'apple-touch-icon.png', size: 180, svg: icon },
