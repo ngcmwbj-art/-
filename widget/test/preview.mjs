@@ -102,7 +102,7 @@ function html(node, mode, parentDir) {
       : node.lineLimit ? `display:-webkit-box;-webkit-line-clamp:${node.lineLimit};-webkit-box-orient:vertical;overflow:hidden;` : "";
     return `<div style="font-size:${f.size}px;font-weight:${f.weight};line-height:1.25;color:${col(node.textColor, mode) || "inherit"};min-width:0;max-width:100%;${clamp}">${esc(node.text)}</div>`;
   }
-  const s = [`display:flex`, `flex-direction:${node.dir}`, `min-width:0`, `box-sizing:border-box`];
+  const s = [`display:flex`, `flex-direction:${node.dir}`, `min-width:0`, `overflow:hidden`, `flex-shrink:1`, `box-sizing:border-box`];
   s.push(`align-items:${node.align === "center" ? "center" : node.align === "end" ? "flex-end" : "flex-start"}`);
   if (node.spacing) s.push(`gap:${node.spacing}px`);
   if (node.padding) s.push(`padding:${node.padding.map((p) => p + "px").join(" ")}`);

@@ -68,6 +68,30 @@ function branchLabel(branch, titles) {
     .replace(/-/g, " ");
 }
 
+// 「ミュージック：曲の切り上げを短く」→ 頭の「ミュージック」を作品名として取り出す
+function splitPrefix(msg) {
+  const m = String(msg).match(/^([^：:\s][^：:]{0,13})[：:]\s*(.+)$/);
+  return m ? { prefix: m[1].trim(), rest: m[2].trim() } : { prefix: null, rest: String(msg) };
+}
+
+// コミット1件ごとにプロジェクト名を決める。
+// 頭に名前が付いていればそれ、無ければ同じブランチの後のコミットの名前、それも無ければブランチ名
+function projectNames(branch, messages, titles) {
+  const own = messages.map((m) => {
+    const p = splitPrefix(m).prefix;
+    // 「作業途中：」「作業メモ：」「WIP:」などは作品名ではないので使わない
+    if (!p || p.length > 10 || /^(作業|メモ|修正|WIP|wip|fix|Fix|chore|feat|docs)/.test(p)) return null;
+    return p;
+  });
+  return own.map((p, i) => {
+    if (p) return p;
+    // 後に続いた作業（新しい側）を先に見る。同じ作業の続きであることが多いため
+    for (let j = i - 1; j >= 0; j--) if (own[j]) return own[j];
+    for (let j = i + 1; j < own.length; j++) if (own[j]) return own[j];
+    return branchLabel(branch, titles);
+  });
+}
+
 async function fetchStatus() {
   const now = new Date();
   const weekStart = new Date(startOfDay(now).getTime() - 6 * DAY);
@@ -118,17 +142,23 @@ async function fetchStatus() {
     } catch (e) {
       continue;
     }
-    for (const c of Array.isArray(list) ? list : []) {
-      if (seen[c.sha]) continue;
+    list = Array.isArray(list) ? list : [];
+    const firstLines = list.map((c) => String(c.commit.message || "").split("\n")[0]);
+    const labels = projectNames(b, firstLines, titles);
+    list.forEach((c, i) => {
+      const label = labels[i];
+      if (seen[c.sha]) return;
       seen[c.sha] = true;
+      const sp = splitPrefix(firstLines[i]);
       commits.push({
         sha: c.sha,
         date: c.commit.committer.date,
-        message: String(c.commit.message || "").split("\n")[0],
+        // 頭の作品名はプロジェクト名と同じなら省く（同じ言葉を2回出さない）
+        message: sp.prefix === label ? sp.rest : firstLines[i],
         branch: b,
-        label: branchLabel(b, titles),
+        label,
       });
-    }
+    });
   }
   commits.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -140,6 +170,9 @@ async function fetchStatus() {
   };
 }
 
+// 「作業中」とみなす時間（最後のコミットからこの分数以内）
+const ACTIVE_MINUTES = 60;
+
 // 日ごとの本数は、表示するたびに端末の時計で数え直す（古い控えでも日付がずれない）
 function summarize(status) {
   const today = startOfDay(new Date());
@@ -147,15 +180,32 @@ function summarize(status) {
   for (let i = 6; i >= 0; i--) {
     days.push({ date: new Date(today.getTime() - i * DAY), count: 0 });
   }
+  const projects = [];
+  const byName = {};
   for (const c of status.commits) {
     const idx = Math.round((startOfDay(new Date(c.date)) - days[0].date) / DAY);
     if (idx >= 0 && idx < 7) days[idx].count++;
+    // commits は新しい順なので、最初に出てきたものがそのプロジェクトの最新
+    let p = byName[c.label];
+    if (!p) {
+      p = byName[c.label] = {
+        name: c.label,
+        last: c,
+        today: 0,
+        week: 0,
+        active: Date.now() - new Date(c.date).getTime() < ACTIVE_MINUTES * 60000,
+      };
+      projects.push(p);
+    }
+    if (idx >= 0 && idx < 7) p.week++;
+    if (idx === 6) p.today++;
   }
   return {
     days,
     today: days[6].count,
     week: days.reduce((s, d) => s + d.count, 0),
-    latest: status.commits,
+    projects,
+    activeCount: projects.filter((p) => p.active).length,
   };
 }
 
@@ -217,48 +267,62 @@ function text(stack, str, size, color, weight) {
   return t;
 }
 
-function header(w, info) {
+function dot(parent, color, d) {
+  const s = parent.addStack();
+  s.size = new Size(d, d);
+  s.cornerRadius = d / 2;
+  s.backgroundColor = color;
+  return s;
+}
+
+function header(w, info, compact) {
   const row = w.addStack();
   row.layoutHorizontally();
   row.centerAlignContent();
-  const dot = row.addStack();
-  dot.size = new Size(8, 8);
-  dot.cornerRadius = 4;
-  dot.backgroundColor = C.accent;
+  dot(row, C.accent, 8);
   row.addSpacer(6);
   text(row, "Claude Code", 12, C.text, "bold");
   row.addSpacer();
   if (info.status) {
-    const label = info.stale ? `前回 ${clock(info.status.fetchedAt)}` : clock(info.status.fetchedAt);
+    const t = clock(info.status.fetchedAt);
+    const label = info.stale ? `前回 ${t}` : compact ? t : `${t} 更新`;
     text(row, label, 10, C.sub);
   }
 }
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
+// 7日分の棒。棒の上にその日のコミット数を書くので、高さだけで読まなくてよい
 function bars(parent, sum, height, barWidth) {
   const max = Math.max(1, ...sum.days.map((d) => d.count));
   const row = parent.addStack();
   row.layoutHorizontally();
   row.bottomAlignContent();
-  row.spacing = 4;
+  row.spacing = 3;
   sum.days.forEach((d, i) => {
+    const isToday = i === 6;
     const col = row.addStack();
     col.layoutVertically();
-    col.spacing = 2;
+    col.spacing = 1;
+    const num = col.addStack();
+    num.size = new Size(barWidth, 10);
+    num.centerAlignContent();
+    const n = text(num, d.count, 8, isToday ? C.accent : C.sub, isToday ? "bold" : null);
+    n.minimumScaleFactor = 0.7;
     const track = col.addStack();
     track.layoutVertically();
     track.size = new Size(barWidth, height);
     track.addSpacer();
     const bar = track.addStack();
-    const h = d.count === 0 ? 2 : Math.max(4, Math.round((d.count / max) * height));
+    const h = d.count === 0 ? 2 : Math.max(3, Math.round((d.count / max) * height));
     bar.size = new Size(barWidth, h);
     bar.cornerRadius = 2;
-    bar.backgroundColor = i === 6 ? C.accent : C.bar;
+    bar.backgroundColor = isToday ? C.accent : C.bar;
     const lab = col.addStack();
     lab.size = new Size(barWidth, 10);
     lab.centerAlignContent();
-    text(lab, WEEKDAYS[d.date.getDay()], 8, i === 6 ? C.accent : C.sub);
+    // 棒が細いときは「今日」が入らないので曜日のまま（色で今日を示す）
+    text(lab, isToday && barWidth >= 20 ? "今日" : WEEKDAYS[d.date.getDay()], 8, isToday ? C.accent : C.sub, isToday ? "bold" : null);
   });
 }
 
@@ -272,17 +336,34 @@ function todayBlock(parent, sum, big) {
   row.addSpacer(4);
   const side = row.addStack();
   side.layoutVertically();
-  text(side, `今週 ${sum.week}`, 10, C.sub);
-  side.addSpacer(5);
+  text(side, `件　今週 ${sum.week}件`, 10, C.sub);
+  side.addSpacer(big > 36 ? 7 : 5);
 }
 
-function commitRow(parent, c) {
+// プロジェクト1つ分：●名前　時刻 ／ 最新のコミット
+function projectRow(parent, p, opts) {
   const box = parent.addStack();
   box.layoutVertically();
-  const m = text(box, c.message, 12, C.text, "medium");
-  m.lineLimit = 1;
-  const meta = text(box, `${c.label}・${ago(c.date)}`, 10, C.sub);
-  meta.lineLimit = 1;
+  box.spacing = 1;
+  const top = box.addStack();
+  top.layoutHorizontally();
+  top.centerAlignContent();
+  dot(top, p.active ? C.accent : C.bar, 6);
+  top.addSpacer(5);
+  const name = text(top, p.name, 12, C.text, "bold");
+  name.minimumScaleFactor = 0.8;
+  top.addSpacer();
+  const when = p.active ? `作業中・${ago(p.last.date)}` : ago(p.last.date);
+  text(top, opts.showToday && p.today ? `今日${p.today}件・${when}` : when, 10, p.active ? C.accent : C.sub, p.active ? "medium" : null);
+  const msgRow = box.addStack();
+  msgRow.addSpacer(11);
+  const m = text(msgRow, p.last.message, 11, C.sub);
+  m.lineLimit = opts.lines || 1;
+}
+
+function projectHeading(parent, sum) {
+  const label = sum.activeCount > 0 ? `いま作業中 ${sum.activeCount}件` : "いま作業中のものはありません";
+  text(parent, label, 10, sum.activeCount > 0 ? C.accent : C.sub, "medium");
 }
 
 function footer(w, info) {
@@ -290,11 +371,7 @@ function footer(w, info) {
   row.layoutHorizontally();
   row.centerAlignContent();
   const g = info.status && info.status.games;
-  if (g) {
-    text(row, `ゲーム ${g.live}本公開中`, 10, C.sub);
-  } else if (info.status) {
-    text(row, `動いているブランチ ${info.status.branchCount}`, 10, C.sub);
-  }
+  if (g) text(row, `ゲーム ${g.live}本公開中`, 10, C.sub);
   row.addSpacer();
   const link = row.addStack();
   link.url = CONFIG.usageUrl;
@@ -314,71 +391,81 @@ function emptyMessage(w, info) {
 
 // ---------- 大きさごとの組み立て ----------
 function buildSmall(w, info, sum) {
-  header(w, info);
-  w.addSpacer(6);
-  todayBlock(w, sum, 34);
+  header(w, info, true);
   w.addSpacer(4);
-  bars(w, sum, 22, 14);
+  todayBlock(w, sum, 30);
+  w.addSpacer(2);
+  bars(w, sum, 16, 15);
   w.addSpacer();
-  const last = sum.latest[0];
-  if (last) {
-    const m = text(w, last.message, 10, C.sub);
-    m.lineLimit = 1;
+  const p = sum.projects[0];
+  if (p) {
+    const row = w.addStack();
+    row.layoutHorizontally();
+    row.centerAlignContent();
+    dot(row, p.active ? C.accent : C.bar, 6);
+    row.addSpacer(4);
+    const t = text(row, p.active ? `作業中：${p.name}` : `最後：${p.name} ${ago(p.last.date)}`, 10, p.active ? C.accent : C.sub, "medium");
+    t.minimumScaleFactor = 0.8;
   }
   // 小サイズは全体で1つのタップ先しか持てないので、使用状況の画面を開く
   w.url = CONFIG.usageUrl;
 }
 
-function buildWide(w, info, sum, rows, large) {
+function buildMedium(w, info, sum) {
   header(w, info);
-  w.addSpacer(large ? 12 : 8);
+  w.addSpacer(6);
+  const body = w.addStack();
+  body.layoutHorizontally();
+  const left = body.addStack();
+  left.layoutVertically();
+  left.size = new Size(110, 0);
+  todayBlock(left, sum, 28);
+  left.addSpacer(2);
+  bars(left, sum, 18, 13);
+  body.addSpacer(12);
+  const right = body.addStack();
+  right.layoutVertically();
+  right.spacing = 5;
+  projectHeading(right, sum);
+  sum.projects.slice(0, 2).forEach((p) => projectRow(right, p, {}));
+  if (sum.projects.length === 0) text(right, "この1週間のコミットはありません", 11, C.sub);
+  w.addSpacer();
+  footer(w, info);
+}
 
-  if (large) {
-    const top = w.addStack();
-    top.layoutHorizontally();
-    top.bottomAlignContent();
-    const left = top.addStack();
-    left.layoutVertically();
-    todayBlock(left, sum, 40);
-    top.addSpacer();
-    bars(top, sum, 44, 22);
-    w.addSpacer(16);
-    text(w, "さいきんの作業", 10, C.sub);
-    w.addSpacer(6);
-    const list = w.addStack();
-    list.layoutVertically();
-    list.spacing = 7;
-    sum.latest.slice(0, rows).forEach((c) => commitRow(list, c));
-    if (sum.latest.length === 0) text(list, "この1週間のコミットはありません", 12, C.sub);
-  } else {
-    const body = w.addStack();
-    body.layoutHorizontally();
-    const left = body.addStack();
-    left.layoutVertically();
-    left.size = new Size(104, 0);
-    todayBlock(left, sum, 32);
-    left.addSpacer(4);
-    bars(left, sum, 24, 11);
-    body.addSpacer(12);
-    const right = body.addStack();
-    right.layoutVertically();
-    right.spacing = 5;
-    sum.latest.slice(0, rows).forEach((c) => commitRow(right, c));
-    if (sum.latest.length === 0) text(right, "この1週間のコミットはありません", 12, C.sub);
-    body.addSpacer();
-  }
-
+function buildLarge(w, info, sum) {
+  header(w, info);
+  w.addSpacer(10);
+  const top = w.addStack();
+  top.layoutHorizontally();
+  top.bottomAlignContent();
+  const left = top.addStack();
+  left.layoutVertically();
+  todayBlock(left, sum, 40);
+  top.addSpacer();
+  bars(top, sum, 40, 22);
+  w.addSpacer(4);
+  const note = text(w, "棒の上の数字＝その日のコミット（作業の区切りごとの保存）の数", 9, C.sub);
+  note.minimumScaleFactor = 0.8;
+  w.addSpacer(12);
+  projectHeading(w, sum);
+  w.addSpacer(6);
+  const list = w.addStack();
+  list.layoutVertically();
+  list.spacing = 8;
+  sum.projects.slice(0, 4).forEach((p) => projectRow(list, p, { showToday: true, lines: p.active ? 2 : 1 }));
+  if (sum.projects.length === 0) text(list, "この1週間のコミットはありません", 12, C.sub);
   w.addSpacer();
   footer(w, info);
 }
 
 function buildLockScreen(w, info, sum) {
-  const t = w.addText(`Claude Code　今日 ${sum.today}・今週 ${sum.week}`);
+  const t = w.addText(`Claude Code　今日 ${sum.today}件・今週 ${sum.week}件`);
   t.font = Font.boldSystemFont(12);
   t.lineLimit = 1;
-  const last = sum.latest[0];
-  if (last) {
-    const m = w.addText(last.message);
+  const p = sum.projects[0];
+  if (p) {
+    const m = w.addText(p.active ? `作業中：${p.name}　${p.last.message}` : `最後：${p.name}（${ago(p.last.date)}）`);
     m.font = Font.systemFont(11);
     m.lineLimit = 2;
   }
@@ -405,8 +492,8 @@ async function createWidget(family) {
   }
   const sum = summarize(info.status);
   if (family === "small") buildSmall(w, info, sum);
-  else if (family === "large") buildWide(w, info, sum, 6, true);
-  else buildWide(w, info, sum, 3, false);
+  else if (family === "large") buildLarge(w, info, sum);
+  else buildMedium(w, info, sum);
   return w;
 }
 
