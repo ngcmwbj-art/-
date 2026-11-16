@@ -19,7 +19,7 @@ const CONFIG = {
   // 何分おきに GitHub を見に行くか
   refreshMinutes: 30,
   // 1回の更新で調べるブランチの数（多いほど通信が増える）
-  maxBranches: 4,
+  maxBranches: 6,
 };
 
 // ウィジェットの「Parameter」に owner/repo と書くと、別のリポジトリを見られる
