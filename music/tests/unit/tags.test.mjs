@@ -364,6 +364,25 @@ describe('合成: ID3', () => {
     }
   });
 
+  it('第2水準の漢字だけの題名（絆・蕾・薔薇 など）を、欧文とまちがえない', async () => {
+    for (const name of ['絆', '蕾', '薔薇', '躊躇', '颯', '絆 -kizuna-', '蕾 (Live)']) {
+      const tag = id3v2(3, [id3Frame('TIT2', textData(0, sjis(name)))]);
+      const t = await parse(bytes(tag, mp3Frames(4)), 'k.mp3');
+      assert.equal(t.title, name);
+      const v1 = await parse(bytes(mp3Frames(4), id3v1({ title: sjis(name) })), 'k.mp3');
+      assert.equal(v1.title, name, 'ID3v1: ' + name);
+    }
+  });
+
+  it('Windows-1252 の曲がったアポストロフィ（Don’t など）を、漢字とまちがえない', async () => {
+    const cp1252 = (text) => Uint8Array.from(Array.from(text, (ch) => (ch === '’' ? 0x92 : ch.charCodeAt(0))));
+    for (const name of ['Don’t Stop', 'It’s My Life', 'I’m Yours', 'We’re', 'You’ve Got', 'Destiny’s Child']) {
+      const tag = id3v2(3, [id3Frame('TIT2', textData(0, cp1252(name)))]);
+      const t = await parse(bytes(tag, mp3Frames(4)), 'w.mp3');
+      assert.equal(t.title, name);
+    }
+  });
+
   it('文字コード 3（UTF-8）なのに中身が Shift_JIS でも読める', async () => {
     const tag = id3v2(4, [id3Frame('TIT2', textData(3, sjis('ゆうやけ')), 4)]);
     assert.equal((await parse(bytes(tag, mp3Frames(4)), 'x.mp3')).title, 'ゆうやけ');

@@ -78,9 +78,13 @@ export class VList {
 
   // いま見えている行を作りなおす（再生中の印が変わったときなど）
   refresh() {
+    const confirming = this._confirm;
+    this._confirm = -1;
     for (const node of this.rendered.values()) node.remove();
     this.rendered.clear();
     this._render();
+    // 「削除」ボタンを出していた行は、出しなおす（消えたままだと、次の押しが1回むだになる）
+    if (confirming >= 0) this._showConfirm(confirming);
   }
 
   scrollToIndex(i, align = 'top') {
@@ -242,9 +246,14 @@ export class VList {
 
   _bindIndex() {
     const jump = (ev) => {
-      const r = this.index.getBoundingClientRect();
-      if (!r.height || !this.headers.length) return;
-      const p = Math.min(0.9999, Math.max(0, (ev.clientY - r.top) / r.height));
+      // 文字は箱のまんなかに寄せて並んでいる。箱ではなく、文字のならびの上下で割合を出す
+      const firstEl = this.index.firstElementChild;
+      const lastEl = this.index.lastElementChild;
+      if (!firstEl || !this.headers.length) return;
+      const y0 = firstEl.getBoundingClientRect().top;
+      const y1 = lastEl.getBoundingClientRect().bottom;
+      if (y1 <= y0) return;
+      const p = Math.min(0.9999, Math.max(0, (ev.clientY - y0) / (y1 - y0)));
       const hi = this.headers[Math.floor(p * this.headers.length)];
       const max = Math.max(0, this.scroller.scrollHeight - this.scroller.clientHeight);
       this.scroller.scrollTop = Math.min(this.offsets[hi], max);

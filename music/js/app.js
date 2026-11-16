@@ -285,6 +285,12 @@ function switchTab(name, { instant = true } = {}) {
     b.setAttribute('aria-current', on ? 'page' : 'false');
   }
   if (old) old.el.hidden = true;
+  // 別のタブにいる間に対象（アルバムなど）が消えたページは、ここで外す
+  while (nav.stack.length > 1 && nav.top.dirty && nav.top.update() === false) {
+    const dead = nav.stack.pop();
+    dead.el.hidden = true;
+    disposeLater(dead);
+  }
   showPage(nav.top, old, instant ? 'none' : 'push');
 }
 
@@ -294,7 +300,12 @@ function markAllDirty() {
   refreshVisible();
 }
 
+let refreshTimer = 0;
 function refreshVisible() {
+  // ページが入れかわる動きの途中なら、終わってからやりなおす
+  // （途中でページを外すと、動きの後始末が下のページまで隠してしまう）
+  clearTimeout(refreshTimer);
+  if (nav.busy) { refreshTimer = setTimeout(refreshVisible, 80); return; }
   // いちばん上のページの対象（アルバムなど）が無くなっていたら、1つずつ戻る
   let guard = 0;
   while (nav.stack.length > 1 && guard++ < 10) {
@@ -306,9 +317,11 @@ function refreshVisible() {
     const below = nav.top;
     below.el.hidden = false;
     if (!below.el.isConnected) pagesEl.appendChild(below.el);
+    // 消えた行のあとに上がってきた別の行が、選ばれたままに見えないように
+    if (below.vlist) below.vlist.deselect(false);
   }
   if (nav.stack.length === 1) nav.top.update();
-  if (!nav.busy) refreshNav();
+  refreshNav();
 }
 
 // ════════════════════════════════════════════════════════
@@ -870,8 +883,12 @@ function bindReorder(page, id) {
     item.gap = true;
     page.vlist.setItems(items, { keepScroll: true });
 
+    // 一覧は、上のバーと下の部品のぶんだけ上下に余白がある。行の位置を出すときは、上の余白を引く
+    const scStyle = getComputedStyle(sc);
+    const padTop = parseFloat(scStyle.paddingTop) || 0;
+    const padBottom = parseFloat(scStyle.paddingBottom) || 0;
     const settle = () => {
-      const target = Math.max(first, Math.min(last, page.vlist._indexAt(sc.scrollTop + lastY - grab + rowH / 2)));
+      const target = Math.max(first, Math.min(last, page.vlist._indexAt(sc.scrollTop - padTop + lastY - grab + rowH / 2)));
       if (target !== cur) {
         items.splice(cur, 1);
         items.splice(target, 0, item);
@@ -881,8 +898,8 @@ function bindReorder(page, id) {
     };
     // 上下のはしに近づいたら、一覧を少しずつ送る
     const scrollTimer = setInterval(() => {
-      if (lastY < 50) sc.scrollTop -= 10;
-      else if (lastY > hostRect.height - 50) sc.scrollTop += 10;
+      if (lastY < padTop + 50) sc.scrollTop -= 10;
+      else if (lastY > hostRect.height - padBottom - 50) sc.scrollTop += 10;
       else return;
       settle();
     }, 30);

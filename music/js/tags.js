@@ -574,22 +574,42 @@ function guessLittleEndian(bytes) {
  *   日本語の Shift_JIS にはほぼ必ず 0x80〜0xBF のバイトが入るので、ここには当てはまらない）
  */
 function looksWestern(bytes) {
+  const n = bytes.length;
+  const lower = (c) => c >= 0x61 && c <= 0x7a;
+  const letter = (c) => lower(c) || (c >= 0x41 && c <= 0x5a);
   let letters = 0;
+  let free = 0; // Shift_JIS として読んだときに「2バイト文字の後ろ半分」にならないアルファベットの数
   let high = 0;
   let run = 0;
-  for (let i = 0; i < bytes.length; i++) {
+  let trail = false;
+  for (let i = 0; i < n; i++) {
     const b = bytes[i];
+    const prev = i > 0 ? bytes[i - 1] : 0x20;
+    const next = i + 1 < n ? bytes[i + 1] : 0x20;
+    const isTrail = trail;
+    trail = false;
     if (b >= 0x80) {
-      if (b < 0xc0 || b === 0xd7 || b === 0xf7) return false;
+      if (!isTrail && ((b >= 0x81 && b <= 0x9f) || b >= 0xe0)) trail = true;
+      if (b < 0xc0) {
+        // Windows-1252 の ’ が単語の中にあるとき（Don’t・It’s・I’m・We’re・You’ve・I’ll・I’d）
+        const contraction = b === 0x92 && (lower(prev) || prev === 0x49) && (next === 0x73 || next === 0x74 || next === 0x6d || next === 0x72 || next === 0x76 || next === 0x6c || next === 0x64);
+        if (!contraction) return false;
+      } else if (b === 0xd7 || b === 0xf7) {
+        return false;
+      } else if (b >= 0xe0 && ((next >= 0x40 && next <= 0x7e && !lower(next)) || (next >= 0xc0 && next <= 0xde))) {
+        return false; // 小文字のアクセントつき文字のすぐ後ろが大文字・記号：Shift_JIS の漢字（絆 = E3 4A など）
+      }
       high++;
       if (++run > 2) return false;
     } else {
       run = 0;
-      const c = b | 0x20;
-      if (c >= 0x61 && c <= 0x7a) letters++;
+      if (letter(b)) {
+        letters++;
+        if (!isTrail) free++;
+      }
     }
   }
-  return high > 0 && letters >= high;
+  return high > 0 && letters >= high && free > 0;
 }
 
 /** 外字や「読めなかった印」が混ざっていたら、その読み方はまちがい */

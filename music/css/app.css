@@ -230,7 +230,8 @@ img { -webkit-user-drag: none; -webkit-touch-callout: none; }
   right: 0;
   height: var(--top);
   z-index: 5;
-  pointer-events: none;
+  /* バーの上の押しは、ここで止める（下にもぐって見えない行を押してしまわないように） */
+  pointer-events: auto;
 }
 .navbar::before {
   content: "";
@@ -354,6 +355,7 @@ img { -webkit-user-drag: none; -webkit-touch-callout: none; }
   user-select: text;
 }
 .searchfield input::placeholder { color: var(--fg3); }
+.searchfield input:focus-visible { outline: none; }
 .searchfield input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .searchfield span { font-size: 17px; }
 
@@ -407,7 +409,6 @@ img { -webkit-user-drag: none; -webkit-touch-callout: none; }
   left: 0;
   right: 0;
   z-index: 2;
-  pointer-events: none;
   padding-left: calc(16px + var(--sal));
   background: var(--bg-a85);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
@@ -705,12 +706,16 @@ img { -webkit-user-drag: none; -webkit-touch-callout: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: calc(var(--top) + 8px) 28px calc(var(--bottom) + 8px);
   background: var(--bg);
   text-align: center;
   overflow-y: auto;
 }
+/* 入るときはまんなかに、入りきらないときは、つぶさずに上から並べて送れるように */
+.empty > * { flex-shrink: 0; }
+.empty > :first-child { margin-top: auto; }
+.empty > :last-child { margin-bottom: auto; }
 .empty-ic {
   width: 104px;
   height: 104px;
@@ -880,6 +885,11 @@ img { -webkit-user-drag: none; -webkit-touch-callout: none; }
   line-height: 12px;
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* 幅のせまい画面では、タブの文字を少し小さく（「プレイリスト」「アーティスト」が切れないように） */
+@media (max-width: 350px) {
+  .tab-label { font-size: 9px; }
 }
 
 /* ── 再生中の画面（ジャケットの色がにじむ背景の上に、ガラスの部品）── */

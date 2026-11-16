@@ -79,6 +79,20 @@ try {
   ok(await page.locator('.empty-title').first().innerText() === '曲がありません', '「曲がありません」の案内が出る');
   ok(await page.locator('.tab.on').getAttribute('data-tab') === 'songs', '最初は「曲」タブ');
   ok(!(await page.locator('#mini').isVisible()), '下の「いまの曲」は出ていない');
+  {
+    await page.setViewportSize({ width: 320, height: 420 });
+    await settle(250);
+    const e = await M(() => {
+      const box = document.querySelector('.page:not([hidden]) .empty');
+      const hs = Array.from(box.querySelectorAll('.bigbtn')).map((b) => Math.round(b.getBoundingClientRect().height));
+      const ic = box.querySelector('.empty-ic').getBoundingClientRect();
+      box.scrollTop = 0;
+      return { hs, icon: Math.round(ic.height), iconTop: Math.round(ic.top), bar: document.querySelector('.navbar').getBoundingClientRect().bottom, canScroll: box.scrollHeight > box.clientHeight };
+    });
+    ok(e.hs[0] === 52 && e.hs[1] === 46 && e.icon === 104 && e.iconTop >= e.bar && e.canScroll, `小さい画面でも、案内のボタンや絵がつぶれず、上のバーにもぐらない（ボタン ${e.hs.join('・')}px）`);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await settle(250);
+  }
 
   // ──────────────────────────────────────────────
   section('見本の曲');
@@ -419,6 +433,9 @@ try {
   await page.mouse.up();
   await settle(300);
   ok(await page.locator('.vl-del.in').isVisible(), '行を横になぞると「削除」ボタンが出る');
+  await M(() => window.__music.nav.top.vlist.refresh());   // 曲が切りかわったときなどの描きなおし
+  await settle(250);
+  ok(await page.locator('.vl-del').isVisible() && /Both Tags/.test(await page.locator('.vl-item.confirming').innerText()), '一覧が描きなおされても、「削除」ボタンは同じ行に残る');
   await page.locator('.page:not([hidden]) .vl-song', { hasText: 'Opus Song' }).click();
   await settle(250);
   ok(!(await page.locator('.vl-del').count()) && !(await page.locator('#np').isVisible()), 'ほかの場所を押すと、何もせずにボタンが引っこむ');
@@ -453,6 +470,57 @@ try {
   await page.locator('.bb.back').click();
   await settle(500);
   ok((await titles('.page:not([hidden]) .vl-row .r-title')).includes('ドライブ'), 'プレイリストの一覧に出る');
+
+  // ──────────────────────────────────────────────
+  section('プレイリストの並べかえ');
+  {
+    await M(async () => {
+      const { library, db } = window.__music;
+      const ids = library.allSongs().slice(0, 4).map((t) => t.id);
+      const pl = { name: 'ならべかえ', trackIds: ids, createdAt: Date.now() };
+      pl.id = await db.putPlaylist(pl);
+      library.playlists.push(pl);
+      library.notify();
+    });
+    await settle(300);
+    await page.locator('.page:not([hidden]) .vl-row', { hasText: 'ならべかえ' }).click();
+    await settle(500);
+    await page.locator('.page:not([hidden]) .vl-plhead .cap', { hasText: '編集' }).click();
+    await settle(200);
+    const order = () => titles('.page:not([hidden]) .vl-pltrack .r-title');
+    const t0 = await order();
+    const drag = async (rowIndex, dy) => {
+      const hb = await page.locator('.page:not([hidden]) .vl-pltrack .r-handle').nth(rowIndex).boundingBox();
+      const x = hb.x + hb.width / 2;
+      const y = hb.y + hb.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x, y + dy, { steps: Math.max(2, Math.round(Math.abs(dy) / 12)) });
+      await page.mouse.up();
+      await settle(350);
+    };
+    await drag(1, 3);
+    ok(JSON.stringify(await order()) === JSON.stringify(t0), '取っ手を少し動かしただけでは、順番は変わらない');
+    await drag(0, 120);   // 1番目を、2行ぶん下へ
+    const t1 = await order();
+    ok(JSON.stringify(t1) === JSON.stringify([t0[1], t0[2], t0[0], t0[3]]), `1番目を2行下へ引くと、3番目に入る（${t1.join('・')}）`);
+    await drag(3, -180);  // 4番目を、いちばん上へ
+    const t2 = await order();
+    ok(JSON.stringify(t2) === JSON.stringify([t1[3], t1[0], t1[1], t1[2]]), '4番目をいちばん上へ引くと、1番目に入る');
+    ok(await M(async (want) => {
+      const pls = await window.__music.db.getPlaylists();
+      const pl = pls.find((x) => x.name === 'ならべかえ');
+      return JSON.stringify(pl.trackIds.map((id) => window.__music.library.get(id).title)) === JSON.stringify(want);
+    }, t2), '並べかえた順番が保存されている');
+    await page.locator('.page:not([hidden]) .vl-plhead .cap', { hasText: '完了' }).click();
+    await settle(200);
+    // 中から削除すると、自動で一覧にもどる。上がってきた別の行が、選ばれたままに見えない
+    await page.locator('.page:not([hidden]) .vl-plhead .cap', { hasText: '削除' }).click();
+    await settle(400);
+    await page.locator('.sheet-btn.destructive').click();
+    await settle(600);
+    ok((await page.locator('.nav-title').innerText()) === 'プレイリスト' && !(await page.locator('.page:not([hidden]) .vl-item.sel').count()), 'プレイリストを中から削除すると一覧にもどり、選んだ色は残らない');
+  }
 
   // ──────────────────────────────────────────────
   section('検索');
@@ -542,6 +610,28 @@ try {
   ok(many.rows > 5 && many.rows < 120, `5010曲でも、作る行は ${many.rows} 行だけ`);
   ok(many.ms < 1500, `ならべなおしと表示に ${Math.round(many.ms)} ミリ秒`);
   ok(many.index, '右はしに索引が出る');
+  {
+    const hit = await M(() => {
+      const idx = document.querySelector('.page:not([hidden]) .vl-index');
+      const letters = Array.from(idx.children).filter((el) => el.textContent !== '•');
+      const out = [];
+      for (const el of [letters[1], letters[Math.floor(letters.length / 2)]]) {
+        const r = el.getBoundingClientRect();
+        const fire = (type) => idx.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: r.left + 3, clientY: r.top + r.height / 2, pointerId: 1, isPrimary: true }));
+        fire('pointerdown');
+        fire('pointerup');
+        out.push([el.textContent, document.querySelector('.page:not([hidden]) .vl-sticky').textContent]);
+      }
+      return out;
+    });
+    ok(hit.every(([want, got]) => want === got), `索引の文字を押すと、その文字の見出しへ飛ぶ（${hit.map((x) => x.join('→')).join('、')}）`);
+    const under = await M(() => {
+      const bar = document.querySelector('.navbar').getBoundingClientRect();
+      const el = document.elementFromPoint(bar.left + bar.width / 2, bar.top + bar.height / 2);
+      return !!(el && el.closest('.navbar'));
+    });
+    ok(under, '上のバーの上を押しても、下にもぐった行は押されない');
+  }
   const jumped = await M(() => {
     const idx = document.querySelector('.page:not([hidden]) .vl-index');
     const r = idx.getBoundingClientRect();
@@ -571,6 +661,10 @@ try {
 
   // ──────────────────────────────────────────────
   section('すべて削除');
+  await tab('albums');
+  await page.locator('.page:not([hidden]) .vl-album', { hasText: 'Singles' }).click();
+  await settle(500);
+  ok((await page.locator('.nav-title').innerText()) === 'Singles', 'アルバムのページを開いたまま、ほかのタブへ');
   await tab('more');
   await page.locator('.page:not([hidden]) .vl-row', { hasText: '保存容量' }).click();
   await settle(500);
@@ -580,6 +674,8 @@ try {
   await page.locator('.sheet-btn.destructive').click();
   await page.waitForFunction(() => window.__music.library.size === 0, null, { timeout: 5000 });
   ok(await M(async () => (await window.__music.db.getAllTracks()).length === 0 && (await window.__music.db.getArtKeys()).length === 0), '曲もジャケットも保存場所から消える');
+  await tab('albums');
+  ok((await page.locator('.nav-title').innerText()) === 'アルバム' && await M(() => window.__music.nav.stack.length === 1), '消えたアルバムのページは残らず、アルバムの一覧にもどっている');
   await tab('songs');
   ok(await page.locator('.empty-title').first().isVisible(), '「曲がありません」にもどる');
   ok(!(await page.locator('#mini').isVisible()), '下の「いまの曲」も消える');
