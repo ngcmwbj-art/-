@@ -79,6 +79,18 @@ export function tileOf(id: string): [number, number] {
 type Step = [number, number] | Dir | `${Dir}${number}`;
 
 /**
+ * The wait of a walk: done when `done()` says so, or when the actor is no longer on the
+ * field it walked on (despawned, or the field was replaced). A walk left running with
+ * game.scripts.run() past a cut that took its actor away waited for ever and kept
+ * game.scripts busy: after 第2章の エンディング (cut4bReunion's マル・トメ) → つづきから → 第3章,
+ * しゅん could not move once 母 had finished (2026-11-17 依頼主).
+ */
+function gone(a: Actor, done: () => boolean): () => boolean {
+  const f = field();
+  return () => done() || field() !== f || (!!f && a !== f.player && a !== f.follower && !f.actors.includes(a));
+}
+
+/**
  * Walk along a tile path. Accepts absolute tiles ([x,y]) and relative steps
  * ('up', 'left3'). Speed in tiles/s (default 4.5 player, 2.5 others).
  */
@@ -107,7 +119,7 @@ export function* walk(id: string, path: Step[] | Step, opts: { speed?: number; f
   a.faceLock = !!opts.lockFace;
   a.data.scripted = true;
   a.path.push(...pts);
-  yield () => a.path.length === 0;
+  yield gone(a, () => a.path.length === 0);
   a.moving = false;
   a.faceLock = false;
   if (opts.face) a.dir = opts.face;
@@ -122,7 +134,7 @@ export function* walkPx(id: string, x: number, y: number, speed = 2.5): Co {
   a.pathSpeed = speed * 16;
   a.data.scripted = true;
   a.path.push([x, y]);
-  yield () => a.path.length === 0;
+  yield gone(a, () => a.path.length === 0);
   a.moving = false;
 }
 
