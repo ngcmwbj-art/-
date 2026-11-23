@@ -29,7 +29,7 @@ const WEAR = [0.55, 0.2, 0.3, 0.95, 0.75, 0.5];
  * 高さ 21 マス）を、ドット単位で 描き込む：底の ギザギザ、丸い つま先、かかと、足首の くびれ、筒の ゴムの つや、
  * 口の 折り返し（色の ちがう 帯と ぬい目）、泥はね と すり減り（1足ずつ ちがう）。
  */
-export function bootImg(i: number, s: number, up: boolean): HTMLCanvasElement {
+function bootImg(i: number, s: number, up: boolean): HTMLCanvasElement {
   return once(`kuboot2:${i}:${s}:${up}`, () => {
     const w = 15 * s;
     const h = BOOT_H * s;
@@ -210,10 +210,13 @@ registerPanel3d('kutsu_furu', {
     const px = k.pxAt(D);
     // 底（支点）：2D の 長靴の 上の 真ん中（cx + 6 = 絵の 左から 118、y 6）
     if (i >= 0) {
-      const img = bootImg(i, 4, true);
+      // （立てた 長靴を さかさに 回して 持つ：底が 上、つま先は 右の まま）
+      const img = bootImg(i, 4, false);
       const pivot = new THREE.Group();
       pivot.position.copy(k.atDepth(118, 6, -D)!);
-      const m = k.stand(img, new THREE.Vector3(0, -img.height * px, 0), { px, depth: 7 });
+      const m = k.stand(img, new THREE.Vector3(), { px, depth: 7, flip: true });
+      m.rotation.z = Math.PI;
+      m.position.set((-img.width / 2) * px, 0, 0);
       pivot.add(m);
       k.scene.add(pivot);
       k.bag.pivot = pivot;

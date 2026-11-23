@@ -10,46 +10,101 @@
 // シシトウは 2D と 同じ 形・所（パネルの px）に ボクセルで 立てる（standAt）。
 
 import * as THREE from 'three';
-import { PixelCanvas } from '../../engine/pixel';
+import { mix, PixelCanvas } from '../../engine/pixel';
+import { Rng } from '../../engine/rng';
 import { registerPanel3d, type Kit } from '../panel3d';
 import { building, CH2_NIGHT, glowDisc, paint, rebuild, standAt } from './_kit_c';
 
 const W = 204;
 const CX = Math.round(W / 2);
 
-/** シシトウ 1本（2D の drawShishito と 同じ 形）。絵の (6, 2) が 2D の (x, y)。 */
+/** 細かさ：シシトウは パネル 1px に 3 ドット（同じ 大きさで 描き込みを 細かく）。 */
+const Q = 3;
+
+/**
+ * シシトウ 1本（2D の drawShishito と 同じ 長さ・太さ・曲がり・位置）を 3倍の 細かさで：
+ * 丸みの 陰（上に つやの 光、下に 影）、しわ（縦の 小さな くぼみ）、先は 丸く 細い、
+ * へた（星形の がく と 曲がった 軸）、焼き色（heat）で 緑が くすみ、網の あとの 焦げは むらの ある 茶〜黒。
+ * 絵の (6·Q, 2·Q) が 2D の (x, y)。
+ */
 function podImg(len: number, heat: number, burst = 0): HTMLCanvasElement {
   const hb = Math.round(heat * 20) / 20;
   const bb = Math.round(burst * 5) / 5;
-  return paint(`ss:pod:${len}:${hb}:${bb}`, len + 8, 14, (p: PixelCanvas) => {
-    const X = 6;
-    const Y = 2;
-    const green = hb < 0.35 ? '#4E9A3A' : hb < 0.7 ? '#5A8A34' : hb < 0.9 ? '#4E6A2A' : '#3A4220';
-    const lt = hb < 0.5 ? '#86C860' : '#7AA048';
-    const dk = '#2E5A22';
+  return paint(`ss:pod3:${len}:${hb}:${bb}`, (len + 8) * Q, 14 * Q, (p: PixelCanvas) => {
+    const X = 6 * Q;
+    const Y = 2 * Q;
+    const green = hb < 0.35 ? '#4E9A3A' : hb < 0.7 ? mix('#4E9A3A', '#5A7A2E', (hb - 0.35) / 0.35) : hb < 0.9 ? '#4E6A2A' : '#3A4220';
+    const lt = hb < 0.5 ? '#9AD870' : mix('#9AD870', '#8A9A50', Math.min(1, (hb - 0.5) * 2));
+    const dk = mix('#2E5A22', '#1E2A12', hb);
+    const rng = new Rng(len * 31 + 7);
+    const L = len * Q;
     if (bb > 0) {
-      for (let i = 0; i < len; i += 2) p.rect(X + i, Y + 2 + Math.round(Math.sin(i) * bb * 2), 2, 3, green);
+      // はじけて 開いた（中の 白い わたと 種が 見える）
+      for (let i = 0; i < L; i += 2) {
+        const yy = Y + 2 * Q + Math.round(Math.sin(i / Q) * bb * 2 * Q);
+        p.rect(X + i, yy, 2, 3 * Q, green);
+        if (i % 6 === 0) p.set(X + i, yy + Q, '#F4ECD0');
+      }
       return;
     }
-    for (let i = 0; i < len; i++) {
-      const t = i / len;
-      const h = t < 0.1 ? 5 + Math.round(t * 30) : t > 0.82 ? Math.max(3, Math.round(8 - ((t - 0.82) / 0.18) * 5)) : 8 + (Math.floor(i / 5) % 2);
-      const bend = Math.round(Math.sin(t * Math.PI) * 2);
-      const y0 = Y + 4 - Math.floor(h / 2) + bend;
-      p.rect(X + i, y0, 1, h, green);
-      p.set(X + i, y0, lt);
-      p.set(X + i, Y + 4 + Math.ceil(h / 2) - 1 + bend, dk);
-      if (i % 7 === 3 && t > 0.15 && t < 0.8) p.set(X + i, Y + 4 + bend, dk);
+    const half = (t: number) => (t < 0.1 ? 2.5 + t * 15 : t > 0.82 ? Math.max(1.5, 4 - ((t - 0.82) / 0.18) * 2.5) : 4 + 0.5 * (Math.floor((t * len) / 5) % 2)) * Q;
+    for (let i = 0; i < L; i++) {
+      const t = i / L;
+      const h = half(t);
+      const mid = Y + 4 * Q + Math.sin(t * Math.PI) * 2 * Q;
+      const top = Math.round(mid - h);
+      const bot = Math.round(mid + h);
+      // しわ：ところどころ 縦に くぼむ
+      const wr = Math.sin(t * len * 1.7) > 0.86;
+      for (let y = top; y <= bot; y++) {
+        const v = (y - mid) / h; // −1 上 … 1 下
+        let c = v < -0.55 ? mix(green, lt, 0.6) : v > 0.55 ? mix(green, dk, 0.7) : green;
+        if (v > -0.62 && v < -0.38 && t > 0.12 && t < 0.85) c = mix(lt, '#FFFFFF', 0.35 * (1 - hb)); // つやの 光
+        if (wr && v > -0.4) c = mix(c, dk, 0.45);
+        p.set(X + i, y, c);
+      }
+      p.set(X + i, top, mix(lt, green, 0.3));
+      p.set(X + i, bot, dk);
     }
-    p.rect(X - 4, Y + 2, 5, 2, '#6A8A3A');
-    p.rect(X - 6, Y + 1, 2, 2, '#8A9A4A');
-    if (hb > 0.45) for (let i = 4; i < len - 2; i += 6) p.rect(X + i, Y + 2 + Math.round(Math.sin((i / len) * Math.PI) * 2), 2, 5, hb > 0.85 ? '#1A1A12' : '#3A3A1C');
+    // 焼き色：網の あとの 焦げ（すじ）と、ぽつぽつの むら
+    if (hb > 0.35) {
+      const burnt = hb > 0.85 ? '#1A1A12' : hb > 0.6 ? '#3A2E18' : '#5A4A22';
+      for (let i = 4 * Q; i < L - 2 * Q; i += 6 * Q) {
+        const t = i / L;
+        const mid = Y + 4 * Q + Math.sin(t * Math.PI) * 2 * Q;
+        for (let y = Math.round(mid - half(t) * 0.8); y < mid + half(t) * 0.8; y++)
+          for (let dx = 0; dx < 2 * Q; dx++) if (rng.next() < 0.75) p.set(X + i + dx + (y % 2), y, rng.next() < 0.3 ? mix(burnt, '#000000', 0.3) : burnt);
+      }
+      const spots = Math.round(hb * 30);
+      for (let k2 = 0; k2 < spots; k2++) {
+        const i = Math.floor(rng.next() * L * 0.9) + Math.round(L * 0.05);
+        const t = i / L;
+        const mid = Y + 4 * Q + Math.sin(t * Math.PI) * 2 * Q;
+        const y = Math.round(mid + (rng.next() - 0.5) * half(t) * 1.4);
+        p.rect(X + i, y, 1 + Math.floor(rng.next() * 3), 1 + Math.floor(rng.next() * 2), rng.next() < 0.5 ? burnt : mix(green, burnt, 0.5));
+      }
+      // 皮が 少し ふくれて 白っぽい 所（焼けた つや）
+      if (hb > 0.5) for (let k2 = 0; k2 < 5; k2++) p.set(X + Math.floor(rng.next() * L), Math.round(Y + 3 * Q + rng.next() * 2 * Q), '#C8D0A0');
+    }
+    // へた：星形の がく（緑、ふちが 波）と 曲がった 軸
+    const cx = X - Q;
+    const cy = Y + 4 * Q;
+    const calyx = mix('#5A8A2E', '#4A5A22', hb);
+    for (let y = -3 * Q; y <= 3 * Q; y++) {
+      const w = Math.round((1 - Math.abs(y) / (3 * Q + 1)) * 3 * Q) + (Math.abs(y) % 3 === 0 ? 1 : 0);
+      p.hline(cx - w + Q, cx + Q, cy + y, Math.abs(y) < Q ? mix(calyx, '#8AB860', 0.3) : calyx);
+    }
+    // 軸：がくから 左へ、少し 上へ 曲がる
+    for (let i = 0; i < 5 * Q; i++) {
+      const yy = cy - Math.round((i / (5 * Q)) ** 2 * 2 * Q);
+      p.rect(cx - 2 * Q - i + Q, yy - 1, 1, 3, i > 4 * Q ? '#A8B870' : '#7A9A44');
+    }
   });
 }
 
 /** シシトウを 2D の (x, y) に（上に 乗る 面の 高さ y0）。 */
 function pod(k: Kit, x: number, y: number, len: number, heat: number, y0: number, burst = 0): THREE.Mesh | null {
-  return standAt(k, podImg(len, heat, burst), x - 6, y - 2, 1, { y: y0, depth: 6 });
+  return standAt(k, podImg(len, heat, burst), x - 6, y - 2, 1 / Q, { y: y0, depth: 6 * Q });
 }
 
 const boards = () =>
@@ -66,22 +121,70 @@ const wood = (c: string, key: string) =>
     for (let x = 0; x < 32; x += 5) p.set(x, (x * 3) % 8, '#8A6A44');
     p.hline(0, 31, 0, '#D0AA76');
   });
+/** 七輪の 胴（珪藻土）：横の 筋、ひび、上の ほうの すす、下の 帯、前の 空気窓（u = 0 が カメラの 方）。 */
 const clay = () =>
-  paint('ss:clay', 64, 16, (p) => {
-    p.fill('#B8834E');
-    for (let y = 0; y < 16; y += 4) p.hline(0, 63, y, '#9A6A42');
-    // 前の 空気の 窓（u = 0 が カメラの 方）
-    for (const x0 of [0, 58]) p.rect(x0, 9, 6, 6, '#5A3A22');
-  });
-const coals = () =>
-  paint('ss:coals', 32, 32, (p) => {
-    for (let y = 0; y < 32; y++)
-      for (let x = 0; x < 32; x++) {
-        const d = Math.hypot(x - 15.5, y - 15.5);
-        if (d > 16) continue;
-        const n = (x * 7 + y * 13) % 9;
-        p.set(x, y, n < 2 ? '#FFE7A3' : n < 5 ? '#FF6A2A' : n < 7 ? '#E8482A' : '#3A2018');
+  paint('ss:clay2', 128, 48, (p) => {
+    const rng = new Rng(17);
+    for (let y = 0; y < 48; y++)
+      for (let x = 0; x < 128; x++) {
+        const n = rng.next();
+        let c = n < 0.08 ? '#9A6A42' : n > 0.93 ? '#D09A62' : '#B8834E';
+        // 上の すす（口の 近くほど 黒く、むら）
+        const soot = Math.max(0, 1 - y / 16) * (0.55 + 0.35 * Math.sin(x * 0.4 + y * 0.3));
+        if (soot > 0) c = mix(c, '#2A1E18', Math.min(0.85, soot));
+        p.set(x, y, c);
       }
+    for (let y = 6; y < 44; y += 9) for (let x = 0; x < 128; x++) if ((x + y) % 7 !== 0) p.set(x, y, mix('#9A6A42', '#6A4A30', 0.3));
+    // ひび（細い 黒い ぎざぎざ）
+    for (const [x0, y0, n] of [[20, 4, 14], [70, 8, 18], [104, 2, 10], [44, 26, 12]] as const) {
+      let x = x0;
+      let y = y0;
+      for (let i = 0; i < n; i++) {
+        p.set(x, y, '#3A2418');
+        p.set(x + 1, y, '#6A4A30');
+        y++;
+        x += rng.next() < 0.4 ? 1 : rng.next() < 0.5 ? -1 : 0;
+        if (i === Math.floor(n / 2)) for (let j = 0; j < 4; j++) p.set(x + j, y + Math.floor(j / 2), '#3A2418');
+      }
+    }
+    // 下の 金の 帯（さびた トタン）
+    for (let y = 42; y < 46; y++) p.hline(0, 127, y, y === 42 ? '#8A8A84' : '#5A5852');
+    for (let x = 0; x < 128; x += 9) p.set(x, 43, '#8A5A3A');
+    // 前の 空気窓（引き戸）
+    for (const x0 of [0, 116]) {
+      p.rect(x0, 26, 12, 14, '#3A2418');
+      p.rect(x0 + 1, 27, 10, 12, '#5A3A22');
+      p.vline(x0 + 6, 27, 38, '#2A1810');
+    }
+  });
+/** 炭：黒い かたまりの すき間に 赤い 火、ふちに 白い 灰。 */
+const coals = () =>
+  paint('ss:coals2', 64, 64, (p) => {
+    const rng = new Rng(23);
+    for (let y = 0; y < 64; y++)
+      for (let x = 0; x < 64; x++) {
+        const d = Math.hypot(x - 31.5, y - 31.5);
+        if (d > 32) continue;
+        // かたまり の もよう（セル）
+        const cell = Math.sin(x * 0.55) + Math.sin(y * 0.6 + Math.sin(x * 0.3) * 2);
+        const crack = Math.abs(cell) < 0.25;
+        const n = rng.next();
+        let c = crack ? (n < 0.5 ? '#FF6A2A' : '#FFB040') : n < 0.75 ? '#2A1E1A' : '#3A2A24';
+        if (!crack && n > 0.9) c = '#E8482A';
+        // 灰（かたまりの 角、まわり）
+        if (!crack && (d > 26 || (cell > 1.3 && n > 0.5))) c = n > 0.6 ? '#C8C4BC' : '#8A8680';
+        p.set(x, y, c);
+      }
+  });
+/** 口の ふち（明るい 土、欠け、すす）。 */
+const rimImg = () =>
+  paint('ss:rim', 32, 8, (p) => {
+    const rng = new Rng(31);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 32; x++) {
+      const n = rng.next();
+      p.set(x, y, y > 5 ? '#4A3020' : n < 0.1 ? '#8A5A38' : n > 0.92 ? '#E8B888' : '#D09A62');
+    }
+    for (const x of [5, 19, 27]) p.rect(x, 0, 2, 2, '#6A4A30');
   });
 const net = () =>
   paint('ss:net', 32, 32, (p) => {
@@ -157,7 +260,7 @@ registerPanel3d('shishito', {
       // 口の ふち（明るい 土）と 炭の 火
       const rim = k.own(new THREE.RingGeometry(r * 0.86, r * 1.03, 32));
       rim.rotateX(-Math.PI / 2);
-      const rm = new THREE.Mesh(rim, k.material(null, { tint: '#D09A62' }));
+      const rm = new THREE.Mesh(rim, k.material(k.tex(rimImg(), true)));
       rm.position.set(c.x, top, c.z);
       k.scene.add(rm);
       const cg = k.own(new THREE.CircleGeometry(r * 0.86, 28));
