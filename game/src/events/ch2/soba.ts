@@ -694,6 +694,18 @@ if (import.meta.env.DEV) {
     return go(VILLAGE, SB_TO[0], SB_TO[1] + 1, 'up');
   });
 
+  /** QA（大写しの HD-2D の 写真）：花の 大写しを 直接 開く／もう一度で 閉じる（cur：カーソル、sel：組の 1つ目）。 */
+  registerDebug('sobaPanel', (cur: unknown = 2, sel: unknown = null) => {
+    const old = game.ui.widgets.find((w) => w instanceof SobaPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new SobaPanel();
+    p.open = 1;
+    p.phase = 'pick';
+    p.cur = Number(cur);
+    p.sel = sel === null ? null : Number(sel);
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('sbAuto', (v: unknown = true, twin: unknown = false) => {
     qaAuto = !!v;
     qaTwin = !!twin;

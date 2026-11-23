@@ -36,13 +36,45 @@ function cellOf(ch: string, y: number, x: number): { h: number; g: C3Ground; tin
 /** 色を かけた 地面の 絵（崖は 暗く、取水管は 赤茶）。 */
 function groundTex(g: C3Ground, tint?: string): HTMLCanvasElement {
   const base = c3Ground(g, 64, 64);
-  if (!tint) return base;
-  return pix(`iso:${g}:${tint}`, 64, 64, (p) => {
+  return pix(`iso:${g}:${tint ?? ''}`, 64, 64, (p) => {
     const ctx = base.getContext('2d')!;
     const d = ctx.getImageData(0, 0, 64, 64).data;
+    const lum = (i: number) => d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11;
+    let avg = 0;
+    for (let i = 0; i < 64 * 64; i++) avg += lum(i);
+    avg /= 64 * 64;
+    const hex = (r: number, gg: number, b: number) => `#${[r, gg, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
     for (let i = 0; i < 64 * 64; i++) {
-      const c = `#${[d[i * 4], d[i * 4 + 1], d[i * 4 + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-      p.set(i % 64, Math.floor(i / 64), mix(c, tint, 0.45));
+      // 1マスが 6px の 図では 岩の 白い 粒が ざらついて 見える：明るい 粒は まわりの 色へ 寄せ、少し 暗く 落ち着かせる
+      let r = d[i * 4];
+      let gg = d[i * 4 + 1];
+      let b = d[i * 4 + 2];
+      const over = lum(i) - avg;
+      if (over > 18) {
+        const x = i % 64;
+        const y = Math.floor(i / 64);
+        let n = 0;
+        let sr = 0;
+        let sg = 0;
+        let sb = 0;
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-2, 0], [2, 0]]) {
+          const j = ((y + dy + 64) % 64) * 64 + ((x + dx + 64) % 64);
+          if (lum(j) - avg > 18) continue;
+          sr += d[j * 4];
+          sg += d[j * 4 + 1];
+          sb += d[j * 4 + 2];
+          n++;
+        }
+        if (n) {
+          r = sr / n;
+          gg = sg / n;
+          b = sb / n;
+        }
+      }
+      const k = 0.9;
+      let c = hex(r * k, gg * k, b * k);
+      if (tint) c = mix(c, tint, 0.45);
+      p.set(i % 64, Math.floor(i / 64), c);
     }
   });
 }
