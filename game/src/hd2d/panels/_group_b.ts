@@ -8,3 +8,4 @@ import './iro';
 import './hagama';
 import './kutsu';
 import './himo';
+import './dome';

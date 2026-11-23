@@ -39,6 +39,7 @@ import { actorAnchor, addMarkSource } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
 import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_soba';
 import { SB_UI } from '../../data/text/hoshi_soba';
 import { GAKKYUEN, SB_TO_AT } from '../../data/maps/hoshi_gakkyuen';
@@ -301,38 +302,26 @@ export class SobaPanel implements Widget {
 
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
-    // the night field (blue-black, not black: the iPad outdoors), the tomato's warm pool in the middle
-    g.rect(SX, oy, W, CH, '#1E2440');
     const gy = oy + 92;
     const cx = SX + W / 2;
-    for (let r = 96; r > 0; r -= 12) g.alpha(0.07, () => g.circle(cx, gy - 34, r, '#F2A060'));
-    g.alpha(0.18, () => g.circle(cx, gy - 34, 58, '#FFE6C0'));
-    // the ground and the rows
-    g.rect(SX, gy, W, CH - (gy - oy), '#3A2A2A');
-    g.rect(SX, gy, W, 1, '#5A4034');
-    for (let x = SX; x < SX + W; x += 6) g.px(x, gy + 5 + ((x / 6) % 3), '#5A4034');
+    // HD-2D：夜の そば畑と 6本の 株（hd2d/panels/soba.ts）。字・札・輪・矢印・トマトは 2D の まま 上に
+    const in3d = drawPanel3d(g, this, 'soba', SX, oy, W, CH);
+    if (!in3d) {
+      // the night field (blue-black, not black: the iPad outdoors), the tomato's warm pool in the middle
+      g.rect(SX, oy, W, CH, '#1E2440');
+      for (let r = 96; r > 0; r -= 12) g.alpha(0.07, () => g.circle(cx, gy - 34, r, '#F2A060'));
+      g.alpha(0.18, () => g.circle(cx, gy - 34, 58, '#FFE6C0'));
+      // the ground and the rows
+      g.rect(SX, gy, W, CH - (gy - oy), '#3A2A2A');
+      g.rect(SX, gy, W, 1, '#5A4034');
+      for (let x = SX; x < SX + W; x += 6) g.px(x, gy + 5 + ((x / 6) % 3), '#5A4034');
+    }
     const fuda = flag(SF.fuda);
     const mi = flag(SF.mi);
     for (let i = 0; i < 6; i++) {
       const x = FX(i);
       const top = oy + 34 + ((i * 7) % 3) * 3;
-      // the reddish stem, two heart leaves
-      g.rect(x, top + 6, 2, gy - top - 6, SB_STEM);
-      g.px(x, top + 10, SB_STEM_LT);
-      for (const [lx, ly, s] of [[x - 6, gy - 22, -1], [x + 4, gy - 34, 1]] as const) {
-        g.rect(lx, ly, 6, 3, SB_LEAF);
-        g.rect(lx + 1, ly - 1, 4, 1, SB_LEAF);
-        g.rect(lx + (s < 0 ? 4 : 0), ly + 3, 2, 1, SB_LEAF_DK);
-      }
-      // the flower head: a cluster of small white five-petal flowers
-      for (const [fx, fy] of [[-5, 2], [4, 1], [0, -3], [-2, 5], [5, 6]] as const) {
-        const px = x + fx;
-        const py = top + fy;
-        g.rect(px - 2, py - 1, 5, 3, SB_FLOWER_SH);
-        g.rect(px - 1, py - 2, 3, 5, SB_FLOWER_SH);
-        g.rect(px - 1, py - 1, 3, 3, SB_FLOWER);
-        g.px(px, py, SB_ANTHER);
-      }
+      if (!in3d) this.drawPlant(g, x, top, gy);
       // once looked at: its letter under it (長 / 短 in its own colour, by shape too: a tall / a low mark)
       const kind = SB_KINDS[i];
       if (mi & (1 << i)) {
@@ -363,6 +352,27 @@ export class SobaPanel implements Widget {
     const tx = SX + W - 10;
     g.circle(tx, oy + CH - 8, 5, '#E23B2E');
     g.rect(tx - 1, oy + CH - 14, 2, 3, '#4E7A34');
+  }
+
+  /** 株 1本（2D の 絵：HD-2D の ときは hd2d/panels/soba.ts が 同じ 形を 立てる）。 */
+  private drawPlant(g: Gfx, x: number, top: number, gy: number): void {
+    // the reddish stem, two heart leaves
+    g.rect(x, top + 6, 2, gy - top - 6, SB_STEM);
+    g.px(x, top + 10, SB_STEM_LT);
+    for (const [lx, ly, s] of [[x - 6, gy - 22, -1], [x + 4, gy - 34, 1]] as const) {
+      g.rect(lx, ly, 6, 3, SB_LEAF);
+      g.rect(lx + 1, ly - 1, 4, 1, SB_LEAF);
+      g.rect(lx + (s < 0 ? 4 : 0), ly + 3, 2, 1, SB_LEAF_DK);
+    }
+    // the flower head: a cluster of small white five-petal flowers
+    for (const [fx, fy] of [[-5, 2], [4, 1], [0, -3], [-2, 5], [5, 6]] as const) {
+      const px = x + fx;
+      const py = top + fy;
+      g.rect(px - 2, py - 1, 5, 3, SB_FLOWER_SH);
+      g.rect(px - 1, py - 2, 3, 5, SB_FLOWER_SH);
+      g.rect(px - 1, py - 1, 3, 3, SB_FLOWER);
+      g.px(px, py, SB_ANTHER);
+    }
   }
 
   /** 右の 列：のぞいた 花を 横から 大きく（めしべ 緑・おしべ 黄と 桃の 葯）、長さの 棒、札の 字。 */

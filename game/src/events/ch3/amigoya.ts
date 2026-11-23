@@ -40,6 +40,7 @@ import { pgOn } from '../../world/postgame';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import type { Howto } from '../../ui/closeup';
 import * as T from '../../data/text/c3_amigoya';
 import { AG_UI } from '../../data/text/c3_amigoya';
@@ -339,6 +340,16 @@ export class AmiPanel implements Widget {
 
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
+    // HD-2D（hd2d/panels/amigoya.ts）：網小屋の 板壁・古い 網（破れ・裂け目・魚の 骨）と その 影は 3D、
+    // 新しい 目・目板・網針・はさみ・←→ は 上に 2D で
+    const [h0x, h0y] = this.meAt(0, oy);
+    const hd = drawPanel3d(g, this, 'amigoya', SX, oy, W, CH, { state: { k: this.k, n: this.meN, c0: [h0x - SX, h0y - oy] } });
+    if (!hd) this.drawOld(g, oy, W);
+    this.drawWork(g, oy);
+  }
+
+  /** 板壁と 古い 網（破れ・裂け目・魚の 骨）。 */
+  private drawOld(g: Gfx, oy: number, W: number): void {
     g.rect(SX, oy, W, CH, BG);
     for (let x = SX; x < SX + W; x += 14) g.rect(x, oy, 1, CH, BG_DK);
     // the old net all round: diamonds of the same size (lines slanting both ways)
@@ -377,6 +388,15 @@ export class AmiPanel implements Widget {
         g.rect(bx + r, by + 1, 1, 3, '#E8E4D8');
       }
     }
+  }
+
+  /** 新しい 目、目板、結ぶ 絵、網針、グソっ君の はさみ、←→。 */
+  private drawWork(g: Gfx, oy: number): void {
+    const n = this.meN;
+    const D = HALF * 2;
+    const [c0x] = this.meAt(0, oy);
+    const hx0 = c0x - HALF - 2;
+    const hx1 = c0x + (n - 1) * D + HALF + 2;
     // the meshes made so far (new twine), the knots bright
     const made = flag(ME_F[this.k]);
     for (let i = 0; i < Math.min(n, made); i++) {
@@ -794,6 +814,25 @@ if (import.meta.env.DEV) {
       setFlag(ME_F[k], AG_ME_N[k]);
     }
     return go(AMIGOYA, AG_ANA[n][0], 3, 'up');
+  });
+
+  /**
+   * QA：大写し「網の 目」を 直接 開く（k = 破れ 0..2、made = 結んだ 目の 数、phase 'kake' | 'mawasu' | 'idle'）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.amigoya('a0') → __game.cmd.agPanel(0, 1, 'kake') → 写真 → __game.cmd.agPanel()
+   */
+  registerDebug('agPanel', (k?: number, made = 0, phase: Phase = 'kake') => {
+    const open = game.ui.widgets.find((w) => w instanceof AmiPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new AmiPanel(Math.max(0, Math.min(2, Number(k ?? 0))));
+    setFlag(`howto_${p.howto.id}`, 1);
+    setFlag(ME_F[p.k], Number(made));
+    p.phase = phase;
+    p.open = 1;
+    game.ui.push(p);
+    return { k: p.k, made, phase };
   });
 
   registerDebug('agState', () => {

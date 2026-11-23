@@ -48,6 +48,7 @@ import { registerWorldFx } from '../../world/fx';
 import { runMsg } from '../../world/msg';
 import { lanternOf } from '../../art/chars/nightlight';
 import { drawTape, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { keyGuide } from '../stage';
 import { addMp, F, getKeyItem, giveKey } from '../lib';
 import { puff } from '../fx';
@@ -237,22 +238,27 @@ export class DomeSkyPanel implements Widget {
 
   draw(g: Gfx): void {
     const sh = this.shake > 0 ? (Math.floor(this.t / 40) % 2 ? 1 : 0) : 0;
-    g.rect(0, 0, W, 216, '#05050A');
-    // the sky in the slit (the panorama's start repeats at its end)
-    const pan = skyPanorama();
-    let sx = panX(this.az) - SLIT_W / 2;
-    if (sx < 0) sx += PAN_W;
-    g.ctx.drawImage(pan, sx, 0, SLIT_W, HOR + 1, LOOK.slitX, sh, SLIT_W, HOR + 1);
-    // the shutter: plates over the slit from the top down to where it has opened to
-    if (this.shutter < 1) {
-      const bot = Math.round(HOR * (1 - this.shutter));
-      g.rect(LOOK.slitX, 0, SLIT_W, bot, '#4A505C');
-      for (let y = bot - 1; y >= 0; y -= 9) g.rect(LOOK.slitX, y, SLIT_W, 1, '#2E3440');
-      g.rect(LOOK.slitX, bot - 1, SLIT_W, 1, '#7A808C');
-      g.rect(LOOK.slitX + 2, 0, 1, bot, '#5E6470');
+    // HD-2D（hd2d/panels/dome.ts 'dome_sky'）：ドームの 殻・スリット・空・シャッター・台の 輪は 3D（回すと ゆれる）、
+    // ちり・名札・方位の 帯・ハンドルは 2D の まま 上に
+    const hd = drawPanel3d(g, this, 'dome_sky', 0, sh, W, 216, { state: { az: Math.round(this.az * 10) / 10, shutter: Math.round(this.shutter * 100) / 100 } });
+    if (!hd) {
+      g.rect(0, 0, W, 216, '#05050A');
+      // the sky in the slit (the panorama's start repeats at its end)
+      const pan = skyPanorama();
+      let sx = panX(this.az) - SLIT_W / 2;
+      if (sx < 0) sx += PAN_W;
+      g.ctx.drawImage(pan, sx, 0, SLIT_W, HOR + 1, LOOK.slitX, sh, SLIT_W, HOR + 1);
+      // the shutter: plates over the slit from the top down to where it has opened to
+      if (this.shutter < 1) {
+        const bot = Math.round(HOR * (1 - this.shutter));
+        g.rect(LOOK.slitX, 0, SLIT_W, bot, '#4A505C');
+        for (let y = bot - 1; y >= 0; y -= 9) g.rect(LOOK.slitX, y, SLIT_W, 1, '#2E3440');
+        g.rect(LOOK.slitX, bot - 1, SLIT_W, 1, '#7A808C');
+        g.rect(LOOK.slitX + 2, 0, 1, bot, '#5E6470');
+      }
     }
     for (const d of this.dust) g.rect(Math.round(d.x), Math.round(d.y), 1, 1, '#8A8EA6', 0.7);
-    g.img(lookFrame(), 0, sh);
+    if (!hd) g.img(lookFrame(), 0, sh);
     // the star's name tag once the dome stops on it
     if (this.target && this.tagT >= 0) {
       const tg = tgt(this.target as 1 | 2 | 3);
@@ -566,7 +572,10 @@ export class DomeEyePanel implements Widget {
       g.img(compoundEye(), 0, 0);
       return;
     }
-    g.rect(0, 0, W, 216, '#05050A');
+    // HD-2D（hd2d/panels/dome.ts 'dome_eye'）：接眼レンズの 見口（ゴムの 筒）と 赤い 明かりは 3D、
+    // 視野の 中（星の 像）と ふちの ぼかしは 2D の まま 上に
+    const hd = drawPanel3d(g, this, 'dome_eye', 0, 0, W, 216, { state: {} });
+    if (!hd) g.rect(0, 0, W, 216, '#05050A');
     const S = EYE.r * 2 + 1;
     this.work ??= makeCanvas(S, S);
     const [c, ctx] = this.work;
@@ -578,7 +587,15 @@ export class DomeEyePanel implements Widget {
     ctx.drawImage(fieldMask(), 0, 0);
     ctx.globalCompositeOperation = 'source-over';
     g.img(c, EYE.cx - EYE.r, EYE.cy - EYE.r);
-    g.img(barrel(), 0, 0);
+    if (hd) {
+      // （視野の ふちの ぼかしと 黒い 輪だけ：その 外は 3D の 見口）
+      g.ctx.save();
+      g.ctx.beginPath();
+      g.ctx.arc(EYE.cx, EYE.cy, EYE.r + 2, 0, Math.PI * 2);
+      g.ctx.clip();
+      g.img(barrel(), 0, 0);
+      g.ctx.restore();
+    } else g.img(barrel(), 0, 0);
     // the middle (a guide for the game, not in the glass): a faint broken ring while aiming
     if (this.phase === 'aim') {
       const on = this.dist() < this.centerR();
@@ -1404,6 +1421,29 @@ registerDebug('dome', (step = 'in', o: { n?: number; play?: boolean; auto?: bool
 });
 
 /** QA (tools/playthrough.mjs --side dome): the next minigames play themselves (until domeAuto(false)). */
+/**
+ * QA：大写しを 直接 開く（kind 'sky'：v = 星 0〜3（0 は スリット）、mode 'slit' | 'rot'、'eye'：v = 星 1〜3）。
+ * もう一度 呼ぶと 閉じる。__game.cmd.domePanel('eye', 2) → 写真 → __game.cmd.domePanel()
+ */
+registerDebug('domePanel', (kind?: 'sky' | 'eye', v = 1, mode: SkyMode = 'rot', shutter = 1) => {
+  const open = game.ui.widgets.find((w) => w instanceof DomeSkyPanel || w instanceof DomeEyePanel);
+  if (open || !kind) {
+    if (open) game.ui.remove(open);
+    return 'closed';
+  }
+  if (kind === 'sky') {
+    const p = new DomeSkyPanel(mode, Number(v) as 0 | 1 | 2 | 3);
+    p.shutter = Number(shutter);
+    game.ui.push(p);
+  } else {
+    const p = new DomeEyePanel(Math.max(1, Math.min(3, Number(v))) as 1 | 2 | 3);
+    p.ox = 20;
+    p.oy = -12;
+    game.ui.push(p);
+  }
+  return kind;
+});
+
 registerDebug('domeAuto', (on = true) => {
   qaAuto = !!on;
   return `dome auto ${qaAuto}`;

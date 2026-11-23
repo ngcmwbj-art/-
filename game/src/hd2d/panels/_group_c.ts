@@ -8,3 +8,4 @@ import './neru';
 import './retasu';
 import './sakuzoi';
 import './shishito';
+import './soba';
