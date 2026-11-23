@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { mix, PixelCanvas } from '../../engine/pixel';
 import { Rng } from '../../engine/rng';
 import { registerPanel3d, type Kit } from '../panel3d';
-import { building, CH2_NIGHT, glowDisc, paint, rebuild, standAt } from './_kit_c';
+import { building, glowDisc, paint, rebuild, standAt } from './_kit_c';
 
 const W = 204;
 const CX = Math.round(W / 2);
@@ -187,11 +187,13 @@ const rimImg = () =>
     for (const x of [5, 19, 27]) p.rect(x, 0, 2, 2, '#6A4A30');
   });
 const net = () =>
-  paint('ss:net', 32, 32, (p) => {
-    for (let i = 0; i < 32; i += 4) {
-      p.hline(0, 31, i, '#9A9A94');
-      p.vline(i, 0, 31, '#9A9A94');
+  paint('ss:net2', 64, 64, (p) => {
+    for (let i = 0; i < 64; i += 8) {
+      p.hline(0, 63, i, '#6A6A66');
+      p.vline(i, 0, 63, '#7A7A74');
     }
+    // 網に ついた すす・焦げ
+    for (let i = 0; i < 30; i++) p.set((i * 23) % 64, ((i * 37) % 8) * 8, '#2A2420');
   });
 const plate = () =>
   paint('ss:plate', 32, 32, (p) => {
@@ -201,7 +203,10 @@ const plate = () =>
 
 registerPanel3d('shishito', {
   cam: { fov: 28, pitch: 26, pos: [0, 3.2, 0], far: 200 },
-  light: CH2_NIGHT,
+  // (シシトウの 緑と 焼き色、炭の 火を 正しい 色で：フィールドの 夜の 仕上げは かけず、夜の 青い 光と
+  //  障子・炭の 暖かい 灯りで 見せる)
+  light: { sun: '#b8c4ff', sky: '#8a94c8', ground: '#4a4048', fog: '#2a2838', sunI: 0.4, hemiI: 1.2, el: 50, az: 200 },
+  grade: () => null,
   fog: [16, 50],
   shadow: { x: 0, z: -6, hw: 6, hd: 6 },
   focus: 0.6,
@@ -213,7 +218,7 @@ registerPanel3d('shishito', {
     glowDisc(k, new THREE.Vector3(1, 1.4, -9.4), 3.5, '#FFC890', 0.4, false);
     glowDisc(k, new THREE.Vector3(0, 0, -9), 5, '#FFB070', 0.18);
     // 障子の 灯りが 縁側を 照らす
-    const lamp = new THREE.PointLight('#FFC890', 9, 14, 1.2);
+    const lamp = new THREE.PointLight('#FFC890', 3.5, 12, 1.2);
     lamp.position.set(0.5, 2.4, -7.5);
     k.scene.add(lamp);
   },
@@ -265,15 +270,29 @@ registerPanel3d('shishito', {
       k.scene.add(rm);
       const cg = k.own(new THREE.CircleGeometry(r * 0.86, 28));
       cg.rotateX(-Math.PI / 2);
-      const cm = new THREE.Mesh(cg, k.material(k.tex(coals()), { emissive: 1.2, unlit: true }));
+      const cm = new THREE.Mesh(cg, k.material(k.tex(coals()), { emissive: 1.6, unlit: true }));
       cm.position.set(c.x, top - 0.12, c.z);
       k.scene.add(cm);
-      k.scene.add(new THREE.PointLight('#FF7A3A', 5, 5, 1.4).translateX(c.x).translateY(top + 0.3).translateZ(c.z));
+      // 炭の かたまり（立体：黒に 赤い 火の すじ、白い 灰）
+      const rngC = new Rng(5);
+      const lumpT = k.tex(coals(), true);
+      for (let i = 0; i < 16; i++) {
+        const a = rngC.next() * Math.PI * 2;
+        const d = Math.sqrt(rngC.next()) * r * 0.7;
+        const sz = (5 + rngC.next() * 5) * u;
+        const lg = k.own(new THREE.DodecahedronGeometry(sz, 0));
+        const lm = new THREE.Mesh(lg, k.material(lumpT, { emissive: 0.5 + rngC.next() * 0.6 }));
+        lm.position.set(c.x + Math.cos(a) * d, top - 0.12 + sz * 0.3, c.z + Math.sin(a) * d);
+        lm.rotation.set(rngC.next() * 3, rngC.next() * 3, rngC.next() * 3);
+        lm.scale.y = 0.6;
+        k.scene.add(lm);
+      }
+      k.scene.add(new THREE.PointLight('#FF7A3A', 3, 4, 1.4).translateX(c.x).translateY(top - 0.05).translateZ(c.z + r * 0.4));
       // 網（すける 格子）
       const ng = k.own(new THREE.CircleGeometry(r * 0.98, 28));
       ng.rotateX(-Math.PI / 2);
       const nt = k.tex(net(), true);
-      nt.repeat.set(3, 3);
+      nt.repeat.set(4, 4);
       const nm = new THREE.Mesh(ng, k.material(nt));
       nm.position.set(c.x, top + 0.01, c.z);
       k.scene.add(nm);

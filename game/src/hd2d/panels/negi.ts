@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { mix } from '../../engine/pixel';
 import { NH_FORK, NH_LEAF, NH_LEAF_DK, NH_LEAF_LT, NH_PALE, NH_SOIL, NH_SOIL_DK, NH_SOIL_LT, NH_WHITE, NH_WHITE_SH } from '../../art/props/negi_art';
 import { registerPanel3d, type Kit } from '../panel3d';
-import { CH2_NIGHT, hGround, nightSky, paint, propImg, sugiWall, swap } from './_kit_c';
+import { hGround, nightSky, paint, propImg, sugiWall, swap } from './_kit_c';
 import { Rng } from '../../engine/rng';
 
 const CX = 128;
