@@ -66,7 +66,7 @@ function bootImg(i: number, s: number, up: boolean): HTMLCanvasElement {
       }
       for (let x = x0; x < x1; x++) {
         // （足の 前は 甲：筒の 陰影の まま 前へ のばし、つま先の 先だけ 暗く）
-        const u = Math.min(0.75, (x - x0) / Math.max(1, X(5) - x0));
+        const u = Math.min(0.6, (x - x0) / Math.max(1, X(5) - x0));
         let l: number;
         if (y >= soleY) {
           // 底：黒い ゴム、下の ふちが ギザギザ
@@ -234,6 +234,8 @@ registerPanel3d('kutsu_furu', {
       k.stand(hand, k.atDepth(cx + 36 - 1 + 4.5, 7 + 11, -D + 0.3)!, { px, depth: 4, unlit: true, flip: true });
     }
     lamp(k, '#ffd0a8', 20, k.atDepth(112, H - 30, -D + 3.5)!, 0, 2);
+    // （持ち上げた 底の あたりにも 灯りの 返し）
+    lamp(k, '#ffd8b8', 7, k.atDepth(150, 20, -D + 2.5)!, 0, 2);
   },
   update(k: Kit, _t, s) {
     const pivot = k.bag.pivot as THREE.Group | undefined;
