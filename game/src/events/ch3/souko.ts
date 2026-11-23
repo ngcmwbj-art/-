@@ -286,7 +286,9 @@ function placeFollowYk(f: FieldScene, tx: number, ty: number, dir: Dir): Actor {
 registerWorldFx({
   map: '',
   update(f: FieldScene, dt: number) {
-    const want = inCh3() && !!flag('flag_ch3_yakisoban') && f.map.id.startsWith('map_c3_aq') && !flag('flag_ch3_yk_left');
+    // (not while S23's own ヤキソバン c3_yk_scene stands there: from 仲間に to the pan back, two of him
+    // stood in the corridor — 2026-11-23 依頼主「焼きそばんが２人出るバグがあった」)
+    const want = inCh3() && !!flag('flag_ch3_yakisoban') && f.map.id.startsWith('map_c3_aq') && !flag('flag_ch3_yk_left') && !f.actorById('c3_yk_scene');
     let a = f.actorById(YK) ?? null;
     if (!want) {
       if (a) despawn(YK);

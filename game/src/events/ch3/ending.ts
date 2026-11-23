@@ -660,8 +660,10 @@ function* cut5Morning(): Co {
   // (ツガオ off at the truck's nose, west of its body: at (30,23) he stood in the back of it in HD-2D — 改善会議 10-23 の2)
   spawnTruck('e3_truck', 32, 24, 'left');
   put('npc_tsugao', 29, 23, 'left', 'npc_tsugao');
-  put('npc_maruyama', 27, 23, 'down', 'npc_maruyama_hige');
-  put('kanenari', 26, 23, 'down', 'npc_kanenari_cook');
+  // (たかし and グソっ君 a tile west of the shop's door: at (27,23)/(26,23) the arcade's pillar and the
+  // banner at (27,25) stood in front of them in HD-2D — 2026-11-23 依頼主「看板に被る」)
+  put('npc_maruyama', 26, 23, 'down', 'npc_maruyama_hige');
+  put('kanenari', 25, 23, 'down', 'npc_kanenari_cook');
   F().snapCamera();
   yield* game.fadeIn(900);
   se('se_keitora_stop', { vol: 0.5 });
@@ -685,7 +687,7 @@ function* cut5Morning(): Co {
   p.x = 20 * 16 + 8;
   p.y = 24 * 16 + 16;
   p.visible = true;
-  yield* walk('player', [[25, 24]], { speed: 1.4, face: 'right' });
+  yield* walk('player', [[24, 24]], { speed: 1.4, face: 'right' });
   poseOf('kanenari', 'wave');
   yield* say3(T.ASA_B);
   // ツガオ便 off to the next delivery; ツガオ's hand out of the window
