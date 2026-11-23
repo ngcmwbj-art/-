@@ -15,12 +15,12 @@ const W = 222;
 const H = 112;
 const HALF = 12;
 const NET_Z = -4;
-const WALL_Z = -4.7;
-const ITO = '#7A9A7E';
+const WALL_Z = -5.1;
+const ITO = '#8AAE8E';
 const ITO_DK = '#5A7A62';
 
 /** 網小屋の 中（窓からの 昼の 光：左上から、少し 暖かい）。 */
-const LIGHT: PanelLight = { sun: '#fff2dc', sky: '#e8e0d0', ground: '#6a5040', fog: '#3a2a20', sunI: 2.0, hemiI: 1.5, el: 38, az: 230 };
+const LIGHT: PanelLight = { sun: '#fff2dc', sky: '#e8e0d0', ground: '#6a5040', fog: '#3a2a20', sunI: 2.8, hemiI: 2.0, el: 34, az: 235 };
 
 /** 板壁（2D の 色：#4A3628、14 px ごとの 継ぎ目）。 */
 function wallImg(): HTMLCanvasElement {
@@ -90,7 +90,7 @@ registerPanel3d('amigoya', {
   cam: { fov: 26, pitch: 0, pos: [0, 0, 0], far: 60, near: 0.1 },
   light: LIGHT,
   fog: null,
-  shadow: { x: 0, z: -4.4, hw: 3, hd: 3 },
+  shadow: { x: 0, z: -4.6, hw: 3, hd: 3 },
   focus: 0.5,
   tilt: 0.5,
   grade: () => null,

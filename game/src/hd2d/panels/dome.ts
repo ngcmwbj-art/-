@@ -123,7 +123,8 @@ function railImg(): HTMLCanvasElement {
 
 registerPanel3d('dome_sky', {
   cam: { fov: 64, pitch: 0, pos: [0, 0, 0], near: 0.05, far: 200 },
-  light: RED_ROOM,
+  // （殻と 筒の 壁は 2D と 同じ くらいの 明るさに：空の 光を 強く、赤い 明かりは 下から 少し）
+  light: { ...RED_ROOM, sky: '#d0d4ff', ground: '#9a98b8', hemiI: 2.4, sunI: 0.6 },
   fog: null,
   shadow: null,
   grade: () => null,
@@ -206,7 +207,7 @@ registerPanel3d('dome_sky', {
       plates.push(pm);
     }
     // 天文台の 赤い 明かりと、スリットから 入る 星あかり
-    lamp(k, '#ff4a3a', 3, new THREE.Vector3(-3, yr + 0.5, -2), 0, 2);
+    lamp(k, '#ff4a3a', 6, new THREE.Vector3(-3, yr + 0.5, -2), 0, 2);
     lamp(k, '#a8b8ff', 6, new THREE.Vector3(0, 2, -R + 1), 0, 2);
     Object.assign(k.bag, { sc, skyTex, plates, lastSx: -1 });
   },
