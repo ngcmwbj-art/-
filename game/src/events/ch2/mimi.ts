@@ -676,6 +676,21 @@ if (import.meta.env.DEV) {
     return null;
   });
 
+  /** QA（大写しの HD-2D の 写真）：耳あわせの 大写しを 直接 開く／もう一度で 閉じる。 */
+  registerDebug('mimiPanel', (dog: DogEar = 'up', kane: DogEar = 'side', phase: Phase = 'ask') => {
+    const old = game.ui.widgets.find((w) => w instanceof MimiPanel) as MimiPanel | undefined;
+    if (old) return void game.ui.remove(old);
+    const p = new MimiPanel();
+    p.open = 1;
+    p.phase = phase;
+    p.dogEar = dog;
+    p.kaneEar = kane;
+    p.wink = phase === 'miss';
+    p.left = p.limit * 0.6;
+    game.ui.push(p);
+    return true;
+  });
+
   registerDebug('mimiState', () => {
     const p = game.ui.widgets.find((w) => w instanceof MimiPanel) as MimiPanel | undefined;
     return {

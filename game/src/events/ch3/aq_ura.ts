@@ -356,6 +356,18 @@ if (import.meta.env.DEV) {
     return go(URA, 21, 3, 'up');
   });
 
+  /** QA：大写し「塩の 輪」を 直接 開く（もう一度 呼ぶと 閉じる）。 */
+  registerDebug('auShio', () => {
+    const open = game.ui.widgets.find((w) => w instanceof ShioPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new ShioPanel();
+    p.open = 1;
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('auState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(UF)) flags[k] = flag(id);

@@ -882,6 +882,28 @@ if (import.meta.env.DEV) {
   });
 
   registerDebug('ksState', () => ksState());
+
+  /**
+   * QA：大写し「雲の 海」を 直接 開く（mode 'ate' | 'jun'、ate = 行き先の ビット、jun = 並べた 数、cur = カーソルの 島）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.touge('mi') → __game.cmd.ksPanel('ate') → 写真 → __game.cmd.ksPanel()
+   */
+  registerDebug('ksPanel', (mode?: 'ate' | 'jun', ate = 0, jun = 0, cur = 1) => {
+    const open = game.ui.widgets.find((w) => w instanceof KumoPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    setFlag(KF.ate, ate);
+    setFlag(KF.jun, jun);
+    const p = new KumoPanel();
+    setFlag(`howto_${p.howto.id}`, 1);
+    p.mode = mode ?? 'ate';
+    p.phase = 'pick';
+    p.cur = cur;
+    p.open = 1;
+    game.ui.push(p);
+    return { mode: p.mode, ate, jun, cur };
+  });
 }
 
 function ksState(): unknown {
