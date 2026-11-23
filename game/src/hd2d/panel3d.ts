@@ -31,7 +31,7 @@ import { field } from '../world/field';
 import type { Grade } from '../world/lighting';
 import { setPanel3dImpl, type Panel3dDrawOpts } from '../ui/panel3d';
 import { Post, TILT_FIELD, type Quality } from './post';
-import { box as solidBox, extrude, Mask, ownUv, pixelTexture, PX, Quads, type Face, type V3 } from './solid';
+import { Atlas, box as solidBox, extrude, Mask, ownUv, pixelTexture, PX, Quads, type Face, type V3 } from './solid';
 
 // ---------------------------------------------------------------- 定義
 
@@ -146,10 +146,12 @@ export class Kit {
   readonly h: number;
   /** 自由に 使える 入れ物（update で 動かす 物を ここに）。 */
   readonly bag: Record<string, unknown> = {};
+  /** 影を 描き直す（はじめは true。影を 落とす 物を update で 動かしたら true に）。 */
+  shadowDirty = true;
   private readonly disposables = new Set<{ dispose(): void }>();
   private readonly texOf = new Map<HTMLCanvasElement, THREE.Texture>();
   private readonly geoOf = new Map<string, THREE.BufferGeometry>();
-  /** box / gable / quad の 面：絵ごとに 1つの Quads（1 ドローコール）。 */
+  /** box / gable / quad の 面：絵ごとに 1つの Quads（finish() で 1枚の アトラスに まとめて 1 ドローコール）。 */
   private readonly quads = new Map<HTMLCanvasElement, { q: Quads; opts: { unlit?: boolean; cast?: boolean } }>();
   readonly quality: Quality;
 
@@ -265,9 +267,7 @@ export class Kit {
           color,
           side: o.side ?? THREE.FrontSide,
           shadowSide: THREE.DoubleSide,
-          emissive: o.emissive ? new THREE.Color('#ffffff') : undefined,
-          emissiveMap: o.emissive ? map : null,
-          emissiveIntensity: o.emissive ?? 0,
+          ...(o.emissive ? { emissive: new THREE.Color('#ffffff'), emissiveMap: map, emissiveIntensity: o.emissive } : {}),
         });
     return this.own(m);
   }
@@ -322,7 +322,7 @@ export class Kit {
     return { uv: ownUv(c.width, c.height), c0: 0, r0: 0, c1: c.width, r1: c.height };
   }
 
-  /** 箱（x0..x1 × y0..y1 × z0..z1、z0 が 奥）。面ごとに 絵 1枚（絵ごとに まとめて 1 ドローコール）。 */
+  /** 箱（x0..x1 × y0..y1 × z0..z1、z0 が 奥）。面ごとに 絵 1枚（全部 まとめて 1 ドローコール）。 */
   box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, f: BoxFaces): void {
     for (const k of ['front', 'top', 'left', 'right', 'back'] as const) {
       const c = f[k];
@@ -390,14 +390,21 @@ export class Kit {
     this.scene.background = this.tex(c);
   }
 
-  /** build() の あと：box / gable / quad の 面を メッシュに（絵ごとに 1つ）。 */
+  /** build() の あと：box / gable / quad の 面を 1枚の アトラスに まとめて メッシュに（光る 物・光らない 物で 1つずつ）。 */
   finish(): void {
-    for (const [c, { q, opts }] of this.quads) {
-      if (q.empty) continue;
-      const g = this.own(q.geometry());
-      const m = new THREE.Mesh(g, this.material(this.tex(c), { unlit: opts.unlit, side: THREE.DoubleSide }));
-      m.castShadow = opts.cast ?? true;
-      m.receiveShadow = true;
+    for (const unlit of [false, true]) {
+      const atlas = new Atlas();
+      const all = new Quads();
+      for (const [c, { q, opts }] of this.quads) {
+        if (q.empty || !!opts.unlit !== unlit) continue;
+        all.append(q, atlas.add(c), c.width, c.height);
+      }
+      if (all.empty) continue;
+      const g = this.own(all.geometry(atlas.height));
+      const tex = this.own(atlas.texture());
+      const m = new THREE.Mesh(g, this.material(tex, { unlit, side: THREE.DoubleSide }));
+      m.castShadow = true;
+      m.receiveShadow = !unlit;
       this.scene.add(m);
     }
     this.quads.clear();
@@ -446,6 +453,10 @@ class Panel3D {
   private size: [number, number] = [0, 0];
   private key = '';
   private lastRender = -1;
+  /** QA：組むのに かかった ms、最後の 描画の ms と ドローコール。 */
+  buildMs = 0;
+  renderMs = 0;
+  calls = 0;
   private readonly t0 = performance.now();
   lastFrame = 0;
   /** パネルの 絵の 四角（ゲームの px）が 今 どこに あるか（point() 用）。 */
@@ -453,9 +464,11 @@ class Panel3D {
 
   constructor(def: Panel3dDef, w: number, h: number, quality: Quality, state: Record<string, unknown>) {
     this.def = def;
+    const t0 = performance.now();
     this.kit = new Kit(def, w, h, quality);
     def.build(this.kit, state);
     this.kit.finish();
+    this.buildMs = Math.round(performance.now() - t0);
     this.out = document.createElement('canvas');
   }
 
@@ -481,12 +494,22 @@ class Panel3D {
     this.post.setBrighten(0);
     this.post.setMemory(0, [1, 1, 1], [1, 1, 1]);
     this.post.setTilt(this.def.tilt ?? TILT_FIELD);
-    r.shadowMap.needsUpdate = true;
+    // 影は 1回だけ（影を 落とす 物を update で 動かした ときは k.shadowDirty = true）
+    r.shadowMap.autoUpdate = false;
+    if (k.shadowDirty) {
+      r.shadowMap.needsUpdate = true;
+      k.shadowDirty = false;
+    }
+    r.info.autoReset = false;
+    r.info.reset();
     this.post.render();
+    this.calls = r.info.render.calls;
+    r.info.autoReset = true;
     const ctx = this.out.getContext('2d')!;
     ctx.drawImage(r.domElement, 0, 0);
     this.key = key;
     this.lastRender = now;
+    this.renderMs = Math.round((performance.now() - now) * 10) / 10;
     return this.out;
   }
 
@@ -576,10 +599,8 @@ export function installPanel3d(on: () => boolean, quality: () => Quality): void 
 registerDebug('panel3dStats', () => {
   const r = renderer;
   return {
-    live: [...live.values()].map((e) => ({ id: e.id, w: e.p.kit.w, h: e.p.kit.h })),
+    live: [...live.values()].map((e) => ({ id: e.id, w: e.p.kit.w, h: e.p.kit.h, buildMs: e.p.buildMs, renderMs: e.p.renderMs, calls: e.p.calls, quality: e.p.kit.quality })),
     ids: [...DEFS.keys()],
-    calls: r?.info.render.calls ?? null,
-    triangles: r?.info.render.triangles ?? null,
     textures: r?.info.memory.textures ?? null,
     geometries: r?.info.memory.geometries ?? null,
     failed,

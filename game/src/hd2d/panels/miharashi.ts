@@ -89,7 +89,10 @@ function seaImg(nami: boolean): HTMLCanvasElement {
     for (let y = 0; y < 32; y++)
       for (let x = 0; x < 64; x++) {
         const n = rng.next();
-        p.set(x, y, n < 0.08 ? CP.umiDk : n > 0.9 ? mix(CP.umi, CP.umiLt, 0.6) : mix(CP.umi, CP.umiLt, 0.35));
+        // （止まった 海は 鏡：ざらつきを 少なく）
+        const dk = nami ? 0.08 : 0.03;
+        const lt = nami ? 0.9 : 0.96;
+        p.set(x, y, n < dk ? CP.umiDk : n > lt ? mix(CP.umi, CP.umiLt, 0.6) : mix(CP.umi, CP.umiLt, 0.35));
       }
     // 空を 映す 長い 明るい 線（止まった 海：動かない）
     for (let k = 0; k < 10; k++) {
@@ -193,17 +196,19 @@ function ishigakiImg(): HTMLCanvasElement {
 /** 丸太の ベンチ（横から：半割りの 丸太と 2つの 切り株）。 */
 function benchImg(): HTMLCanvasElement {
   return once('bench', () => {
-    const p = new PixelCanvas(30, 11);
-    p.rect(0, 1, 30, 4, '#B8885A');
-    p.hline(0, 29, 1, '#D8B080');
-    p.hline(0, 29, 4, '#8A5A3A');
-    for (let x = 2; x < 28; x += 5) p.set(x, 2, '#A07448');
-    p.ellipse(0, 3, 0, 2, '#E8C890');
-    p.ellipse(29, 3, 0, 2, '#E8C890');
-    for (const x of [4, 21]) {
-      p.rect(x, 5, 5, 6, '#8A5A3A');
-      p.vline(x, 5, 10, '#B8885A');
-      p.vline(x + 4, 5, 10, '#5A3A2A');
+    // 半割りの 丸太（切り口が 上、木口が 両はし）と 低い 切り株 2つ
+    const p = new PixelCanvas(32, 8);
+    p.rect(0, 0, 32, 4, '#A87A4A');
+    p.hline(0, 31, 0, '#D8B080');
+    p.hline(0, 31, 1, '#C89A68');
+    p.hline(0, 31, 3, '#7A4E32');
+    for (let x = 3; x < 30; x += 6) p.set(x, 2, '#8A5A3A');
+    p.vline(0, 0, 3, '#E8C890');
+    p.vline(31, 0, 3, '#E8C890');
+    for (const x of [4, 23]) {
+      p.rect(x, 4, 5, 4, '#7A4E32');
+      p.vline(x, 4, 7, '#A87A4A');
+      p.vline(x + 4, 4, 7, '#5A3A2A');
     }
     p.outline('#2A2440');
     return p.toCanvas();
@@ -228,7 +233,8 @@ function gullImg(): HTMLCanvasElement {
 
 /** 人物の 後ろ姿の 上半分（すわって ベンチの 丸太に かくれる 所から 上）。 */
 function backOf(id: string): HTMLCanvasElement {
-  const s = id === 'player' ? field()?.player.sprite ?? charSprite('minato') : charSprite(id);
+  // (しゅんは 網を 持たない 姿：2D の 大写しと 同じ)
+  const s = charSprite(id === 'player' ? 'minato_nonet' : id);
   return s.walk.up[0];
 }
 
@@ -237,22 +243,24 @@ function backOf(id: string): HTMLCanvasElement {
 const W = 328;
 const H = 112;
 /** 町の 地面の 高さ（坂の 下）と 海の 高さ。上の 段の 地面が 0、カメラは その 3.2 上。 */
-const TOWN_Y = -13;
-const SEA_Y = -13.6;
+const TOWN_Y = -10;
+const SEA_Y = -10.6;
 
 function buildTown(k: Kit): void {
   const rng = new Rng(8331);
   // 町の 地面（道と 路地）：家の 間に 見える 所だけ
-  k.tiled(groundImg('c3_road', 64, 64), -140, 140, -112, -48, TOWN_Y, 10);
-  // 家：奥へ 4 列、前ほど 大きい 間隔。棟は 東西
+  k.tiled(groundImg('c3_road', 64, 64), -140, 140, -93, -30, TOWN_Y, 10);
+  // 家：奥へ 6 列。棟は 東西
   for (let row = 0; row < 6; row++) {
-    const z = -56 - row * 9.5 - rng.next() * 2;
-    const half = (-z * 0.62) + 8;
+    const z = -38 - row * 8.6 - rng.next() * 1.5;
+    const half = -z * 0.64 + 6;
     for (let x = -half; x < half; ) {
-      const w = 6 + rng.next() * 3.5;
-      const d = 4.2 + rng.next() * 1.6;
+      // （大きさは 4 × 2 通り：同じ 大きさの 家は 同じ 絵 = テクスチャの 数を 少なく）
+      const w = 6 + Math.floor(rng.next() * 4);
+      const d = rng.next() < 0.5 ? 4.5 : 5.5;
       // 市場の あたりは 家を 置かない（大屋根）
-      const inIchiba = row >= 4 && x > -78 && x < -22;
+      // 市場の 大屋根の 前は 低い 列だけ（大屋根が 見える）
+      const inIchiba = row >= 3 && x + w > -66 && x < -12;
       if (!inIchiba && rng.next() < 0.88) {
         const kind = rng.next() < 0.5 ? 0 : rng.next() < 0.45 ? 1 : rng.next() < 0.6 ? 2 : 3;
         const wallK = rng.next() < 0.6 ? 0 : rng.next() < 0.5 ? 1 : rng.next() < 0.5 ? 2 : 3;
@@ -269,7 +277,7 @@ function buildTown(k: Kit): void {
           roofH: 1.3,
           wall: wallImg(wallK, tw, two ? 28 : 18),
           side: wallImg(wallK, Math.round(d * 8), two ? 28 : 18),
-          roof: roofImg(kind, tw, th, Math.floor(rng.next() * 9)),
+          roof: roofImg(kind, tw, th, 1),
           ridge: 0.45,
         });
       }
@@ -277,27 +285,30 @@ function buildTown(k: Kit): void {
     }
   }
   // 市場の 大屋根（岸壁の 前、西より）と 岸壁
-  k.gable({ x0: -76, x1: -24, z0: -106, z1: -96, y: TOWN_Y, wallH: 3.2, roofH: 1.2, wall: ichibaWallImg(), side: ichibaWallImg(), roof: ichibaRoofImg(), ridge: 0.4, eave: 0.4 });
-  k.tiled(groundImg('c3_quay', 64, 32), -140, 140, -114, -106, TOWN_Y + 0.05, 10);
-  k.box(-140, 140, SEA_Y - 0.6, TOWN_Y + 0.05, -114, -113.6, { front: bouhateiImg() });
+  k.gable({ x0: -62, x1: -16, z0: -93, z1: -85, y: TOWN_Y, wallH: 2.4, roofH: 1.0, wall: ichibaWallImg(), side: ichibaWallImg(), roof: ichibaRoofImg(), ridge: 0.4, eave: 0.4 });
+  k.tiled(groundImg('c3_quay', 64, 32), -140, 140, -98, -93, TOWN_Y + 0.05, 10);
+  k.box(-140, 140, SEA_Y - 0.6, TOWN_Y + 0.05, -98, -97.6, { front: bouhateiImg() });
 }
 
 function buildHarbour(k: Kit, nami: boolean): void {
   // 港の 中の 水と 外の 海
-  k.tiled(minatoImg(), -150, 40, -150, -113.6, SEA_Y, 6);
-  const sea = k.tiled(seaImg(nami), -2200, 2200, -2200, -150, SEA_Y, 3);
-  k.tiled(seaImg(nami), 40, 2200, -150, -113.6, SEA_Y, 3);
+  k.tiled(minatoImg(), -170, 40, -132, -97.6, SEA_Y, 6);
+  const sea = k.tiled(seaImg(nami), -2200, 2200, -2200, -132, SEA_Y, 3);
+  k.tiled(seaImg(nami), 40, 2200, -132, -97.6, SEA_Y, 3);
   k.bag.sea = sea;
   // 防波堤：西から 海へ、先に 赤い 灯台
   const bw = bouhateiImg();
-  k.box(-150, -42, SEA_Y - 0.4, SEA_Y + 1.4, -152, -149, { front: bw, top: groundImg('c3_bouhatei', 64, 16) });
+  // （2D の 絵と 同じ：灯台は パネルの 左はし から 25px、防波堤は 真ん中の 少し 手前まで）
+  const end = k.atDepth(26, 40, -129.5)!;
+  const tip = k.atDepth(186, 40, -129.5)!;
+  k.box(end.x - 4, tip.x, SEA_Y - 0.4, SEA_Y + 1.4, -131, -128, { front: bw, top: groundImg('c3_bouhatei', 64, 16) });
   const toudai = propImg('prop_c3_toudai');
-  if (toudai) k.stand(toudai, new THREE.Vector3(-128, SEA_Y + 1.4, -150.5), { px: 0.15, depth: 8 });
+  if (toudai) k.stand(toudai, new THREE.Vector3(end.x, SEA_Y + 1.4, -129.5), { px: 0.13, depth: 8 });
   // 港の 船（止まった まま）
   for (const [x, z, s, hull] of [
-    [-62, -128, 0.12, '#E8E4D8'],
-    [-36, -134, 0.13, '#E8E4D8'],
-    [-12, -126, 0.11, '#C8D8E8'],
+    [-40, -112, 0.1, '#E8E4D8'],
+    [-14, -120, 0.11, '#E8E4D8'],
+    [12, -108, 0.09, '#C8D8E8'],
   ] as const) {
     const img = propImg('prop_c3_fune', { hull });
     if (img) k.stand(img, new THREE.Vector3(x, SEA_Y - 0.2, z), { px: s, depth: 10, rows: [4, 36] });
@@ -308,29 +319,18 @@ function buildTerraces(k: Kit, kn: boolean): void {
   // 上の 段（ベンチの 段）：みかん畑の 土、前の はしは 石垣で 下の 段へ
   const soil = groundImg('c3_mikan', 64, 64);
   k.tiled(soil, -30, 30, -12.6, 3, 0, 16);
-  k.box(-30, 30, -3.2, 0, -12.7, -12.6, { front: ishigakiImg() });
-  // 下の 段：2段 下に（木の 頭だけ 見える）
-  k.tiled(soil, -40, 40, -24, -12.6, -3.2, 16);
-  k.box(-40, 40, -6.4, -3.2, -24.1, -24, { front: ishigakiImg() });
-  k.tiled(soil, -60, 60, -36, -24, -6.4, 16);
+  k.box(-30, 30, -6, 0, -12.7, -12.6, { front: ishigakiImg() });
   const tree = propImg('prop_c3_mikan');
+  // 段の 下（坂）：石垣の 下は 町まで 見えない
+  k.tiled(soil, -60, 60, -30, -12.6, -6, 16);
   const rng = new Rng(4127);
   if (tree) {
-    // 下の 段の 木（町の 屋根の 手前に 頭が 並ぶ）
-    for (const [y, z, n, sp] of [
-      [-3.2, -18, 13, 3.6],
-      [-6.4, -30, 17, 4.2],
-    ] as const)
-      for (let i = 0; i < n; i++) {
-        const x = (i - (n - 1) / 2) * sp + (rng.next() - 0.5) * 1.2;
-        k.stand(tree, new THREE.Vector3(x, y, z + (rng.next() - 0.5) * 1.5), { px: 0.075, depth: 6, flip: rng.next() < 0.5 });
-      }
     // 手前の 木：2D の 絵と 同じ 列（パネルの 下の はし）、ベンチの 前は あける
     for (let i = 0; i < 9; i++) {
       const px = i * 40 + ((i * 11) % 9);
       if (px > 100 && px < 190) continue;
-      const at = k.ground(px, 120, 0);
-      if (at) k.stand(tree, at, { px: 0.07, depth: 8, flip: i % 2 === 1 });
+      const at = k.ground(px, 124, 0);
+      if (at) k.stand(tree, at, { px: k.pxAt(-at.z) * (1.05 + rng.next() * 0.25), depth: 8, flip: i % 2 === 1 });
     }
   }
   // 丸太の ベンチ（2D の 絵と 同じ 所：パネルの 左寄り）と 2人の 後ろ姿
@@ -341,13 +341,13 @@ function buildTerraces(k: Kit, kn: boolean): void {
   const px = k.pxAt(d) * 1.05;
   const bench = benchImg();
   k.stand(bench, seat, { px, depth: 7 });
-  const top = 10 * px; // 丸太の 上（ベンチの 絵の 下から 10 ドット）
+  const top = 9 * px; // 丸太の 上（ベンチの 絵の 下から 9 ドット：輪郭 込み）
   // しゅん：腰から 上（すわって 丸太に かくれる）
   const shun = backOf('player');
-  k.stand(shun, new THREE.Vector3(seat.x - 6 * px, seat.y + top - 2 * px, seat.z - 2.5 * px), { px, depth: 2, rows: [0, Math.round(shun.height * 0.62)], unlit: true });
+  k.stand(shun, new THREE.Vector3(seat.x - 7 * px, seat.y + top - 1 * px, seat.z - 3.5 * px), { px, depth: 2, rows: [0, Math.round(shun.height * 0.7)], unlit: true });
   if (kn) {
     const g = backOf('kanenari');
-    k.stand(g, new THREE.Vector3(seat.x + 8 * px, seat.y + top - 2 * px, seat.z - 2.5 * px), { px, depth: 2, rows: [0, Math.round(g.height * 0.72)], unlit: true });
+    k.stand(g, new THREE.Vector3(seat.x + 8 * px, seat.y + top - 3 * px, seat.z - 3.5 * px), { px: px * 0.88, depth: 2, rows: [0, Math.round(g.height * 0.76)], unlit: true });
   }
   // ベンチと 2人の 下の 丸い 影（フィールドの 人物の 足もとの 影）
   const sh = once('contact', () => {
@@ -373,7 +373,7 @@ function buildGulls(k: Kit): void {
   // 2D と 同じ 所（パネルの px）に 止まって いる
   for (const [x, y] of [[150, 14], [232, 22], [280, 10]] as const) {
     const at = k.atDepth(x, y, -60);
-    if (at) list.push(k.stand(img, at, { px: k.pxAt(60) * 1.1, depth: 0, unlit: true, cast: false }));
+    if (at) list.push(k.stand(img, at, { px: k.pxAt(60) * 1.5, depth: 0, unlit: true, cast: false }));
   }
   k.bag.gulls = list;
 }
@@ -382,9 +382,9 @@ registerPanel3d('miharashi', {
   cam: { fov: 24, pitch: 5.6, pos: [0, 3.2, 0], far: 4000 },
   light: 'noon',
   fog: [140, 1500],
-  shadow: { x: 0, z: -60, hw: 150, hd: 110 },
-  focus: 0.82,
-  tilt: 1.6,
+  shadow: { x: 0, z: -55, hw: 90, hd: 60 },
+  focus: 0.78,
+  tilt: 1.1,
   animated: (s) => !!s.nami,
   fps: 20,
   build(k, s) {
