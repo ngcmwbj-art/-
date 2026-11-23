@@ -1,0 +1,312 @@
+// HD-2D prototype: the finish over the 3D town (bloom, the tilt-shift blur
+// at the top and bottom of the picture, the stage's colour grade and a
+// vignette). Two levels: 'normal' (bloom + a two-pass tilt-shift) and
+// 'light' for phones (no bloom, a one-pass vertical blur, rendered smaller).
+//
+// The grade reuses the field's Grade (world/lighting.ts) — the same numbers
+// the 2D renderer lays over its frame — so stage changes (17:00, time
+// stopping) tween here exactly as they do in 2D: mul, the warm bleed from
+// the left (glare), the dark from the top (topDark), the colour draining out
+// (desat). The chime's wave (FieldScene.wave) bends the rows here too.
+
+import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import type { Grade } from '../world/lighting';
+
+export type Quality = 'light' | 'normal';
+
+/**
+ * The tilt-shift's strength (px of blur step at the very top / bottom of the frame): the street's
+ * (2026-10-22 改善会議 1「遠くのぼかしを弱める」: 2.2 → 1.4, so the people walking in or getting
+ * off up or down the screen read clearly) and a battle's backdrop's (as before).
+ */
+export const TILT_FIELD = 1.4;
+export const TILT_STILL = 2.2;
+
+/** Sharp band round the focus row, then the blur grows (uv units from the focus). */
+const BAND = 'smoothstep(0.14, 0.52, abs(focus - vUv.y))';
+
+/** The tilt-shift's vertical half (normal quality): 9 taps, stronger away from the focus row. */
+const VTiltShader = {
+  uniforms: {
+    tDiffuse: { value: null as THREE.Texture | null },
+    vstep: { value: 0 },
+    focus: { value: 0.5 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float vstep, focus;
+    varying vec2 vUv;
+    void main() {
+      float s = vstep * ${BAND};
+      if (s <= 0.0) { gl_FragColor = texture2D(tDiffuse, vUv); return; }
+      vec4 c = texture2D(tDiffuse, vUv + vec2(0.0, -4.0 * s)) * 0.051;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, -3.0 * s)) * 0.0918;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, -2.0 * s)) * 0.12245;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, -1.0 * s)) * 0.1531;
+      c += texture2D(tDiffuse, vUv) * 0.1633;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, 1.0 * s)) * 0.1531;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, 2.0 * s)) * 0.12245;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, 3.0 * s)) * 0.0918;
+      c += texture2D(tDiffuse, vUv + vec2(0.0, 4.0 * s)) * 0.051;
+      gl_FragColor = c;
+    }`,
+};
+
+/** Tilt-shift + grade + vignette + linear → sRGB, the last pass (to the canvas). */
+const FinishShader = {
+  uniforms: {
+    tDiffuse: { value: null as THREE.Texture | null },
+    // horizontal tilt-shift blur step (1/width × strength; 0 = none) and the focus row
+    hstep: { value: 0 },
+    vstep: { value: 0 },
+    focus: { value: 0.5 },
+    mul: { value: new THREE.Color(1, 1, 1) },
+    desat: { value: 0 },
+    glare: { value: new THREE.Color(1, 0.6, 0.3) },
+    glareA: { value: 0 },
+    glareW: { value: 0.45 },
+    // 1: the bleed comes from the right (星見台's dawn in the east, 52 8.3)
+    glareRight: { value: 0 },
+    topDark: { value: new THREE.Color(0.2, 0.15, 0.35) },
+    topA: { value: 0 },
+    vignette: { value: 0.32 },
+    // the chime's wave: amplitude in uv, phase
+    waveAmp: { value: 0 },
+    waveT: { value: 0 },
+    lift: { value: new THREE.Color(0.012, 0.008, 0.02) },
+    // the dark places lifted (2026-10-22 改善会議 2: the night, the rooms): the gain at black, 0 = off
+    brighten: { value: 0 },
+    // a memory (chapter 3 S30's flashback, events/ch3/ending.ts): the colour faded toward memTint,
+    // multiplied by memMul (the deep sea's blue, the night's), a haze and a deeper vignette; 0 = off
+    memA: { value: 0 },
+    memTint: { value: new THREE.Color(1.08, 0.98, 0.84) },
+    memMul: { value: new THREE.Color(1, 1, 1) },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float hstep, vstep, focus, desat, glareA, glareW, glareRight, topA, vignette, waveAmp, waveT, memA, brighten;
+    uniform vec3 mul, glare, topDark, lift, memTint, memMul;
+    varying vec2 vUv;
+
+    vec3 toSRGB(vec3 c) {
+      c = max(c, vec3(0.0));
+      return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+    }
+    vec3 toLinear(vec3 c) {
+      return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+    }
+
+    void main() {
+      vec2 uv = vUv;
+      // the chime's wave: rows slide sideways (2D: 48 rows a period, 0.25 s)
+      if (waveAmp > 0.0) uv.x += waveAmp * sin(6.2831853 * ((1.0 - uv.y) * 4.5 + waveT / 0.25));
+      vec3 c;
+      float k = ${BAND};
+      if (hstep > 0.0 && k > 0.0) {
+        float s = hstep * k;
+        c  = texture2D(tDiffuse, uv + vec2(-4.0 * s, 0.0)).rgb * 0.051;
+        c += texture2D(tDiffuse, uv + vec2(-3.0 * s, 0.0)).rgb * 0.0918;
+        c += texture2D(tDiffuse, uv + vec2(-2.0 * s, 0.0)).rgb * 0.12245;
+        c += texture2D(tDiffuse, uv + vec2(-1.0 * s, 0.0)).rgb * 0.1531;
+        c += texture2D(tDiffuse, uv).rgb * 0.1633;
+        c += texture2D(tDiffuse, uv + vec2(1.0 * s, 0.0)).rgb * 0.1531;
+        c += texture2D(tDiffuse, uv + vec2(2.0 * s, 0.0)).rgb * 0.12245;
+        c += texture2D(tDiffuse, uv + vec2(3.0 * s, 0.0)).rgb * 0.0918;
+        c += texture2D(tDiffuse, uv + vec2(4.0 * s, 0.0)).rgb * 0.051;
+      } else if (vstep > 0.0 && k > 0.0) {
+        // light quality: one cheap vertical pass stands in for both
+        float s = vstep * k;
+        c  = texture2D(tDiffuse, uv + vec2(0.0, -2.0 * s)).rgb * 0.12;
+        c += texture2D(tDiffuse, uv + vec2(0.0, -1.0 * s)).rgb * 0.23;
+        c += texture2D(tDiffuse, uv).rgb * 0.30;
+        c += texture2D(tDiffuse, uv + vec2(0.0, 1.0 * s)).rgb * 0.23;
+        c += texture2D(tDiffuse, uv + vec2(0.0, 2.0 * s)).rgb * 0.12;
+      } else {
+        c = texture2D(tDiffuse, uv).rgb;
+      }
+      // the stage's grade, in sRGB like the 2D renderer's
+      vec3 s = toSRGB(c);
+      s *= mul;
+      float l = dot(s, vec3(0.299, 0.587, 0.114));
+      s = mix(s, vec3(l), desat);
+      // warm bleed from the left (screen blend; 星見台: from the right), dark from the top
+      float gx = clamp(1.0 - mix(uv.x, 1.0 - uv.x, glareRight) / max(0.01, glareW), 0.0, 1.0);
+      float ga = glareA * gx * gx;
+      s = 1.0 - (1.0 - s) * (1.0 - glare * ga);
+      float ty = clamp((uv.y - 0.55) / 0.45, 0.0, 1.0);
+      s = mix(s, s * topDark * 1.6, topA * ty);
+      // a soft lift in the shadows (the HD-2D haze) and the vignette
+      s = s + lift * (1.0 - s);
+      // the dark places: the dark and middle tones raised by a gain (the colour's own hue and
+      // saturation kept — the night's blue stays blue, nothing goes milky), the light ones left as they are
+      if (brighten > 0.0) s *= 1.0 + brighten * (1.0 - smoothstep(0.04, 0.62, dot(s, vec3(0.299, 0.587, 0.114))));
+      vec2 v = (vUv - 0.5) * vec2(1.25, 1.0);
+      s *= 1.0 - vignette * smoothstep(0.25, 0.85, dot(v, v) * 1.6);
+      if (memA > 0.0) {
+        float ml = dot(s, vec3(0.299, 0.587, 0.114));
+        s = mix(s, vec3(ml) * memTint, memA * 0.72);
+        s = mix(s, s * memMul, memA);
+        s = s + memA * 0.07 * (1.0 - s);
+        s *= 1.0 - memA * 0.55 * smoothstep(0.12, 0.8, dot(v, v) * 1.6);
+      }
+      gl_FragColor = vec4(clamp(s, 0.0, 1.0), 1.0);
+    }`,
+};
+
+export class Post {
+  readonly composer: EffectComposer;
+  private readonly renderPass: RenderPass;
+  private readonly bloom: UnrealBloomPass | null;
+  private readonly vtilt: ShaderPass | null;
+  private readonly finish: ShaderPass;
+  readonly quality: Quality;
+  private w = 1;
+  private h = 1;
+  /**
+   * The tilt-shift blur's px step at the very top / bottom: TILT_FIELD on the street, TILT_STILL behind a
+   * battle, 0 inside (2026-10-06 依頼主「建物の中でぼかしをしなくても良いと思う」).
+   */
+  private tilt = TILT_STILL;
+
+  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, quality: Quality, w: number, h: number) {
+    this.quality = quality;
+    this.composer = new EffectComposer(renderer);
+    this.composer.setPixelRatio(1);
+    this.composer.setSize(w, h);
+    this.renderPass = new RenderPass(scene, camera);
+    this.composer.addPass(this.renderPass);
+    if (quality === 'normal') {
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.42, 0.55, 0.92);
+      this.composer.addPass(this.bloom);
+      this.vtilt = new ShaderPass(VTiltShader);
+      this.composer.addPass(this.vtilt);
+    } else {
+      this.bloom = null;
+      this.vtilt = null;
+    }
+    this.finish = new ShaderPass(FinishShader);
+    this.composer.addPass(this.finish);
+    this.setSize(w, h);
+  }
+
+  setSize(w: number, h: number): void {
+    this.w = w;
+    this.h = h;
+    this.composer.setSize(w, h);
+    this.bloom?.setSize(w, h);
+    this.applyTilt();
+  }
+
+  /** The tilt-shift blur's strength (TILT_FIELD, TILT_STILL; 0 = off: inside the rooms). */
+  setTilt(px: number): void {
+    if (px === this.tilt) return;
+    this.tilt = px;
+    this.applyTilt();
+  }
+
+  private applyTilt(): void {
+    const blur = this.tilt; // px of blur step at the very top / bottom (normal)
+    if (this.vtilt) {
+      this.vtilt.uniforms.vstep.value = blur / this.h;
+      this.vtilt.enabled = blur > 0;
+    }
+    const u = this.finish.uniforms;
+    u.hstep.value = this.quality === 'normal' ? blur / this.w : 0;
+    u.vstep.value = this.quality === 'light' ? (blur * 1.2) / this.h : 0;
+  }
+
+  /** The field's grade (and the chime's wave, in buffer px of the 384-wide frame). */
+  setGrade(g: Grade, waveAmpPx: number, waveT: number, focus: number): void {
+    const u = this.finish.uniforms;
+    (u.mul.value as THREE.Color).setRGB(g.mul[0] / 255, g.mul[1] / 255, g.mul[2] / 255);
+    u.desat.value = g.desat;
+    (u.glare.value as THREE.Color).setRGB(g.glare[0] / 255, g.glare[1] / 255, g.glare[2] / 255);
+    u.glareA.value = g.glareA;
+    u.glareW.value = g.glareW;
+    u.glareRight.value = g.glareRight > 0.5 ? 1 : 0;
+    (u.topDark.value as THREE.Color).setRGB(g.topDark[0] / 255, g.topDark[1] / 255, g.topDark[2] / 255);
+    u.topA.value = g.topA;
+    u.waveAmp.value = waveAmpPx / 384;
+    u.waveT.value = waveT;
+    u.focus.value = focus;
+    if (this.vtilt) this.vtilt.uniforms.focus.value = focus;
+  }
+
+  /** How much the dark places are lifted (BRIGHTEN; 0 = not at all). */
+  setBrighten(k: number): void {
+    this.finish.uniforms.brighten.value = k;
+  }
+
+  /** A memory's tone over the frame (a: 0 = off … 1; tint and mul as 0..1 RGB). */
+  setMemory(a: number, tint: readonly [number, number, number], mul: readonly [number, number, number]): void {
+    const u = this.finish.uniforms;
+    u.memA.value = a;
+    (u.memTint.value as THREE.Color).setRGB(tint[0], tint[1], tint[2]);
+    (u.memMul.value as THREE.Color).setRGB(mul[0], mul[1], mul[2]);
+  }
+
+  render(): void {
+    this.composer.render();
+  }
+
+  /**
+   * QA (2026-10-25 改善会議「白く飛ぶ物を立体に」): the picture before the bloom, and where it is bright
+   * enough to feed the bloom (linear luminance over its threshold, 0.92) — those places glow white.
+   * frac = their share of the frame; png = the frame darkened, the hot places red.
+   */
+  hot(): { frac: number; w: number; h: number; png: string } {
+    const r = this.composer.renderer;
+    const w = Math.max(1, Math.round(this.w));
+    const h = Math.max(1, Math.round(this.h));
+    const rt = new THREE.WebGLRenderTarget(w, h);
+    r.setRenderTarget(rt);
+    r.clear();
+    r.render(this.renderPass.scene, this.renderPass.camera);
+    r.setRenderTarget(null);
+    const px = new Uint8Array(w * h * 4);
+    r.readRenderTargetPixels(rt, 0, 0, w, h, px);
+    rt.dispose();
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    const g = cv.getContext('2d')!;
+    const im = g.createImageData(w, h);
+    let n = 0;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = ((h - 1 - y) * w + x) * 4;
+        const o = (y * w + x) * 4;
+        const l = (0.2125 * px[i] + 0.7154 * px[i + 1] + 0.0721 * px[i + 2]) / 255;
+        const hotPx = l > 0.92;
+        if (hotPx) n++;
+        // show the frame in sRGB-ish (sqrt), dimmed, the hot places red
+        im.data[o] = hotPx ? 255 : Math.sqrt(px[i] / 255) * 150;
+        im.data[o + 1] = hotPx ? 40 : Math.sqrt(px[i + 1] / 255) * 150;
+        im.data[o + 2] = hotPx ? 40 : Math.sqrt(px[i + 2] / 255) * 150;
+        im.data[o + 3] = 255;
+      }
+    g.putImageData(im, 0, 0);
+    return { frac: n / (w * h), w, h, png: cv.toDataURL('image/png') };
+  }
+
+  dispose(): void {
+    this.composer.dispose();
+    this.bloom?.dispose();
+  }
+}

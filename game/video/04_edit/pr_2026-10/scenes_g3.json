@@ -1,0 +1,8 @@
+[
+ {"name":"title2","setup":[{"eval":"__game.cmd.title()"},{"eval":"(() => { const s = __game.game.scenes.find((x) => x.constructor.name === \"TitleScene\"); if (s) { s.busy = true; s.menuHide = 1; } return !!s; })()"}],"frames":240},
+ {"name":"roof","setup":[{"eval":"__game.cmd.roof()"},{"wait":1500}],"frames":70},
+ {"name":"school","setup":[{"eval":"__game.cmd.school(2,true)"},{"wait":1500}],"frames":70},
+ {"name":"aze","setup":[{"eval":"__game.cmd.aze(0)"},{"wait":1500}],"frames":70},
+ {"name":"eye","setup":[{"eval":"__game.cmd.jump(\"ch2:arrive\", true)"},{"wait":1500},{"eval":"__game.cmd.dome('eye',{n:1,play:true,auto:true})"},{"wait":3500}],"frames":70},
+ {"name":"cafe","setup":[{"eval":"__game.cmd.jump('alley')"},{"wait":1200},{"eval":"__game.cmd.cape('cafe')"},{"wait":2000}],"frames":70}
+]

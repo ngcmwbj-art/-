@@ -1,0 +1,8 @@
+[
+ {"name":"roof","setup":[{"eval":"__game.cmd.roof()"},{"wait":2000}],"frames":40},
+ {"name":"school","setup":[{"eval":"__game.cmd.school(2,true)"},{"wait":2000}],"frames":40},
+ {"name":"aze","setup":[{"eval":"__game.cmd.aze(0)"},{"wait":2000}],"frames":40},
+ {"name":"wakime","setup":[{"eval":"__game.cmd.jump(\"ch2:arrive\", true)"},{"wait":1500},{"eval":"__game.cmd.wakime('play',{auto:true})"},{"wait":1500}],"frames":150},
+ {"name":"eye","setup":[{"eval":"__game.cmd.jump(\"ch2:arrive\", true)"},{"wait":1500},{"eval":"__game.cmd.dome('eye',{n:1,play:true,auto:true})"},{"wait":3500}],"frames":40},
+ {"name":"cafe","setup":[{"eval":"__game.cmd.jump('alley')"},{"wait":1200},{"eval":"__game.cmd.cape('cafe')"},{"wait":2500}],"frames":60}
+]

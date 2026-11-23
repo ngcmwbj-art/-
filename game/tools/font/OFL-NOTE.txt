@@ -1,0 +1,3 @@
+DotGothic16 — Copyright 2020 The DotGothic16 Project Authors (https://github.com/fontworks-fonts/DotGothic16)
+Licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org).
+The file DotGothic16-Regular.ttf in this directory is unmodified. public/fonts/game.woff2 is a glyph subset of it.

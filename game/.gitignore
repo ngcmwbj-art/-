@@ -1,0 +1,19 @@
+node_modules/
+dist/
+shots/
+dist-artifact/
+
+# AI の作業環境：個人用の設定・バックアップ・一時ファイル
+.claude/settings.local.json
+CLAUDE.local.md
+.ai-backup/
+*.log
+# 秘密を含みうるファイル
+.env
+.env.*
+!.env.example
+# 動画の書き出し・大きな中間ファイル
+video/05_export/
+video/04_edit/**/*.mp4
+video/04_edit/**/*.wav
+video/04_edit/**/clips/

@@ -1,0 +1,420 @@
+// Party members: growth tables, experience, party setup (20_systems_battle.md 5, 19.2).
+
+import { flag, removeItem, setFlag, state, type Member } from '../../game/state';
+import type { GrowthRow, LevelUpResult, StatKey } from './types';
+import { HANKO_CASE_ORDER } from './skills';
+
+/**
+ * The chapter-1 level cap (kept for reference). Never compare against it:
+ * the cap is `levelCap()` — 5 in chapter 1, 7 once chapter 2 has started.
+ */
+export const LEVEL_CAP = 5;
+
+/** 51 3.3 / 61 3.3: level cap — 10 while `flag_ch3_started`, 7 while `flag_ch2_started`, else 5. */
+export function levelCap(): number {
+  if (flag('flag_ch3_started')) return 10;
+  return flag('flag_ch2_started') ? 7 : 5;
+}
+
+/** Cumulative experience needed to reach level n (index = level). Lv9・Lv10: 61 3.3. */
+export const EXP_TABLE: readonly number[] = [0, 0, 10, 40, 90, 150, 230, 330, 450, 600, 780];
+
+const MINATO: GrowthRow[] = [
+  { hp: 36, mp: 10, atk: 9, def: 6, spd: 8, luck: 5 },
+  { hp: 45, mp: 13, atk: 12, def: 7, spd: 9, luck: 6 },
+  { hp: 53, mp: 16, atk: 13, def: 10, spd: 10, luck: 7 },
+  { hp: 63, mp: 19, atk: 16, def: 11, spd: 11, luck: 8 },
+  { hp: 72, mp: 22, atk: 17, def: 14, spd: 12, luck: 9 },
+  { hp: 81, mp: 25, atk: 19, def: 16, spd: 14, luck: 10 },
+  { hp: 91, mp: 29, atk: 22, def: 17, spd: 15, luck: 11 },
+  { hp: 100, mp: 32, atk: 24, def: 20, spd: 16, luck: 13 },
+  // 第3章（61 3.4）
+  { hp: 110, mp: 35, atk: 26, def: 21, spd: 18, luck: 14 },
+  { hp: 121, mp: 39, atk: 29, def: 23, spd: 19, luck: 15 },
+];
+
+const KANENARI: GrowthRow[] = [
+  { hp: 48, mp: 0, atk: 7, def: 10, spd: 4, luck: 3 },
+  { hp: 59, mp: 0, atk: 10, def: 12, spd: 5, luck: 4 },
+  { hp: 69, mp: 0, atk: 12, def: 15, spd: 6, luck: 5 },
+  { hp: 81, mp: 0, atk: 13, def: 17, spd: 7, luck: 6 },
+  { hp: 92, mp: 0, atk: 15, def: 18, spd: 8, luck: 8 },
+  { hp: 103, mp: 0, atk: 18, def: 20, spd: 9, luck: 9 },
+  { hp: 115, mp: 0, atk: 20, def: 23, spd: 10, luck: 10 },
+  { hp: 126, mp: 0, atk: 22, def: 25, spd: 12, luck: 11 },
+  // 第3章（61 3.4）
+  { hp: 138, mp: 0, atk: 24, def: 27, spd: 13, luck: 12 },
+  { hp: 151, mp: 0, atk: 27, def: 30, spd: 14, luck: 13 },
+];
+
+/**
+ * ヤキソバン（61 3.4。Lv8〜10 が 本の 値。Lv1〜7 は デバッグで 加えた ときの ための 下の 段で、
+ * 本の ◎の 基準に 合わせて 逆算した 仮の 値）。力持ちで、遅い。
+ */
+const YAKISOBAN: GrowthRow[] = [
+  { hp: 60, mp: 0, atk: 9, def: 8, spd: 3, luck: 4 },
+  { hp: 72, mp: 0, atk: 11, def: 10, spd: 4, luck: 5 },
+  { hp: 84, mp: 0, atk: 14, def: 12, spd: 5, luck: 6 },
+  { hp: 96, mp: 0, atk: 16, def: 14, spd: 6, luck: 7 },
+  { hp: 106, mp: 0, atk: 18, def: 16, spd: 6, luck: 8 },
+  { hp: 117, mp: 0, atk: 20, def: 18, spd: 7, luck: 9 },
+  { hp: 128, mp: 0, atk: 23, def: 20, spd: 8, luck: 11 },
+  { hp: 140, mp: 0, atk: 25, def: 22, spd: 9, luck: 12 },
+  { hp: 152, mp: 0, atk: 27, def: 24, spd: 10, luck: 13 },
+  { hp: 166, mp: 0, atk: 30, def: 26, spd: 11, luck: 14 },
+];
+
+/** 通知表「よくできる◎」thresholds (5.4). */
+export const EXCELLENT: Record<string, Record<StatKey, number>> = {
+  minato: { hp: 10, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
+  kanenari: { hp: 12, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
+  yakisoban: { hp: 12, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
+};
+
+/** ★2026-09-29 依頼主の指示で カネナリくん→グソっ君（id は 'kanenari' のまま）。 */
+export const MEMBER_NAMES: Record<string, string> = { minato: 'しゅん', kanenari: 'グソっ君', yakisoban: 'ヤキソバン' };
+
+/** Growth-table values for a member at a level (1..10). */
+export function statsFor(memberId: string, level: number): GrowthRow {
+  const t = memberId === 'kanenari' ? KANENARI : memberId === 'yakisoban' ? YAKISOBAN : MINATO;
+  const i = Math.max(1, Math.min(t.length, Math.floor(level))) - 1;
+  return { ...t[i] };
+}
+
+/** Level reached with `exp` cumulative experience (capped at levelCap()). */
+export function levelForExp(exp: number): number {
+  let lv = 1;
+  const cap = levelCap();
+  for (let l = 2; l <= cap; l++) if (exp >= EXP_TABLE[l]) lv = l;
+  return lv;
+}
+
+/** Experience still needed for the next level, or null at the cap. */
+export function expToNext(m: Member): number | null {
+  if (m.level >= levelCap()) return null;
+  return Math.max(0, EXP_TABLE[m.level + 1] - m.exp);
+}
+
+function makeMember(id: string, level: number, exp: number, skills: string[]): Member {
+  const s = statsFor(id, level);
+  return {
+    id,
+    name: MEMBER_NAMES[id] ?? id,
+    level,
+    exp,
+    hp: s.hp,
+    maxHp: s.hp,
+    mp: s.mp,
+    maxMp: s.mp,
+    atk: s.atk,
+    def: s.def,
+    spd: s.spd,
+    luck: s.luck,
+    skills,
+    status: {},
+    equip: {},
+  };
+}
+
+function applyGrowth(m: Member, level: number): void {
+  const s = statsFor(m.id, level);
+  m.level = level;
+  m.maxHp = s.hp;
+  m.maxMp = s.mp;
+  m.atk = s.atk;
+  m.def = s.def;
+  m.spd = s.spd;
+  m.luck = s.luck;
+}
+
+/** `state.party` = Minato Lv1 only. */
+export function newGameParty(): void {
+  state.party = [makeMember('minato', 1, 0, ['skill_tataku'])];
+}
+
+/** Add グソっ君 (member id 'kanenari'; same level/exp as Minato, full HP). Idempotent. */
+export function joinKanenari(): Member {
+  const existing = state.party.find((m) => m.id === 'kanenari');
+  if (existing) return existing;
+  const mi = state.party.find((m) => m.id === 'minato');
+  const level = mi?.level ?? 1;
+  const exp = mi?.exp ?? 0;
+  const skills = ['skill_tackle', 'skill_fuusen', 'skill_kane'];
+  if (level >= 3) skills.push('skill_goaisatsu');
+  const k = makeMember('kanenari', level, exp, skills);
+  state.party.push(k);
+  return k;
+}
+
+/** Learn a skill (the presentation is playHankoLearn()). Returns false if already known. */
+export function learnSkill(memberId: string, skillId: string): boolean {
+  const m = state.party.find((p) => p.id === memberId);
+  if (!m) return false;
+  if (m.skills.includes(skillId)) return false;
+  m.skills.push(skillId);
+  return true;
+}
+
+/**
+ * Make learned skills consistent with story flags (events may set the flag
+ * without calling learnSkill). Safe to call any time. The hanko keep the
+ * case order (HANKO_CASE_ORDER; 51 5.4). 「いただきます」 is an outline only
+ * until chapter 3 fills it (flag_ch3_got_itadakimasu, 61 6.1).
+ */
+export function syncProgressSkills(): void {
+  const mi = state.party.find((m) => m.id === 'minato');
+  if (mi) {
+    if (!mi.skills.includes('skill_tataku')) mi.skills.unshift('skill_tataku');
+    if (flag('flag_got_hanko')) {
+      learnSkill('minato', 'skill_mimashita');
+      learnSkill('minato', 'skill_peke');
+    }
+    if (flag('flag_kanenari_joined')) learnSkill('minato', 'skill_hanamaru');
+    if (flag('flag_got_maigo_key')) learnSkill('minato', 'skill_yarinaoshi');
+    if (flag('flag_boss_beaten') || flag('flag_clear')) learnSkill('minato', 'skill_okaerinasai');
+    if (flag('flag_ch2_got_otsukare')) learnSkill('minato', 'skill_otsukaresama');
+    if (flag('flag_ch2_boss_beaten')) learnSkill('minato', 'skill_oyasuminasai');
+    // 第3章 (61 6.1・6.2): いただきます (S11) and ごちそうさま (S13); the outline before S11 is never a skill
+    const ita = !!flag('flag_ch3_got_itadakimasu');
+    if (ita) learnSkill('minato', 'skill_itadakimasu');
+    if (flag('flag_ch3_got_gochisou')) learnSkill('minato', 'skill_gochisousama');
+    // keep hanko in case order
+    const order = HANKO_CASE_ORDER.filter((id) => ita || id !== 'skill_itadakimasu');
+    if (!ita) mi.skills = mi.skills.filter((s) => s !== 'skill_itadakimasu');
+    const rest = mi.skills.filter((s) => !order.includes(s));
+    mi.skills = [...rest, ...order.filter((s) => mi.skills.includes(s))];
+  }
+  const k = state.party.find((m) => m.id === 'kanenari');
+  if (k) {
+    for (const s of ['skill_tackle', 'skill_fuusen', 'skill_kane']) learnSkill('kanenari', s);
+    if (k.level >= 3) learnSkill('kanenari', 'skill_goaisatsu');
+  }
+  if (state.party.some((m) => m.id === 'yakisoban')) for (const s of YAKISOBAN_SKILLS) learnSkill('yakisoban', s);
+}
+
+/**
+ * Add experience to a member and apply level ups (HP/朱肉 fully restored on
+ * level up, 5.1). Returns one result per level gained.
+ */
+export function gainExp(m: Member, amount: number): LevelUpResult[] {
+  m.exp += amount;
+  const out: LevelUpResult[] = [];
+  const target = levelForExp(m.exp);
+  while (m.level < target) {
+    const from = m.level;
+    const before = statsFor(m.id, from);
+    applyGrowth(m, from + 1);
+    const after = statsFor(m.id, from + 1);
+    m.hp = m.maxHp;
+    m.mp = m.maxMp;
+    out.push({ memberId: m.id, from, to: from + 1, before, after });
+  }
+  return out;
+}
+
+// ---- chapter 2 (51 3) ---------------------------------------------------------------
+
+/** 第1章の本筋フラグ (10 3.6), all set for a chapter-2 start without chapter-1 data. */
+export const CH1_MAIN_FLAGS = [
+  'flag_opening_done',
+  'flag_errand',
+  'flag_met_maruyama',
+  'flag_got_urenokori',
+  'flag_met_obaa',
+  'flag_chime_stopped',
+  'flag_hato_beaten',
+  'flag_got_hanko',
+  'flag_fushigi_tutorial',
+  'flag_park_hint',
+  'flag_met_kanenari',
+  'flag_gave_urenokori',
+  'flag_kanenari_joined',
+  'flag_broadcast',
+  'flag_parking_open',
+  'flag_ojigi_beaten',
+  'flag_mall_entered',
+  'flag_got_maigo_key',
+  'flag_soujirou_gate',
+  'flag_maigo_door_open',
+  'flag_boss_beaten',
+  'flag_clear',
+];
+
+/** The minimum cumulative experience a chapter-2 party starts with (51 3.1). */
+export const CH2_START_EXP = 150;
+
+/**
+ * 51 3.1: entering chapter 2 (evt_ch2_prologue calls this first). Sets
+ * `flag_ch2_started` (the cap becomes 7), lifts each member's experience to
+ * at least 150 and recomputes the level from it — the level only ever goes
+ * up, and by one step at most with chapter-1 data (133–275) — restores HP
+ * and 朱肉, clears battle statuses, syncs the learned skills and takes the
+ * 焼きそば (item_korokke) out of the bag. Returns the level-ups (for the 通知表).
+ */
+export function chapter2Adjust(): LevelUpResult[] {
+  setFlag('flag_ch2_started', 1);
+  const out: LevelUpResult[] = [];
+  for (const m of state.party) {
+    m.exp = Math.max(m.exp, CH2_START_EXP);
+    const target = levelForExp(m.exp);
+    while (m.level < target) {
+      const from = m.level;
+      const before = statsFor(m.id, from);
+      applyGrowth(m, from + 1);
+      out.push({ memberId: m.id, from, to: from + 1, before, after: statsFor(m.id, from + 1) });
+    }
+    m.hp = m.maxHp;
+    m.mp = m.maxMp;
+    m.status = {};
+  }
+  syncProgressSkills();
+  while (removeItem('item_korokke')) {
+    /* every one of them */
+  }
+  return out;
+}
+
+/**
+ * 51 3.2 D: 「第2章から」 without chapter-1 data — both members Lv5 with 150
+ * experience, the five chapter-1 hanko (and the おやすみなさい outline), the
+ * standard bag and 300円, and the chapter-1 story flags as a finished run
+ * (flag_stage 3, flag_clock 4). Call chapter2Adjust() afterwards as usual.
+ */
+export function newChapter2Party(): void {
+  for (const id of CH1_MAIN_FLAGS) setFlag(id, 1);
+  setFlag('flag_stage', 3);
+  setFlag('flag_clock', 4);
+  const mi = makeMember('minato', 5, CH2_START_EXP, ['skill_tataku', 'skill_mimashita', 'skill_peke', 'skill_hanamaru', 'skill_yarinaoshi', 'skill_okaerinasai']);
+  const k = makeMember('kanenari', 5, CH2_START_EXP, ['skill_tackle', 'skill_fuusen', 'skill_kane', 'skill_goaisatsu']);
+  state.party = [mi, k];
+  state.inventory = [
+    'item_ramune',
+    'item_ramune',
+    'item_fugashi',
+    'item_fugashi',
+    'item_hakka_ame',
+    'item_stamp_pad',
+    'item_oden_can',
+    'item_gamaguchi',
+    'item_hanko_case',
+    'item_mimashita_cho',
+    'item_hato_meishi',
+  ];
+  state.money = 300;
+  syncProgressSkills();
+}
+
+/** Debug / QA: set a member to a level (exp = table minimum). */
+export function setMemberLevel(m: Member, level: number): void {
+  applyGrowth(m, level);
+  m.exp = EXP_TABLE[Math.min(EXP_TABLE.length - 1, level)] ?? 0;
+  m.hp = m.maxHp;
+  m.mp = m.maxMp;
+}
+
+// ---- chapter 3 (61 3.1・3.2) ----------------------------------------------------------------
+
+/** 61 3.1: the floor of chapter 3's experience (Lv8). */
+export const CH3_START_EXP = 450;
+
+/** 第2章の本筋のフラグ（「第3章から」の標準データで 1 にする。60 1.5）。 */
+export const CH2_MAIN_FLAGS = [
+  'flag_ch2_started',
+  'flag_ch2_prologue_done',
+  'flag_ch2_arrived',
+  'flag_ch2_yoriai',
+  'flag_ch2_met_mitsu',
+  'flag_ch2_sune_beaten',
+  'flag_ch2_got_tomato',
+  'flag_ch2_house_exit',
+  'flag_ch2_met_gen',
+  'flag_ch2_got_otsukare',
+  'flag_ch2_gate_open',
+  'flag_ch2_tetsuya_beaten',
+  'flag_ch2_houki_enter',
+  'flag_ch2_hill',
+  'flag_ch2_boss_beaten',
+  'flag_ch2_omake',
+  'flag_ch2_clear',
+];
+
+/**
+ * 61 3.1 `chapter3Adjust()`: `flag_ch3_started` (the cap becomes 10), each
+ * member's experience lifted to 450, the level recomputed, everyone rested,
+ * the skills synced. The bag stays as it is.
+ */
+export function chapter3Adjust(): LevelUpResult[] {
+  setFlag('flag_ch3_started', 1);
+  const out: LevelUpResult[] = [];
+  for (const m of state.party) {
+    m.exp = Math.max(m.exp, CH3_START_EXP);
+    const target = levelForExp(m.exp);
+    while (m.level < target) {
+      const from = m.level;
+      const before = statsFor(m.id, from);
+      applyGrowth(m, from + 1);
+      out.push({ memberId: m.id, from, to: from + 1, before, after: statsFor(m.id, from + 1) });
+    }
+    m.hp = m.maxHp;
+    m.mp = m.maxMp;
+    m.status = {};
+  }
+  syncProgressSkills();
+  return out;
+}
+
+/**
+ * 61 3.2 E: 「第3章から」 without chapter-2 data — both Lv8 with 450, the seven
+ * hanko, the chapter-1 and chapter-2 story flags as a finished run (flag_stage 3,
+ * flag_ch2_stage 3), the key items of 60 1.5 and 500円. Call chapter3Adjust() afterwards.
+ */
+export function newChapter3Party(): void {
+  for (const id of CH1_MAIN_FLAGS) setFlag(id, 1);
+  for (const id of CH2_MAIN_FLAGS) setFlag(id, 1);
+  setFlag('flag_clear', 1);
+  setFlag('flag_stage', 3);
+  setFlag('flag_clock', 4);
+  setFlag('flag_ch2_stage', 3);
+  setFlag('flag_ch2_clock', 1);
+  const mi = makeMember('minato', 8, CH3_START_EXP, ['skill_tataku', 'skill_mimashita', 'skill_peke', 'skill_hanamaru', 'skill_yarinaoshi', 'skill_okaerinasai', 'skill_otsukaresama', 'skill_oyasuminasai']);
+  const k = makeMember('kanenari', 8, CH3_START_EXP, ['skill_tackle', 'skill_fuusen', 'skill_kane', 'skill_goaisatsu']);
+  state.party = [mi, k];
+  state.inventory = [
+    'item_ramune',
+    'item_ramune',
+    'item_kyuri_zuke',
+    'item_kyuri_zuke',
+    'item_yakiimo',
+    'item_umeboshi',
+    'item_stamp_pad',
+    'item_gamaguchi',
+    'item_hanko_case',
+    'item_mimashita_cho',
+    'item_tomato_omiyage',
+  ];
+  state.money = 500;
+  syncProgressSkills();
+}
+
+// ---- ヤキソバン（61 5.1・21.2） ------------------------------------------------------------------
+
+/** ヤキソバンの わざ（ぜんぶ 加入の ときから）：ヘラ（ふつうの 攻撃）、こそげる、鉄板、大盛り。 */
+export const YAKISOBAN_SKILLS = ['skill_yk_hera', 'skill_yk_kosogeru', 'skill_yk_teppan', 'skill_yk_oomori'];
+
+/**
+ * 61 5.1 `addYakisoban()`（S23 の 終わりに イベントが 呼ぶ）：しゅんと 同じ level と exp、HP は 満タン。
+ * 隊列は しゅん → グソっ君 → ヤキソバン。何度 呼んでも 1人。
+ */
+export function addYakisoban(): Member {
+  const existing = state.party.find((m) => m.id === 'yakisoban');
+  if (existing) return existing;
+  const mi = state.party.find((m) => m.id === 'minato');
+  const y = makeMember('yakisoban', mi?.level ?? 8, mi?.exp ?? CH3_START_EXP, [...YAKISOBAN_SKILLS]);
+  state.party.push(y);
+  return y;
+}
+
+/** 61 21.2 `removeYakisoban()`：S29 から 隊列に いない（経験値と 成長は 残さない：クリア後に 戦闘は ない）。 */
+export function removeYakisoban(): void {
+  state.party = state.party.filter((m) => m.id !== 'yakisoban');
+}

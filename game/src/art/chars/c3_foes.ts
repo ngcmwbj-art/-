@@ -1,0 +1,205 @@
+// 第3章の 敵の フィールドの 絵（61 15.1・60 6.1）：
+//
+//  enemy_nefuda           16×24  ネフダマヨイの シンボル。手書きの 木の 値札が 3枚 重なって 立ち、
+//                                割り箸の 足で 歩く（2コマ）。'flip'：止まるたびに 札を 1枚 裏返す。
+//                                いちばん上の 札に 墨の 点々（『ひゃく……』）と 点の 目。
+//                                右下に 黒い 判「まだ」。光は 真上の 正午。
+//  restored_enemy_nefuda  16×12  トロ箱に 刺さった 値札『100円』（思いだした 姿）。
+
+import { PixelCanvas } from '../../engine/pixel';
+import type { Dir } from '../../game/state';
+import { registerChar, type CharSprite } from './registry';
+
+const DIRS: Dir[] = ['down', 'up', 'left', 'right'];
+const INK = '#2A2440';
+const WOOD = '#D8B878';
+const WOOD_HI = '#F2D8A0';
+const WOOD_DK = '#A88848';
+
+function tag(p: PixelCanvas, x: number, y: number, w: number, h: number, back = false): void {
+  p.rect(x, y, w, h, back ? '#B89858' : WOOD);
+  p.hline(x, x + w - 1, y, back ? WOOD : WOOD_HI);
+  p.hline(x, x + w - 1, y + h - 1, WOOD_DK);
+}
+
+function nefudaFrame(o: { step: number; flip?: boolean; blink?: boolean }): HTMLCanvasElement {
+  const p = new PixelCanvas(16, 24);
+  // chopstick legs (alternating a pixel)
+  const a = o.step % 2;
+  p.vline(5, 18 - a, 22 - a, '#E8D8B0');
+  p.vline(10, 18 - (1 - a), 22 - (1 - a), '#E8D8B0');
+  p.set(4, 22 - a, '#E8D8B0');
+  p.set(11, 22 - (1 - a), '#B8A880');
+  // the three tags: bottom (left), middle (right), top
+  tag(p, 2, 13, 10, 6, !!o.flip);
+  tag(p, 5, 8, 10, 6);
+  tag(p, 3, 2, 10, 7);
+  // skewer arms
+  p.line(4, 11, 1, 14, '#8A7A4A');
+  p.line(14, 11, 15, 14, '#8A7A4A');
+  // eyes and the ink of 『ひゃく……』
+  if (o.blink) p.hline(5, 9, 4, INK);
+  else {
+    p.set(5, 4, INK);
+    p.set(9, 4, INK);
+  }
+  p.hline(5, 7, 6, INK);
+  p.set(9, 6, INK);
+  p.set(11, 6, INK);
+  // the black 「まだ」 on the bottom tag
+  p.rect(8, 15, 3, 3, '#0B0B14');
+  p.set(9, 16, '#C8C2B4');
+  p.outline(INK);
+  return p.toCanvas();
+}
+
+registerChar('enemy_nefuda', (): CharSprite => {
+  const walkF = [0, 1].map((step) => nefudaFrame({ step }));
+  const blink = nefudaFrame({ step: 0, blink: true });
+  const flip = nefudaFrame({ step: 0, flip: true });
+  const walk = {} as Record<Dir, HTMLCanvasElement[]>;
+  const idle = {} as Record<Dir, HTMLCanvasElement[]>;
+  for (const d of DIRS) {
+    walk[d] = walkF;
+    idle[d] = [walkF[0], walkF[0], walkF[0], blink, walkF[0], flip];
+  }
+  return {
+    id: 'enemy_nefuda',
+    w: 16,
+    h: 24,
+    walk,
+    idle,
+    idleFrameMs: 260,
+    walkFrameMs: 160,
+    extra: { flip },
+    anims: { flip: { frames: [flip, walkF[0]], ms: 220, loop: false } },
+    shadow: 8,
+  };
+});
+
+registerChar('restored_enemy_nefuda', (): CharSprite => {
+  const p = new PixelCanvas(16, 12);
+  p.rect(0, 6, 16, 6, '#F4F6F8');
+  p.hline(0, 15, 6, '#FFFFFF');
+  p.hline(0, 15, 11, '#C8CDD4');
+  for (let x = 1; x < 15; x += 2) p.set(x, 5, '#DFF4FA');
+  p.rect(5, 0, 6, 6, WOOD);
+  p.hline(5, 10, 0, WOOD_HI);
+  p.hline(6, 9, 2, INK);
+  p.hline(6, 9, 4, INK);
+  p.outline(INK);
+  const c = p.toCanvas();
+  const walk = {} as Record<Dir, HTMLCanvasElement[]>;
+  for (const d of DIRS) walk[d] = [c];
+  return { id: 'restored_enemy_nefuda', w: 16, h: 12, walk, idle: walk, shadow: 0 };
+});
+
+// ---- 任意の 敵の シンボル（61 15.1・15.2） ----------------------------------------------------
+//  enemy_hoshisugi   16×14  干し台の 上の、反りかえった アジの 開き（ひれが ぱたぱた 2コマ）
+//  enemy_asobitarin  16×16  赤と 白の 浮き輪（ぽよんと 跳ねる 2コマ）
+//  enemy_yokodori    24×12  地面の 影だけ（翼の 形、#1E3A4A α45%。本体は 空）
+
+function simple(id: string, w: number, h: number, frames: HTMLCanvasElement[], shadow = 0): CharSprite {
+  const walk = {} as Record<Dir, HTMLCanvasElement[]>;
+  for (const d of DIRS) walk[d] = frames;
+  return { id, w, h, walk, idle: walk, idleFrameMs: 260, walkFrameMs: 160, shadow };
+}
+
+registerChar('enemy_hoshisugi', (): CharSprite => {
+  const frames = [0, 1].map((k) => {
+    const p = new PixelCanvas(16, 14);
+    p.ellipse(8, 6, 6, 4, '#C8884A');
+    p.hline(3, 12, 3 - k, '#F2C88A');
+    p.vline(8, 3, 9, '#E8D8B8');
+    p.set(6, 4, '#E8E4D8');
+    p.set(10, 5, '#F4F1E8');
+    p.line(7, 10, 5, 13 - k, '#8A5A2A');
+    p.line(9, 10, 11, 13 - (1 - k), '#8A5A2A');
+    p.outline(INK);
+    return p.toCanvas();
+  });
+  return simple('enemy_hoshisugi', 16, 14, frames, 8);
+});
+
+registerChar('enemy_asobitarin', (): CharSprite => {
+  const frames = [0, 2].map((dy) => {
+    const p = new PixelCanvas(16, 16);
+    for (let y = -7; y <= 7; y++)
+      for (let x = -7; x <= 7; x++) {
+        const d = Math.hypot(x / 7, y / 6);
+        if (d > 1 || d < 0.45) continue;
+        const a = Math.atan2(y, x);
+        p.set(8 + x, 9 - dy + y, Math.floor(((a + Math.PI) / (Math.PI * 2)) * 8) % 2 ? '#E23B2E' : '#F4F1E8');
+      }
+    p.outline(INK);
+    return p.toCanvas();
+  });
+  return simple('enemy_asobitarin', 16, 16, frames, 8);
+});
+
+registerChar('enemy_yokodori', (): CharSprite => {
+  const p = new PixelCanvas(24, 12);
+  p.ellipse(12, 6, 3, 3, '#1E3A4A');
+  p.poly([[12, 4], [0, 3], [2, 7], [12, 8]], '#1E3A4A');
+  p.poly([[12, 4], [23, 3], [21, 7], [12, 8]], '#1E3A4A');
+  p.rect(11, 8, 3, 3, '#1E3A4A');
+  const c = p.toCanvas();
+  const ctx = c.getContext('2d')!;
+  // (only the shadow: 45%)
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(0, 0, 24, 12);
+  return simple('enemy_yokodori', 24, 12, [c], 0);
+});
+
+// ---- 任意の 敵の 思いだした 姿（61 9.2〜9.4。restoreAt に 置かれる） ------------------------
+//  restored_enemy_hoshisugi   20×12  干し台に もどった アジの 開き（ほどよい 色）
+//  restored_enemy_asobitarin  18×10  海の家の 軒下に たたまれた 浮き輪（赤と 白の しま）
+//  restored_enemy_yokodori    14×14  羽を 休める トンビ（とまって 目を 細める）
+
+function still(id: string, p: PixelCanvas): CharSprite {
+  p.outline(INK);
+  return simple(id, p.w, p.h, [p.toCanvas()], 0);
+}
+
+registerChar('restored_enemy_hoshisugi', (): CharSprite => {
+  const p = new PixelCanvas(20, 12);
+  // the drying rack's mesh
+  p.rect(1, 8, 18, 2, '#8A7A5A');
+  for (let x = 1; x < 19; x += 3) p.set(x, 7, '#C8C2B4');
+  p.vline(2, 10, 11, '#6B5A4A');
+  p.vline(17, 10, 11, '#6B5A4A');
+  // the fish, opened flat, a good colour
+  p.ellipse(10, 5, 7, 3, '#D8A060');
+  p.hline(5, 15, 3, '#F2C88A');
+  p.vline(10, 2, 8, '#E8D8B8');
+  p.set(6, 4, '#E8E4D8');
+  return still('restored_enemy_hoshisugi', p);
+});
+
+registerChar('restored_enemy_asobitarin', (): CharSprite => {
+  const p = new PixelCanvas(18, 10);
+  // folded flat: two layers of stripes
+  for (let x = 1; x < 17; x++) {
+    const c = Math.floor((x - 1) / 3) % 2 ? '#E23B2E' : '#F4F1E8';
+    p.vline(x, 3, 5, c);
+    p.vline(x, 6, 8, Math.floor(x / 3) % 2 ? '#B8241E' : '#D8D2C4');
+  }
+  p.hline(1, 16, 3, '#FFFFFF');
+  p.rect(14, 1, 2, 2, '#F4F1E8');
+  return still('restored_enemy_asobitarin', p);
+});
+
+registerChar('restored_enemy_yokodori', (): CharSprite => {
+  const p = new PixelCanvas(14, 16);
+  // perched, wings folded, eyes half shut
+  p.ellipse(7, 9, 4, 5, '#8A5A3A');
+  p.hline(4, 9, 6, '#B88A5A');
+  p.ellipse(8, 3, 3, 2, '#8A5A3A');
+  p.hline(8, 9, 3, INK);
+  p.rect(10, 3, 2, 1, '#E8C878');
+  p.rect(5, 13, 4, 2, '#7A4A2A');
+  p.set(6, 15, '#E8C878');
+  p.set(8, 15, '#E8C878');
+  return still('restored_enemy_yokodori', p);
+});
