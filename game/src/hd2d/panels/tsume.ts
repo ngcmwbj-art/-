@@ -10,7 +10,7 @@ import { mix } from '../../engine/pixel';
 import { Rng } from '../../engine/rng';
 import { bivalve, chawan, snail, type Look, type Mark } from '../../events/ch3/tsumeta';
 import { registerPanel3d, type Kit } from '../panel3d';
-import { dome, flat, groundImg, paint, pix } from './_kit_f';
+import { blob, dome, flat, groundImg, paint, pix } from './_kit_f';
 
 /** 絵の 大きさ（TsumePanel の 左：SW × CH）。 */
 const W = 202;
@@ -58,12 +58,20 @@ function lay(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, depth: numb
 }
 
 /** ふくらんだ 殻（2D の 絵を 上から 投影した 半分の 楕円体：厚みと 陰、砂に 落ちる 影）。h = 高さ（px）。 */
-function shell(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, h: number, tint?: string): THREE.Mesh | null {
+function shell(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, h: number, tint?: string): THREE.Object3D | null {
   const at = k.ground(cx, cy, 0);
   if (!at) return null;
   const px = k.pxAt(8);
+  // 砂に 落ちる 影（日は 奥の 高い 所：手前へ 少し）
+  const ww = img.width * px;
+  const dd = img.height * px;
+  const grp = new THREE.Group();
+  const sh = blob(k, at.x + ww * 0.04, 0, at.z + dd * 0.12, ww * 1.02, dd * 0.95, 0.3, '#6A5636');
   // （絵の まん中から 少し 沈めて、ふちが 砂に うまる）
-  return dome(k, img, new THREE.Vector3(at.x, -h * px * 0.12, at.z), img.width * px * 1.04, img.height * px * 1.04, h * px, { tint });
+  const m = dome(k, img, new THREE.Vector3(at.x, -h * px * 0.12, at.z), ww * 1.04, dd * 1.04, h * px, { tint });
+  grp.add(sh, m);
+  k.scene.add(grp);
+  return grp;
 }
 
 /** まわりの 小さな 物（砂つぶの 小石・貝の かけら）。 */
@@ -99,7 +107,7 @@ registerPanel3d('tsume_look', {
     base(k);
     const cx = W / 2;
     const cy = 62;
-    const list: Record<string, THREE.Mesh | null> = {
+    const list: Record<string, THREE.Object3D | null> = {
       ana: shell(k, shellImg('ana', 38, 30), cx, cy, 12, WHITE),
       kake: shell(k, shellImg('kake', 38, 30), cx, cy, 12, WHITE),
       tsumeta: shell(k, noShadow(paint('tm:snail', 72, 72, (g) => snail(g, 34, 34, 30))), cx, cy, 26),
@@ -109,7 +117,7 @@ registerPanel3d('tsume_look', {
     bits(k, [[cx, cy, 52]]);
   },
   update(k, _t, s) {
-    const list = k.bag.list as Record<string, THREE.Mesh | null>;
+    const list = k.bag.list as Record<string, THREE.Object3D | null>;
     for (const [id, m] of Object.entries(list)) if (m) m.visible = id === s.look;
     k.shadowDirty = true;
   },
@@ -125,13 +133,13 @@ registerPanel3d('tsume_cards', {
   build(k) {
     base(k);
     shell(k, shellImg('ana', 24, 19), SHELL_X, SHELL_Y, 8, WHITE);
-    const right: Record<string, THREE.Mesh | null> = {};
+    const right: Record<string, THREE.Object3D | null> = {};
     for (const m of ['ana', 'nashi', 'ware', 'kake'] as const) right[m] = shell(k, shellImg(m, 24, 19), W - SHELL_X, SHELL_Y, 8, WHITE);
     k.bag.right = right;
     bits(k, [[SHELL_X, SHELL_Y, 34], [W - SHELL_X, SHELL_Y, 44], [W / 2, SHELL_Y, 14]]);
   },
   update(k, _t, s) {
-    const right = k.bag.right as Record<string, THREE.Mesh | null>;
+    const right = k.bag.right as Record<string, THREE.Object3D | null>;
     for (const [id, m] of Object.entries(right)) if (m) m.visible = id === s.mark;
     k.shadowDirty = true;
   },
