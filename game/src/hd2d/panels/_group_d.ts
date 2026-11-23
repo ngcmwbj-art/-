@@ -8,3 +8,4 @@ import './uzu';
 import './wakime';
 import './yoburi';
 import './yuwaka';
+import './abura';

@@ -65,7 +65,7 @@ function kuzuImg(v: number): HTMLCanvasElement {
 
 registerPanel3d('himo', {
   cam: { fov: 22, pitch: 0, pos: [0, 0, 0], near: 0.3, far: 120 },
-  light: { ...NIGHT_LAMP, hemiI: 0.7 },
+  light: { ...NIGHT_LAMP, sun: '#c8d4ff', hemiI: 1.1, sunI: 0.8 },
   fog: [D + 2, D + 30],
   shadow: { x: 0, z: -D, hw: 8, hd: 5 },
   grade: () => null,
@@ -86,7 +86,7 @@ registerPanel3d('himo', {
       }
     // 爪の 軸（2D の 軸の 所）
     const c = k.atDepth(CX, CY, -D)!;
-    const metal = k.material(null, { tint: '#8A8E96' });
+    const metal = k.material(null, { tint: '#7A8088' });
     const shaftG = k.own(new THREE.CylinderGeometry(3 * px, 3 * px, 192 * px, 12));
     shaftG.rotateZ(Math.PI / 2);
     const shaft = new THREE.Mesh(shaftG, metal);
@@ -94,13 +94,13 @@ registerPanel3d('himo', {
     shaft.castShadow = true;
     k.scene.add(shaft);
     // 曲がった 爪（軸から 外へ、先で 曲がる）・先の 土
-    const tine = k.material(null, { tint: '#A8AEB6' });
+    const tine = k.material(null, { tint: '#9AA4B0' });
     const dirt = k.material(null, { tint: '#5A4A3A' });
     const blade = (r0: number, a0: number, r1: number, a1: number): THREE.BufferGeometry => {
       const p0 = new THREE.Vector2(Math.cos(a0) * r0, Math.sin(a0) * r0);
       const p1 = new THREE.Vector2(Math.cos(a1) * r1, Math.sin(a1) * r1);
       const len = p0.distanceTo(p1);
-      const g = k.own(new THREE.BoxGeometry(2.4 * px, len, 0.9 * px));
+      const g = k.own(new THREE.BoxGeometry(3.5 * px, len, 1.2 * px));
       g.rotateX(-(Math.atan2(p1.y - p0.y, p1.x - p0.x) - Math.PI / 2));
       g.translate(0, (p0.y + p1.y) / 2, (p0.x + p1.x) / 2);
       return g;
@@ -125,7 +125,7 @@ registerPanel3d('himo', {
     k.bag.rotor = rotor;
     k.bag.vines = new Map<string, THREE.Mesh>();
     // トマトの 灯り（2D の 暖かい 輪の 中心の 前）
-    lamp(k, '#ffb070', 20, k.atDepth(CX, CY - 4, -D + 3.2)!, 0, 2);
+    lamp(k, '#ffc890', 26, k.atDepth(CX, CY - 10, -D + 3.6)!, 0, 2);
   },
   update(k: Kit, _t, s) {
     const ang = Number(s.ang);

@@ -109,6 +109,10 @@ registerPanel3d('shishito', {
     building(k, 'prop_h_bld_kominka', -7.7, 0, -9.5, 0.12, { roofDepth: 4, roofRise: 1.8 });
     glowDisc(k, new THREE.Vector3(1, 1.4, -9.4), 3.5, '#FFC890', 0.4, false);
     glowDisc(k, new THREE.Vector3(0, 0, -9), 5, '#FFB070', 0.18);
+    // 障子の 灯りが 縁側を 照らす
+    const lamp = new THREE.PointLight('#FFC890', 9, 14, 1.2);
+    lamp.position.set(0.5, 2.4, -7.5);
+    k.scene.add(lamp);
   },
   update(k, _t, s) {
     const phase = String(s.phase);
