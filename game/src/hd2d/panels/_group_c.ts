@@ -10,3 +10,4 @@ import './sakuzoi';
 import './shishito';
 import './soba';
 import './taihi';
+import './tetsubou';

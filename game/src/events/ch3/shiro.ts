@@ -27,7 +27,8 @@
 
 import type { Co } from '../../engine/co';
 import { game, type Widget } from '../../engine/game';
-import type { Gfx } from '../../engine/gfx';
+import { silhouette, type Gfx } from '../../engine/gfx';
+import { PixelCanvas } from '../../engine/pixel';
 import type { Input } from '../../engine/input';
 import { measure } from '../../engine/font';
 import { markText } from '../../engine/textzones';
@@ -400,7 +401,8 @@ export class SunaPanel implements Widget {
     const kind = this.kind;
     const base = kind === 'kawaki' ? S.lt : kind === 'doro' ? S.wet : S.wetLt;
     // HD-2D（2026-11-23、hd2d/panels/suna.ts）：砂（と まわりの 貝・小石）は 3D。水の 膜・手・跡は 2D の まま 上に
-    if (!drawPanel3d(g, this, `suna_${kind}`, SX, oy, SW, CH)) {
+    const hd = drawPanel3d(g, this, `suna_${kind}`, SX, oy, SW, CH);
+    if (!hd) {
       g.rect(SX, oy, SW, CH, base);
       // the grains (dry: many pale; wet: few, the water's sheen moving over them)
       for (let i = 0; i < 70; i++) {
@@ -433,8 +435,16 @@ export class SunaPanel implements Widget {
     if (!lift) {
       const down = Math.min(1, p * 1.8);
       const off = Math.round((1 - down) * 6);
-      if (off > 0) g.alpha(0.25, () => this.hand(g, hx + 3, hy + 4, '#6A5A3A', '#6A5A3A'));
-      this.hand(g, hx - off, hy - off * 2, '#E8B890', '#C88A62');
+      if (hd) {
+        // HD-2D：陰影の ある 少し 小さな 手と、砂に 落ちる やわらかい 影（浮いて いる ほど 離れて うすい）
+        const img = handHd();
+        const sh = silhouette(img, '#5A4A2A');
+        g.alpha(0.34 - off * 0.02, () => g.img(sh, hx - HAND_OX + 2 + off, hy - HAND_OY + 3 + off));
+        g.img(img, hx - HAND_OX - off, hy - HAND_OY - off * 2);
+      } else {
+        if (off > 0) g.alpha(0.25, () => this.hand(g, hx + 3, hy + 4, '#6A5A3A', '#6A5A3A'));
+        this.hand(g, hx - off, hy - off * 2, '#E8B890', '#C88A62');
+      }
     }
   }
 
@@ -718,6 +728,77 @@ export class SunaPanel implements Widget {
     }
     if (this.phase === 'lift') SR_UI.keysLift.forEach((l, i) => g.text(l, RX, ky + i * 15, { color: '#FFE7A3' }));
   }
+}
+
+/** HD-2D の 手の 絵の まん中（手のひらの 中心）。 */
+const HAND_OX = 20;
+const HAND_OY = 26;
+let handCache: HTMLCanvasElement | null = null;
+
+/**
+ * HD-2D の ときの 手（真上から、手の 甲）：2D の 手より 少し 小さく（×0.85）、指の 丸み・つめ・関節の しわ・
+ * 手の 甲の ふくらみ・半そでの しわを ドットの 陰影で（光は 正午の 日：上から）。
+ */
+function handHd(): HTMLCanvasElement {
+  if (handCache) return handCache;
+  const W = 40;
+  const H = 74;
+  const p = new PixelCanvas(W, H);
+  const ox = HAND_OX;
+  const oy = HAND_OY;
+  const BASE = '#E8B890';
+  const LT = '#F4CCA4';
+  const SH = '#D09870';
+  const DK = '#B87E58';
+  // the sleeve, then the wrist
+  for (let y = 22; y < H - 1; y++)
+    for (let x = -13; x <= 13; x++) {
+      const k = (x + 13) / 26;
+      let c = k < 0.18 ? '#327A42' : k > 0.82 ? '#2E6A3C' : '#3E8A4E';
+      if (y < 25) c = '#5AA86A';
+      if ((y === 34 && x > -9 && x < 2) || (y === 41 && x > -2 && x < 9) || (y === 47 && x > -10 && x < -2)) c = '#2E6A3C';
+      if ((y === 33 && x > -9 && x < 2) || (y === 40 && x > -2 && x < 9)) c = '#4E9A5E';
+      p.set(ox + x, oy + y, c);
+    }
+  for (let y = 12; y < 24; y++)
+    for (let x = -8; x <= 8; x++) p.set(ox + x, oy + y, x > 5 ? SH : x < -5 ? SH : x < -2 ? LT : BASE);
+  for (let x = -8; x <= 8; x++) p.set(ox + x, oy + 23, DK);
+  // the thumb (on the left, a little under the palm)
+  p.ellipse(ox - 15, oy + 6, 4, 6, BASE);
+  p.ellipse(ox - 16, oy + 4, 2, 3, LT);
+  p.rect(ox - 17, oy + 0, 3, 2, '#F6D8C8');
+  p.hline(ox - 17, ox - 13, oy + 11, SH);
+  // the back of the hand: a gentle dome, lit from the top
+  p.ellipse(ox, oy + 4, 14, 10, BASE);
+  p.ellipse(ox - 2, oy + 1, 10, 6, LT);
+  for (let x = -12; x <= 12; x++) {
+    const y = Math.round(10 * Math.sqrt(Math.max(0, 1 - (x / 14.5) ** 2)));
+    p.set(ox + x, oy + 4 + y, SH);
+    p.set(ox + x, oy + 3 + y, x > 4 ? SH : BASE);
+  }
+  // the tendons fanning to the knuckles
+  for (let i = 0; i < 4; i++) p.line(ox - 9 + i * 6, oy - 3, ox - 3 + i * 2, oy + 9, '#E0AC84');
+  // the four fingers, rounded, with nails and a crease at each joint
+  for (let i = 0; i < 4; i++) {
+    const fx = ox - 12 + i * 6;
+    const top = oy - 22 + Math.round(Math.abs(i - 1.5) * 3);
+    const bot = oy - 3;
+    for (let y = top; y <= bot; y++)
+      for (let c = 0; c < 5; c++) {
+        if (y === top && (c === 0 || c === 4)) continue;
+        p.set(fx + c, y, c === 0 ? SH : c === 4 ? DK : c === 1 ? LT : BASE);
+      }
+    p.rect(fx + 1, top + 1, 3, 3, '#F6D8C8');
+    p.hline(fx + 1, fx + 3, top + 1, '#FBE8DC');
+    const mid = Math.round((top + bot) / 2);
+    p.hline(fx + 1, fx + 3, mid, '#D4A07A');
+    p.hline(fx + 1, fx + 3, mid + 6, '#D4A07A');
+    // the knuckle where it meets the back of the hand
+    p.hline(fx + 1, fx + 3, bot - 1, '#F6D0A8');
+  }
+  p.outline('#8A5A40');
+  handCache = p.toCanvas();
+  return handCache;
 }
 
 function* openPanel(p: SunaPanel): Co {

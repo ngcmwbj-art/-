@@ -285,7 +285,11 @@ export class TentsukiPanel implements Widget {
     const bx = NX;
     const bt = cy - 12;
     // HD-2D（2026-11-23、hd2d/panels/tentsuki.ts）：台所の タイルの 壁・台・流し箱・どんぶりは 3D。筒・突き棒・手・出た ところてんは 2D の まま 上に
-    if (!drawPanel3d(g, this, 'tentsuki', SX, oy, W, CH)) {
+    const ang = this.tilt * 0.5;
+    const pd = TUBE_L - 4 - this.push * (TUBE_L - 8);
+    // (筒・突き棒・手も 3D：傾きと 突いた ぐあいは 2D と 同じ 式。当たり・速さは 変えない)
+    const hd = drawPanel3d(g, this, 'tentsuki', SX, oy, W, CH, { state: { ang: Math.round(ang * 200) / 200, pd: Math.round(pd * 4) / 4, hold: this.holding } });
+    if (!hd) {
       // the kitchen wall's white tiles behind, the counter's wood in front
       g.rect(SX, oy, W, CH, '#E2DED2');
       for (let y = oy + 8; y < oy + CH; y += 10) g.rect(SX, y, W, 1, '#CFCABC');
@@ -317,7 +321,6 @@ export class TentsukiPanel implements Widget {
       }
     }
     // the tube (wooden, square), leaning by its tilt round the net at its foot
-    const ang = this.tilt * 0.5;
     const s = Math.sin(ang);
     const c = Math.cos(ang);
     const fx = NX;
@@ -339,33 +342,34 @@ export class TentsukiPanel implements Widget {
         }
       }
     }
-    for (let d = 0; d <= TUBE_L; d++) {
-      const [x, y] = at(d);
-      const xx = Math.round(x - TUBE_W / 2);
-      const yy = Math.round(y);
-      g.rect(xx, yy, TUBE_W, 1, d % 9 === 0 ? '#9A7448' : '#B8925A');
-      g.rect(xx, yy, 2, 1, '#8A6444');
-      g.rect(xx + TUBE_W - 2, yy, 2, 1, '#D8B07A');
-    }
-    // the net at the foot, the block of ところてん seen through the top, the plunger going down
-    {
-      const [x, y] = at(0);
-      g.rect(Math.round(x - TUBE_W / 2), Math.round(y), TUBE_W, 2, '#6A707A');
-      for (let i = 1; i < TUBE_W; i += 3) g.px(Math.round(x - TUBE_W / 2 + i), Math.round(y + 1), '#C8CDD4');
-    }
-    const pd = TUBE_L - 4 - this.push * (TUBE_L - 8);
-    const [px, py] = at(pd);
-    g.rect(Math.round(px - TUBE_W / 2 + 2), Math.round(py), TUBE_W - 4, 3, '#7A5A3A');
-    // the rod and its handle, up out of the tube
-    const [hx, hy] = at(pd + 18);
-    g.line(Math.round(px), Math.round(py), Math.round(hx), Math.round(hy), '#8A6444');
-    g.line(Math.round(px) + 1, Math.round(py), Math.round(hx) + 1, Math.round(hy), '#A8825A');
-    g.rect(Math.round(hx - 9), Math.round(hy - 2), 18, 4, '#9A7448');
-    g.rect(Math.round(hx - 9), Math.round(hy - 2), 18, 1, '#C8A06A');
-    // しゅん's hand on the handle while pressing (from the right)
-    if (this.holding) {
-      g.rect(Math.round(hx - 6), Math.round(hy - 6), 12, 5, '#E8B890');
-      g.rect(Math.round(hx + 6), Math.round(hy - 5), 14, 4, '#3E8A4E');
+    if (!hd) {
+      for (let d = 0; d <= TUBE_L; d++) {
+        const [x, y] = at(d);
+        const xx = Math.round(x - TUBE_W / 2);
+        const yy = Math.round(y);
+        g.rect(xx, yy, TUBE_W, 1, d % 9 === 0 ? '#9A7448' : '#B8925A');
+        g.rect(xx, yy, 2, 1, '#8A6444');
+        g.rect(xx + TUBE_W - 2, yy, 2, 1, '#D8B07A');
+      }
+      // the net at the foot, the block of ところてん seen through the top, the plunger going down
+      {
+        const [x, y] = at(0);
+        g.rect(Math.round(x - TUBE_W / 2), Math.round(y), TUBE_W, 2, '#6A707A');
+        for (let i = 1; i < TUBE_W; i += 3) g.px(Math.round(x - TUBE_W / 2 + i), Math.round(y + 1), '#C8CDD4');
+      }
+      const [px, py] = at(pd);
+      g.rect(Math.round(px - TUBE_W / 2 + 2), Math.round(py), TUBE_W - 4, 3, '#7A5A3A');
+      // the rod and its handle, up out of the tube
+      const [hx, hy] = at(pd + 18);
+      g.line(Math.round(px), Math.round(py), Math.round(hx), Math.round(hy), '#8A6444');
+      g.line(Math.round(px) + 1, Math.round(py), Math.round(hx) + 1, Math.round(hy), '#A8825A');
+      g.rect(Math.round(hx - 9), Math.round(hy - 2), 18, 4, '#9A7448');
+      g.rect(Math.round(hx - 9), Math.round(hy - 2), 18, 1, '#C8A06A');
+      // しゅん's hand on the handle while pressing (from the right)
+      if (this.holding) {
+        g.rect(Math.round(hx - 6), Math.round(hy - 6), 12, 5, '#E8B890');
+        g.rect(Math.round(hx + 6), Math.round(hy - 5), 14, 4, '#3E8A4E');
+      }
     }
     // the plumb line: a faint upright through the net, so "straight" can be seen
     if (this.phase === 'tilt') for (let y = oy + 6; y < fy - 2; y += 4) g.px(fx, y, '#9A9488');

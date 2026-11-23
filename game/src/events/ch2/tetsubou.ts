@@ -49,6 +49,7 @@ import { ch2Open, hStage, lanternOn, routeTiles } from './common';
 import { DF } from './dome';
 import { HOWTO } from '../../data/text/howto';
 import { closeupWide } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 
 export const TF = {
   /** 鉄棒を 2回 調べた あとの グソっ君。 */
@@ -492,6 +493,11 @@ export class TetsuPanel implements Widget {
   private drawScene(g: Gfx, dy: number): void {
     const by = BAR_Y + dy;
     const gy = GROUND_Y + dy;
+    // HD-2D：夜の 校庭と 3段の 鉄棒（hd2d/panels/tetsubou.ts）。人・手の あと・数・ゲージは 2D の まま 上に
+    if (drawPanel3d(g, this, 'tetsubou', SX, SY + dy, RX - SX - 4, CH, { state: { dark: this.dark } })) {
+      this.drawPeople(g, by, gy, dy);
+      return;
+    }
     g.rect(SX, SY + dy, RX - SX - 4, CH, this.dark ? '#141826' : '#1E2440');
     // a few stars
     for (let i = 0; i < 9; i++) g.rect(SX + 8 + ((i * 53) % 190), SY + dy + 3 + ((i * 29) % 20), 1, 1, '#C8D0F0');
@@ -510,6 +516,13 @@ export class TetsuPanel implements Widget {
     g.rect(BAR_X1 - 3, by - 2, 3, gy - by + 2, post);
     g.rect(BAR_X0, by, BAR_X1 - BAR_X0, 3, this.dark ? '#6A6058' : '#A0907A');
     g.rect(BAR_X0, by + 2, BAR_X1 - BAR_X0, 1, this.dark ? '#4A4038' : '#7A6A58');
+    // the lantern's warm light round しゅん (h1)
+    if (!this.dark) g.alpha(0.1, () => g.circle(SHUN_X, by + 20, 46, '#FFB070'));
+    this.drawPeople(g, by, gy, dy);
+  }
+
+  /** 棒の 手の あと・しゅん・グソっ君・まつ先生・数・暗さ・ゲージ（2D でも HD-2D でも 上に）。 */
+  private drawPeople(g: Gfx, by: number, gy: number, dy: number): void {
     if (!this.dark) {
       // まつ先生's two big hands (left of the middle), and しゅん's two small ones after the 1回
       const metal = '#C8CCD8';
@@ -517,8 +530,6 @@ export class TetsuPanel implements Widget {
       if (flag(TF.done) || this.shun === 'over') for (const hx of [SHUN_X - 7, SHUN_X + 3]) g.rect(hx, by, 4, 2, metal);
       if (flag(TF.kane) || this.kane) for (let i = 0; i < 6; i++) g.rect(KANE_X - 6 + i * 2 + (i % 2), by + (i % 2), 1, 1, metal);
     }
-    // the lantern's warm light round しゅん (h1)
-    if (!this.dark) g.alpha(0.1, () => g.circle(SHUN_X, by + 20, 46, '#FFB070'));
     this.drawShun(g, by, gy);
     if (this.kane) {
       const img = kaneUpside();

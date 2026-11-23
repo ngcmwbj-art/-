@@ -14,6 +14,7 @@ import { getProp } from '../../art/props/registry';
 import type { PropEnv } from '../../art/props/types';
 import { H_TEX, type HGround } from '../../art/tiles/hoshi_ground';
 import { field } from '../../world/field';
+import { h01, mulberry, valueNoise } from '../../art/tiles/noise';
 import type { Kit, PanelLight } from '../panel3d';
 
 const cache = new Map<string, HTMLCanvasElement>();
@@ -89,4 +90,34 @@ export function hGroundImg(g: HGround, w: number, h: number): HTMLCanvasElement 
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) p.set(x, y, tex(x, y, 0, ctx));
     return p.toCanvas();
   });
+}
+
+/** 0..1 の なめらかな ゆらぎ（大きさ s ドット）。 */
+export function soft(x: number, y: number, s: number, seed: number): number {
+  return valueNoise(x / s, y / s, seed) * 0.65 + valueNoise((x * 2.3) / s, (y * 2.3) / s, seed + 7) * 0.35;
+}
+/** 0..1 の ドットごとの ばらつき。 */
+export const grain = (x: number, y: number, seed: number): number => h01(x, y, seed);
+
+/** パレット（暗い → 明るい）から 0..1 で 選ぶ。 */
+export function ramp(pal: string[], v: number): string {
+  return pal[Math.max(0, Math.min(pal.length - 1, Math.floor(v * pal.length)))];
+}
+
+/** ひび（ランダムに 曲がる 細い 線、下の ふちに 明るい 欠け）。 */
+export function crack(p: PixelCanvas, x: number, y: number, len: number, dir: number, seed: number, dark: string, lip: string): void {
+  const rng = mulberry(seed);
+  let cx = x;
+  let cy = y;
+  for (let i = 0; i < len; i++) {
+    if (p.alpha(cx, cy) > 0) p.set(cx, cy, dark);
+    if (p.alpha(cx, cy + 1) > 0 && rng() < 0.5) p.set(cx, cy + 1, lip);
+    cx += dir;
+    const r = rng();
+    if (r < 0.3) cy--;
+    else if (r > 0.72) cy++;
+    if (rng() < 0.06) {
+      crack(p, cx, cy, Math.floor(len / 3), dir, seed + i, dark, lip);
+    }
+  }
 }

@@ -298,7 +298,8 @@ export class UkiPanel implements Widget {
 
   private drawSeuki(g: Gfx, oy: number): void {
     // HD-2D（2026-11-23、hd2d/panels/seuki.ts）：浜の 砂は 3D。しゅん・水の 輪・合図・ゲージは 2D の まま 上に
-    if (!drawPanel3d(g, this, 'uki_seuki', SX, oy, SW, CH)) {
+    const hd = drawPanel3d(g, this, 'uki_seuki', SX, oy, SW, CH);
+    if (!hd) {
       g.rect(SX, oy, SW, CH, SAND);
       for (let i = 0; i < 90; i++) g.rect(SX + ((i * 47) % SW), oy + ((i * 29) % CH), 1, 1, i % 3 ? SAND_DK : SAND_LT);
     }
@@ -315,7 +316,8 @@ export class UkiPanel implements Widget {
       });
     }
     const relax = this.step === 'nuku' || flag(stepF('nuku')) ? 1 - this.gauge : 0;
-    lying(g, cx, cy, this.breath, this.chin, relax, this.t);
+    if (hd) lyingHd(g, cx, cy, this.breath, this.chin, relax, this.t);
+    else lying(g, cx, cy, this.breath, this.chin, relax, this.t);
     // the strain: short strokes beside the hands and feet while the strength is still in
     const strain = this.step === 'nuku' ? this.gauge : flag(stepF('nuku')) ? 0 : 1;
     if (strain > 0.15 && (this.step === 'nuku' || !flag(stepF('nuku')))) {
@@ -488,6 +490,153 @@ function lying(g: Gfx, cx: number, cy: number, breath: number, chin: number, rel
     g.rect(ex, cy - 4, 2, 2, INK);
     g.rect(ex, cy + 3, 2, 2, INK);
   }
+  g.rect(hx + 7 - tilt, cy - 1, 1, 3, '#C8604A');
+  // the chin line once raised
+  if (chin > 0) g.alpha(chin, () => g.rect(hx + 10 - tilt, cy - 3, 1, 7, SKIN_D));
+}
+
+const OUT = '#4A3028';
+const SKIN_L = '#FFE8D0';
+const TEE_D = '#2E8452';
+const SHORTS_L = '#4A68A8';
+const SHORTS_D = '#22386A';
+const HAIR_L = '#4A3A32';
+
+/** 太さ w の 手足（輪郭 → 地 → 上の 明るい 線・下の 陰）。上から 見た 光（正午：上が 明るい）。 */
+function limb(g: Gfx, x0: number, y0: number, x1: number, y1: number, w: number, base: string, lt: string, dk: string): void {
+  const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+  const stamp = (ww: number, dy: number, c: string) => {
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / n);
+      const y = Math.round(y0 + ((y1 - y0) * i) / n);
+      g.rect(x - Math.floor(ww / 2), y - Math.floor(ww / 2) + dy, ww, ww, c);
+    }
+  };
+  stamp(w + 2, 0, OUT);
+  stamp(w, 0, dk);
+  stamp(Math.max(1, w - 1), -1, base);
+  stamp(1, -Math.floor(w / 2) + 1, lt);
+}
+
+/** 塗った 楕円（輪郭つき）。 */
+function blobE(g: Gfx, cx: number, cy: number, rx: number, ry: number, c: string): void {
+  for (let d = -ry; d <= ry; d++) {
+    const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (d / (ry + 0.5)) ** 2)));
+    g.rect(cx - hw, cy + d, hw * 2 + 1, 1, c);
+  }
+}
+
+/**
+ * HD-2D の ときの あおむけの しゅん（2026-11-23 まとめ役：四角い 人形に 見えない ように）。2D の lying() と
+ * 同じ 形・同じ 動き（breath・chin・relax）で、輪郭・陰影・顔・髪・服の しわを フィールドの 人物くらいの 細かさで。
+ * 砂に 落ちる やわらかい 影（体の 形）つき。
+ */
+function lyingHd(g: Gfx, cx: number, cy: number, breath: number, chin: number, relax: number, t: number): void {
+  const hx = cx - 46;
+  const spread = Math.round(4 + relax * 6);
+  const bh = 9 + Math.round(breath * 3 + Math.sin(t / 700) * breath * 1);
+  const ex = cx - 14 + Math.round(relax * 4);
+  // the soft shadow on the sand, in the body's own shape (the noon sun: just under and a little down)
+  g.alpha(0.22, () => {
+    blobE(g, hx + 2, cy + 3, 11, 11, '#6A5436');
+    g.rect(cx - 24, cy - bh + 3, 50, bh * 2, '#6A5436');
+    for (const s of [-1, 1]) {
+      limb(g, cx + 22, cy + s * 4 + 3, cx + 52, cy + s * (5 + spread) + 3, 5, '#6A5436', '#6A5436', '#6A5436');
+      limb(g, cx - 20, cy + s * 9 + 3, ex + 1, cy + s * (18 + spread) + 3, 4, '#6A5436', '#6A5436', '#6A5436');
+    }
+  });
+  // legs: thighs out of the shorts, knees, shins; sandals with their straps
+  for (const s of [-1, 1]) {
+    const fy = cy + s * (5 + spread);
+    const kx = cx + 37;
+    const ky = Math.round(cy + s * 4 + (fy - cy - s * 4) * 0.5);
+    limb(g, cx + 22, cy + s * 4, kx, ky, 5, SKIN, SKIN_L, SKIN_D);
+    limb(g, kx, ky, cx + 50, fy, 4, SKIN, SKIN_L, SKIN_D);
+    g.rect(kx - 1, ky - 1, 2, 1, SKIN_D);
+    // the sandal (seen from above: the sole past the toes, the strap across)
+    g.rect(cx + 49, fy - 3, 9, 7, OUT);
+    g.rect(cx + 50, fy - 2, 7, 5, SANDAL);
+    g.rect(cx + 50, fy - 2, 7, 1, '#F27A68');
+    g.rect(cx + 52, fy - 2, 1, 5, '#B8382A');
+    g.rect(cx + 55, fy - 1, 2, 3, SKIN);
+  }
+  // the shorts (waistband, the fold down the middle, darker underneath)
+  g.rect(cx + 11, cy - 9, 16, 18, OUT);
+  g.rect(cx + 12, cy - 8, 14, 16, SHORTS);
+  g.rect(cx + 12, cy - 8, 2, 16, '#3A5698');
+  g.rect(cx + 12, cy - 8, 14, 2, SHORTS_L);
+  g.rect(cx + 12, cy + 5, 14, 3, SHORTS_D);
+  g.rect(cx + 18, cy - 1, 8, 1, SHORTS_D);
+  g.rect(cx + 22, cy - 6, 1, 4, SHORTS_D);
+  // arms out to the sides (more open as the strength goes): upper arm out of the sleeve, the forearm, the hand
+  for (const s of [-1, 1]) {
+    const ey = cy + s * (18 + spread);
+    limb(g, cx - 20, cy + s * 9, ex + 1, ey, 4, SKIN, SKIN_L, SKIN_D);
+    if (relax > 0.6) {
+      // open fingers
+      for (let f = -1; f <= 1; f++) {
+        g.rect(ex + f * 2, ey + s * 2, 1, 4, OUT);
+        g.rect(ex + f * 2, ey + s * 2, 1, 3, SKIN);
+      }
+    }
+    blobE(g, ex + 1, ey, 3, 3, OUT);
+    blobE(g, ex + 1, ey, 2, 2, SKIN);
+    g.rect(ex, ey - 1, 2, 1, SKIN_L);
+    g.rect(ex + 2, ey + 1, 1, 1, SKIN_D);
+  }
+  // the tee: rounded, light on the top, shade on the bottom, sleeves at the shoulders, the white print,
+  // the creases where it pulls round the chest
+  g.rect(cx - 25, cy - bh - 1, 36, bh * 2 + 2, OUT);
+  g.rect(cx - 24, cy - bh, 34, bh * 2, TEE);
+  g.rect(cx - 24, cy - bh, 34, 2, TEE_L);
+  g.rect(cx - 24, cy + bh - 3, 34, 3, TEE_D);
+  g.rect(cx - 24, cy - bh, 2, bh * 2, TEE_D);
+  for (const s of [-1, 1]) {
+    // the short sleeves
+    g.rect(cx - 25, cy + s * (bh - 2) - 2, 9, 5, OUT);
+    g.rect(cx - 24, cy + s * (bh - 2) - 1, 7, 3, s < 0 ? TEE_L : TEE);
+  }
+  g.rect(cx - 18, cy - 3, 8, 6, '#F4F1E8');
+  g.rect(cx - 18, cy + 2, 8, 1, '#D8D4C8');
+  g.rect(cx - 16, cy - 1, 4, 1, '#3FA66B');
+  for (const [x, y, l] of [[-6, -5, 6], [-4, 4, 5], [2, -2, 4]] as [number, number, number][]) g.rect(cx + x, cy + y, l, 1, TEE_D);
+  // the collar (a ring at the neck)
+  g.rect(cx - 26, cy - 4, 3, 8, '#2E8452');
+  g.rect(cx - 27, cy - 3, 1, 6, OUT);
+  // the head: face up; with the chin up, the face tips back (the top of the head towards the left)
+  const tilt = Math.round(chin * 3);
+  blobE(g, hx, cy, 11, 11, OUT);
+  blobE(g, hx, cy, 10, 10, HAIR);
+  // the ears at the sides of the face
+  for (const s of [-1, 1]) {
+    blobE(g, hx + 3 - tilt, cy + s * 9, 2, 2, OUT);
+    g.rect(hx + 2 - tilt, cy + s * 9 - 1, 3, 2, SKIN);
+  }
+  blobE(g, hx + 3 - tilt, cy, 8, 8, SKIN);
+  blobE(g, hx + 2 - tilt, cy - 2, 5, 4, SKIN_L);
+  g.rect(hx + 9 - tilt, cy - 5, 1, 10, SKIN_D);
+  // the fringe over the forehead, its highlight
+  g.rect(hx - 6 - tilt, cy - 7, 4, 14, HAIR);
+  g.rect(hx - 3 - tilt, cy - 6, 2, 4, HAIR);
+  g.rect(hx - 3 - tilt, cy + 2, 2, 3, HAIR);
+  g.rect(hx - 8, cy - 5, 1, 7, HAIR_L);
+  g.rect(hx - 6, cy - 8, 3, 1, HAIR_L);
+  // brows, eyes (closed lines once relaxed), the nose's shade, the mouth, the cheeks
+  const exy = hx + 2 - tilt;
+  g.rect(exy - 2, cy - 5, 1, 3, '#4A3028');
+  g.rect(exy - 2, cy + 3, 1, 3, '#4A3028');
+  if (relax > 0.6) {
+    g.rect(exy, cy - 4, 1, 2, INK);
+    g.rect(exy, cy + 3, 1, 2, INK);
+  } else {
+    g.rect(exy, cy - 4, 2, 2, INK);
+    g.rect(exy, cy + 3, 2, 2, INK);
+    g.rect(exy, cy - 4, 1, 1, '#FFFFFF');
+    g.rect(exy, cy + 3, 1, 1, '#FFFFFF');
+  }
+  g.rect(exy + 3, cy, 1, 1, SKIN_D);
+  g.rect(exy + 2, cy - 6, 2, 1, '#F4A8A0');
+  g.rect(exy + 2, cy + 6, 2, 1, '#F4A8A0');
   g.rect(hx + 7 - tilt, cy - 1, 1, 3, '#C8604A');
   // the chin line once raised
   if (chin > 0) g.alpha(chin, () => g.rect(hx + 10 - tilt, cy - 3, 1, 7, SKIN_D));
