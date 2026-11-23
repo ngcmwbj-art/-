@@ -69,25 +69,31 @@ function headTone(x: number, y: number): number {
   const yy = y - 12;
   const half = halfAt(yy);
   const dx = (x - CX + 0.5) / Math.max(1, half);
-  // the head is a rounded box: light falls off toward the sides, the left a little brighter
-  let v = 4.3 - Math.abs(dx + 0.3) * 3.3;
-  // the rim on the left (the tubes behind and to the left catch the hair at the edge)
-  if (dx < -0.86) v += 1.6;
-  // the forehead's broad flat plane (lit), the poll darker under the curls
-  if (yy > 8 && yy < 40) v += 0.7 * (1 - Math.abs(dx + 0.1) * 1.4);
+  const ax = Math.abs(dx);
+  let v: number;
+  if (yy < 28) {
+    // the broad forehead: a lit plane, rolling off to the poll and the sides
+    v = 4.6 - Math.abs(dx + 0.15) * 2.6 - (yy < 6 ? (6 - yy) * 0.25 : 0);
+  } else {
+    // the long face: the front (bridge) lit, the cheeks turning away into the dark
+    v = ax < 0.42 ? 4.0 - ax * 1.5 : 3.4 - (ax - 0.42) * 4.2;
+  }
+  // light from the left
+  v += dx < 0 ? 0.45 : -0.45;
+  // the rim on the left edge (the tubes behind and to the left)
+  if (dx < -0.88) v += 1.8;
   // the brows over the eyes: a ridge catching the light, the hollow under it
   for (const s of [-1, 1]) {
     const ex = CX + s * 26;
     const d = Math.hypot((x - ex) / 9, (y - 31) / 3);
-    if (d < 1) v += 1.4 * (1 - d) * (s < 0 ? 1.2 : 0.8);
-    const d2 = Math.hypot((x - ex) / 8, (y - 42) / 4);
-    if (d2 < 1) v -= 1.0 * (1 - d2);
+    if (d < 1) v += 1.6 * (1 - d) * (s < 0 ? 1.2 : 0.8);
+    const d2 = Math.hypot((x - ex) / 8, (y - 43) / 4);
+    if (d2 < 1) v -= 1.4 * (1 - d2);
   }
-  // the nasal bridge: a long sheen down the middle (just left of centre)
-  if (yy > 30 && yy < 60) v += 1.3 * Math.max(0, 1 - Math.abs(x - (CX - 3)) / 6) * (1 - Math.abs(yy - 45) / 17);
-  // the cheeks hollow under the eyes, the jaw's edge dark
-  if (yy > 32 && yy < 70) v -= 0.8 * Math.max(0, Math.abs(dx) - 0.45) * 2;
-  if (yy > 76) v -= 0.6;
+  // the nasal bridge's sheen: a long line just left of the middle
+  if (yy > 28 && yy < 58) v += 1.8 * Math.max(0, 1 - Math.abs(x - (CX - 3)) / 3.5) * (1 - Math.abs(yy - 42) / 17);
+  // the chin under the muzzle
+  if (yy > 76) v -= 1.0;
   return v;
 }
 
@@ -98,7 +104,7 @@ function headImg(kind: number, face = false): HTMLCanvasElement {
       const half = halfAt(y - 12);
       for (let x = CX - half; x < CX + half; x++) {
         const dx = (x - CX + 0.5) / half;
-        let v = headTone(x, y) + (hh(x, y, 3) - 0.5) * 0.9;
+        const v = headTone(x, y) + (hh(x, y, 3) - 0.5) * 0.5;
         p.set(x, y, hair(v));
       }
       {
@@ -119,7 +125,7 @@ function headImg(kind: number, face = false): HTMLCanvasElement {
         if (jy < 50) ang = Math.atan2(jy - wy, jx - wx);
         else ang = Math.PI / 2 + ((jx - CX) / 40) * 0.6;
         const v = headTone(jx, jy);
-        const c = hh(x, y, 9) < 0.45 ? hair(v + 1.6) : hair(v - 1.3);
+        const c = hh(x, y, 9) < 0.45 ? hair(v + 1.1) : hair(v - 1.0);
         for (let i = 0; i < 3; i++) {
           const sx = Math.round(jx + Math.cos(ang) * i);
           const sy = Math.round(jy + Math.sin(ang) * i);
