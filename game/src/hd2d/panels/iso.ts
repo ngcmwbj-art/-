@@ -50,7 +50,7 @@ function groundTex(g: C3Ground, tint?: string): HTMLCanvasElement {
       let gg = d[i * 4 + 1];
       let b = d[i * 4 + 2];
       const over = lum(i) - avg;
-      if (over > 18) {
+      if (over > 12) {
         const x = i % 64;
         const y = Math.floor(i / 64);
         let n = 0;
@@ -59,7 +59,7 @@ function groundTex(g: C3Ground, tint?: string): HTMLCanvasElement {
         let sb = 0;
         for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-2, 0], [2, 0]]) {
           const j = ((y + dy + 64) % 64) * 64 + ((x + dx + 64) % 64);
-          if (lum(j) - avg > 18) continue;
+          if (lum(j) - avg > 12) continue;
           sr += d[j * 4];
           sg += d[j * 4 + 1];
           sb += d[j * 4 + 2];
