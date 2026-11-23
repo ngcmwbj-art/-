@@ -50,6 +50,12 @@ import { installBattlePlaces } from './battle';
 // 大写しの 絵（ミニゲームの パネル）の HD-2D（2026-11-23）
 import { installPanel3d } from './panel3d';
 import './panels/miharashi';
+import './panels/_group_a';
+import './panels/_group_b';
+import './panels/_group_c';
+import './panels/_group_d';
+import './panels/_group_e';
+import './panels/_group_f';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 /**
