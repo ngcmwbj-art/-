@@ -947,6 +947,19 @@ if (import.meta.env.DEV) {
     return bar();
   });
 
+  /** QA（大写しの HD-2D の 写真）：鉄棒の 大写しを 直接 開く／もう一度で 閉じる（shun：stand・hang・pull、mode）。 */
+  registerDebug('tetsuPanel', (shun: Shun = 'hang', mode: Mode = 'hang', kane: unknown = false) => {
+    const old = game.ui.widgets.find((w) => w instanceof TetsuPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new TetsuPanel();
+    p.open = 1;
+    p.shun = shun;
+    p.mode = mode;
+    p.hanging = shun !== 'stand';
+    p.kane = !!kane;
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('tetsuState', () => {
     const p = game.ui.widgets.find((w) => w instanceof TetsuPanel) as TetsuPanel | undefined;
     const flags: Record<string, number> = {};
