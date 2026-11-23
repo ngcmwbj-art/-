@@ -370,8 +370,8 @@ export class TaihiPanel implements Widget {
         if (!in3d) g.rect(x, y, CEL_W, CEL_H, base);
         // a little texture: sawdust flecks
         if (!in3d && (c * 7 + r * 3) % 3 === 0) g.rect(x + 3 + ((c + r) % 4) * 3, y + 4 + ((c * 5) % 3) * 2, 2, 1, kind === 'dry' ? '#C8AC84' : on ? '#A88A64' : '#5A4434');
-        if (kind === 'hot') {
-          // the core: a warm glow
+        if (kind === 'hot' && !in3d) {
+          // the core: a warm glow (HD-2D：断面の 絵の 熱い 芯と 中の 光)
           const s = Math.sin(this.t / 300 + c) * 0.5 + 0.5;
           g.rect(x + 2, y + 2, CEL_W - 4, CEL_H - 4, '#C8603A', 0.3 + s * 0.3);
         }

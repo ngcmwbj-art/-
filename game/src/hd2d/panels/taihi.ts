@@ -47,11 +47,21 @@ function cutImg(): HTMLCanvasElement {
       for (let c = 0; c < COLS; c++) {
         const kind = cellKind(c, r);
         if (kind === 'out') continue;
-        const base = kind === 'dry' ? '#9A7A58' : kind === 'hot' ? '#8A4430' : r <= 1 ? '#6A4E38' : '#5A4030';
+        const base = kind === 'dry' ? '#9A7A58' : kind === 'hot' ? '#7A4430' : r <= 1 ? '#6A4E38' : '#5A4030';
         for (let y = 0; y < CEL_H; y++)
           for (let x = 0; x < CEL_W; x++) {
             const n = rng.next();
-            p.set(c * CEL_W + x, r * CEL_H + y, n < 0.08 ? '#3A2A20' : n > 0.94 ? (kind === 'dry' ? '#C8AC84' : '#8A6A4E') : base);
+            const gx = c * CEL_W + x;
+            const gy = r * CEL_H + y;
+            if (kind === 'hot') {
+              // 熱い 芯：湯気で しめった 黒っぽい 土に、発酵の 熱で 白い 菌糸（放線菌）の すじと 赤みの むら
+              const warm = Math.sin(gx * 0.35 + gy * 0.2) * Math.sin(gy * 0.4) > 0.2;
+              let q = n < 0.1 ? '#2A1A14' : warm ? '#9A4A2E' : base;
+              if (n > 0.93) q = '#E8DCC8';
+              p.set(gx, gy, q);
+              continue;
+            }
+            p.set(gx, gy, n < 0.08 ? '#3A2A20' : n > 0.94 ? (kind === 'dry' ? '#C8AC84' : '#8A6A4E') : base);
           }
       }
     // 丸い 上の ふち の 外は 透明に（2D の 角を 落とす 線と 同じ）
@@ -131,6 +141,11 @@ registerPanel3d('taihi', {
         const u = k.pxAt(D);
         const c = k.atDepth(HX + MOUND.cx, HY + MOUND.cy, -D)!;
         dome(k, new THREE.Vector3(c.x, c.y, -D), MOUND.rx * u, MOUND.ry * u, 2.2, true);
+        // 熱い 芯の 光（断面の 下の まん中から、ゆらがない 暖かい 光）
+        const hc = k.atDepth(HX + 5.5 * CEL_W, HY + 4 * CEL_H, -D)!;
+        const heat = new THREE.PointLight('#E0703A', 1.6, 1.6, 1.6);
+        heat.position.set(hc.x, hc.y, -D + 0.35);
+        k.scene.add(heat);
       });
       const at = k.atDepth(HX + Number(s.cx) * CEL_W + CEL_W / 2, HY + Number(s.cy) * CEL_H + CEL_H / 2, -D)!;
       lamp.position.set(at.x, at.y + 0.1, -D + 0.9);

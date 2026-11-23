@@ -10,6 +10,8 @@
 // 置き場所は 2D の 絵の px（タイヤの 中心・たらい・柱）を Kit.atDepth で 同じ 所に。
 
 import * as THREE from 'three';
+import { mix } from '../../engine/pixel';
+import { Rng } from '../../engine/rng';
 import { registerPanel3d, type Kit } from '../panel3d';
 import { building, CH2_NIGHT, glowDisc, hGround, nightSky, paint } from './_kit_c';
 
@@ -69,9 +71,20 @@ function tire(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, z: number,
 
 /** 金物の 灰色・トタンの 絵。 */
 const metal = (key: string, base: string, lines: string) =>
-  paint(`mg:metal:${key}`, 16, 16, (p) => {
-    p.fill(base);
-    for (let x = 0; x < 16; x += 4) p.vline(x, 0, 15, lines);
+  paint(`mg:metal2:${key}`, 32, 32, (p) => {
+    // トタン・鉄：亜鉛の まだら（スパングル）、すじ、さび の 点、こすれた 明るい 所
+    const rng = new Rng(key.length * 13 + 5);
+    for (let y = 0; y < 32; y++)
+      for (let x = 0; x < 32; x++) {
+        const sp = Math.sin(x * 0.9 + Math.sin(y * 0.7) * 2) * Math.sin(y * 0.8 + x * 0.2);
+        const n = rng.next();
+        let c = sp > 0.5 ? mix(base, '#FFFFFF', 0.12) : sp < -0.5 ? mix(base, '#000000', 0.1) : base;
+        if (n < 0.015) c = '#8A5A3A';
+        else if (n < 0.03) c = mix(base, '#6A4A30', 0.4);
+        p.set(x, y, c);
+      }
+    for (let x = 0; x < 32; x += 8) p.vline(x, 0, 31, lines);
+    for (let x = 1; x < 32; x += 8) p.vline(x, 0, 31, mix(base, '#FFFFFF', 0.2));
   });
 
 /** 夜の 分校の 前：空・校舎の 前の 壁・校庭の 土・戸口の 灯り。床の 高さを 返す。 */
@@ -162,11 +175,16 @@ registerPanel3d('mg_pump', {
     const Z = -5.2;
     const u = k.pxAt(5.2);
     const p0 = k.atDepth(40, 94, Z)!;
-    const red = paint('mg:red', 8, 16, (p) => {
-      p.fill('#C83A2E');
-      p.vline(0, 0, 15, '#E86A5A');
-      p.vline(1, 0, 15, '#E86A5A');
-      p.vline(7, 0, 15, '#A82A20');
+    const red = paint('mg:red2', 16, 48, (p) => {
+      // 赤い 筒：左に つやの 光、右に 影、白い ラベルと 目盛り、こすれた 傷
+      for (let y = 0; y < 48; y++)
+        for (let x = 0; x < 16; x++) p.set(x, y, x < 3 ? '#E86A5A' : x === 3 ? '#F49A8A' : x > 12 ? '#A82A20' : '#C83A2E');
+      p.rect(4, 16, 8, 12, '#F4F1E8');
+      for (let y = 18; y < 27; y += 2) p.hline(5, 9 + (y % 4 === 0 ? 2 : 0), y, '#3A3A44');
+      p.rect(5, 17, 6, 1, '#2A5AA0');
+      for (const [x, y] of [[6, 6], [9, 34], [5, 40], [11, 10]] as const) p.hline(x, x + 2, y, '#E8A090');
+      p.hline(0, 15, 0, '#2A2A30');
+      p.hline(0, 15, 47, '#2A2A30');
     });
     const dark = metal('base', '#3A3A44', '#30303A');
     k.box(p0.x - 10 * u, p0.x + 14 * u, fl, fl + 3 * u, Z - 6 * u, Z + 4 * u, { front: dark, top: dark, left: dark, right: dark });

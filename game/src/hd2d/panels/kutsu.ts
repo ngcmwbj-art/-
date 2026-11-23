@@ -200,7 +200,7 @@ registerPanel3d('kutsu_furu', {
   cam: { fov: 22, pitch: 0, pos: [0, 0, 0], near: 0.3, far: 120 },
   light: { ...NIGHT_LAMP, hemiI: 1.0, sunI: 0.5 },
   fog: null,
-  shadow: { x: 0, z: -D, hw: 8, hd: 6 },
+  shadow: null,
   grade: () => null,
   focus: 0.4,
   tilt: 0.5,

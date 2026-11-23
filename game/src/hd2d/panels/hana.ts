@@ -11,7 +11,7 @@ import { PixelCanvas, mix } from '../../engine/pixel';
 import { Rng } from '../../engine/rng';
 import { hnEar, type HoLook } from '../../events/ch2/hana';
 import { registerPanel3d, type Kit } from '../panel3d';
-import { lamp, NIGHT_LAMP, once, paint } from './_kit_b';
+import { lamp, NIGHT_LAMP, once, paint, ramp, soft } from './_kit_b';
 
 const W = 328;
 const H = 112;
@@ -27,44 +27,52 @@ function earImg(look: HoLook, scale: number): HTMLCanvasElement {
   return once(`hnear:${look}:${scale}`, () => paint(EW, EH, (g) => hnEar(g, BX, EH - 1, look, scale, 0, 'body')));
 }
 
-/** まわりの 稲の 株（細い 葉の 束、首を たれた 穂が 少し）。 */
+/** まわりの 稲の 株（細い 葉の 束：根もとが 暗く 先が 明るい、首を たれた 穂が 少し）。 */
 function tuftImg(v: number): HTMLCanvasElement {
-  return once(`hntuft:${v}`, () => {
-    const w = 28;
-    const h = 46;
+  return once(`hntuft2:${v}`, () => {
+    const w = 30;
+    const h = 48;
     const rng = new Rng(910 + v);
     return paint(w, h, (g) => {
-      for (let i = 0; i < 9; i++) {
-        const x0 = 12 + Math.round(rng.next() * 4);
-        const dx = Math.round((rng.next() - 0.5) * 24);
-        const top = 4 + Math.round(rng.next() * 16);
-        g.line(x0, h - 1, x0 + dx, top, i % 3 ? '#2E5A2A' : '#3E7A32');
+      for (let i = 0; i < 16; i++) {
+        const x0 = 12 + Math.round(rng.next() * 6);
+        const dx = Math.round((rng.next() - 0.5) * 28);
+        const top = 3 + Math.round(rng.next() * 18);
+        const steps = h - 1 - top;
+        for (let k = 0; k <= steps; k++) {
+          const t = k / steps;
+          const x = Math.round(x0 + dx * t * t);
+          const y = h - 1 - k;
+          g.px(x, y, ramp(['#1A2E16', '#24401E', '#2E5226', '#3E6A30', '#4E7E3A'], t * 0.9 + (i % 3) * 0.08));
+        }
       }
       for (let i = 0; i < 3; i++) {
-        const x = 8 + i * 6 + Math.round(rng.next() * 3);
-        const y = 8 + Math.round(rng.next() * 8);
-        g.line(x, y + 8, x + 4, y, '#4E7A34');
-        for (let k = 0; k < 4; k++) g.px(x + 4 + k, y + k, '#6A9A3A');
+        const x = 7 + i * 7 + Math.round(rng.next() * 3);
+        const y = 6 + Math.round(rng.next() * 8);
+        g.line(x, y + 9, x + 4, y, '#4E7A34');
+        for (let k = 0; k < 5; k++) {
+          g.px(x + 4 + k, y + k, k % 2 ? '#7AA048' : '#6A9A3A');
+          g.px(x + 5 + k, y + k, '#3E6A2A');
+        }
       }
     });
   });
 }
 
-/** 田の 水（夜：紺、空と 星を 映す 小さな 明るい 点）。 */
+/** 田の 水（夜：紺、さざ波の 明るい すじ、空の 星の 映り）。 */
 function waterImg(): HTMLCanvasElement {
-  return once('hnwater', () => {
+  return once('hnwater2', () => {
     const p = new PixelCanvas(64, 64);
     const rng = new Rng(733);
     for (let y = 0; y < 64; y++)
       for (let x = 0; x < 64; x++) {
-        const n = rng.next();
-        p.set(x, y, n < 0.04 ? '#3A4A5A' : n > 0.995 ? '#C8CCE0' : mix('#1A2430', '#24304A', ((x * 7 + y * 3) % 11) / 22));
+        const wave = Math.sin(x * 0.35 + Math.sin(y * 0.7) * 2 + y * 1.3);
+        let c = ramp(['#141C28', '#1A2430', '#202C3C', '#283648', '#34465E'], 0.45 + wave * 0.18 + (soft(x, y, 6, 734) - 0.5) * 0.25);
+        if (rng.next() > 0.996) c = '#C8CCE0';
+        // 水面に 出た 稲の 根もとの 影
+        if (soft(x, y, 3, 735) > 0.78) c = '#0E141C';
+        p.set(x, y, c);
       }
-    for (let k = 0; k < 9; k++) {
-      const y = (k * 7 + 3) % 64;
-      const x = (k * 19) % 64;
-      for (let i = 0; i < 5; i++) p.set((x + i) % 64, y, '#34465E');
-    }
     return p.toCanvas();
   });
 }

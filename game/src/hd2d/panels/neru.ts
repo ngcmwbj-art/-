@@ -90,10 +90,10 @@ registerPanel3d('neru', {
     // 床（おがくず）と まわりの コンクリート
     const p0 = k.ground(0, 0, 0)!;
     const p1 = k.ground(W, CH_ROWS, 0)!;
-    k.tiled(hGround('h_barnfloor', 64, 64), p0.x - 6, p1.x + 6, p0.z - 6, p1.z + 4, -0.02, 16);
+    k.tiled(hGround('h_barnfloor', 64, 64), p0.x - 6, p1.x + 6, p0.z - 6, p1.z + 4, -0.02, 28);
     const f0 = k.ground(FX, FY, 0)!;
     const f1 = k.ground(FX + FW, FY + FH, 0)!;
-    k.tiled(hGround('h_sawdust', 64, 64), Math.min(f0.x, k.ground(FX, FY + FH, 0)!.x), Math.max(f1.x, k.ground(FX + FW, FY, 0)!.x), f0.z, f1.z, 0, 16);
+    k.tiled(hGround('h_sawdust', 64, 64), Math.min(f0.x, k.ground(FX, FY + FH, 0)!.x), Math.max(f1.x, k.ground(FX + FW, FY, 0)!.x), f0.z, f1.z, 0, 30);
     // 奥の 柵（2D：行 10〜17 の 鉄パイプ 2本）と 柱
     const back = k.ground(W / 2, 17, 0)!;
     const zb = back.z;
@@ -167,7 +167,15 @@ registerPanel3d('neru', {
         const a = k.ground(FX + i * sw + 4, FY + FH / 2 + hh / 2, 0)!;
         const b = k.ground(FX + (i + 1) * sw - 4, FY + FH / 2 - hh / 2, 0)!;
         const h = 0.08 + n * 0.07;
-        k.box(a.x, b.x, 0, h, b.z, a.z, { top: saw, front: saw, left: saw, right: saw, back: saw });
+        // こんもり した おがくずの 山（だ円の 丘：上は 新しい 白っぽい おがくず）
+        const g = k.own(new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2));
+        const t = k.tex(saw, true);
+        t.repeat.set(3, 2);
+        const m = new THREE.Mesh(g, k.material(t, { tint: n >= 3 ? '#FFF8EC' : '#F4ECDC' }));
+        m.scale.set((b.x - a.x) / 2 + 0.06, h, (a.z - b.z) / 2 + 0.06);
+        m.position.set((a.x + b.x) / 2, 0, (a.z + b.z) / 2);
+        m.castShadow = m.receiveShadow = true;
+        k.scene.add(m);
       });
     }
     // (box は finish() で 1つに まとまる)

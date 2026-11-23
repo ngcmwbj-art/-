@@ -116,10 +116,19 @@ const boards = () =>
     p.vline(17, 0, 31, '#5A4838');
   });
 const wood = (c: string, key: string) =>
-  paint(`ss:wood:${key}`, 32, 8, (p) => {
-    p.fill(c);
-    for (let x = 0; x < 32; x += 5) p.set(x, (x * 3) % 8, '#8A6A44');
-    p.hline(0, 31, 0, '#D0AA76');
+  paint(`ss:wood2:${key}`, 64, 16, (p) => {
+    // 木目（ゆれる すじ）と 包丁の あと
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 64; x++) {
+        const g = Math.sin(y * 1.3 + Math.sin(x * 0.11) * 2.2);
+        p.set(x, y, g > 0.8 ? mix(c, '#6A4A2A', 0.35) : g < -0.85 ? mix(c, '#FFFFFF', 0.15) : c);
+      }
+    for (let i = 0; i < 9; i++) {
+      const x = (i * 23) % 60;
+      const y = (i * 7) % 14;
+      p.line(x, y, x + 3, y + 1, mix(c, '#4A3020', 0.4));
+    }
+    p.hline(0, 63, 0, mix(c, '#FFFFFF', 0.25));
   });
 /** 七輪の 胴（珪藻土）：横の 筋、ひび、上の ほうの すす、下の 帯、前の 空気窓（u = 0 が カメラの 方）。 */
 const clay = () =>
@@ -196,9 +205,20 @@ const net = () =>
     for (let i = 0; i < 30; i++) p.set((i * 23) % 64, ((i * 37) % 8) * 8, '#2A2420');
   });
 const plate = () =>
-  paint('ss:plate', 32, 32, (p) => {
-    p.fill('#E8E4D8');
-    p.ellipse(16, 16, 13, 13, '#F4F1E8');
+  paint('ss:plate2', 64, 64, (p) => {
+    // 白い 磁器の 皿：ふちの 藍の 線（染付）、内の 浅い くぼみの 影、つやの 光
+    for (let y = 0; y < 64; y++)
+      for (let x = 0; x < 64; x++) {
+        const d = Math.hypot(x - 31.5, y - 31.5) / 32;
+        let c = d > 0.92 ? '#D8D4C8' : d > 0.84 ? '#F4F1E8' : d > 0.8 ? '#3A5AA0' : d > 0.7 ? '#EEEAE0' : '#F8F6EE';
+        if (d < 0.7 && d > 0.62) c = '#E4E0D4';
+        if (x > 18 && x < 26 && y > 14 && y < 18) c = '#FFFFFF';
+        p.set(x, y, c);
+      }
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      p.set(Math.round(31.5 + Math.cos(a) * 28), Math.round(31.5 + Math.sin(a) * 28), '#4A6AB0');
+    }
   });
 
 registerPanel3d('shishito', {
@@ -232,6 +252,7 @@ registerPanel3d('shishito', {
         const t = 0.15;
         const a = k.ground(12, 94, t)!;
         const b = k.ground(W - 12, 18, t)!;
+        k.tiled(wood('#B08A5A', 'board'), a.x, b.x, b.z, a.z, t + 0.002, 48);
         k.box(a.x, b.x, 0, t, b.z, a.z, { top: wood('#B08A5A', 'board'), front: wood('#7A5A3A', 'boardF'), left: wood('#7A5A3A', 'boardF'), right: wood('#7A5A3A', 'boardF') });
         for (let r = 0; r < 2; r++) for (let i = 0; i < 3; i++) pod(k, 34 + i * 48, 32 + r * 30, 38, 0, t);
         if (!s.loose) pod(k, W - 46, 82, 26, 0, t);

@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { PixelCanvas } from '../../engine/pixel';
 import { HOR, LOOK, PAN_W, panX, skyPanorama, SLIT_W } from '../../art/props/dome_sky_art';
 import { registerPanel3d, type Kit, type PanelLight } from '../panel3d';
-import { lamp, once, paint } from './_kit_b';
+import { grain, lamp, once, paint, ramp, soft } from './_kit_b';
 
 const W = 384;
 const H = 216;
@@ -74,14 +74,22 @@ registerPanel3d('dome_eye', {
 
 /** ドームの 内側の 殻：暗い 板、縦の 骨、横の 継ぎ目（2D の lookFrame と 同じ 色）。 */
 function shellImg(): HTMLCanvasElement {
-  return once('dmshell', () => {
+  return once('dmshell2', () => {
+    // 鋼板の 継ぎ目、縦の 骨（光る ふち）、びょうの 列、古い さびの すじ、板ごとの 色の ちがい
     const p = new PixelCanvas(256, 64);
     for (let y = 0; y < 64; y++)
       for (let x = 0; x < 256; x++) {
-        let c = y < 22 ? '#1E2036' : '#24263E';
-        if (x % 32 === 0 || x % 32 === 1) c = '#34385A';
-        if (y % 9 === 0) c = '#191A2E';
-        if ((x * 13 + y * 7) % 97 === 0) c = '#2E3150';
+        const panel = Math.floor(x / 32) + Math.floor(y / 22) * 8;
+        let l = 0.45 + (grain(panel, 0, 900) - 0.5) * 0.18 + (soft(x, y, 8, 901) - 0.5) * 0.15 - (y < 22 ? 0.08 : 0);
+        const lx = x % 32;
+        if (lx === 0) l = 0.85;
+        else if (lx === 1) l = 0.7;
+        else if (lx === 2) l = 0.12;
+        if (y % 22 === 0) l = 0.08;
+        if (y % 22 === 1) l = 0.62;
+        if ((lx === 4 || lx === 29) && y % 6 === 3) l = 0.95;
+        let c = ramp(['#121322', '#191A2E', '#1E2036', '#24263E', '#2C2F4A', '#34385A', '#4A4E72', '#6A6E90'], l);
+        if (soft(x * 3, y * 0.3, 6, 902) > 0.78 && lx > 3) c = '#3A2A30';
         p.set(x, y, c);
       }
     return p.toCanvas();

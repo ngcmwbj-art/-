@@ -13,7 +13,7 @@ import { PixelCanvas } from '../../engine/pixel';
 import { fillWall, wallSiding } from '../../art/props/bkit';
 import { drawCuke, KY_AT } from '../../events/ch2/kyuri';
 import { registerPanel3d, type Kit } from '../panel3d';
-import { fade, lamp, NIGHT_LAMP, once, paint } from './_kit_b';
+import { fade, grain, lamp, NIGHT_LAMP, once, paint, ramp, soft } from './_kit_b';
 
 /** 絵の 四角（パネルの 絵の 部分：2D の drawScene の 幅）。 */
 const W = 204;
@@ -24,35 +24,51 @@ const LIGHT_R = 24;
 /** 目の 中心（絵の 左上からの px：2D の cellXY と 同じ）。 */
 const cell = (c: number, r: number): [number, number] => [28 + c * 50, 26 + r * 30];
 
-/** きゅうりの 葉（ひらいた 手の ような 浅い 切れこみ、葉脈）。rr：半径（2D の 楕円の 横）。 */
+/** きゅうりの 葉（ひらいた 手の ような 浅い 切れこみ、ぎざぎざの ふち、主脈と 網の 目の 細い 脈、まだら、毛）。rr：半径。 */
 function leafImg(rr: number, v: number): HTMLCanvasElement {
-  return once(`kyleaf:${rr}:${v}`, () => {
+  return once(`kyleaf2:${rr}:${v}`, () => {
     const w = rr * 2 + 3;
     const h = Math.round(rr * 1.7) + 3;
     const p = new PixelCanvas(w, h);
     const cx = w / 2;
     const cy = h / 2;
+    const bx = cx;
+    const by = cy + rr * 0.55;
+    const LEAF = ['#1E3A1A', '#2A4A22', '#36582A', '#426832', '#4E7A3A', '#5E8A44', '#72A050', '#8AB866'];
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
         const dx = (x + 0.5 - cx) / rr;
         const dy = (y + 0.5 - cy) / (rr * 0.82);
         const a = Math.atan2(dy, dx);
-        // 5つの 浅い 切れこみ（葉の ふちが 波うつ）
-        const lobe = 1 - 0.16 * Math.abs(Math.sin(a * 2.5 + v)) ** 3;
-        if (dx * dx + dy * dy <= lobe * lobe) p.set(x, y, (x + y + v) % 7 === 0 ? '#447E36' : '#4E8A3E');
+        const lobe = 1 - 0.16 * Math.abs(Math.sin(a * 2.5 + v)) ** 3 - (grain(x, y, 800 + v) < 0.25 ? 0.05 : 0);
+        const r = Math.hypot(dx, dy);
+        if (r > lobe) continue;
+        // 葉の 面：もとから 外へ 少し 明るく、ふくらみの 陰、まだら
+        let l = 0.5 + (soft(x, y, 3, 801 + v) - 0.5) * 0.3 - (dy > 0 ? dy * 0.12 : 0) + (r > lobe - 0.12 ? -0.15 : 0);
+        // 網の 目（細い 脈）
+        const ang = Math.atan2(y + 0.5 - by, x + 0.5 - bx);
+        if (Math.abs(Math.sin(ang * 7 + v)) < 0.12 && r > 0.2) l += 0.15;
+        if ((x * 3 + y * 5 + v) % 11 === 0 && r < lobe - 0.15) l -= 0.12;
+        p.set(x, y, ramp(LEAF, l));
       }
-    // 葉脈：もとから 放射に（明るい 線）
-    const bx = Math.round(cx);
-    const by = Math.round(cy + rr * 0.5);
+    // 主脈：もとから 放射に 3本 ＋ 枝
     for (const ang of [-2.5, -1.57, -0.64]) {
       for (let i = 2; i < rr * 1.1; i++) {
         const x = Math.round(bx + Math.cos(ang) * i);
         const y = Math.round(by + Math.sin(ang) * i * 0.9);
-        if (p.alpha(x, y) > 0) p.set(x, y, '#7AB05A');
+        if (p.alpha(x, y) > 0) p.set(x, y, LEAF[7]);
+        if (i % 4 === 2) {
+          for (const s2 of [-0.7, 0.7])
+            for (let j = 1; j < 4; j++) {
+              const xx = Math.round(x + Math.cos(ang + s2) * j);
+              const yy = Math.round(y + Math.sin(ang + s2) * j);
+              if (p.alpha(xx, yy) > 0) p.set(xx, yy, LEAF[6]);
+            }
+        }
       }
     }
-    // ふちの 濃い 色
-    p.edge((_x, _y, o) => (o.l || o.r || o.t || o.b ? '#2E5A2A' : null));
+    // ふち：濃い 色と 細かい 毛（白っぽい 点）
+    p.edge((x, y, o) => (o.l || o.r || o.t || o.b ? (grain(x, y, 805) < 0.2 ? '#A8C890' : '#24401E') : null));
     return p.toCanvas();
   });
 }
@@ -77,6 +93,12 @@ function wallImg(): HTMLCanvasElement {
   return once('kywall', () => {
     const p = new PixelCanvas(220, 130);
     fillWall(p, 0, 0, 220, 130, wallSiding('#4A443C', 3));
+    // 雨だれと 古い 板の しみ、くぎの あと
+    for (let y = 0; y < 130; y++)
+      for (let x = 0; x < 220; x++) {
+        if (soft(x * 4, y * 0.15, 8, 820) > 0.7 && (x + y) % 2 === 0) p.set(x, y, '#2E2A24');
+        if (grain(x, y, 821) < 0.004) p.set(x, y, '#6A5A48');
+      }
     return p.toCanvas();
   });
 }
