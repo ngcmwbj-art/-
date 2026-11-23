@@ -39,6 +39,7 @@ import { faceToward } from '../../world/interact';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { floatImg } from '../../art/props/seki_tsuri_art';
 import * as T from '../../data/text/c3_sakana';
 import { SK_UI } from '../../data/text/c3_sakana';
@@ -300,28 +301,34 @@ export class UkiPanel implements Widget {
     const W = RX - SX - 4;
     const hz = oy + 22;
     const wy = oy + WY;
-    // the noon sky (12:01), the horizon far off, the sea with its waves come back
-    for (let y = oy; y < hz; y++) g.rect(SX, y, W, 1, y < oy + 8 ? '#8EC0E0' : y < oy + 16 ? '#A8D0EA' : '#C8E2F2');
-    g.rect(SX, hz, W, 1, '#6A9AC0');
-    for (let y = hz + 1; y < oy + CH; y++) {
-      const d = y - hz;
-      g.rect(SX, y, W, 1, d < 12 ? '#9CC8E2' : d < 26 ? '#7AB0D4' : d < 50 ? '#5E96C0' : '#4A7EAA');
-    }
-    // the swell: bright crests running in toward the breakwater (left)
-    for (let row = 0; row < 6; row++) {
-      const y = hz + 4 + row * 5 + (row > 3 ? (row - 3) * 4 : 0);
-      if (y > wy - 3) continue;
-      const sp = 0.012 + row * 0.004;
-      for (let x0 = ((-this.t * sp + row * 37) % 40) - 40; x0 < W; x0 += 40) g.rect(SX + Math.round(x0), y, 8 + row, 1, '#E8F4FA', 0.7);
+    // HD-2D（2026-11-23、hd2d/panels/sakana.ts）：空・海の うねり・防波堤の ふちは 3D。浮き・糸・竿・魚は 2D の まま 上に
+    const hd = drawPanel3d(g, this, 'sakana', SX, oy, W, CH);
+    if (!hd) {
+      // the noon sky (12:01), the horizon far off, the sea with its waves come back
+      for (let y = oy; y < hz; y++) g.rect(SX, y, W, 1, y < oy + 8 ? '#8EC0E0' : y < oy + 16 ? '#A8D0EA' : '#C8E2F2');
+      g.rect(SX, hz, W, 1, '#6A9AC0');
+      for (let y = hz + 1; y < oy + CH; y++) {
+        const d = y - hz;
+        g.rect(SX, y, W, 1, d < 12 ? '#9CC8E2' : d < 26 ? '#7AB0D4' : d < 50 ? '#5E96C0' : '#4A7EAA');
+      }
+      // the swell: bright crests running in toward the breakwater (left)
+      for (let row = 0; row < 6; row++) {
+        const y = hz + 4 + row * 5 + (row > 3 ? (row - 3) * 4 : 0);
+        if (y > wy - 3) continue;
+        const sp = 0.012 + row * 0.004;
+        for (let x0 = ((-this.t * sp + row * 37) % 40) - 40; x0 < W; x0 += 40) g.rect(SX + Math.round(x0), y, 8 + row, 1, '#E8F4FA', 0.7);
+      }
     }
     // the surface line where the float stands (moving with the waves)
     for (let x = 0; x < W; x += 2) g.rect(SX + x, wy + Math.round(this.wave(x)), 2, 1, '#D8ECF8', 0.8);
     // a fish's shadow under the float while waiting
     if (this.phase === 'wait' || this.phase === 'piku' || this.phase === 'sink') g.alpha(0.35, () => g.rect(SX + Math.round(this.shadowX), wy + 26, 14, 4, '#2A4A6A'));
     // the breakwater's edge at the bottom left (the concrete, a tetrapod's arm)
-    g.rect(SX, oy + CH - 10, 52, 10, '#B8B8B0');
-    g.rect(SX, oy + CH - 10, 52, 1, '#D8D8D0');
-    g.rect(SX + 52, oy + CH - 7, 10, 7, '#9A9A92');
+    if (!hd) {
+      g.rect(SX, oy + CH - 10, 52, 10, '#B8B8B0');
+      g.rect(SX, oy + CH - 10, 52, 1, '#D8D8D0');
+      g.rect(SX + 52, oy + CH - 7, 10, 7, '#9A9A92');
+    }
     // the rod's tip and the line
     const fy = wy + Math.round(this.wave(FX)) + this.dip;
     let lx = SX + FX;

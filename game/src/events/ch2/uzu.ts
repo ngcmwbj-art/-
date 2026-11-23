@@ -22,6 +22,7 @@ import { game, type Widget } from '../../engine/game';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { measure } from '../../engine/font';
+import { drawPanel3d } from '../../ui/panel3d';
 import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
@@ -251,37 +252,13 @@ export class UzPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        // the night by the truck, the station's light from the west
-        g.rect(SX, oy, RX - SX - 4, CH, '#1A1A26');
-        for (let r = 90; r > 0; r -= 10) g.alpha(0.035, () => g.circle(SX + 20, oy + 20, r, '#F2D8A0'));
-        // the newspaper they lay on (a pale square under the coils)
-        g.rect(SX + 30, oy + CH - 30, 150, 26, '#5A564C');
-        g.rect(SX + 30, oy + CH - 30, 150, 1, '#7A766A');
+        // HD-2D（hd2d/panels/uzu.ts）：夜の 地面・新聞・2枚の うず・指（はさみ）は 3D、折れた くずは 上に 2D で
+        const hd = drawPanel3d(g, this, 'uzu', SX, oy, RX - SX - 4, CH, { state: { sep: Math.round(this.sep * 100) / 100, tw: Math.round(this.twist * 40) / 40, ore: this.ore, claw: this.claw } });
+        if (!hd) this.drawScene(g, oy);
         const cx = CX;
         const cy = oy + CY;
-        const tw = Math.round(this.twist * 2);
         const sx = Math.round(this.sep * SEP_PX);
         const sy = Math.round(this.sep * 6);
-        // the under coil stays; the top one comes away to the right
-        const underCut = this.ore === 'naka' ? 0.55 : null;
-        this.coil(g, cx, cy, 0, underCut, [10, 8]);
-        const topCut = this.ore === 'soto' ? 0.86 : null;
-        this.coil(g, cx + sx + tw, cy - sy, Math.PI + this.twist * 0.08, topCut, [14, 10]);
-        // the fingers at the middle (しゅん) or the claw (グソっ君)
-        const hx = cx + sx + tw;
-        const hy = cy - sy;
-        if (this.claw) {
-          g.rect(hx - 7, hy - 12, 5, 9, '#B85A3A');
-          g.rect(hx + 2, hy - 12, 5, 9, '#B85A3A');
-          g.rect(hx - 6, hy - 12, 3, 1, '#E08A6A');
-          g.rect(hx + 3, hy - 12, 3, 1, '#E08A6A');
-          g.rect(hx - 4, hy - 20, 8, 8, '#9A4A30');
-        } else {
-          g.rect(hx - 6, hy - 10, 4, 8, '#F2C8A0');
-          g.rect(hx + 2, hy - 10, 4, 8, '#F2C8A0');
-          g.rect(hx - 6, hy - 10, 1, 8, '#C89A7A');
-          g.rect(hx - 5, hy - 18, 10, 8, '#E8B890');
-        }
         // the snap: a few crumbs where it broke
         if (this.ore) {
           const bx = this.ore === 'soto' ? cx + sx + 40 : cx + 18;
@@ -303,6 +280,41 @@ export class UzPanel implements Widget {
       drawTape(g, SX + 8, PY + dy - 5, tw, 16, UZ_UI.place, { seed: 72 });
       markText(SX + 8, PY + dy - 5, tw, 16);
     });
+  }
+
+  /** 2D の 絵（HD-2D が ない とき）：夜の 地面、新聞、2枚の うず、指 か はさみ。 */
+  private drawScene(g: Gfx, oy: number): void {
+    // the night by the truck, the station's light from the west
+    g.rect(SX, oy, RX - SX - 4, CH, '#1A1A26');
+    for (let r = 90; r > 0; r -= 10) g.alpha(0.035, () => g.circle(SX + 20, oy + 20, r, '#F2D8A0'));
+    // the newspaper they lay on (a pale square under the coils)
+    g.rect(SX + 30, oy + CH - 30, 150, 26, '#5A564C');
+    g.rect(SX + 30, oy + CH - 30, 150, 1, '#7A766A');
+    const cx = CX;
+    const cy = oy + CY;
+    const tw = Math.round(this.twist * 2);
+    const sx = Math.round(this.sep * SEP_PX);
+    const sy = Math.round(this.sep * 6);
+    // the under coil stays; the top one comes away to the right
+    const underCut = this.ore === 'naka' ? 0.55 : null;
+    this.coil(g, cx, cy, 0, underCut, [10, 8]);
+    const topCut = this.ore === 'soto' ? 0.86 : null;
+    this.coil(g, cx + sx + tw, cy - sy, Math.PI + this.twist * 0.08, topCut, [14, 10]);
+    // the fingers at the middle (しゅん) or the claw (グソっ君)
+    const hx = cx + sx + tw;
+    const hy = cy - sy;
+    if (this.claw) {
+      g.rect(hx - 7, hy - 12, 5, 9, '#B85A3A');
+      g.rect(hx + 2, hy - 12, 5, 9, '#B85A3A');
+      g.rect(hx - 6, hy - 12, 3, 1, '#E08A6A');
+      g.rect(hx + 3, hy - 12, 3, 1, '#E08A6A');
+      g.rect(hx - 4, hy - 20, 8, 8, '#9A4A30');
+    } else {
+      g.rect(hx - 6, hy - 10, 4, 8, '#F2C8A0');
+      g.rect(hx + 2, hy - 10, 4, 8, '#F2C8A0');
+      g.rect(hx - 6, hy - 10, 1, 8, '#C89A7A');
+      g.rect(hx - 5, hy - 18, 10, 8, '#E8B890');
+    }
   }
 }
 
@@ -482,6 +494,27 @@ if (import.meta.env.DEV) {
     setFlag(UF.oku, 1);
     setFlag(UF.done, 1);
     return go(40, 43, 'right');
+  });
+
+  /**
+   * QA：大写し「2枚の うず」を 直接 開く（who 'shun' | 'kn'、sep = すきま 0..1、ore = 折れた 所、claw = はさみ）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.uzu('poko') → __game.cmd.uzPanel('shun', 0.4) → 写真 → __game.cmd.uzPanel()
+   */
+  registerDebug('uzPanel', (who?: 'kn' | 'shun', sep = 0, ore: 'soto' | 'naka' | null = null, claw = false) => {
+    const open = game.ui.widgets.find((w) => w instanceof UzPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new UzPanel(who ?? 'shun');
+    setFlag(`howto_${p.howto.id}`, 1);
+    p.sep = Number(sep);
+    p.ore = ore;
+    p.claw = !!claw;
+    p.active = true;
+    p.open = 1;
+    game.ui.push(p);
+    return { who: p.who, sep: p.sep, ore: p.ore };
   });
 
   registerDebug('uzState', () => {

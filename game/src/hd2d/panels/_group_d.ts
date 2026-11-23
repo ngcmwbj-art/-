@@ -3,3 +3,8 @@
 export {};
 import './touge_kumo';
 import './uribo';
+import './ushibana';
+import './uzu';
+import './wakime';
+import './yoburi';
+import './yuwaka';

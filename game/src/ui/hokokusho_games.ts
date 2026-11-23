@@ -27,6 +27,7 @@ import { sfx } from '../audio';
 import { charSprite } from '../art/chars/registry';
 import { drawDigits } from './digits';
 import { drawCursor, drawMarker, drawWindow, UI } from './window';
+import { drawPanel3d } from './panel3d';
 import {
   HK_FOOD_WORD,
   HK_FOODS,
@@ -70,6 +71,10 @@ abstract class Panel implements Widget {
     if (this.out < 0) this.out = 0;
   }
   protected abstract tick(dt: number, input: Input): void;
+  /** HD-2D の 絵（hd2d/panels/hokokusho.ts）を 見出しの 下に 敷く。描けたら true。 */
+  protected scene3d(g: Gfx, id: string, x: number, y: number, state: Record<string, unknown> = {}): boolean {
+    return drawPanel3d(g, this, id, x + 4, y + 22, this.w - 8, this.h - 26, { state });
+  }
   protected abstract body(g: Gfx, x: number, y: number): void;
   draw(g: Gfx): void {
     const k = Math.min(1, this.t / 200);
@@ -201,12 +206,14 @@ export class SizeGame extends Panel {
       else g.ring(cx, y + 14, 3, UI.textDim);
     }
     const fy = y + this.floorY;
-    // 床と 身長計の 柱（目盛り 10cm ごと）
+    // 床と 身長計の 柱（目盛り 10cm ごと）。HD-2D では 交番の 壁・床・台・柱は 3D（目盛りから 上は 2D）
     const poleX = x + 70;
-    g.rect(x + 40, fy, 150, 4, '#C8A06A');
-    g.rect(x + 40, fy + 4, 150, 1, '#8A5A3A');
-    g.rect(poleX, y + 10, 4, fy - y - 10, '#E8E4D8');
-    g.rect(poleX + 4, y + 10, 1, fy - y - 10, '#8A90A0');
+    if (!this.scene3d(g, 'hk_size', x, y, { fy: this.floorY - 22, pole: 66, b0: 36, b1: 186 })) {
+      g.rect(x + 40, fy, 150, 4, '#C8A06A');
+      g.rect(x + 40, fy + 4, 150, 1, '#8A5A3A');
+      g.rect(poleX, y + 10, 4, fy - y - 10, '#E8E4D8');
+      g.rect(poleX + 4, y + 10, 1, fy - y - 10, '#8A90A0');
+    }
     for (let cm = 0; cm <= 150; cm += 10) {
       const ty = Math.round(fy - cm * this.ppc);
       if (ty < y + 12) break;
@@ -300,6 +307,10 @@ export class LegsGame extends Panel {
     g.text(HK_LEGS_WORD.title, x + 10, y + 6, { color: UI.text });
     if (this.phase === 'look') {
       g.text(HK_LEGS_WORD.look, x + this.w - 12 - g.measure(HK_LEGS_WORD.look), y + 6, { color: UI.pencil });
+    }
+    // HD-2D：上から 見た 交番の 机（グソっ君は 2D の まま のる）
+    this.scene3d(g, 'hk_legs', x, y);
+    if (this.phase === 'look') {
       const k = Math.max(0, 1 - this.t / this.lookMs);
       g.rect(x + 10, y + 24, Math.round((this.w - 20) * k), 2, UI.accent);
     }
@@ -440,7 +451,10 @@ const FOOD_ART: Record<string, (g: Gfx, x: number, y: number) => void> = {
 };
 
 const foodCache = new Map<string, HTMLCanvasElement>();
-/** The food's picture (20×16), built once; drawn at 2×. */
+/** The food's picture (20×16), built once; drawn at 2×.（HD-2D の 机の 上にも：hd2d/panels/hokokusho.ts） */
+export function hkFoodImg(f: string): HTMLCanvasElement {
+  return foodImg(f);
+}
 function foodImg(f: string): HTMLCanvasElement {
   let c = foodCache.get(f);
   if (!c) {
@@ -506,6 +520,17 @@ export class FoodGame extends Panel {
   protected body(g: Gfx, x: number, y: number): void {
     g.text(HK_FOOD_WORD.title, x + 10, y + 6, { color: UI.text });
     const cx = x + Math.round(this.w / 2);
+    // HD-2D：交番の 壁と 鉄の 机、机の 上の 食べ物は 3D（hd2d/panels/hokokusho.ts）。グソっ君・カーソル・名前は 2D
+    const slot0 = Math.floor((this.w - 40) / HK_FOODS.length);
+    const hd = this.scene3d(g, 'hk_food', x, y, {
+      dy: 44,
+      d0: 10,
+      d1: this.w - 18,
+      xs: HK_FOODS.map((_, i) => 16 + i * slot0 + Math.round((slot0 - 40) / 2)),
+      imgs: HK_FOODS,
+      sel: this.sel,
+      tried: this.tried,
+    });
     // グソっ君（つくえの むこう。えらんで いる 物を 見る）
     const food = HK_FOODS[this.sel];
     const dir = this.sel <= 1 ? 'left' : this.sel >= 3 ? 'right' : 'down';
@@ -531,17 +556,20 @@ export class FoodGame extends Panel {
     if (food === 'コーヒー' && this.moveT > 300) g.px(gx + 2 * fr.width + 2, gy + 8 + Math.round(((this.t % 800) / 800) * 3), '#9AD8E8');
     // つくえ
     const dy = y + 66;
-    g.rect(x + 14, dy, this.w - 28, 36, '#8A90A0');
-    g.rect(x + 14, dy, this.w - 28, 2, '#C8CCD4');
-    g.rect(x + 14, dy + 36, this.w - 28, 2, '#5A5F6E');
+    if (!hd) {
+      g.rect(x + 14, dy, this.w - 28, 36, '#8A90A0');
+      g.rect(x + 14, dy, this.w - 28, 2, '#C8CCD4');
+      g.rect(x + 14, dy + 36, this.w - 28, 2, '#5A5F6E');
+    }
     // 食べ物 5つ
     const slot = Math.floor((this.w - 40) / HK_FOODS.length);
     HK_FOODS.forEach((f, i) => {
       const fx = x + 20 + i * slot + Math.round((slot - 40) / 2);
-      const fy = dy - 6;
+      // （HD-2D の 食べ物は 机の 上の 面の 手前に 立つ ぶん 8px 下：グソっ君の 足に かからない）
+      const fy = dy - 6 + (hd ? 8 : 0);
       const tried = this.tried.includes(i);
       const lift = i === this.sel && !tried ? -2 : 0;
-      g.img(foodImg(f), fx, fy + lift, { scale: 2, alpha: tried ? 0.35 : 1 });
+      if (!hd) g.img(foodImg(f), fx, fy + lift, { scale: 2, alpha: tried ? 0.35 : 1 });
       if (tried) {
         g.line(fx + 6, fy + 6, fx + 33, fy + 30, UI.accent);
         g.line(fx + 33, fy + 6, fx + 6, fy + 30, UI.accent);

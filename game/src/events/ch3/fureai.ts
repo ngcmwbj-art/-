@@ -31,6 +31,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import { field } from '../../world/field';
 import { SPEAKERS } from '../../world/msg';
@@ -219,6 +220,26 @@ function closeup(): HTMLCanvasElement {
       p.set(x, y, c);
     }
   for (let x = 0; x < IW; x += 2) p.set(x, 66, '#E8ECE4');
+  drawBody(p);
+  closeImg = p.toCanvas();
+  return closeImg;
+}
+
+let bodyImg: HTMLCanvasElement | null = null;
+
+/** 寄りの 絵の グソっ君だけ（透明の 上に、IW × IH：HD-2D の 大写し hd2d/panels/fureai.ts が 立てる）。 */
+export function frBody(): HTMLCanvasElement {
+  if (bodyImg) return bodyImg;
+  const p = new PixelCanvas(IW, IH);
+  drawBody(p);
+  bodyImg = p.toCanvas();
+  return bodyImg;
+}
+
+/** 寄りの 絵の 大きさ・3か所の 印（HD-2D の 絵の 置き場所）。 */
+export const FR_PIC = { IW, IH, SPOTS };
+
+function drawBody(p: PixelCanvas): void {
   const cx = 104;
   const cy = 46;
   // the legs under him: seven a side, the near row (14 in all: the near seven drawn, the far seven a shade back)
@@ -259,8 +280,6 @@ function closeup(): HTMLCanvasElement {
     for (let k = 0; k < len; k += 2) p.set(cx + 57 + k, cy + dy + (dy < 0 ? -3 : 3), '#5A3A2A');
   }
   for (let y = cy - 6; y <= cy + 8; y += 2) p.set(cx + 67, y, '#5A3A2A');
-  closeImg = p.toCanvas();
-  return closeImg;
 }
 
 const RED = '#E23B2E';
@@ -369,12 +388,14 @@ export class FureaiPanel implements Widget {
   /** 左：寄りの 絵と、3か所の 印・指の 印。 */
   private drawPic(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
-    g.rect(SX, oy, W, CH, '#2E343C');
     const ix = SX + Math.round((W - IW) / 2);
     const iy = oy + 2;
-    g.img(closeup(), ix, iy);
-    // the noon light from above onto his back (a soft band)
-    g.rect(ix + 80, iy, 40, IH - 30, '#FFF6D8', 0.08);
+    if (!drawPanel3d(g, this, 'fureai', SX, oy, W, CH)) {
+      g.rect(SX, oy, W, CH, '#2E343C');
+      g.img(closeup(), ix, iy);
+      // the noon light from above onto his back (a soft band)
+      g.rect(ix + 80, iy, 40, IH - 30, '#FFF6D8', 0.08);
+    }
     const seen = flag(FF.me);
     const sel = this.phase === 'select';
     const blink = Math.floor(this.t / 300) % 2 === 0;
@@ -728,6 +749,21 @@ if (import.meta.env.DEV) {
     return go(FUREAI, 6, 2, 'down');
   });
 
+  /** QA：大写し「ふれあい」を 直接 開く（cur = 選ぶ 所 0〜3）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('frPanel', (cur = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof FureaiPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new FureaiPanel();
+    p.open = 1;
+    p.phase = 'select';
+    p.cur = Number(cur);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('frState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(FF)) flags[k] = flag(id);

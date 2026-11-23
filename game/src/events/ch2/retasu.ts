@@ -43,6 +43,7 @@ import { actorAnchor } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
 import type { Howto } from '../../ui/closeup';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_retasu';
 import { RT_UI } from '../../data/text/hoshi_retasu';
 import { RT_HEADLAMP, RT_HEADLAMP_SPOT, RT_PERO_AT, RT_TAMA, UE_HATA, type RtKind } from '../../data/maps/hoshi_ue_hata';
@@ -316,10 +317,20 @@ export class TamaPanel implements Widget {
 
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
-    // the blue before dawn (not black: 2026-10-26 会議), the head lamp's white pool on the head
-    g.rect(SX, oy, W, CH, '#26324A');
     const cx = SX + 96;
     const gy = oy + 92;
+    const size = this.kind === 'yawa' ? 24 : this.kind === 'kosugi' ? 32 : 28;
+    const lift = Math.round(ease.cubicOut(this.cut) * 14);
+    const give = this.kind === 'yawa' ? 0.2 : this.kind === 'kata' ? 0.05 : 0;
+    const ry = Math.round(size * 0.86 * (1 - give * this.press));
+    // HD-2D：畑・となりの 株・玉・ライト（hd2d/panels/retasu.ts）。切り口・手・包丁・霧吹きは 2D の まま 上に
+    if (drawPanel3d(g, this, 'retasu', SX, oy, W, CH, { state: { size, ry, lift } })) {
+      this.drawCut(g, cx, gy, lift);
+      this.drawHands(g, cx, gy, size, ry, lift);
+      return;
+    }
+    // the blue before dawn (not black: 2026-10-26 会議), the head lamp's white pool on the head
+    g.rect(SX, oy, W, CH, '#26324A');
     for (let r = 78; r > 0; r -= 10) g.alpha(0.07, () => g.circle(cx + 6, gy - 30, r, '#FFF2C0'));
     // the beam coming down from the top right (his lamp)
     for (let i = 0; i < 6; i++) g.alpha(0.06, () => g.line(SX + W - 10 - i * 3, oy, cx + 10 + i * 4, gy - 40, '#FFF6D8'));
@@ -332,14 +343,18 @@ export class TamaPanel implements Widget {
       ell(g, nx, gy - 2, 16, 4, '#2E5A34');
       ell(g, nx, gy - 12, 10, 9, '#5A8A4A');
     }
-    const size = this.kind === 'yawa' ? 24 : this.kind === 'kosugi' ? 32 : 28;
-    const lift = Math.round(ease.cubicOut(this.cut) * 14);
     // the outer leaves spread on the ground (the root leaves stay in the ground when it is cut)
     ell(g, cx - 34, gy - 3, 26, 6, RT_LEAF_DK);
     ell(g, cx + 34, gy - 3, 26, 6, RT_LEAF_DK);
     ell(g, cx, gy - 4, 40, 5, RT_LEAF);
     for (let x = -40; x <= 40; x += 6) g.px(cx + x, gy - 8 + ((x / 6) & 1), '#FFFFFF');
-    // the stem's cut (lifted: the cut face, its white beads till it is washed)
+    this.drawCut(g, cx, gy, lift);
+    this.drawHead(g, cx, gy, size, ry, lift);
+    this.drawHands(g, cx, gy, size, ry, lift);
+  }
+
+  /** 茎の 切り口（持ち上がった 玉の 下の 切り口と、洗うまでの 白い 汁）。 */
+  private drawCut(g: Gfx, cx: number, gy: number, lift: number): void {
     if (this.cut > 0) {
       ell(g, cx, gy - 4 - lift, 7, 2, '#E8F0D0');
       g.rect(cx - 5, gy - 4 - lift, 10, 2, '#C8DCA0');
@@ -349,9 +364,11 @@ export class TamaPanel implements Widget {
         g.rect(cx - 1, gy - 1 - lift, 2, 3, '#F4F4EC');
       }
     }
+  }
+
+  /** 玉（2D の 絵：HD-2D の ときは hd2d/panels/retasu.ts が 同じ 形を 立てる）。 */
+  private drawHead(g: Gfx, cx: number, gy: number, size: number, ry: number, lift: number): void {
     // the head (squashed a little while pressed: the soft one most)
-    const give = this.kind === 'yawa' ? 0.2 : this.kind === 'kata' ? 0.05 : 0;
-    const ry = Math.round(size * 0.86 * (1 - give * this.press));
     const hy = gy - 6 - ry - lift;
     ell(g, cx, hy, size, ry, RT_HEAD);
     ell(g, cx - 4, hy - 4, size - 8, ry - 7, RT_HEAD_LT);
@@ -380,6 +397,12 @@ export class TamaPanel implements Widget {
     }
     // dew on the leaves' edges, white in the lamp
     for (const [dx, ddy] of [[-size + 2, -2], [size - 3, 0], [-6, -ry + 1], [8, -ry + 2]] as const) g.rect(cx + dx, hy + ddy, 2, 1, '#FFFFFF');
+  }
+
+  /** しゅんの 手・ペロの 包丁・霧吹き（2D でも HD-2D でも 上に）。 */
+  private drawHands(g: Gfx, cx: number, gy: number, size: number, ry: number, lift: number): void {
+    const W = RX - SX - 4;
+    const hy = gy - 6 - ry - lift;
     // しゅん's hand coming down on top
     if (this.press > 0 || this.phase === 'osu') {
       const hd = Math.round(ease.cubicOut(this.press) * 18);
@@ -742,6 +765,20 @@ if (import.meta.env.DEV) {
     return go(VILLAGE, 4, 32, 'left');
   });
 
+  /** QA（大写しの HD-2D の 写真）：玉の 大写しを 直接 開く／もう一度で 閉じる（kind、cut：切った 0..1、press：押した 0..1）。 */
+  registerDebug('retasuPanel', (kind: RtKind = 'yawa', cut: unknown = 0, press: unknown = 0) => {
+    const old = game.ui.widgets.find((w) => w instanceof TamaPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new TamaPanel(kind, 0);
+    p.open = 1;
+    p.phase = 'osu';
+    p.cut = Number(cut);
+    p.press = Number(press);
+    p.pressing = p.press > 0;
+    p.sap = p.cut > 0;
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('rtPick', (v: unknown = null) => (qaPick = v === null ? null : Number(v)));
 
   registerDebug('rtState', () => {

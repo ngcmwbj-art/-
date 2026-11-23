@@ -2,3 +2,9 @@
 // （6人で 手分けして 作る ため、src/hd2d/index.ts を 同時に さわらないように グループごとに 分けた）
 export {};
 import './kyuri';
+import './hokihata';
+import './hana';
+import './iro';
+import './hagama';
+import './kutsu';
+import './himo';

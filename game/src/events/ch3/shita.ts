@@ -31,6 +31,7 @@ import { field } from '../../world/field';
 import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/c3_shita';
 import { SH_UI } from '../../data/text/c3_shita';
 import { addMp, getKeyItem, giveKey } from '../lib';
@@ -204,19 +205,22 @@ export class RubPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        // the booth's counter, the pad of tickets on it
-        g.rect(SX, oy, CW, CH, '#5A4A3A');
-        for (let x = 0; x < CW; x += 9) g.rect(SX + x, oy, 1, CH, '#4E4032');
         const px = SX + 10;
         const py = oy + 8;
         const pw = 212;
         const ph = CH - 16;
-        // the sheets under it (their edges), the top sheet
-        g.rect(px + 3, py + 3, pw, ph, '#D8D2C2');
-        g.rect(px + 1, py + 1, pw, ph, '#E8E2D2');
-        g.rect(px, py, pw, ph, '#F8F4EA');
-        g.rect(px, py, pw, 12, '#E8C8C0');
-        g.rect(px, py + 12, pw, 1, '#C8A8A0');
+        // HD-2D（2026-11-23、hd2d/panels/rub.ts）：券売所の 台と つづり（紙の 束の 厚み）は 3D。こすった 黒鉛・字・えんぴつは 2D の まま 上に
+        if (!drawPanel3d(g, this, 'rub', SX, oy, RX - SX - 4, CH)) {
+          // the booth's counter, the pad of tickets on it
+          g.rect(SX, oy, CW, CH, '#5A4A3A');
+          for (let x = 0; x < CW; x += 9) g.rect(SX + x, oy, 1, CH, '#4E4032');
+          // the sheets under it (their edges), the top sheet
+          g.rect(px + 3, py + 3, pw, ph, '#D8D2C2');
+          g.rect(px + 1, py + 1, pw, ph, '#E8E2D2');
+          g.rect(px, py, pw, ph, '#F8F4EA');
+          g.rect(px, py, pw, 12, '#E8C8C0');
+          g.rect(px, py + 12, pw, 1, '#C8A8A0');
+        }
         // the graphite: how far it has been rubbed (a stroke grows it across)
         const done = this.ruined ? 1 : Math.min(1, (this.rubs + (this.stroke > 0 && this.lie ? 1 - this.stroke / 420 : 0)) / RUBS);
         const gx = px + 4;

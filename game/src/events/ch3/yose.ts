@@ -37,6 +37,7 @@ import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/c3_yose';
 import { YD_UI } from '../../data/text/c3_yose';
 import { UMI_OKI } from '../../data/maps/c3_umi_oki';
@@ -220,23 +221,27 @@ export class NabePanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        // the stall in the noon light: the awning's shade, the pot over the burner
-        g.rect(SX, oy, RX - SX - 4, CH, '#7A6248');
-        for (let yy = 14; yy < CH; yy += 8) g.rect(SX, oy + yy, RX - SX - 4, 1, '#6A5440');
-        g.rect(SX, oy, RX - SX - 4, 10, '#3A5A8A');
-        for (let x = SX; x < RX - 4; x += 16) g.rect(x, oy, 8, 10, '#F4F1E8');
         const cx = NX;
         const cy = oy + NY;
-        // the burner's flame under the pot (くま吉's job), held low
-        for (let i = 0; i < 7; i++) {
-          const fh = 4 + Math.round(Math.abs(Math.sin(this.t / 120 + i)) * 3);
-          g.rect(cx - 30 + i * 10, cy + 32 - fh, 3, fh, i % 2 ? '#F2894B' : '#4A8AE0');
+        // HD-2D（2026-11-23、hd2d/panels/nabe.ts）：屋台・日よけ・こんろの 火・なべ・豆乳は 3D。海の 水の 色・寄る 雲・へら・びんは 2D の まま 上に
+        const hd = drawPanel3d(g, this, 'nabe', SX, oy, RX - SX - 4, CH);
+        if (!hd) {
+          // the stall in the noon light: the awning's shade, the pot over the burner
+          g.rect(SX, oy, RX - SX - 4, CH, '#7A6248');
+          for (let yy = 14; yy < CH; yy += 8) g.rect(SX, oy + yy, RX - SX - 4, 1, '#6A5440');
+          g.rect(SX, oy, RX - SX - 4, 10, '#3A5A8A');
+          for (let x = SX; x < RX - 4; x += 16) g.rect(x, oy, 8, 10, '#F4F1E8');
+          // the burner's flame under the pot (くま吉's job), held low
+          for (let i = 0; i < 7; i++) {
+            const fh = 4 + Math.round(Math.abs(Math.sin(this.t / 120 + i)) * 3);
+            g.rect(cx - 30 + i * 10, cy + 32 - fh, 3, fh, i % 2 ? '#F2894B' : '#4A8AE0');
+          }
+          g.rect(cx - 40, cy + 32, 80, 4, '#3A3F48');
+          // the pot (seen from a little above): its rim, the soy milk inside
+          ell(g, cx, cy + 4, 58, 26, '#6A6E78');
+          ell(g, cx, cy, 56, 22, '#9AA0A8');
+          ell(g, cx, cy + 1, 50, 18, '#F2EAD0');
         }
-        g.rect(cx - 40, cy + 32, 80, 4, '#3A3F48');
-        // the pot (seen from a little above): its rim, the soy milk inside
-        ell(g, cx, cy + 4, 58, 26, '#6A6E78');
-        ell(g, cx, cy, 56, 22, '#9AA0A8');
-        ell(g, cx, cy + 1, 50, 18, '#F2EAD0');
         // the milk greys a little with the sea water
         if (this.mizu > 0) g.alpha(Math.min(0.25, this.mizu * 0.2), () => ell(g, cx, cy + 1, 50, 18, '#9AB8C8'));
         // the curds: white clouds gathering (one stir), or small crumbs (stirred again and again)

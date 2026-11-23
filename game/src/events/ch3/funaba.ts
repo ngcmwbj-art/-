@@ -31,6 +31,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { addItem, flag, removeItem, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript, walk } from '../../world/api';
 import { getMapDef, registerMap } from '../../world/maps';
 import { getScript, type ScriptCtx } from '../../world/scripts';
@@ -281,6 +282,20 @@ export function fbThings(k: number, n = flag(nF(k))): { kind: 'fuji' | 'mo'; hp:
   });
 }
 
+/** 区切り k の i 番目の 物の 位置（絵の 左上からの px）。HD-2D の 絵（hd2d/panels/funaba.ts）も 使う。 */
+export function fbThingPos(k: number, i: number): [number, number] {
+  const x0 = BU[k] * W;
+  const x1 = BU[k + 1] * W;
+  const n = FB_KATA[k].length;
+  const x = x0 + ((i + 0.5) * (x1 - x0)) / n;
+  const bot = keelAt(x);
+  const y = WL + 8 + (bot - WL - 16) * (i % 2 ? 0.62 : 0.28);
+  return [Math.round(x), Math.round(y)];
+}
+
+/** 船の 腹の 形（HD-2D の 絵も 同じ 形で 描く）。 */
+export const FB_HULL = { W, WL, KEEL, BU, keelAt: (dx: number) => keelAt(dx) };
+
 function keelAt(dx: number): number {
   const bow = W * 0.3;
   if (dx < bow) return Math.round(KEEL - ((bow - dx) / bow) ** 2 * 44);
@@ -363,13 +378,8 @@ export class FunaPanel implements Widget {
 
   /** 区切り k の i 番目の 物の 位置（絵の 中）。 */
   thingAt(k: number, i: number, oy: number): [number, number] {
-    const x0 = BU[k] * W;
-    const x1 = BU[k + 1] * W;
-    const n = FB_KATA[k].length;
-    const x = x0 + ((i + 0.5) * (x1 - x0)) / n;
-    const bot = keelAt(x);
-    const y = WL + 8 + ((bot - WL - 16) * (i % 2 ? 0.62 : 0.28));
-    return [SX + Math.round(x), oy + Math.round(y)];
+    const [x, y] = fbThingPos(k, i);
+    return [SX + x, oy + y];
   }
 
   /** こすった とき：落ちる 物の 絵。 */
@@ -388,7 +398,11 @@ export class FunaPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, W, CH, () => this.drawScene(g, oy));
+        g.clip(SX, oy, W, CH, () => {
+          const hp = [0, 1, 2].map((k) => fbThings(k).map((x) => x.hp));
+          if (drawPanel3d(g, this, 'funaba', SX, oy, W, CH, { state: { hp } })) this.drawOver(g, oy, true);
+          else this.drawScene(g, oy);
+        });
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         g.text(FB_UI.parts[this.sel], RX, oy + 2, { color: '#F4ECD8' });
         const st = this.sel === 3 ? FB_UI.sawaranai : flag(buF(this.sel)) ? FB_UI.tsuru : FB_UI.nokori(fbThings(this.sel).filter((x) => x.hp > 0).length);
@@ -430,11 +444,6 @@ export class FunaPanel implements Widget {
     g.rect(s0 + 6, oy + 62, 10, 4, '#B8A070');
     g.rect(s0 + sw - 10, oy + 30, 6, 52, '#8E95A6');
     g.rect(s0 + sw - 10, oy + 30, 1, 52, '#AEB4C0');
-    // section lines (chalk)
-    for (let i = 1; i < 4; i++) {
-      const x = SX + Math.round(BU[i] * W);
-      for (let y = oy + WL + 2; y < oy + KEEL - 2; y += 6) g.rect(x, y, 1, 3, '#E8D8C8');
-    }
     // what grows on each section
     for (let k = 0; k < 3; k++) {
       const things = fbThings(k);
@@ -463,15 +472,28 @@ export class FunaPanel implements Widget {
           g.rect(x + 9, y + 5, 2, 1, FUJI);
         }
       });
+    }
+    this.drawOver(g, oy, false);
+  }
+
+  /** 絵の 上に 乗る 物：チョークの 区切り、こすった 跡、ともの 白い かげ、落ちる 物、カーソル（HD-2D の ときも 2D）。 */
+  private drawOver(g: Gfx, oy: number, hd: boolean): void {
+    // section lines (chalk)
+    for (let i = 1; i < 4; i++) {
+      const x = SX + Math.round(BU[i] * W);
+      for (let y = oy + WL + 2; y < oy + KEEL - 2; y += 6) g.rect(x, y, 1, 3, '#E8D8C8');
+    }
+    for (let k = 0; k < 3; k++)
       if (flag(buF(k))) {
         // scrubbed: a few shiny streaks
         const x0 = SX + Math.round(BU[k] * W);
         const x1 = SX + Math.round(BU[k + 1] * W);
         for (let x = x0 + 6; x < x1 - 4; x += 14) g.rect(x, oy + WL + 10 + ((x * 7) % 30), 6, 1, '#A87068');
       }
-    }
     // the stern: hands off (pale)
-    g.alpha(0.45, () => g.rect(s0, oy, sw, KEEL + 8, '#E8ECF0'));
+    const s0 = SX + Math.round(BU[3] * W);
+    const sw = Math.round((BU[4] - BU[3]) * W);
+    g.alpha(hd ? 0.3 : 0.45, () => g.rect(s0, oy, sw, KEEL + 8, '#E8ECF0'));
     // falling bits
     for (const d of this.drops) {
       const u = d.t / 700;
@@ -868,6 +890,21 @@ if (import.meta.env.DEV) {
     return go(UMIZOI, 31, 17, 'up');
   });
 
+  /** QA：大写し「船の 底」を 直接 開く（sel = 区切り、n = こすった 回数を 区切りごとに 入れる）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('fbPanel', (sel = 0, n0 = 0, n1 = 1, n2 = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof FunaPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    [n0, n1, n2].forEach((n, k) => setFlag(nF(k), Number(n)));
+    const p = new FunaPanel(Number(sel));
+    p.open = 1;
+    p.waiting = true;
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('fbState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(FBF)) flags[k] = flag(id);

@@ -34,6 +34,7 @@ import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, textW, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_himo';
 import { HM_UI } from '../../data/text/hoshi_himo';
 import { HOSHI_OBJ } from '../../data/text/hoshi_objects';
@@ -252,6 +253,12 @@ export class TsumePanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
+        // HD-2D（hd2d/panels/himo.ts）：夜の 畑・爪の 軸・回る 爪・つる・灯りは 3D、選ぶ 輪と 右の 丸い 拡大は 2D で 上に
+        const q = Math.PI / 36;
+        if (drawPanel3d(g, this, 'himo', SX, oy, CW, CH, { state: { ang: Math.round(this.ang / q) * q, vines: this.vines.join('') } })) {
+          this.drawOver(g, oy);
+          return;
+        }
         // the night field behind, the tomato's warm light on the rotor
         g.rect(SX, oy, CW, CH, '#141820');
         for (let r = 70; r > 0; r -= 12) g.alpha(0.05, () => g.circle(SX + 110, oy + 60, r, '#F28A3A'));
@@ -275,8 +282,6 @@ export class TsumePanel implements Widget {
         }
         // the three runners of kuzu wound round the shaft (thick, hairy green-brown), their winding's start end
         const vx = [cx - 62, cx - 6, cx + 50];
-        const ts = this.targets();
-        const sel = this.phase === 'kiru' && this.active ? ts[this.cur] : null;
         this.vines.forEach((s, v) => {
           const x0 = vx[v];
           if (s === 2) return;
@@ -299,40 +304,51 @@ export class TsumePanel implements Widget {
             g.rect(x0 + 8, cy - 6, 6, 12, '#5A6A2A');
             g.line(x0 + 8, cy - 6, x0 + 14, cy + 6, '#4A5A22');
           }
-          if (sel && sel.v === v) {
-            const px = sel.at === 'hashi' ? x0 - 12 : sel.at === 'naka' ? x0 + 14 : x0 + 11;
-            const py = sel.at === 'hashi' ? cy - 22 : cy;
-            g.ring(px, py, 7, '#FFE7A3');
-            for (let k = 0; k < 4; k++) g.rect(px - 3 + k, py - 18 + k, 7 - k * 2, 1, '#FFE7A3');
-          }
         });
-        // the big round lens on the right: the start end of the runner, close (so its end can be told)
-        if (this.phase === 'kiru') {
-          const lx = SX + CW - 52;
-          const ly = oy + 50;
-          g.circle(lx, ly, 42, '#2A2440');
-          g.circle(lx, ly, 40, '#1E2A1E');
-          // (the start end is always shown big here; its label when it is the one pointed at)
-          const big = !sel || sel.at === 'hashi';
-          // the runner wound on the shaft, and (on the start end) its tip and a three-lobed leaf
-          g.rect(lx - 40, ly + 6, 80, 8, '#5A5E66');
-          for (let w = 0; w < 6; w++) g.line(lx - 30 + w * 12, ly - 4, lx - 22 + w * 12, ly + 22, '#6A7A32');
-          if (big) {
-            g.line(lx - 24, ly - 4, lx - 6, ly - 28, '#7A8A3A');
-            g.line(lx - 23, ly - 4, lx - 5, ly - 28, '#5A6A2A');
-            g.circle(lx - 2, ly - 31, 5, '#4E7A32');
-            g.circle(lx + 6, ly - 27, 4, '#5E8A3A');
-            g.circle(lx - 9, ly - 26, 4, '#5E8A3A');
-            if (sel) g.text(HM_UI.hashi, lx + 8, ly - 12, { color: '#FFE7A3' });
-          } else if (sel) g.text(sel.at === 'kire' ? '……' : HM_UI.naka, lx - 14, ly - 20, { color: '#F4ECD8' });
-          g.ring(lx, ly, 40, '#9AA0A8');
-        }
+        this.drawOver(g, oy);
       });
       const tw = g.measure(HM_UI.place) + 16;
       drawTape(g, SX + 8, PY + dy - 5, tw, 16, HM_UI.place, { seed: 81 });
       markText(SX + 8, PY + dy - 5, tw, 16);
     });
     if (this.active && this.open >= 1) bandAt(g, this.phase === 'tomeru' ? HM_UI.bandTomeru : this.phase === 'matsu' ? HM_UI.bandMatsu : HM_UI.bandKiru);
+  }
+
+  /** 選んで いる 切る 所の 輪と 矢印、右の 丸い 拡大（HD-2D の 絵の 上にも 乗る）。 */
+  private drawOver(g: Gfx, oy: number): void {
+    const cx = SX + 110;
+    const cy = oy + 62;
+    const vx = [cx - 62, cx - 6, cx + 50];
+    const ts = this.targets();
+    const sel = this.phase === 'kiru' && this.active ? ts[this.cur] : null;
+    if (sel) {
+      const x0 = vx[sel.v];
+      const px = sel.at === 'hashi' ? x0 - 12 : sel.at === 'naka' ? x0 + 14 : x0 + 11;
+      const py = sel.at === 'hashi' ? cy - 22 : cy;
+      g.ring(px, py, 7, '#FFE7A3');
+      for (let k = 0; k < 4; k++) g.rect(px - 3 + k, py - 18 + k, 7 - k * 2, 1, '#FFE7A3');
+    }
+    // the big round lens on the right: the start end of the runner, close (so its end can be told)
+    if (this.phase === 'kiru') {
+      const lx = SX + CW - 52;
+      const ly = oy + 50;
+      g.circle(lx, ly, 42, '#2A2440');
+      g.circle(lx, ly, 40, '#1E2A1E');
+      // (the start end is always shown big here; its label when it is the one pointed at)
+      const big = !sel || sel.at === 'hashi';
+      // the runner wound on the shaft, and (on the start end) its tip and a three-lobed leaf
+      g.rect(lx - 40, ly + 6, 80, 8, '#5A5E66');
+      for (let w = 0; w < 6; w++) g.line(lx - 30 + w * 12, ly - 4, lx - 22 + w * 12, ly + 22, '#6A7A32');
+      if (big) {
+        g.line(lx - 24, ly - 4, lx - 6, ly - 28, '#7A8A3A');
+        g.line(lx - 23, ly - 4, lx - 5, ly - 28, '#5A6A2A');
+        g.circle(lx - 2, ly - 31, 5, '#4E7A32');
+        g.circle(lx + 6, ly - 27, 4, '#5E8A3A');
+        g.circle(lx - 9, ly - 26, 4, '#5E8A3A');
+        if (sel) g.text(HM_UI.hashi, lx + 8, ly - 12, { color: '#FFE7A3' });
+      } else if (sel) g.text(sel.at === 'kire' ? '……' : HM_UI.naka, lx - 14, ly - 20, { color: '#F4ECD8' });
+      g.ring(lx, ly, 40, '#9AA0A8');
+    }
   }
 }
 
@@ -616,6 +632,26 @@ if (import.meta.env.DEV) {
     giveKey(HANA);
     if (step === 'makura') return go('map_hoshi_school', 6, 8, 'up');
     return go('map_hoshimidai', 45, 3, 'up');
+  });
+
+  /**
+   * QA：大写し「爪」を 直接 開く（phase 'tomeru'・'matsu'・'ban'・'kiru'、vines：つる 3本の ようす '000'〜'222'）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.hmPanel('kiru', '010') → 写真 → __game.cmd.hmPanel()
+   */
+  registerDebug('hmPanel', (phase?: 'tomeru' | 'matsu' | 'ban' | 'kiru', vines = '000') => {
+    const open = game.ui.widgets.find((w) => w instanceof TsumePanel);
+    if (open || !phase) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new TsumePanel();
+    p.open = 1;
+    p.phase = phase;
+    p.vines = String(vines).split('').map(Number);
+    if (phase === 'ban' || phase === 'kiru') p.speed = 0;
+    p.active = phase === 'kiru';
+    game.ui.push(p);
+    return phase;
   });
 
   registerDebug('hmState', () => {

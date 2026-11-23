@@ -28,7 +28,7 @@ function skyImg(stage: number): HTMLCanvasElement {
   return pix(`ub:sky${stage}`, W, H, (p) => {
     for (let y = 0; y < H; y++) {
       const k = Math.min(1, y / 40);
-      const c = stage >= 2 && y > 24 && y < 44 ? mix('#2A2440', '#3A2B5C', Math.min(1, (y - 24) / 12)) : mix('#0B0B14', '#1B1733', k);
+      const c = stage >= 2 && y > 14 && y < 40 ? mix('#2A2440', '#3A2B5C', Math.min(1, (y - 14) / 10)) : mix('#0B0B14', '#1B1733', k);
       p.hline(0, W - 1, y, c);
     }
     const rng = new Rng(701);
@@ -124,7 +124,7 @@ function buildGround(k: Kit): void {
       at.z -= 0.25 + row * 0.7 + rng.next() * 0.3;
       if (path > 0.4 && row === 0) continue;
       const low = path > 0.2;
-      const s = k.pxAt(-at.z) * (1.25 + rng.next() * 0.35 + row * 0.15);
+      const s = k.pxAt(-at.z) * (0.85 + rng.next() * 0.25 + row * 0.12);
       k.stand(kuzuImg(Math.floor(rng.next() * 5), low), at, { px: s, depth: 10, cast: false, flip: rng.next() < 0.5 });
     }
   }
@@ -178,13 +178,15 @@ function buildLamp(k: Kit): void {
   const fruit = k.stand(lowLantern(), lampAt.clone().setY(lampAt.y - k.pxAt(2.2) * 6), { px: k.pxAt(2.2), depth: 4, emissive: 1.1, cast: false, unlit: true });
   fruit.renderOrder = 2;
   // the light: from a little above the fruit, aimed at the walking line under the light's middle
-  const from = lampAt.clone().add(new THREE.Vector3(0, 0.25, -0.3));
-  const target = k.ground(UB_LIGHT.x, UB_GROUND_Y, 0)!;
+  // (held low, but the light falls mostly on the ground: from over the fruit, down onto the walking line —
+  //  the kuzu behind them gets only its foot lit, as in 2D's ring)
+  const target = k.ground(UB_LIGHT.x, UB_GROUND_Y + 2, 0)!;
+  const from = new THREE.Vector3(target.x, 2.4, target.z + 2.6);
   const edge = k.ground(EDGE_X, UB_GROUND_Y, 0)!;
   const a = target.clone().sub(from).normalize();
   const b = edge.clone().sub(from).normalize();
   const ang = Math.acos(a.dot(b));
-  const spot = new THREE.SpotLight('#ffd0a0', 5.5, 0, ang * 1.06, 0.16, 0);
+  const spot = new THREE.SpotLight('#ffd0a0', 15, 10, ang * 1.06, 0.18, 1.2);
   spot.position.copy(from);
   spot.target.position.copy(target);
   spot.castShadow = true;

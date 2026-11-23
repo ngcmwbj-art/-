@@ -39,6 +39,7 @@ import { forceBoxPos } from '../stage';
 import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
+import { drawPanel3d } from '../../ui/panel3d';
 import { closeupWide, widenRange } from '../../ui/closeup_wide';
 
 export const AF = {
@@ -175,6 +176,8 @@ export class AsPanel implements Widget {
   shift = 0;
   private ePress = false;
   private eCancel = false;
+  /** HD-2D で 描いた（柱は 3D）。 */
+  private hd = false;
 
   constructor(kind: Kind) {
     this.kind = kind;
@@ -356,9 +359,11 @@ export class AsPanel implements Widget {
     const cx = SX + 104;
     const cy = oy + 46;
     const c = '#C8CCD8';
-    // the posts of the fire tower on both sides
-    g.rect(SX + 18, oy, 5, CH, '#5A4A3A');
-    g.rect(SX + 192, oy, 5, CH, '#5A4A3A');
+    // the posts of the fire tower on both sides（HD-2D では 3D の 柱）
+    if (!this.hd) {
+      g.rect(SX + 18, oy, 5, CH, '#5A4A3A');
+      g.rect(SX + 192, oy, 5, CH, '#5A4A3A');
+    }
     const sway = this.twang > 0 ? Math.sin(this.t / 25) * (this.twang / 500) * 3 : 0;
     for (let k = 0; k < 10; k++) {
       const a = (k / 10) * Math.PI * 2;
@@ -395,11 +400,15 @@ export class AsPanel implements Widget {
       g.clip(SX, SY + dy, CW, CH, () => {
         const oy = SY + dy;
         // the night before the dawn, the lantern's warm light on the leaf
-        g.rect(SX, oy, RX - SX - 4, CH, '#151A2C');
-        g.rect(SX, oy + CH - 18, RX - SX - 4, 18, '#1E2418');
-        // (a soft pool: rings of low alpha, the lantern held up beside the leaf)
-        for (let r = 70; r > 0; r -= 10) g.alpha(0.035, () => g.circle(SX + 120, oy + 30, r, '#F28A3A'));
-        for (const [sx, sy] of [[12, 6], [60, 12], [140, 4], [190, 10]] as const) g.px(SX + sx, oy + sy, '#C8CCE0');
+        // HD-2D（hd2d/panels/asairo.ts）：夜明け前の 景色と 灯りの 光は 3D。葉・露・巣・絵皿は 下の 2D を 重ねる
+        this.hd = drawPanel3d(g, this, 'asairo', SX, oy, RX - SX - 4, CH, { state: { kind: this.kind } });
+        if (!this.hd) {
+          g.rect(SX, oy, RX - SX - 4, CH, '#151A2C');
+          g.rect(SX, oy + CH - 18, RX - SX - 4, 18, '#1E2418');
+          // (a soft pool: rings of low alpha, the lantern held up beside the leaf)
+          for (let r = 70; r > 0; r -= 10) g.alpha(0.035, () => g.circle(SX + 120, oy + 30, r, '#F28A3A'));
+          for (const [sx, sy] of [[12, 6], [60, 12], [140, 4], [190, 10]] as const) g.px(SX + sx, oy + sy, '#C8CCE0');
+        }
         this.shift = dy;
         g.clip(SX, oy, RX - SX - 4, CH, () => {
           if (this.kind === 'kumo') this.drawKumo(g, oy);
@@ -725,6 +734,21 @@ if (import.meta.env.DEV) {
     setFlag(AF.done, 1);
     removeItem('item_as_ezara');
     return go(SAWAKO_HOUSE, 5, 4, 'up');
+  });
+
+  /** QA：大写しだけを すぐ 開く（kind：satoimo / ine / kumo / tomato。もう一度 呼ぶと 閉じる）。 */
+  registerDebug('asPanel', (kind = 'satoimo') => {
+    const old = game.ui.widgets.find((w) => w instanceof AsPanel);
+    if (old) {
+      game.ui.remove(old);
+      return 'closed';
+    }
+    const p = new AsPanel(kind as Kind);
+    setFlag(`howto_${p.howto.id}`, 1);
+    p.open = 1;
+    p.active = true;
+    game.ui.push(p);
+    return 'opened';
   });
 
   registerDebug('asState', () => {

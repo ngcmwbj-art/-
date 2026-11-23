@@ -26,6 +26,7 @@ import { game, type Widget } from '../../engine/game';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { measure } from '../../engine/font';
+import { drawPanel3d } from '../../ui/panel3d';
 import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
@@ -320,7 +321,11 @@ export class UbPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, RX - SX - 4, CH, () => this.drawFace(g, oy, dy));
+        g.clip(SX, oy, RX - SX - 4, CH, () => {
+          // HD-2D（hd2d/panels/ushibana.ts）：牛舎・頭・柵は 3D、目の ひかり・ぬれた 鼻の ひかり・粉・口・舌・輪は 上に 2D で
+          const hd = drawPanel3d(g, this, 'ushibana', SX, oy, RX - SX - 4, CH, { state: { kind: this.kind, lx: Math.round(this.lx - SX), ly: Math.round(this.ly - SY) } });
+          this.drawFace(g, oy, dy, hd);
+        });
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         g.text(UB_UI.pens[this.pen], RX, oy + 4, { color: '#8A84A0' });
         UB_UI.parts.forEach((p, i) => {
@@ -336,9 +341,18 @@ export class UbPanel implements Widget {
     });
   }
 
-  private drawFace(g: Gfx, oy: number, dy: number): void {
+  /** hd：HD-2D の 絵の 上（牛舎・頭・柵・灯りの 光は 3D：動く 所だけ 描く）。 */
+  private drawFace(g: Gfx, oy: number, dy: number, hd = false): void {
     const W = RX - SX - 4;
     const cx = this.cx();
+    const BLACK = '#1E1C22';
+    const DARK = '#141218';
+    if (!hd) this.drawHead(g, oy, W, cx, BLACK, DARK);
+    this.drawLive(g, oy, dy, W, cx, BLACK, DARK, hd);
+  }
+
+  /** 止まった 所：牛舎、耳、頭、星、目の 玉、鼻の 皿と 穴、柵。 */
+  private drawHead(g: Gfx, oy: number, W: number, cx: number, BLACK: string, DARK: string): void {
     // the pen at night beyond the rail: the barn's tubes behind, the sawdust dim
     // (the tubes are on all night: the pen behind it is plain to see, the black head stands out against it)
     g.rect(SX, oy, W, CH, '#5A6070');
@@ -347,8 +361,6 @@ export class UbPanel implements Widget {
     for (let x = SX + 10; x < SX + W; x += 36) g.rect(x, oy + 7, 2, 44, '#6A7180');
     g.rect(SX, oy + 50, W, CH - 50, '#9A8C70');
     for (let i = 0; i < 70; i++) g.px(SX + ((i * 47) % W), oy + 52 + ((i * 13) % 48), i % 2 ? '#B4A684' : '#857858');
-    const BLACK = '#1E1C22';
-    const DARK = '#141218';
     // the ears (out to the sides), a yellow ear tag in each
     for (const s of [-1, 1]) {
       oval(g, cx + s * 48, oy + 30, 15, 6, BLACK);
@@ -379,16 +391,11 @@ export class UbPanel implements Widget {
       g.px(cx + 7, oy + 26, '#E6E2D8');
     }
     // the eyes on the sides of the head
-    const eyeLit = this.aim === 0 ? 1 : 0.3;
     for (const s of [-1, 1]) {
       oval(g, cx + s * 26, oy + 36, 6, 4, DARK);
       g.rect(cx + s * 26 - 6, oy + 33, 12, 1, '#2E2A34');
-      g.alpha(eyeLit, () => {
-        g.rect(cx + s * 26 - 2 + s, oy + 34, 2, 2, '#FFF4D8');
-        g.px(cx + s * 26 + 2, oy + 37, '#F28A3A');
-      });
     }
-    // the muzzle (the wet nose pad), its two nostrils, the mouth and the chin under it
+    // the muzzle (the wet nose pad), its two nostrils
     const my = oy + 78;
     oval(g, cx, my, 25, 11, '#34303A');
     g.rect(cx - 1, my - 10, 2, 20, '#2C2830');
@@ -396,6 +403,18 @@ export class UbPanel implements Widget {
       oval(g, cx + s * 12, my + 1, 5, 4, DARK);
       g.px(cx + s * 12 - s * 3, my - 2, '#4A4652');
     }
+  }
+
+  /** 動く 所：目の ひかり、ぬれた 鼻の ひかり、粉、口、舌、柵、灯り（hd：柵と 灯りの 光は 3D、輪だけ）。 */
+  private drawLive(g: Gfx, oy: number, dy: number, W: number, cx: number, BLACK: string, DARK: string, hd: boolean): void {
+    const eyeLit = this.aim === 0 ? 1 : 0.3;
+    for (const s of [-1, 1]) {
+      g.alpha(eyeLit, () => {
+        g.rect(cx + s * 26 - 2 + s, oy + 34, 2, 2, '#FFF4D8');
+        g.px(cx + s * 26 + 2, oy + 37, '#F28A3A');
+      });
+    }
+    const my = oy + 78;
     // the wet shine: every healthy nose is damp; brighter under the light, brightest on 北1's
     const nearNose = this.aim === 1 ? 1 : 0.35;
     const shine = (this.kind === 0 && this.show ? 1 : 0.5) * nearNose;
@@ -433,14 +452,18 @@ export class UbPanel implements Widget {
       }
     }
     // the rail in front (they are seen over it) and the trough's edge
-    g.rect(SX, oy + 100, W, 3, '#8A909A');
-    g.rect(SX, oy + 100, W, 1, '#B8BEC8');
-    g.rect(SX, oy + 106, W, 6, '#6A6A70');
+    if (!hd) {
+      g.rect(SX, oy + 100, W, 3, '#8A909A');
+      g.rect(SX, oy + 100, W, 1, '#B8BEC8');
+      g.rect(SX, oy + 106, W, 6, '#6A6A70');
+    }
     // the tomato's light where it is aimed (soft: not too close — it dazzles them)
     const lx = Math.round(this.lx);
     const ly = Math.round(this.ly + dy);
-    for (let r = 30; r > 0; r -= 6) g.alpha(0.05, () => g.circle(lx, ly, r, '#F28A3A'));
-    g.alpha(0.12, () => g.circle(lx, ly, 8, '#FFD9A0'));
+    if (!hd) {
+      for (let r = 30; r > 0; r -= 6) g.alpha(0.05, () => g.circle(lx, ly, r, '#F28A3A'));
+      g.alpha(0.12, () => g.circle(lx, ly, 8, '#FFD9A0'));
+    }
     if (this.active) g.ring(lx, ly, 18 + Math.round(Math.sin(this.t / 200)), '#FFE7A3');
   }
 }
@@ -675,6 +698,33 @@ if (import.meta.env.DEV) {
       return go(BARN, 2, 10, 'down');
     }
     return go(BARN, 6, 6, 'up');
+  });
+
+  /**
+   * QA：大写し「牛の 顔」を 直接 開く（pen 0 北1・1 南2・2 北4、part = 灯りの 所、tongue = 舌を 出す）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.ushibana('n1') → __game.cmd.ubPanel(0, 1) → 写真 → __game.cmd.ubPanel()
+   */
+  registerDebug('ubPanel', (pen?: number, part = 1, tongue = false) => {
+    const open = game.ui.widgets.find((w) => w instanceof UbPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new UbPanel(Math.max(0, Math.min(2, Number(pen ?? 0))));
+    setFlag(`howto_${p.howto.id}`, 1);
+    p.sel = Math.max(0, Math.min(2, Number(part))) as Part;
+    p.aim = p.sel;
+    const [x, y] = p.partAt(p.aim);
+    p.lx = x;
+    p.ly = y;
+    p.active = true;
+    if (tongue) {
+      p.tongue = 0;
+      p.tongueLoop = true;
+    }
+    p.open = 1;
+    game.ui.push(p);
+    return { pen: p.pen, kind: p.kind, part: p.sel };
   });
 
   // (the light put on a part directly, for the pictures)

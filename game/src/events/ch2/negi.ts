@@ -41,6 +41,7 @@ import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
 import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import { closeupWide } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 import { kakimoji } from '../../battle/art/stamps';
 import * as T from '../../data/text/hoshi_negi';
 import { NH_UI } from '../../data/text/hoshi_negi';
@@ -315,6 +316,15 @@ export class NegiPanel implements Widget {
   /** 横から 見た ネギ 1本（根・白い 葉鞘・分かれ目・緑の 葉）と、寄せた 土の 線、左に 段の 目もり。 */
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
+    // HD-2D：畝の 切り口と ネギ、奥の 畑（hd2d/panels/negi.ts）。目もり・点線・字は 2D の まま 上に
+    const in3d = drawPanel3d(g, this, 'negi', SX, oy, W, CH, { state: { lv: Math.round(this.shown * 20) / 20 } });
+    if (!in3d) this.drawCut(g, oy);
+    this.drawMarks(g, oy);
+  }
+
+  /** 2D の 断面の 絵（HD-2D が 無い とき）。 */
+  private drawCut(g: Gfx, oy: number): void {
+    const W = RX - SX - 4;
     // the dawn sky (blue, a little light at the bottom), the dark field beyond
     g.rect(SX, oy, W, CH, '#26304E');
     g.rect(SX, oy + 44, W, 30, '#2E3A5A');
@@ -349,6 +359,17 @@ export class NegiPanel implements Widget {
       g.px(cx + 4, y, under ? NH_WHITE_SH : NH_LEAF);
     }
     g.rect(cx - 4, soilY, 10, 1, NH_SOIL_LT);
+  }
+
+  /** 土の 粒・分かれ目の 点線・字・左の 目もり（2D でも HD-2D でも 上に）。 */
+  private drawMarks(g: Gfx, oy: number): void {
+    const W = RX - SX - 4;
+    const base = oy + 96;
+    const cx = SX + 128;
+    const soil = (lv: number) => base - lv * STEP;
+    const forkY = soil(NH_FORK);
+    const lvNow = this.shown;
+    const soilY = Math.round(soil(lvNow));
     // crumbs when soil moved
     if (this.puff > 0) {
       g.alpha(this.puff, () => {
@@ -844,6 +865,16 @@ if (import.meta.env.DEV) {
     return go(VILLAGE, NH_KIDO[0] - 1, NH_KIDO[1], 'right');
   });
 
+  /** QA（大写しの HD-2D の 写真）：畝の 断面を 直接 開く／もう一度で 閉じる（r：0〜2、mode：look・yose・noke）。 */
+  registerDebug('negiPanel', (r: unknown = 1, mode: Mode = 'yose') => {
+    const old = game.ui.widgets.find((w) => w instanceof NegiPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new NegiPanel(Number(r), mode);
+    p.open = 1;
+    p.phase = 'pick';
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('nhAuto', (v: unknown = true, miss: unknown = false) => {
     qaAuto = !!v;
     qaMiss = !!miss;

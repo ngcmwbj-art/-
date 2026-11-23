@@ -30,6 +30,7 @@ import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_hana';
 import { HN_UI } from '../../data/text/hoshi_hana';
 import { addMp } from '../lib';
@@ -139,6 +140,76 @@ function momi(g: Gfx, x: number, y: number, c: string, cl: string, cd: string, o
   }
 }
 
+/**
+ * 1本の 稲：田の 水から 立つ 茎と 葉、その 先の 穂（首を たれて、もみが 2列）。bx, ground：茎の 根もと。
+ * part：'body' 茎・葉・穂・もみ（HD-2D は これを 立てる）、'anthers' 咲いた あとの 葯だけ（ゆれる：HD-2D でも 2D で 上に）。
+ */
+export function hnEar(g: Gfx, bx: number, ground: number, look: HoLook, scale: number, t: number, part: 'all' | 'body' | 'anthers' = 'all'): void {
+  const top = ground - Math.round(70 * scale);
+  const B = part !== 'anthers';
+  const tx = bx + 3;
+  if (B) {
+    // the culm, a little bent, and two long leaves off it
+    for (let y = ground; y > top; y--) {
+      const x = bx + Math.round(((ground - y) / (ground - top)) * 3);
+      g.rect(x, y, 2, 1, '#4E8A3A');
+      g.px(x, y, '#6AA24A');
+    }
+    g.line(bx, ground - 18, bx - 26, ground - 50, '#3E7A32');
+    g.line(bx + 1, ground - 18, bx - 25, ground - 50, '#5E9A42');
+    g.line(bx + 1, ground - 30, bx + 30, ground - 62, '#3E7A32');
+    g.line(bx + 2, ground - 30, bx + 31, ground - 62, '#5E9A42');
+  }
+  if (look === 'mae') {
+    if (!B) return;
+    // the ear still inside its leaf: the swollen sheath at the top of the culm, the flag leaf going on up out of it
+    const h = Math.round(38 * scale);
+    for (let i = 0; i < h; i++) {
+      const w = Math.round(Math.sin((i / h) * Math.PI) * 4 * scale) + 1;
+      const y = top - i;
+      g.rect(tx - w, y, w * 2 + 1, 1, '#4E8A3A');
+      g.px(tx - w, y, '#7AB05A');
+      g.px(tx + w, y, '#2E5A2A');
+    }
+    g.line(tx, top - h, tx + 6, top - h - 24, '#5E9A42');
+    g.line(tx + 1, top - h, tx + 7, top - h - 24, '#3E7A32');
+    g.line(tx + 6, top - h - 24, tx + 16, top - h - 30, '#5E9A42');
+    return;
+  }
+  // the ear: up from the top of the culm, then bowing over
+  const n = 9;
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const k = i / n;
+    pts.push([Math.round(tx + k * 64 * scale), Math.round(top - Math.sin(k * 2.2) * 30 * scale + k * k * 22 * scale)]);
+  }
+  if (B) g.line(tx, top, pts[0][0], pts[0][1], '#6A9A3A');
+  if (B) for (let i = 0; i < pts.length - 1; i++) g.line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], '#7AA040');
+  const [c, cl, cd] = look === 'ato' ? ['#7AA048', '#A2C468', '#4E7030'] : ['#5EA040', '#9AD870', '#2E6A2A'];
+  for (let i = 1; i < pts.length; i++) {
+    const [x, y] = pts[i];
+    for (const s of [-1, 1]) {
+      const mx = x + s * 3;
+      const my = y + 3 + (s > 0 ? 1 : -1);
+      if (B) momi(g, mx, my, c, cl, cd, look === 'ato');
+      if (look === 'ato') {
+        if (part === 'body') continue;
+        // the anthers hanging from the tips: white threads, a little yellow at their ends
+        const sway = Math.round(Math.sin(t / 600 + i + s) * 1);
+        g.rect(mx + sway, my + 5, 1, 6, '#F4F0E0');
+        g.px(mx + sway, my + 11, '#E8D890');
+        if (i % 2) {
+          g.rect(mx + 1 + sway, my + 5, 1, 4, '#E8E4D4');
+          g.px(mx + 1 + sway, my + 9, '#E0CC80');
+        }
+      } else if (B && (i + (s > 0 ? 1 : 0)) % 3 === 0) {
+        // the lantern's glint on the shut, glossy glumes
+        g.px(mx - 1, my - 3, '#FFFFFF');
+      }
+    }
+  }
+}
+
 export class HoPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
@@ -160,68 +231,6 @@ export class HoPanel implements Widget {
     this.t += dt;
   }
 
-  /** 1本の 稲：田の 水から 立つ 茎と 葉、その 先の 穂（首を たれて、もみが 2列）。bx, ground：茎の 根もと。 */
-  private ear(g: Gfx, bx: number, ground: number, look: HoLook, scale: number): void {
-    const top = ground - Math.round(70 * scale);
-    // the culm, a little bent, and two long leaves off it
-    for (let y = ground; y > top; y--) {
-      const x = bx + Math.round(((ground - y) / (ground - top)) * 3);
-      g.rect(x, y, 2, 1, '#4E8A3A');
-      g.px(x, y, '#6AA24A');
-    }
-    g.line(bx, ground - 18, bx - 26, ground - 50, '#3E7A32');
-    g.line(bx + 1, ground - 18, bx - 25, ground - 50, '#5E9A42');
-    g.line(bx + 1, ground - 30, bx + 30, ground - 62, '#3E7A32');
-    g.line(bx + 2, ground - 30, bx + 31, ground - 62, '#5E9A42');
-    const tx = bx + 3;
-    if (look === 'mae') {
-      // the ear still inside its leaf: the swollen sheath at the top of the culm, the flag leaf going on up out of it
-      const h = Math.round(38 * scale);
-      for (let i = 0; i < h; i++) {
-        const w = Math.round(Math.sin((i / h) * Math.PI) * 4 * scale) + 1;
-        const y = top - i;
-        g.rect(tx - w, y, w * 2 + 1, 1, '#4E8A3A');
-        g.px(tx - w, y, '#7AB05A');
-        g.px(tx + w, y, '#2E5A2A');
-      }
-      g.line(tx, top - h, tx + 6, top - h - 24, '#5E9A42');
-      g.line(tx + 1, top - h, tx + 7, top - h - 24, '#3E7A32');
-      g.line(tx + 6, top - h - 24, tx + 16, top - h - 30, '#5E9A42');
-      return;
-    }
-    // the ear: up from the top of the culm, then bowing over
-    const n = 9;
-    const pts: [number, number][] = [];
-    for (let i = 0; i <= n; i++) {
-      const k = i / n;
-      pts.push([Math.round(tx + k * 64 * scale), Math.round(top - Math.sin(k * 2.2) * 30 * scale + k * k * 22 * scale)]);
-    }
-    g.line(tx, top, pts[0][0], pts[0][1], '#6A9A3A');
-    for (let i = 0; i < pts.length - 1; i++) g.line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], '#7AA040');
-    const [c, cl, cd] = look === 'ato' ? ['#7AA048', '#A2C468', '#4E7030'] : ['#5EA040', '#9AD870', '#2E6A2A'];
-    for (let i = 1; i < pts.length; i++) {
-      const [x, y] = pts[i];
-      for (const s of [-1, 1]) {
-        const mx = x + s * 3;
-        const my = y + 3 + (s > 0 ? 1 : -1);
-        momi(g, mx, my, c, cl, cd, look === 'ato');
-        if (look === 'ato') {
-          // the anthers hanging from the tips: white threads, a little yellow at their ends
-          const sway = Math.round(Math.sin(this.t / 600 + i + s) * 1);
-          g.rect(mx + sway, my + 5, 1, 6, '#F4F0E0');
-          g.px(mx + sway, my + 11, '#E8D890');
-          if (i % 2) {
-            g.rect(mx + 1 + sway, my + 5, 1, 4, '#E8E4D4');
-            g.px(mx + 1 + sway, my + 9, '#E0CC80');
-          }
-        } else if ((i + (s > 0 ? 1 : 0)) % 3 === 0) {
-          // the lantern's glint on the shut, glossy glumes
-          g.px(mx - 1, my - 3, '#FFFFFF');
-        }
-      }
-    }
-  }
-
   draw(g: Gfx): void {
     if (this.open <= 0) return;
     const k = ease.cubicOut(Math.min(1, this.open));
@@ -232,6 +241,11 @@ export class HoPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
+        // HD-2D（hd2d/panels/hana.ts）：夜の 田・稲・穂・灯りは 3D、ゆれる 葯だけ 2D で 上に
+        if (drawPanel3d(g, this, 'hana', SX, oy, CW, CH, { state: { look: this.look, extra: this.extra ?? '' } })) {
+          if (this.look === 'ato') hnEar(g, SX + 110, oy + CH - 20, 'ato', 1.15, this.t, 'anthers');
+          return;
+        }
         // the night before the dawn over the paddy, the lantern's warm pool on the ear
         g.rect(SX, oy, CW, CH, '#141A2A');
         for (let r = 80; r > 0; r -= 10) g.alpha(0.04, () => g.circle(SX + 150, oy + 54, r, '#F28A3A'));
@@ -245,9 +259,9 @@ export class HoPanel implements Widget {
         }
         // the ear that is looked at (the lantern on it), and the one beside it
         const gy = oy + CH - 20;
-        if (this.extra === 'two' || this.extra === 'ato') this.ear(g, SX + 206, gy, 'kore', 0.8);
-        if (this.extra === 'mae') this.ear(g, SX + 210, gy, 'kore', 0.75);
-        this.ear(g, SX + 110, gy, this.look, 1.15);
+        if (this.extra === 'two' || this.extra === 'ato') hnEar(g, SX + 206, gy, 'kore', 0.8, this.t);
+        if (this.extra === 'mae') hnEar(g, SX + 210, gy, 'kore', 0.75, this.t);
+        hnEar(g, SX + 110, gy, this.look, 1.15, this.t);
       });
       const tw = g.measure(HN_UI.place) + 16;
       drawTape(g, SX + 8, PY + dy - 5, tw, 16, HN_UI.place, { seed: 69 });
@@ -432,6 +446,22 @@ if (import.meta.env.DEV) {
     if (step === 'back') return go(21, 12, 'up');
     setFlag(NF.done, 1);
     return go(21, 12, 'up');
+  });
+
+  /**
+   * QA：大写し「穂」を 直接 開く（look：'ato' 咲いた あと・'kore' これから 咲く・'mae' まだ 葉の 中、
+   * extra：'two'・'ato'・'mae' となりの 穂）。もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('hnPanel', (look?: HoLook, extra?: 'two' | 'ato' | 'mae') => {
+    const open = game.ui.widgets.find((w) => w instanceof HoPanel);
+    if (open || !look) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new HoPanel(look, extra);
+    p.open = 1;
+    game.ui.push(p);
+    return look;
   });
 
   registerDebug('hnState', () => {

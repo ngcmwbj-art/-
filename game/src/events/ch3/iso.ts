@@ -27,6 +27,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, removeItem, setFlag, state, type Dir } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import { registerWorldFx } from '../../world/fx';
 import { getScript, type ScriptCtx } from '../../world/scripts';
@@ -340,10 +341,14 @@ export class IsoPanel implements Widget {
 
   private scene(g: Gfx, dy: number): void {
     const oy = MY + dy;
-    g.rect(SX, SY + dy, RX - SX - 4, CH, '#2A5A82');
-    // the shore from above: the rock, the cliff, the pools, the sea; the tide covers the low rows
     const tide = this.tide();
     const seaTop = 10 - tide * 2.6;
+    // (HD-2D：満ちた 行 = y + 1 > seaTop + 0.5 の いちばん 上の 行)
+    const flood = Math.max(0, Math.floor(seaTop - 0.5) + 1);
+    const hd = drawPanel3d(g, this, 'iso', SX, SY + dy, RX - SX - 4, CH, { state: { flood, flipped: this.flipped } });
+    if (!hd) g.rect(SX, SY + dy, RX - SX - 4, CH, '#2A5A82');
+    // the shore from above: the rock, the cliff, the pools, the sea; the tide covers the low rows
+    if (!hd)
     for (let y = 0; y < ISO_H; y++)
       for (let x = 0; x < ISO_W; x++) {
         const ch = ISO_ROWS[y][x];
@@ -371,13 +376,17 @@ export class IsoPanel implements Widget {
       const cx = MX + x * TS + 3;
       const cy = oy + y * TS + 3;
       if (this.flipped === i) {
-        g.rect(cx - 3, cy - 2, 7, 5, '#5A564E');
-        g.circle(cx + 6, cy - 3, 3, '#6A665E');
+        if (!hd) {
+          g.rect(cx - 3, cy - 2, 7, 5, '#5A564E');
+          g.circle(cx + 6, cy - 3, 3, '#6A665E');
+        }
         const inside = ISO_STONE_IN[i];
         if (inside) this.drawCreature(g, inside, cx, cy, true);
       } else {
-        g.circle(cx, cy, 3, '#62605A');
-        g.circle(cx - 1, cy - 1, 2, '#B8B4A8');
+        if (!hd) {
+          g.circle(cx, cy, 3, '#62605A');
+          g.circle(cx - 1, cy - 1, 2, '#B8B4A8');
+        }
         if (flag(ishiF(i)) === 1) g.px(cx + 2, cy + 2, '#D9483A');
       }
     });
@@ -837,6 +846,22 @@ if (import.meta.env.DEV) {
     return cmd().warp?.('map_c3_misaki', 26, 14, 'up');
   });
 
+  /** QA：大写し「石めくり」を 直接 開く（spent = 潮の 秒、flipped = めくった 石）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('isoPanel', (spent = 0, flipped = -1, sel = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof IsoPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new IsoPanel();
+    p.open = 1;
+    p.spent = Number(spent);
+    p.flipped = Number(flipped);
+    p.sel = Number(sel);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('isoState', () => {
     const p = game.ui.widgets.find((w) => w instanceof IsoPanel) as IsoPanel | undefined;
     const flags: Record<string, number> = {};

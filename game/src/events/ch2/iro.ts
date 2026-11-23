@@ -31,6 +31,7 @@ import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_iro';
 import { IR_UI } from '../../data/text/hoshi_iro';
 import { hajimeteDone } from '../../data/text/hajimete';
@@ -280,14 +281,18 @@ export class AwasePanel implements Widget {
     g.alpha(a, () => {
       g.clip(SX, SY + dy, CW, CH, () => {
         const oy = SY + dy;
-        // the table in the gathering room, the lamp's warm light
-        g.rect(SX, oy, RX - SX - 4, CH, '#4A3A2E');
-        g.rect(SX, oy, RX - SX - 4, 6, '#3A2C22');
-        g.alpha(0.14, () => g.circle(SX + 106, oy + 30, 80, '#FFB070'));
-        if (this.orange) g.alpha(0.1, () => g.circle(PLATE_X[0], oy + 26, 30, '#F28A3A'));
+        // HD-2D（hd2d/panels/iro.ts）：集会所の 机・皿・漬物・ランプの 光は 3D、札の 欄と 名前は 2D で 上に
+        const hd = drawPanel3d(g, this, 'iro', SX, oy, RX - SX - 4, CH, { state: { orange: this.orange } });
+        if (!hd) {
+          // the table in the gathering room, the lamp's warm light
+          g.rect(SX, oy, RX - SX - 4, CH, '#4A3A2E');
+          g.rect(SX, oy, RX - SX - 4, 6, '#3A2C22');
+          g.alpha(0.14, () => g.circle(SX + 106, oy + 30, 80, '#FFB070'));
+          if (this.orange) g.alpha(0.1, () => g.circle(PLATE_X[0], oy + 26, 30, '#F28A3A'));
+        }
         for (let i = 0; i < 3; i++) {
           const cx = PLATE_X[i];
-          this.drawPlate(g, i, cx, PLATE_Y + dy);
+          if (!hd) this.drawPlate(g, i, cx, PLATE_Y + dy);
           // the card's place under the plate
           const sh = this.shakeT > 0 && i === this.plate ? Math.round(Math.sin(this.t / 30) * 2) : 0;
           const sx = cx - SLOT_W / 2 + sh;
@@ -581,6 +586,27 @@ if (import.meta.env.DEV) {
     setFlag(IF.done, 1);
     removeItem('item_ir_kugi');
     return go('map_hoshi_kucho', 1, 4, 'down');
+  });
+
+  /**
+   * QA：大写し「漬物の 色」を 直接 開く（placed：置いた 札の 数 0〜3、orange：トマトの 灯りの ふち）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.irPanel(1) → 写真 → __game.cmd.irPanel()
+   */
+  registerDebug('irPanel', (placed?: number, orange = true) => {
+    const open = game.ui.widgets.find((w) => w instanceof AwasePanel);
+    if (open || placed === undefined) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new AwasePanel();
+    p.open = 1;
+    p.orange = !!orange;
+    for (let i = 0; i < Number(placed); i++) p.placed[i] = true;
+    p.plate = Math.min(2, Number(placed));
+    p.active = true;
+    p.firstFree();
+    game.ui.push(p);
+    return p.plate;
   });
 
   registerDebug('irState', () => {

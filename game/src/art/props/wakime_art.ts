@@ -380,6 +380,20 @@ function warmed(src: PixelCanvas, c: string, k: number): PixelCanvas {
   return out;
 }
 
+/**
+ * Plant n alone (no house behind it): lit and dark. For the HD-2D close-up (hd2d/panels/wakime.ts), where
+ * the house behind is drawn in 3D and the plant stays the 2D sprite in front of it.
+ */
+const onlyCache = new Map<number, { lit: HTMLCanvasElement; dark: HTMLCanvasElement }>();
+export function plantOnly(n: number): { lit: HTMLCanvasElement; dark: HTMLCanvasElement } {
+  const hit = onlyCache.get(n);
+  if (hit) return hit;
+  const plant = drawPlant(n);
+  const out = { lit: plant.toCanvas(), dark: nightOf(plant).toCanvas() };
+  onlyCache.set(n, out);
+  return out;
+}
+
 const plantCache = new Map<number, { lit: HTMLCanvasElement; dark: HTMLCanvasElement }>();
 
 /** Plant n with the house behind it: lit (in the lantern) and dark (outside it). Baked once. */

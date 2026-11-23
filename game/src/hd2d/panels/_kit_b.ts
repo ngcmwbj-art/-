@@ -9,7 +9,11 @@
 
 import * as THREE from 'three';
 import { Gfx } from '../../engine/gfx';
-import { makeCanvas } from '../../engine/pixel';
+import { makeCanvas, PixelCanvas } from '../../engine/pixel';
+import { getProp } from '../../art/props/registry';
+import type { PropEnv } from '../../art/props/types';
+import { H_TEX, type HGround } from '../../art/tiles/hoshi_ground';
+import { field } from '../../world/field';
 import type { Kit, PanelLight } from '../panel3d';
 
 const cache = new Map<string, HTMLCanvasElement>();
@@ -65,3 +69,24 @@ export const NIGHT_LAMP: PanelLight = { sun: '#9fb4ff', sky: '#5a6aa0', ground: 
 
 /** 部屋の 夜（集会所・土間：ランプの 明かり）。 */
 export const ROOM_LAMP: PanelLight = { sun: '#ffe0b8', sky: '#c8b8a0', ground: '#6a5040', fog: '#1e1612', sunI: 0.5, hemiI: 0.8, el: 70, az: 20 };
+
+/** 小物の 絵（止まった 1枚：フィールドの 小物と 同じ 絵）。flags：絵が 見る flag の 値（ない 物は 0）。 */
+export function propImg(id: string, opts: Record<string, unknown> = {}, flags: Record<string, number> = {}): HTMLCanvasElement | null {
+  const a = getProp(id, opts);
+  if (!a) return null;
+  const f = field();
+  if (!f) return null;
+  const env: PropEnv = { t: 0, stage: 1, grade: f.grade, motion: 0, mt: 0, flag: (k) => flags[k] ?? 0, seed: 0, near: 999, px: 0, py: 0 };
+  return a.img(env);
+}
+
+/** 第2章の 地面の 絵（フィールドと 同じ 模様）w × h ドット。 */
+export function hGroundImg(g: HGround, w: number, h: number): HTMLCanvasElement {
+  return once(`hg:${g}:${w}x${h}`, () => {
+    const p = new PixelCanvas(w, h);
+    const tex = H_TEX[g];
+    const ctx = { ground: () => g };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) p.set(x, y, tex(x, y, 0, ctx));
+    return p.toCanvas();
+  });
+}

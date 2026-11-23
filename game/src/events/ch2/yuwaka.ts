@@ -23,6 +23,7 @@ import { game, type Widget } from '../../engine/game';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { measure } from '../../engine/font';
+import { drawPanel3d } from '../../ui/panel3d';
 import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { addItem, flag, removeItem, setFlag, state } from '../../game/state';
@@ -172,6 +173,16 @@ export class CornPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
+        // HD-2D（hd2d/panels/yuwaka.ts）：夜の 畑・茎・葉・実（皮・先・ひげ）・灯りは 3D、ポキッの 字は 上に 2D で
+        const pull = this.act === 'pull' ? Math.round(Math.sin(this.actT / 40) * 1.5) : 0;
+        const bend = this.act === 'poki' ? Math.min(1, this.actT / 200) : 0;
+        if (drawPanel3d(g, this, 'yuwaka', SX, oy, CW, CH, { state: { kind: this.kind, pull, bend: Math.round(bend * 20) / 20 } })) {
+          const len = 96;
+          const tx = SX + 128 + pull + len;
+          const ty = oy + 70 + Math.round(bend * 10) - Math.round(len * (0.42 - bend * 0.35));
+          if (this.act === 'poki' && this.actT < 500) g.text('ポキッ', tx - 50, ty - 34, { color: '#FFE7A3' });
+          return;
+        }
         // the dark field, the lantern's warm pool on the ear
         g.rect(SX, oy, CW, CH, '#12161E');
         for (let r = 84; r > 0; r -= 12) g.alpha(0.045, () => g.circle(SX + 164, oy + 56, r, '#F28A3A'));
@@ -187,8 +198,6 @@ export class CornPanel implements Widget {
           g.px(x, y, '#5E8A3A');
         }
         // the ear, slanting out from the stalk (its foot low on the stalk, the tip up and to the right)
-        const pull = this.act === 'pull' ? Math.round(Math.sin(this.actT / 40) * 1.5) : 0;
-        const bend = this.act === 'poki' ? Math.min(1, this.actT / 200) : 0;
         const ex = sx + 8 + pull;
         const ey = oy + 70 + Math.round(bend * 10);
         const len = 96;
@@ -640,6 +649,23 @@ if (import.meta.env.DEV) {
     setFlag(YF.best, 1);
     setFlag(YF.nabe, 0);
     return go('map_hoshimidai', 23, 38, 'up');
+  });
+
+  /**
+   * QA：大写し「ひげと 先」を 直接 開く（kind 'tori' | 'hayai' | 'kajiri'、act '' | 'pull' | 'poki'）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.yuwaka('tori') → __game.cmd.ywPanel('tori') → 写真 → __game.cmd.ywPanel()
+   */
+  registerDebug('ywPanel', (kind?: Kind, act: '' | 'pull' | 'poki' = '') => {
+    const open = game.ui.widgets.find((w) => w instanceof CornPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new CornPanel(kind ?? 'tori');
+    p.act = act;
+    p.open = 1;
+    game.ui.push(p);
+    return { kind: p.kind, act };
   });
 
   registerDebug('ywState', () => {

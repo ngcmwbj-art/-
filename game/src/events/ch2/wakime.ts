@@ -47,6 +47,7 @@ import { runMsg } from '../../world/msg';
 import { ringImage } from '../../world/lantern';
 import { charSprite } from '../../art/chars/registry';
 import { drawTape, textW, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { keyGuide } from '../stage';
 import {
   BEND_FRAMES,
@@ -56,6 +57,7 @@ import {
   lightMask,
   plantDef,
   plantImgs,
+  plantOnly,
   SCN_H,
   stemX,
   targetImg,
@@ -364,8 +366,14 @@ export class WakimePanel implements Widget {
 
   // ---------------------------------------------------------------- drawing
 
+  /** HD-2D（hd2d/panels/wakime.ts）：うしろの ハウス（フィルム・骨・となりの 株・マルチ）は 3D、株と 芽は 2D の まま。 */
+  private hd = false;
+
   draw(g: Gfx): void {
     const ox = Math.round(this.slide);
+    this.hd = drawPanel3d(g, this, 'wakime', 0, 0, W, SCN_H, {
+      state: { slide: ox, lx: this.lightX(), ly: Math.round(this.ly), k: Math.round(this.lightK * 10) / 10 },
+    });
     // the plants: dark (the lantern shows the one in front)
     if (this.from >= 0) this.drawDark(g, this.from, ox - W);
     this.drawDark(g, this.n, ox);
@@ -388,7 +396,7 @@ export class WakimePanel implements Widget {
 
   private drawDark(g: Gfx, n: number, ox: number): void {
     if (ox <= -W || ox >= W) return;
-    g.img(plantImgs(n).dark, ox, 0);
+    g.img(this.hd ? plantOnly(n).dark : plantImgs(n).dark, ox, 0);
     const d = plantDef(n);
     for (const t of d.targets) {
       if (this.st[n][t.i] !== 'on') continue;
@@ -420,7 +428,7 @@ export class WakimePanel implements Widget {
     const [c, ctx] = lc();
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, c.width, c.height);
-    ctx.drawImage(plantImgs(this.n).lit, ox - x0, -y0);
+    ctx.drawImage(this.hd ? plantOnly(this.n).lit : plantImgs(this.n).lit, ox - x0, -y0);
     const d = this.def;
     for (const t of d.targets) {
       const s = this.st[this.n][t.i];

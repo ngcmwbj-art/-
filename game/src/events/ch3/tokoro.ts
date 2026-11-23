@@ -41,6 +41,7 @@ import { actorAnchor, addMarkSource } from '../../world/marks';
 import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import type { Howto } from '../../ui/closeup';
 import * as T from '../../data/text/c3_tokoro';
 import { TK_UI } from '../../data/text/c3_tokoro';
@@ -280,26 +281,29 @@ export class TentsukiPanel implements Widget {
 
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
-    // the kitchen wall's white tiles behind, the counter's wood in front
-    g.rect(SX, oy, W, CH, '#E2DED2');
-    for (let y = oy + 8; y < oy + CH; y += 10) g.rect(SX, y, W, 1, '#CFCABC');
-    for (let x = SX + 6; x < SX + W; x += 12) g.rect(x, oy, 1, CH, '#D6D1C4');
     const cy = oy + 92;
-    g.rect(SX, cy, W, CH - (cy - oy), '#C8A06A');
-    g.rect(SX, cy, W, 2, '#E8C890');
-    g.rect(SX, cy + 8, W, CH, '#8A5A3A');
-    // the 流し箱 on the left, half cut away (the block that went into the tube)
-    g.rect(SX + 14, cy - 8, 40, 8, '#A8B0B8');
-    g.rect(SX + 16, cy - 7, 22, 5, '#D8DCC8');
-    g.rect(SX + 16, cy - 7, 22, 1, '#ECEEE0');
-    g.rect(SX + 14, cy - 1, 40, 1, '#7A828C');
-    // the small bowl under the tube, and what has come out so far
     const bx = NX;
     const bt = cy - 12;
-    g.rect(bx - 18, bt, 36, 2, '#4A5A8A');
-    g.rect(bx - 17, bt + 2, 34, 4, '#5A6A9A');
-    g.rect(bx - 14, bt + 6, 28, 4, '#4A5A8A');
-    g.rect(bx - 8, bt + 10, 16, 2, '#3A4A7A');
+    // HD-2D（2026-11-23、hd2d/panels/tentsuki.ts）：台所の タイルの 壁・台・流し箱・どんぶりは 3D。筒・突き棒・手・出た ところてんは 2D の まま 上に
+    if (!drawPanel3d(g, this, 'tentsuki', SX, oy, W, CH)) {
+      // the kitchen wall's white tiles behind, the counter's wood in front
+      g.rect(SX, oy, W, CH, '#E2DED2');
+      for (let y = oy + 8; y < oy + CH; y += 10) g.rect(SX, y, W, 1, '#CFCABC');
+      for (let x = SX + 6; x < SX + W; x += 12) g.rect(x, oy, 1, CH, '#D6D1C4');
+      g.rect(SX, cy, W, CH - (cy - oy), '#C8A06A');
+      g.rect(SX, cy, W, 2, '#E8C890');
+      g.rect(SX, cy + 8, W, CH, '#8A5A3A');
+      // the 流し箱 on the left, half cut away (the block that went into the tube)
+      g.rect(SX + 14, cy - 8, 40, 8, '#A8B0B8');
+      g.rect(SX + 16, cy - 7, 22, 5, '#D8DCC8');
+      g.rect(SX + 16, cy - 7, 22, 1, '#ECEEE0');
+      g.rect(SX + 14, cy - 1, 40, 1, '#7A828C');
+      // the small bowl under the tube, and what has come out so far
+      g.rect(bx - 18, bt, 36, 2, '#4A5A8A');
+      g.rect(bx - 17, bt + 2, 34, 4, '#5A6A9A');
+      g.rect(bx - 14, bt + 6, 28, 4, '#4A5A8A');
+      g.rect(bx - 8, bt + 10, 16, 2, '#3A4A7A');
+    }
     const out = this.phase === 'tilt' ? 0 : this.push;
     const long = this.straight();
     if (out > 0.15) {

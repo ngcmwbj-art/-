@@ -3,3 +3,8 @@
 
 import './mimi';
 import './mushigomu';
+import './negi';
+import './neru';
+import './retasu';
+import './sakuzoi';
+import './shishito';

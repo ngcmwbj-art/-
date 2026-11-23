@@ -56,6 +56,7 @@ import {
 import { SEKI_SPOT_NAME, SEKI_UI } from '../data/text/mizube';
 import { registerDebug } from '../debug';
 import { HOWTO } from '../data/text/howto';
+import { drawPanel3d } from '../ui/panel3d';
 
 export type { SekiKind, SekiSpot };
 
@@ -357,7 +358,8 @@ export class SekiPanel implements Widget {
   }
 
   private drawScene(g: Gfx, ox: number, oy: number): void {
-    g.img(sekiBg(this.stage), ox, oy);
+    // HD-2D（hd2d/panels/seki.ts）：背景は 奥行きの ある 層。生き物・糸・水の 動きは 下の 2D を 重ねる
+    if (!drawPanel3d(g, this, 'seki', ox, oy, SCN_W, SCN_H, { state: { stage: this.stage } })) g.img(sekiBg(this.stage), ox, oy);
     const frozen = this.still1;
     const ne = this.stage === 2;
     const t = this.t;

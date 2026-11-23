@@ -28,6 +28,7 @@ import { drawWindow, UI } from './window';
 import { BANZUKE_CARD, BANZUKE_ROWS, IKARI_COUNT, KATA_NAME, KATA_UI, type KataKey, type TipKey } from '../data/text/katanuki';
 import { HOWTO } from '../data/text/howto';
 import { closeupWide } from './closeup_wide';
+import { drawPanel3d } from './panel3d';
 
 // ================================================================ 型の 線（板の 上の px、閉じた 線）
 
@@ -278,6 +279,10 @@ function pieceArt(pts: Pt[]): HTMLCanvasElement {
 let boardCache: HTMLCanvasElement | null = null;
 
 /** The pale pink board with its bevel and specks. */
+/** 板の 絵（HD-2D の 板の 上の 面にも：hd2d/panels/katanuki.ts）。 */
+export function katanukiBoardArt(): HTMLCanvasElement {
+  return boardArt();
+}
 function boardArt(): HTMLCanvasElement {
   if (boardCache) return boardCache;
   const [c, ctx] = makeCanvas(BOARD_W, BOARD_H);
@@ -618,11 +623,13 @@ export class KatanukiGame implements Widget {
     const by = py + BY;
     const sh = this.sh;
     const n = sh.pts.length;
+    // HD-2D（hd2d/panels/katanuki.ts）：駄菓子屋の 木の 台と 厚みの ある 板は 3D。線・針・ひびは 下の 2D を 重ねる
+    const hd = drawPanel3d(g, this, 'katanuki', px + BX - 8, py + BY - 6, BOARD_W + 16, BOARD_H + 10, { state: { ne: this.o.ne } });
     // the board's shadow and the board
-    g.rect(bx + 2, by + 3, BOARD_W, BOARD_H, C.shadow, 0.35);
+    if (!hd) g.rect(bx + 2, by + 3, BOARD_W, BOARD_H, C.shadow, 0.35);
     if (this.endT >= 0) {
       // the board with the hole, the piece lifted beside it
-      g.img(boardArt(), bx, by);
+      if (!hd) g.img(boardArt(), bx, by);
       g.alpha(0.55, () => g.img(sh.piece, bx, by, { tint: C.boardEdge, tintAmount: 1 }));
       const lift = Math.round(ease.backOut(Math.min(1, this.endT / 400)) * 4);
       g.alpha(0.35, () => g.img(sh.piece, bx + 2, by + 2, { tint: C.shadow, tintAmount: 1 }));
@@ -630,7 +637,7 @@ export class KatanukiGame implements Widget {
       const mk = Math.min(1, Math.max(0, (this.endT - 450) / 600));
       if (mk > 0) drawPenMark(g, this.grade, bx + BOARD_W - 14, by + BOARD_H - 14, mk);
     } else {
-      g.img(boardArt(), bx, by);
+      if (!hd) g.img(boardArt(), bx, by);
       // the wet spot round the needle
       if (this.wet > 0.05) {
         const [wx, wy] = sh.pts[Math.min(n - 1, Math.floor(this.pos))];

@@ -95,9 +95,9 @@ export function keyOut(img: HTMLCanvasElement, colors: string[], near = 0, rows?
  * 第2章の 夜（星見台）：フィールドの view.ts と 同じ 考え方 —— 空の 光は 白（π）で 物の 色の まま、
  * 暗さと 青さは フィールドの Grade（掛け算）が つける。月の 弱い 光で 少し だけ 立体に。
  */
-export const CH2_NIGHT: PanelLight = { sun: '#b8c4ff', sky: '#c8d0f0', ground: '#a8a0b8', fog: '#4a5078', sunI: 0.7, hemiI: 1.5, el: 48, az: 210 };
+export const CH2_NIGHT: PanelLight = { sun: '#c8d0ff', sky: '#d8dcf4', ground: '#b8b0c8', fog: '#4a5078', sunI: 0.8, hemiI: 2.2, el: 48, az: 210 };
 /** 部屋の 中・牛舎の 中（夜：灯りの 下）。 */
-export const CH2_ROOM: PanelLight = { sun: '#fff0dc', sky: '#ffffff', ground: '#f0e8dc', fog: '#6a6070', sunI: 1.0, hemiI: 2.6, el: 70, az: 20 };
+export const CH2_ROOM: PanelLight = { sun: '#fff0dc', sky: '#c8c4d8', ground: '#a89c94', fog: '#6a6070', sunI: 0.35, hemiI: 1.1, el: 70, az: 20 };
 
 /** 夜明け前の 空（上 濃い 紺、下へ 明るい 青紫、星が 少し）。`dawn`：東の 下が 白む 強さ 0..1。 */
 export function nightSky(dawn = 0.4, stars = 1): HTMLCanvasElement {
@@ -229,4 +229,74 @@ export function glowDisc(k: Kit, at: THREE.Vector3, r: number, color: string, op
   if (flat) mesh.position.y += 0.02;
   k.scene.add(mesh);
   return mesh;
+}
+
+/** 杉の 林の 帯（夜の 山の ふち：フィールドの 杉の 壁の 色）。幅 w ドット、高さ h。 */
+export function sugiWall(w: number, h: number, seed = 5): HTMLCanvasElement {
+  return paint(`sugi:${w}x${h}:${seed}`, w, h, (p) => {
+    const rng = new Rng(seed);
+    const cols = ['#1E3A34', '#24463C', '#2C5444', '#386050'];
+    for (let layer = 0; layer < 3; layer++) {
+      for (let x = -4; x < w + 4; x += 5 + Math.floor(rng.next() * 4)) {
+        const th = Math.floor(h * (0.55 + layer * 0.15 + rng.next() * 0.25));
+        const top = h - th;
+        const half = 3 + Math.floor(rng.next() * 3);
+        const c = cols[layer + (rng.next() < 0.5 ? 1 : 0)];
+        for (let y = top; y < h; y++) {
+          const t = (y - top) / th;
+          const hw = Math.max(0, Math.round(half * Math.min(1, t * 1.6)));
+          // ギザギザの 枝の 段
+          const jag = (y - top) % 4 === 0 ? 1 : 0;
+          p.hline(x - hw - jag, x + hw + jag, y, c);
+          if (y % 4 === 1) p.set(x - hw, y, cols[3]);
+        }
+      }
+    }
+  });
+}
+
+/**
+ * 状態で 組み直す 物（段階・場面ごとの 小物）：`key` が 変わった ときだけ、前の 物を 外して `make` で
+ * 組み直す（box / quad は その場で 1つに まとめる）。update() で 呼ぶ。
+ */
+export function rebuild(k: Kit, slot: string, key: string, make: () => void): void {
+  if (k.bag[`rb:${slot}`] === key) return;
+  k.bag[`rb:${slot}`] = key;
+  const old = k.bag[`rbg:${slot}`] as THREE.Group | undefined;
+  if (old) k.scene.remove(old);
+  const before = new Set(k.scene.children);
+  make();
+  k.finish();
+  const grp = new THREE.Group();
+  for (const o of [...k.scene.children]) if (!before.has(o)) grp.add(o);
+  k.scene.add(grp);
+  k.bag[`rbg:${slot}`] = grp;
+  k.shadowDirty = true;
+}
+
+/** 平たく 寝かせた 絵（地面・台の 上に 横たわる 物）：パネルの 2D の 四角の 上の 行 py に、左 px から 幅 w ドット。 */
+export function lay(k: Kit, img: HTMLCanvasElement, px: number, py: number, y: number, o: StandOpts & { scale?: number } = {}): THREE.Mesh | null {
+  const w = (o.cols ? o.cols[1] - o.cols[0] : img.width) * (o.scale ?? 1);
+  const at = k.ground(px + w / 2, py, y);
+  if (!at) return null;
+  const u = k.pxAt(-(at.z - k.camera.position.z)) * (o.scale ?? 1);
+  // (上下を 返した 絵を 立てて 手前へ 倒す：絵の 上が 奥に なる)
+  const m = k.stand(flipV(img), at, { ...o, px: u });
+  m.rotation.x = Math.PI / 2;
+  return m;
+}
+
+/** 絵の 上下を 返す。 */
+export function flipV(img: HTMLCanvasElement): HTMLCanvasElement {
+  const key = `flipV`;
+  const all = ((flipV as unknown as Record<string, WeakMap<HTMLCanvasElement, HTMLCanvasElement>>)[key] ??= new WeakMap());
+  let c = all.get(img);
+  if (!c) {
+    const [cv, ctx] = makeCanvas(img.width, img.height);
+    ctx.translate(0, img.height);
+    ctx.scale(1, -1);
+    ctx.drawImage(img, 0, 0);
+    all.set(img, (c = cv));
+  }
+  return c;
 }

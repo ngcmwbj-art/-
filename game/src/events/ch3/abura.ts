@@ -26,6 +26,7 @@ import { registerScript, walk } from '../../world/api';
 import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/c3_abura';
 import { AB_UI } from '../../data/text/c3_abura';
 import { addMp } from '../lib';
@@ -228,47 +229,60 @@ export class HeraPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        // the old desk's top (dusty wood) under the corridor's light
-        g.rect(SX, oy, RX - SX - 4, CH, '#5A4636');
-        for (let yy = 0; yy < CH; yy += 9) g.rect(SX, oy + yy, RX - SX - 4, 1, '#4A3828');
-        g.alpha(0.12, () => g.rect(SX, oy, RX - SX - 4, 30, '#F4E8C8'));
-        // the two spatulas: the one being done in front (lower), the other above it
-        for (let h = 0; h < 2; h++) {
-          const d = this.deki[h];
-          const y = oy + (h === 0 ? 56 : 12);
-          const cx = SX + 92;
-          let soot = 1;
-          let oil = 0;
-          let beta = false;
-          if (d) {
-            soot = 0;
-            oil = 1;
-            beta = d === 'beta';
-          } else if (h === this.hon) {
-            soot = 1 - this.fuku / FUKU_N;
-            oil = this.phase === 'nobasu' ? 0.3 + (0.7 * this.nobasu) / NOBASU_N : this.phase === 'teki' && this.drops ? 0.15 : 0;
-            beta = this.drops >= widenInt(2) && this.phase === 'nobasu';
-          }
-          this.hera(g, cx, y, soot, oil, beta, false);
-        }
-        const cy = oy + (this.hon === 0 ? 56 : 12);
-        // the rag (wiping, spreading) or the little oil can (the drop)
-        if (this.phase === 'fuku' || this.phase === 'nobasu') {
-          const rx = SX + 92 + Math.round(this.rag * 22);
-          g.rect(rx - 10, cy + 8, 20, 14, '#E8E4D8');
-          g.rect(rx - 10, cy + 8, 20, 1, '#FFFFFF');
-          g.rect(rx - 8, cy + 20, 16, 2, '#B8B4A8');
-          if (this.phase === 'fuku' && this.fuku) g.rect(rx - 6, cy + 14, 8, 4, '#3A3A3E');
-        }
-        if (this.phase === 'teki') {
-          const bx = SX + 84;
-          const by = cy - 8;
-          g.rect(bx, by, 10, 12, '#6A7A5A');
-          g.rect(bx + 3, by - 6, 4, 6, '#8A9A7A');
-          g.rect(bx + 4, by - 9, 2, 3, '#C8C8C0');
-          if (this.dropAnim > 0) {
+        // HD-2D（hd2d/panels/abura.ts）：机・2本の ヘラ（すす・油・べたべた）・布・油さしは 3D、落ちる 1てきは 上に 2D で
+        const hd = drawPanel3d(g, this, 'abura', SX, oy, RX - SX - 4, CH, {
+          state: { hon: this.hon, deki: this.deki, phase: this.phase, fuku: this.fuku, drops: this.drops, nobasu: this.nobasu, betaN: widenInt(2), rag: Math.round(this.rag * 20) / 20 },
+        });
+        if (hd) {
+          if (this.phase === 'teki' && this.dropAnim > 0) {
+            const bx = SX + 84;
+            const by = oy + (this.hon === 0 ? 56 : 12) - 8;
             const fy = by + 14 + Math.round(((400 - this.dropAnim) / 400) * 16);
             g.rect(bx + 4, fy, 2, 3, '#E8C860');
+          }
+        } else {
+          // the old desk's top (dusty wood) under the corridor's light
+          g.rect(SX, oy, RX - SX - 4, CH, '#5A4636');
+          for (let yy = 0; yy < CH; yy += 9) g.rect(SX, oy + yy, RX - SX - 4, 1, '#4A3828');
+          g.alpha(0.12, () => g.rect(SX, oy, RX - SX - 4, 30, '#F4E8C8'));
+          // the two spatulas: the one being done in front (lower), the other above it
+          for (let h = 0; h < 2; h++) {
+            const d = this.deki[h];
+            const y = oy + (h === 0 ? 56 : 12);
+            const cx = SX + 92;
+            let soot = 1;
+            let oil = 0;
+            let beta = false;
+            if (d) {
+              soot = 0;
+              oil = 1;
+              beta = d === 'beta';
+            } else if (h === this.hon) {
+              soot = 1 - this.fuku / FUKU_N;
+              oil = this.phase === 'nobasu' ? 0.3 + (0.7 * this.nobasu) / NOBASU_N : this.phase === 'teki' && this.drops ? 0.15 : 0;
+              beta = this.drops >= widenInt(2) && this.phase === 'nobasu';
+            }
+            this.hera(g, cx, y, soot, oil, beta, false);
+          }
+          const cy = oy + (this.hon === 0 ? 56 : 12);
+          // the rag (wiping, spreading) or the little oil can (the drop)
+          if (this.phase === 'fuku' || this.phase === 'nobasu') {
+            const rx = SX + 92 + Math.round(this.rag * 22);
+            g.rect(rx - 10, cy + 8, 20, 14, '#E8E4D8');
+            g.rect(rx - 10, cy + 8, 20, 1, '#FFFFFF');
+            g.rect(rx - 8, cy + 20, 16, 2, '#B8B4A8');
+            if (this.phase === 'fuku' && this.fuku) g.rect(rx - 6, cy + 14, 8, 4, '#3A3A3E');
+          }
+          if (this.phase === 'teki') {
+            const bx = SX + 84;
+            const by = cy - 8;
+            g.rect(bx, by, 10, 12, '#6A7A5A');
+            g.rect(bx + 3, by - 6, 4, 6, '#8A9A7A');
+            g.rect(bx + 4, by - 9, 2, 3, '#C8C8C0');
+            if (this.dropAnim > 0) {
+              const fy = by + 14 + Math.round(((400 - this.dropAnim) / 400) * 16);
+              g.rect(bx + 4, fy, 2, 3, '#E8C860');
+            }
           }
         }
         // the right column: which one, the steps, the keys
@@ -431,6 +445,31 @@ if (import.meta.env.DEV) {
     setFlag(AF.hon2, 1);
     setFlag(AF.done, 1);
     return go();
+  });
+
+  /**
+   * QA：大写し「ヘラ」を 直接 開く（hon 0 | 1、phase 'fuku' | 'teki' | 'nobasu' | 'end'、n = その 段の 回数、deki0 = 1本目の でき）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.abura('desk') → __game.cmd.abPanel(0, 'fuku', 3) → 写真 → __game.cmd.abPanel()
+   */
+  registerDebug('abPanel', (hon?: number, phase: Phase = 'fuku', n = 0, deki0: 'kuro' | 'beta' | null = null) => {
+    const open = game.ui.widgets.find((w) => w instanceof HeraPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new HeraPanel();
+    setFlag(`howto_${p.howto.id}`, 1);
+    p.start(Number(hon ?? 0));
+    p.phase = phase;
+    if (phase === 'fuku') p.fuku = Number(n);
+    if (phase !== 'fuku') p.fuku = FUKU_N;
+    if (phase === 'teki' || phase === 'nobasu') p.drops = phase === 'teki' ? Number(n) : 1;
+    if (phase === 'nobasu') p.nobasu = Number(n);
+    p.deki[0] = deki0;
+    p.active = true;
+    p.open = 1;
+    game.ui.push(p);
+    return { hon: p.hon, phase };
   });
 
   registerDebug('abState', () => {

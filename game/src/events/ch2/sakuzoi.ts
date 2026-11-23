@@ -43,6 +43,7 @@ import { KANENARI_FLIPS_HOSHI } from '../../data/text/hoshi_npcs';
 import { SAKU_SPOTS, type SakuSpot } from '../../data/text/hoshi_sakuzoi';
 import { SAKU_POST_X, SAKU_SPOT_AT, SAKU_W } from '../../data/maps/hoshi_sakuzoi';
 import { azeGrass, azeMame, azeStubble, moriMe } from '../../art/props/sakuzoi_art';
+import { drawPanel3d } from '../../ui/panel3d';
 import { kaneHead } from '../../art/props/mimi_art';
 import { addMp, F, getKeyItem } from '../lib';
 import { forceBoxPos, keyGuide } from '../stage';
@@ -560,41 +561,11 @@ class SakuAzePanel implements Widget {
     drawWindow(g, PX, PY + dy, PW, PH, UI, a, { curl: false });
     g.alpha(a, () => {
       g.clip(SX, SY + dy, CW, CH, () => {
-        // the night over the ridge, the paddy's rice heads beyond it (south), the ridge's earth
+        // HD-2D：畦・草・豆・電気柵・田んぼ・灯り（hd2d/panels/sakuzoi.ts）。カーソル・右の 列は 2D の まま 上に
         g.rect(SX, SY + dy, CW, CH, '#1E2430');
-        g.rect(SX, GROUND_Y + dy, CW, CH, '#4A3426');
-        g.rect(SX, GROUND_Y + dy, CW, 2, '#6E5440');
-        // the fence's lower wire (off: no tick) and a post
-        g.rect(ROW_X - 6, WIRE_Y + dy - 8, 2, GROUND_Y - WIRE_Y + 8, '#E8E4D8');
-        g.line(SX, WIRE_Y + dy, ROW_X + SLOT_W * 8, WIRE_Y + dy, '#C8C2B4');
-        g.line(SX, WIRE_Y + dy - 18, ROW_X + SLOT_W * 8, WIRE_Y + dy - 18, '#C8C2B4');
-        // the lantern's pool round the cursor
-        const lx = ROW_X + this.cur * SLOT_W + SLOT_W / 2;
-        g.alpha(0.16, () => g.circle(lx, GROUND_Y + dy - 20, 34, '#FFB070'));
-        for (let i = 0; i < this.row.length; i++) {
-          const x = ROW_X + i * SLOT_W;
-          const lit = Math.abs(i - this.cur) <= 1;
-          let img: HTMLCanvasElement;
-          let ix: number;
-          let iy: number;
-          if (this.row[i] === 'm') {
-            img = azeMame(60 + i);
-            ix = x + Math.round((SLOT_W - 18) / 2);
-            const lift = this.raise === i ? Math.round((this.raiseT / 600) * 8) : 0;
-            iy = GROUND_Y + dy - 31 + lift;
-            g.img(img, ix, iy, { scale: 2, alpha: lit ? 1 : 0.55 });
-          } else if (this.cut[i]) {
-            img = azeStubble(i);
-            ix = x + Math.round((SLOT_W - 28) / 2);
-            iy = GROUND_Y + dy - 11;
-            g.img(img, ix, iy, { scale: 2, alpha: lit ? 1 : 0.55 });
-          } else {
-            img = azeGrass(i + this.layout * 3, lit);
-            ix = x;
-            iy = GROUND_Y + dy - 51;
-            g.img(img, ix, iy, { scale: 2 });
-          }
-        }
+        const in3d = drawPanel3d(g, this, 'sakuzoi', SX, SY + dy, RX - SX - 4, CH, { state: { row: this.row, cut: this.cut, cur: this.cur, layout: this.layout } });
+        // the night over the ridge, the paddy's rice heads beyond it (south), the ridge's earth
+        if (!in3d) this.drawRow(g, dy);
         // the cursor
         const cx = ROW_X + this.cur * SLOT_W;
         const blink = Math.floor(this.t / 300) % 2 === 0;
@@ -611,6 +582,42 @@ class SakuAzePanel implements Widget {
       const al = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25;
       g.text(w.text, SX + w.x, yy, { color: w.color, outline: UI.border, align: 'center', alpha: al });
       markText(SX + w.x - 32, yy, 64, 16, true);
+    }
+  }
+  /** 2D の 畦の 絵（HD-2D が 無い とき）。 */
+  private drawRow(g: Gfx, dy: number): void {
+    g.rect(SX, GROUND_Y + dy, CW, CH, '#4A3426');
+    g.rect(SX, GROUND_Y + dy, CW, 2, '#6E5440');
+    // the fence's lower wire (off: no tick) and a post
+    g.rect(ROW_X - 6, WIRE_Y + dy - 8, 2, GROUND_Y - WIRE_Y + 8, '#E8E4D8');
+    g.line(SX, WIRE_Y + dy, ROW_X + SLOT_W * 8, WIRE_Y + dy, '#C8C2B4');
+    g.line(SX, WIRE_Y + dy - 18, ROW_X + SLOT_W * 8, WIRE_Y + dy - 18, '#C8C2B4');
+    // the lantern's pool round the cursor
+    const lx = ROW_X + this.cur * SLOT_W + SLOT_W / 2;
+    g.alpha(0.16, () => g.circle(lx, GROUND_Y + dy - 20, 34, '#FFB070'));
+    for (let i = 0; i < this.row.length; i++) {
+      const x = ROW_X + i * SLOT_W;
+      const lit = Math.abs(i - this.cur) <= 1;
+      let img: HTMLCanvasElement;
+      let ix: number;
+      let iy: number;
+      if (this.row[i] === 'm') {
+        img = azeMame(60 + i);
+        ix = x + Math.round((SLOT_W - 18) / 2);
+        const lift = this.raise === i ? Math.round((this.raiseT / 600) * 8) : 0;
+        iy = GROUND_Y + dy - 31 + lift;
+        g.img(img, ix, iy, { scale: 2, alpha: lit ? 1 : 0.55 });
+      } else if (this.cut[i]) {
+        img = azeStubble(i);
+        ix = x + Math.round((SLOT_W - 28) / 2);
+        iy = GROUND_Y + dy - 11;
+        g.img(img, ix, iy, { scale: 2, alpha: lit ? 1 : 0.55 });
+      } else {
+        img = azeGrass(i + this.layout * 3, lit);
+        ix = x;
+        iy = GROUND_Y + dy - 51;
+        g.img(img, ix, iy, { scale: 2 });
+      }
     }
   }
   private drawSide(g: Gfx, dy: number): void {
@@ -1093,6 +1100,17 @@ if (import.meta.env.DEV) {
    *   'eyes'   森の 目の ゲージを n（0..1）に
    * auto：大写し「畦」を ひとりで 刈る（QA）。
    */
+  /** QA（大写しの HD-2D の 写真）：大写し「畦」を 直接 開く／もう一度で 閉じる（layout 0・1、cut：刈った ますの 数）。 */
+  registerDebug('sakuPanel', (layout: unknown = 0, cut: unknown = 0) => {
+    const old = game.ui.widgets.find((w) => w instanceof SakuAzePanel);
+    if (old) return void game.ui.remove(old);
+    const p = new SakuAzePanel(Number(layout));
+    let n = Number(cut);
+    for (let i = 0; i < p.row.length && n > 0; i++) if (p.row[i] === 'g') (p.cut[i] = true), n--;
+    p.open = 1;
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('saku', (step = 'ready', stage = 1, auto = false) => {
     qaAuto = !!auto;
     const cmd = (window as unknown as { __game: { cmd: Record<string, (...a: unknown[]) => unknown> } }).__game.cmd;

@@ -36,6 +36,7 @@ import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_hagama';
 import { HG_UI } from '../../data/text/hoshi_hagama';
 import { addMp, F, getKeyItem } from '../lib';
@@ -181,7 +182,7 @@ abstract class HgPanel implements Widget {
 }
 
 /** 羽釜（黒い 鉄の 釜。つば と 木の ふた）。cx は 中心、top は ふちの 高さ、bot は 底。 */
-function drawKama(g: Gfx, cx: number, top: number, bot: number, cut: boolean): void {
+export function drawKama(g: Gfx, cx: number, top: number, bot: number, cut: boolean): void {
   const half = (y: number) => Math.round(54 - ((y - top) / (bot - top)) ** 2 * 18);
   for (let y = top; y <= bot; y++) {
     const h = half(y);
@@ -204,11 +205,11 @@ function drawKama(g: Gfx, cx: number, top: number, bot: number, cut: boolean): v
 // ================================================================ 水加減（大写し「羽釜の 中」）
 
 const MZ_CX = SX + 104;
-const MZ_TOP = 22;
-const MZ_BOT = 104;
+export const MZ_TOP = 22;
+export const MZ_BOT = 104;
 /** 米の 上の 面（窓の 上から）、指の ふしの 高さ（米の 上から px）。 */
-const RICE_TOP = 78;
-const WRIST = 10;
+export const RICE_TOP = 78;
+export const WRIST = 10;
 
 export class MizuPanel extends HgPanel {
   /** はじめの カード（改善会議 10-25 の1、ui/closeup.ts）。 */
@@ -260,6 +261,11 @@ export class MizuPanel extends HgPanel {
   }
 
   drawScene(g: Gfx, oy: number): void {
+    // HD-2D（hd2d/panels/hagama.ts 'hg_mizu'）：土間・羽釜・米・水・指は 3D、ふしの しるしと ひしゃくは 2D で 上に
+    if (drawPanel3d(g, this, 'hg_mizu', SX, oy, RX - SX - 4, CH, { state: { lv: Math.round(this.lv) } })) {
+      this.drawOver(g, oy, Math.round(oy + RICE_TOP - this.lv));
+      return;
+    }
     // the earthen floor's dark, the lamp's warmth
     g.rect(SX, oy, RX - SX - 4, CH, '#2A2018');
     for (let r = 60; r > 0; r -= 10) g.alpha(0.03, () => g.circle(MZ_CX, oy + 40, r, '#FFB070'));
@@ -304,6 +310,12 @@ export class MizuPanel extends HgPanel {
       const h = half(wl);
       g.rect(MZ_CX - h, wl, h * 2, 1, '#BDEFFA');
     }
+    this.drawOver(g, oy, wl);
+  }
+
+  /** ふしの しるし（点線）と ひしゃく・注ぐ 水（HD-2D の 絵の 上にも 乗る）。wl：水面の y。 */
+  private drawOver(g: Gfx, oy: number, wl: number): void {
+    const wy = oy + RICE_TOP - WRIST;
     // the mark of the joint out to the side (a dotted line and its name)
     for (let x = MZ_CX + 56; x < RX - 8; x += 3) g.px(x, wy, '#FFE7A3');
     // the ladle: pouring (→) or scooping (←) at the upper left
@@ -494,9 +506,15 @@ export class HiPanel extends HgPanel {
 
   drawScene(g: Gfx, oy: number): void {
     const cx = SX + 104;
+    const fl = this.flame();
+    // HD-2D（hd2d/panels/hagama.ts 'hg_hi'）：土間・かまど・火・薪・羽釜は 3D（火は 2D と 同じ 速さで ゆれる）、
+    // 湯気・泡・吹く 息・音の 字は 2D で 上に
+    if (drawPanel3d(g, this, 'hg_hi', SX, oy, RX - SX - 4, CH, { state: { fl, fire: this.fire } })) {
+      this.drawOver(g, oy, cx);
+      return;
+    }
     // the earthen kitchen in the dark, the fire's light on everything
     g.rect(SX, oy, RX - SX - 4, CH, '#1E1612');
-    const fl = this.flame();
     for (let r = 20 + fl * 14; r > 0; r -= 10) g.alpha(0.04 + fl * 0.01, () => g.circle(cx, oy + 88, r, '#FF8A3A'));
     // the kamado: clay, its mouth, the hagama on top
     g.rect(cx - 70, oy + 58, 140, 54, '#8A5A3A');
@@ -522,6 +540,11 @@ export class HiPanel extends HgPanel {
     g.rect(cx - 50, oy + 22, 100, 8, '#B8864A');
     g.rect(cx - 50, oy + 22, 100, 1, '#D8A86A');
     g.rect(cx - 8, oy + 18, 16, 4, '#8A6444');
+    this.drawOver(g, oy, cx);
+  }
+
+  /** 湯気・ふきこぼれの 泡・吹く 息・釜の 音の 字（HD-2D の 絵の 上にも 乗る）。 */
+  private drawOver(g: Gfx, oy: number, cx: number): void {
     // steam from the lid's gap, foam at ジュウジュウ
     const steam = this.dan === 1 ? Math.min(1, this.heat / 5000) : this.dan === 2 ? 1 : this.dan === 3 ? 0.5 : this.dan === 4 ? 0.2 : 0.1;
     for (let i = 0; i < Math.round(steam * 6); i++) {
@@ -845,6 +868,29 @@ if (import.meta.env.DEV) {
   });
 
   registerDebug('hgWhy', () => ({ open: open(), stage: hStage(), lantern: lanternOn(), kominka: onMap(KOMINKA), script: String(getScript('npc_hoshi_mitsu')).slice(0, 200) }));
+
+  /**
+   * QA：大写しを 直接 開く（kind 'mizu' 羽釜の 中：v = 水の 高さ px、'hi' かまど：v = 段 0〜4、fire = 火の 大きさ 0〜3）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.hgPanel('hi', 1, 3) → 写真 → __game.cmd.hgPanel()
+   */
+  registerDebug('hgPanel', (kind?: 'mizu' | 'hi', v = 0, fire = 1) => {
+    const open = game.ui.widgets.find((w) => w instanceof HgPanel);
+    if (open || !kind) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    const p = kind === 'mizu' ? new MizuPanel() : new HiPanel();
+    if (p instanceof MizuPanel) p.lv = Number(v);
+    if (p instanceof HiPanel) {
+      p.dan = Number(v) as Dan;
+      p.fire = Number(fire);
+      p.heat = 4000;
+    }
+    p.open = 1;
+    p.active = true;
+    game.ui.push(p);
+    return kind;
+  });
 
   registerDebug('hgState', () => {
     const w = game.ui.widgets.find((x) => x instanceof HgPanel) as HgPanel | undefined;

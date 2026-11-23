@@ -23,6 +23,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, removeItem, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import { registerWorldFx } from '../../world/fx';
 import { getScript, type ScriptCtx } from '../../world/scripts';
@@ -197,40 +198,10 @@ export class PeepPanel implements Widget {
         g.clip(VX, vy, VW, vh, () => {
           // noon at the sea: the hard blue sky, the sea, the white of the breakwater or the sand
           const place = this.place();
-          g.rect(VX, vy, VW, vh, '#5AA8E8');
-          g.rect(VX, vy + 40, VW, 30, '#3A86C0');
-          g.rect(VX, vy + 70, VW, vh - 70, place === 'lighthouse' ? '#C8C4B8' : '#E8D8A8');
-          if (place === 'lighthouse') {
-            g.rect(VX + 150, vy + 4, 18, 70, '#E8E4D8');
-            for (let i = 0; i < 4; i++) g.rect(VX + 150, vy + 10 + i * 16, 18, 7, '#C8402E');
-          }
-          // the face(s), chest up (the sprite four times over: its feet fall out of the window)
           const lvl = this.result !== null || this.active ? this.angle : 0;
-          const draw1 = (id: string, cx: number, pose?: string, level = lvl, br = false, sc = 5) => {
-            const pic = portrait(id, level, br, pose);
-            if (pic) g.img(pic, Math.round(cx - (pic.width * sc) / 2), vy + 2, { scale: sc });
-          };
-          if (this.who === 'four') {
-            draw1('minato', VX + 62, undefined, 1, false, 4);
-            draw1('kanenari', VX + 120, 'happy', 1, false, 4);
-          } else draw1(NPC_OF[this.who], VX + VW / 2 - 6, undefined, lvl, this.br);
-          // グソっ君's claw and the white lid's corner at the bottom (tipped by the angle)
-          if (this.who !== 'four') {
-            const lx = VX + VW - 46;
-            const ly = vy + vh;
-            const tip = [6, 18, 30][lvl];
-            for (let i = 0; i < 46; i++) {
-              const hh = 8 + Math.round((tip * i) / 45);
-              g.rect(lx + i, ly - hh, 1, hh, i % 11 === 0 ? '#E0E0DC' : '#F4F4F0');
-              g.px(lx + i, ly - hh, '#FFFFFF');
-            }
-            g.rect(lx - 10, ly - 10, 12, 10, '#C8402E');
-            g.rect(lx - 8, ly - 12, 4, 3, '#C8402E');
-            g.px(lx - 6, ly - 9, '#E86A4E');
-            // the light thrown back up (stronger the higher)
-            g.alpha(0.08 + lvl * 0.06, () => g.rect(VX, vy + 30, VW, vh - 30, '#FFFFFF'));
-          }
-          if (this.flash > 0) g.alpha(this.flash / 260, () => g.rect(VX, vy, VW, vh, '#FFFFFF'));
+          const hd = drawPanel3d(g, this, 'mahiru_peep', VX, vy, VW, vh, { state: { place, who: this.who === 'four' ? 'four' : NPC_OF[this.who], lvl, br: this.br } });
+          if (!hd) this.drawView(g, vy, vh, place, lvl);
+          this.drawLid(g, vy, vh, lvl);
         });
         // the right column: the lid's angle, the keys
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
@@ -245,6 +216,47 @@ export class PeepPanel implements Widget {
       drawTape(g, SX + 8, PY + dy - 5, tw, 16, MH_UI.place, { seed: 77 });
       markText(SX + 8, PY + dy - 5, tw, 16);
     });
+  }
+
+  /** 窓の 中の 2D の 絵（HD-2D が 無い とき）：空・海・砂・灯台と 顔。 */
+  private drawView(g: Gfx, vy: number, vh: number, place: string, lvl: number): void {
+    g.rect(VX, vy, VW, vh, '#5AA8E8');
+    g.rect(VX, vy + 40, VW, 30, '#3A86C0');
+    g.rect(VX, vy + 70, VW, vh - 70, place === 'lighthouse' ? '#C8C4B8' : '#E8D8A8');
+    if (place === 'lighthouse') {
+      g.rect(VX + 150, vy + 4, 18, 70, '#E8E4D8');
+      for (let i = 0; i < 4; i++) g.rect(VX + 150, vy + 10 + i * 16, 18, 7, '#C8402E');
+    }
+    // the face(s), chest up (the sprite four times over: its feet fall out of the window)
+    const draw1 = (id: string, cx: number, pose?: string, level = lvl, br = false, sc = 5) => {
+      const pic = portrait(id, level, br, pose);
+      if (pic) g.img(pic, Math.round(cx - (pic.width * sc) / 2), vy + 2, { scale: sc });
+    };
+    if (this.who === 'four') {
+      draw1('minato', VX + 62, undefined, 1, false, 4);
+      draw1('kanenari', VX + 120, 'happy', 1, false, 4);
+    } else draw1(NPC_OF[this.who], VX + VW / 2 - 6, undefined, lvl, this.br);
+  }
+
+  /** グソっ君の ハサミと 白い ふた、はね返る 光、フラッシュ（3D の 上にも 2D で）。 */
+  private drawLid(g: Gfx, vy: number, vh: number, lvl: number): void {
+    // グソっ君's claw and the white lid's corner at the bottom (tipped by the angle)
+    if (this.who !== 'four') {
+      const lx = VX + VW - 46;
+      const ly = vy + vh;
+      const tip = [6, 18, 30][lvl];
+      for (let i = 0; i < 46; i++) {
+        const hh = 8 + Math.round((tip * i) / 45);
+        g.rect(lx + i, ly - hh, 1, hh, i % 11 === 0 ? '#E0E0DC' : '#F4F4F0');
+        g.px(lx + i, ly - hh, '#FFFFFF');
+      }
+      g.rect(lx - 10, ly - 10, 12, 10, '#C8402E');
+      g.rect(lx - 8, ly - 12, 4, 3, '#C8402E');
+      g.px(lx - 6, ly - 9, '#E86A4E');
+      // the light thrown back up (stronger the higher)
+      g.alpha(0.08 + lvl * 0.06, () => g.rect(VX, vy + 30, VW, vh - 30, '#FFFFFF'));
+    }
+    if (this.flash > 0) g.alpha(this.flash / 260, () => g.rect(VX, vy, VW, vh, '#FFFFFF'));
   }
 }
 
@@ -490,6 +502,21 @@ if (import.meta.env.DEV) {
     return go(12, 31, 'down');
   });
 
+  /** QA：大写し「のぞき窓」を 直接 開く（who = kaito | teru | umi | four、angle 0〜2）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('mhPeep', (who: Who | 'four' = 'teru', angle = 1) => {
+    const open = game.ui.widgets.find((w) => w instanceof PeepPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new PeepPanel(who);
+    p.open = 1;
+    p.active = true;
+    p.angle = Number(angle);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('mhState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(MF)) flags[k] = flag(id);

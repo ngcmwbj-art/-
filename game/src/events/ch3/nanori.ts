@@ -32,6 +32,7 @@ import { field } from '../../world/field';
 import { pgBand, pgDay, pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { fillNames } from '../../data/text/c3_names';
 import * as T from '../../data/text/c3_nanori';
 import { fmtSec, LIGHTS, NN_UI, nnNightId as nightId, type Light } from '../../data/text/c3_nanori';
@@ -277,11 +278,15 @@ export class NightSeaPanel implements Widget {
 
   private scene(g: Gfx, oy: number): void {
     const w = RX - SX - 4;
-    // the night sky, the sea, the horizon
-    g.rect(SX, oy, w, HORIZON, '#0E1430');
-    g.rect(SX, oy + HORIZON - 14, w, 14, '#141C3C');
-    g.rect(SX, oy + HORIZON, w, CH - HORIZON, '#0A1428');
-    g.rect(SX, oy + HORIZON, w, 1, '#2A3A68');
+    // HD-2D（2026-11-23、hd2d/panels/nanori.ts）：空・海・防波堤・灯台・島・船は 3D。星・海の 光・灯りは 2D の まま 上に
+    const hd = drawPanel3d(g, this, 'nanori', SX, oy, w, CH);
+    if (!hd) {
+      // the night sky, the sea, the horizon
+      g.rect(SX, oy, w, HORIZON, '#0E1430');
+      g.rect(SX, oy + HORIZON - 14, w, 14, '#141C3C');
+      g.rect(SX, oy + HORIZON, w, CH - HORIZON, '#0A1428');
+      g.rect(SX, oy + HORIZON, w, 1, '#2A3A68');
+    }
     // stars
     for (let i = 0; i < 22; i++) {
       const x = SX + 4 + ((i * 47) % (w - 8));
@@ -296,16 +301,18 @@ export class NightSeaPanel implements Widget {
       g.rect(x, y, 3, 1, '#1E2C54');
     }
     // the near breakwater's edge at the bottom, the lighthouse on the left (its tower in silhouette)
-    g.rect(SX, oy + CH - 8, w, 8, '#1A1E2A');
-    g.rect(SX, oy + CH - 8, w, 1, '#3A4058');
-    const L0 = LIGHTS[0];
-    g.rect(SX + L0.x - 5, oy + L0.y + 2, 10, CH - L0.y - 10, '#1E2234');
-    g.rect(SX + L0.x - 6, oy + L0.y - 2, 12, 4, '#2A3048');
-    // the island far off
-    g.rect(SX + 124, oy + HORIZON - 4, 30, 4, '#0A0E1E');
-    g.rect(SX + 132, oy + HORIZON - 7, 14, 3, '#0A0E1E');
-    // the fishing boat's hull
-    g.rect(SX + 176, oy + 58, 14, 3, '#121828');
+    if (!hd) {
+      g.rect(SX, oy + CH - 8, w, 8, '#1A1E2A');
+      g.rect(SX, oy + CH - 8, w, 1, '#3A4058');
+      const L0 = LIGHTS[0];
+      g.rect(SX + L0.x - 5, oy + L0.y + 2, 10, CH - L0.y - 10, '#1E2234');
+      g.rect(SX + L0.x - 6, oy + L0.y - 2, 12, 4, '#2A3048');
+      // the island far off
+      g.rect(SX + 124, oy + HORIZON - 4, 30, 4, '#0A0E1E');
+      g.rect(SX + 132, oy + HORIZON - 7, 14, 3, '#0A0E1E');
+      // the fishing boat's hull
+      g.rect(SX + 176, oy + 58, 14, 3, '#121828');
+    }
     // the lights
     LIGHTS.forEach((L, i) => {
       const x = SX + L.x;

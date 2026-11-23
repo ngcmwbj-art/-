@@ -25,6 +25,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
@@ -269,7 +270,12 @@ export class ImoPanel implements Widget {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
         const SW = RX - SX - 4;
-        g.clip(SX, oy, SW, CH, () => this.drawScene(g, SX, oy, SW));
+        g.clip(SX, oy, SW, CH, () => {
+          const lift = this.flipAnim > 0 ? Math.round(Math.sin(((360 - this.flipAnim) / 360) * Math.PI) * 6) : 0;
+          const st = { cook: Math.round(this.cook * 20) / 20, flip: this.flipped, lift, knob: Math.round(this.knobShown * 4) / 4 };
+          if (drawPanel3d(g, this, 'imo', SX, oy, SW, CH, { state: st })) this.drawOver(g, SX, oy, SW);
+          else this.drawScene(g, SX, oy, SW);
+        });
         this.drawSide(g, oy);
       });
       const tw = g.measure(IM_UI.place) + 16;
@@ -306,6 +312,15 @@ export class ImoPanel implements Widget {
     }
     // three sweet potatoes on the stones
     for (let i = 0; i < 3; i++) this.imo(g, wx + 34 + i * 62, wy + wh - 24 - (i % 2) * 2, i);
+    this.drawOver(g, x0, oy, w);
+  }
+
+  /** 窓の 上に 乗る 物：湯気・ガラスの 照り・竹串（HD-2D の ときも 2D で）。 */
+  private drawOver(g: Gfx, x0: number, oy: number, w: number): void {
+    const wx = x0 + 8;
+    const wy = oy + 8;
+    const ww = w - 16;
+    const wh = CH - 16;
     // the steam: more and whiter the longer it waits (it never boils over)
     const n = 3 + Math.floor(this.cook * 9);
     for (let i = 0; i < n; i++) {
@@ -570,6 +585,24 @@ if (import.meta.env.DEV) {
     return go(18, 3, 'up');
   });
 
+  /** QA：大写し「焼き芋の 窓」を 直接 開く（cook 0〜1、knob 0〜1、flip）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('imPanel', (cook = 0.5, knob = 0, flip = false) => {
+    const open = game.ui.widgets.find((w) => w instanceof ImoPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new ImoPanel();
+    p.open = 1;
+    p.cook = Number(cook);
+    p.knob = p.knobShown = Number(knob);
+    p.flipped = !!flip;
+    p.phase = 'wait';
+    p.step = 0;
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('imState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(IMF)) flags[k] = flag(id);

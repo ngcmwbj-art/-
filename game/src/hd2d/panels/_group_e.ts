@@ -3,3 +3,11 @@
 import './aq_shio';
 
 import './mikan_eda';
+import './mizukiri';
+import './mahiru_peep';
+import './funaba';
+import './fureai';
+import './housou';
+import './imo';
+import './iso';
+import './diorama3';

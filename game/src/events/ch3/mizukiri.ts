@@ -29,6 +29,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { despawn, pose, registerScript, spawn, walk } from '../../world/api';
 import { fxAt, registerWorldFx } from '../../world/fx';
 import { getMapDef, registerMap } from '../../world/maps';
@@ -362,6 +363,17 @@ export function mzCount(kata: Katachi, v: number, stage: number): number {
   return n;
 }
 
+/**
+ * HD-2D の 大写しの しゅん（hd2d/panels/mizukiri.ts）：横向きの 人物の 絵（16×24）を scale 倍で、足もと
+ * (x, foot)（絵の 左上からの px）に 立て、かがむ と 縦に squash 倍。shoulder は 腕の 付け根の 行。
+ */
+export function mzBoy(v: number): { x: number; foot: number; scale: number; squash: number; shoulder: number } {
+  const scale = 2.3;
+  const squash = 1 - 0.3 * v;
+  const foot = 104;
+  return { x: 17, foot, scale, squash, shoulder: Math.round(foot - 24 * scale * squash * 0.34) };
+}
+
 export class MizukiriPanel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
@@ -436,7 +448,13 @@ export class MizukiriPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, RX - SX - 4, CH, () => this.drawScene(g, oy));
+        g.clip(SX, oy, RX - SX - 4, CH, () => {
+          const v = Math.round(this.v * 50) / 50;
+          if (drawPanel3d(g, this, 'mizukiri', SX, oy, RX - SX - 4, CH, { state: { nami: c3Stage() >= 2, v } })) {
+            const b = mzBoy(v);
+            this.drawArm(g, oy, oy + b.shoulder, oy + 40, c3Stage() >= 2);
+          } else this.drawScene(g, oy);
+        });
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         this.drawSide(g, oy);
         if (this.active && this.released === null) MZ_UI.keys.forEach((l, i) => g.text(l, RX, oy + KEYS_Y + i * 16, { color: '#FFE7A3' }));
@@ -466,7 +484,6 @@ export class MizukiriPanel implements Widget {
     g.rect(SX, oy + CH - 16, W, 16, '#A8A49A');
     for (let x = SX + 2; x < SX + W; x += 6) g.circle(x, oy + CH - 12 + ((x * 7) % 5), 2, (x * 3) % 4 ? '#BDB6A6' : '#8E8C86');
     const sh = oy + 60 + Math.round(this.v * 30);
-    const hand: [number, number] = [SX + 54, sh + 6 - Math.round(this.v * 8)];
     // しゅん from the side (his back to the left): the head, the green shirt, the legs bending with the crouch
     const by = sh - 4;
     g.rect(SX + 6, by - 20, 12, 10, '#E8B890');
@@ -475,6 +492,13 @@ export class MizukiriPanel implements Widget {
     g.rect(SX + 6, by + 8, 12, 6, '#2E4A7A');
     g.rect(SX + 6 - Math.round(this.v * 6), by + 14, 5, Math.round(16 - this.v * 8), '#E8B890');
     g.rect(SX + 14, by + 14, 5, Math.round(16 - this.v * 8), '#E8B890');
+    this.drawArm(g, oy, sh, hz, nami);
+  }
+
+  /** 腕・持った 石・跳ねる 石と 輪（sh：肩の 行。HD-2D の ときも 2D で 上に）。 */
+  private drawArm(g: Gfx, oy: number, sh: number, hz: number, nami: boolean): void {
+    void oy;
+    const hand: [number, number] = [SX + 54, sh + 6 - Math.round(this.v * 8)];
     if (this.fly < 0) {
       g.line(SX + 20, sh, hand[0], hand[1], '#C89068');
       g.line(SX + 20, sh + 1, hand[0], hand[1] + 1, '#C89068');
@@ -871,6 +895,20 @@ if (import.meta.env.DEV) {
     return go(KOISHI, 5, 5, 'up');
   });
 
+  /** QA：大写し「水切り」を 直接 開く（v = かがんだ 深さ 0〜1）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('mzPanel', (v = 0, kata: Katachi = 'usui') => {
+    const open = game.ui.widgets.find((w) => w instanceof MizukiriPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new MizukiriPanel(kata);
+    p.open = 1;
+    p.v = Number(v);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('mzState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(MF)) flags[k] = flag(id);

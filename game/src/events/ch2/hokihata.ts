@@ -716,6 +716,27 @@ if (import.meta.env.DEV) {
 
   registerDebug('hbSel', (v: unknown = 1) => (qaSel = Number(v)));
 
+  /**
+   * QA：大写し「節」を 直接 開く（sel：鎌の 所 0〜2、cutAt：切った 所（-1 まだ）、strip：葉を とる 0..1）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.hbPanel(1) → 写真 → __game.cmd.hbPanel()
+   */
+  registerDebug('hbPanel', (sel?: number, cutAt = -1, strip = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof FushiPanel);
+    if (open || sel === undefined) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new FushiPanel(0);
+    p.open = 1;
+    p.sel = Number(sel);
+    p.cutAt = Number(cutAt);
+    p.cut = p.cutAt >= 0 ? 1 : 0;
+    p.strip = Number(strip);
+    p.phase = p.cutAt >= 0 ? 'ha' : 'erabu';
+    game.ui.push(p);
+    return p.phase;
+  });
+
   registerDebug('hbState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(HF)) flags[k] = flag(id);

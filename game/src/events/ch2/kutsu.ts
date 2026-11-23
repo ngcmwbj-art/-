@@ -40,6 +40,7 @@ import { fxAt, registerWorldFx } from '../../world/fx';
 import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, textW, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_kutsu';
 import { KU_BOOTS, KU_MON_ORDER, KU_MONS, KU_UI, type KuMonKey } from '../../data/text/hoshi_kutsu';
 import { KU_BOOT_COLOR, KU_FURU_FLAG } from '../../art/props/kutsu_art';
@@ -167,7 +168,7 @@ const BOOT_ROWS: [number, number, number, string][] = [
   ...Array.from({ length: 15 }, (_, k) => [5 + k, -5, 4, 'c'] as [number, number, number, string]),
   [20, -6, 5, 'l'],
 ];
-const BOOT_H = 21;
+export const BOOT_H = 21;
 
 function bootColor(i: number, kind: string): string {
   const c = KU_BOOT_COLOR[i];
@@ -189,7 +190,7 @@ function shade(c: string, t: number): string {
  * 長靴 1足の 片方（大写し）。cx：筒の まん中、top：底（逆さ）または 口（立てた とき）の y、s：1マスの 大きさ。
  * swing：ふりの かたむき（底を 持って、口の ほうが ゆれる）。up：逆さ（口が 下）。
  */
-function drawBoot(g: Gfx, i: number, cx: number, top: number, s: number, up: boolean, swing = 0, alpha = 1): void {
+export function drawBoot(g: Gfx, i: number, cx: number, top: number, s: number, up: boolean, swing = 0, alpha = 1): void {
   g.alpha(alpha, () => {
     for (const [y, x0, x1, kind] of BOOT_ROWS) {
       const ry = up ? y : BOOT_H - 1 - y;
@@ -375,7 +376,8 @@ export class KuPanel implements Widget {
     if (this.phase === 'matsu' && !(lr || ok)) this.slug = Math.min(1, this.slug + dt / 3000);
   }
 
-  private drawPick(g: Gfx, oy: number): void {
+  /** 選ぶ 間の 絵。hd：長靴は HD-2D（矢印と 名前だけ 描く）。 */
+  private drawPick(g: Gfx, oy: number, hd = false): void {
     const c = this.choices();
     KU_BOOTS.forEach((_, i) => {
       const cx = SX + 32 + i * 59;
@@ -383,8 +385,10 @@ export class KuPanel implements Widget {
       const lift = sel ? 3 : 0;
       const done = !c.includes(i);
       // a pair: the right one a little behind
-      drawBoot(g, i, cx + 10, oy + CH - 72 - lift, 2, false, 0, done ? 0.4 : 1);
-      drawBoot(g, i, cx - 6, oy + CH - 70 - lift, 2, false, 0, done ? 0.4 : 1);
+      if (!hd) {
+        drawBoot(g, i, cx + 10, oy + CH - 72 - lift, 2, false, 0, done ? 0.4 : 1);
+        drawBoot(g, i, cx - 6, oy + CH - 70 - lift, 2, false, 0, done ? 0.4 : 1);
+      }
       if (sel) {
         for (let k = 0; k < 4; k++) g.rect(cx + 2 - 3 + k, oy + CH - 84 + k - lift, 7 - k * 2, 1, '#FFE7A3');
       }
@@ -399,25 +403,30 @@ export class KuPanel implements Widget {
     }
   }
 
-  private drawFuru(g: Gfx, oy: number): void {
+  /** ふる 間の 絵。hd：地面・長靴・手は HD-2D（口・出てくる 物・右の 列だけ 描く）。 */
+  private drawFuru(g: Gfx, oy: number, hd = false): void {
     const i = this.sel;
     const cx = SX + 112;
     const top = oy + 6;
     const s = 4;
     const ground = oy + CH - 10;
-    // the tomato's light from below on the ground, under the mouth
-    for (let r = 46; r > 0; r -= 8) g.alpha(0.06, () => g.circle(cx, ground + 2, r, '#F28A3A'));
-    g.rect(SX, ground, RX - SX - 4, CH - (ground - oy), '#2A241E');
-    g.rect(SX, ground, RX - SX - 4, 1, '#4A3E30');
-    for (let k = 0; k < 9; k++) g.px(SX + 10 + k * 23, ground + 4 + (k % 3) * 3, '#5A6A3A');
+    if (!hd) {
+      // the tomato's light from below on the ground, under the mouth
+      for (let r = 46; r > 0; r -= 8) g.alpha(0.06, () => g.circle(cx, ground + 2, r, '#F28A3A'));
+      g.rect(SX, ground, RX - SX - 4, CH - (ground - oy), '#2A241E');
+      g.rect(SX, ground, RX - SX - 4, 1, '#4A3E30');
+      for (let k = 0; k < 9; k++) g.px(SX + 10 + k * 23, ground + 4 + (k % 3) * 3, '#5A6A3A');
+    }
     if (i < 0) return;
     // the hands at the sole (しゅん's)
     const sw = this.swing * 0.6;
-    drawBoot(g, i, cx, top, s, true, sw);
-    g.rect(cx - 5 * s - 8, top + 1, 9, 11, '#F2C8A0');
-    g.rect(cx - 5 * s - 8, top + 1, 2, 11, '#C89A7A');
-    g.rect(cx + 9 * s - 1, top + 1, 9, 11, '#F2C8A0');
-    g.rect(cx + 9 * s + 6, top + 1, 2, 11, '#C89A7A');
+    if (!hd) {
+      drawBoot(g, i, cx, top, s, true, sw);
+      g.rect(cx - 5 * s - 8, top + 1, 9, 11, '#F2C8A0');
+      g.rect(cx - 5 * s - 8, top + 1, 2, 11, '#C89A7A');
+      g.rect(cx + 9 * s - 1, top + 1, 9, 11, '#F2C8A0');
+      g.rect(cx + 9 * s + 6, top + 1, 2, 11, '#C89A7A');
+    }
     // the mouth: dark, and the light going in from below
     const mo = Math.round(sw * 20 * 0.9);
     const my = top + BOOT_H * s;
@@ -478,6 +487,19 @@ export class KuPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
+        // HD-2D（hd2d/panels/kutsu.ts）：昇降口の 外の 地面・壁・長靴・手・灯りは 3D、
+        // 矢印・名札・口・出てくる 生き物・右の 列は 2D で 上に
+        if (this.phase === 'pick') {
+          const done = KU_BOOTS.map((_, i) => (this.choices().includes(i) ? 0 : 1)).join('');
+          if (drawPanel3d(g, this, 'kutsu_pick', SX, oy, CW, CH, { state: { cur: this.active ? this.cur : -1, done } })) {
+            this.drawPick(g, oy, true);
+            g.text(KU_UI.count(kuShaken()), SX + CW - 64, oy + 6, { color: '#C8C0D8' });
+            return;
+          }
+        } else if (drawPanel3d(g, this, 'kutsu_furu', SX, oy, CW, CH, { state: { sel: this.sel, sw: Math.round(this.swing * 0.6 * 50) / 50 } })) {
+          this.drawFuru(g, oy, true);
+          return;
+        }
         // the night under the eave of the school, the tomato's warm light
         g.rect(SX, oy, CW, CH, '#141820');
         g.rect(SX, oy, CW, 3, '#0B0B14');
@@ -922,6 +944,30 @@ if (import.meta.env.DEV) {
     setFlag(KF.done, 1);
     if (step === 'soroe') return go('map_hoshimidai', 29, 29, 'up');
     return go('map_hoshimidai', 21, 12, 'up');
+  });
+
+  /**
+   * QA：大写し「長靴」を 直接 開く（phase 'pick'：v = 選んで いる 足、'furu'：v = ふる 足、swing = かたむき -1〜1）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.kuPanel('furu', 1, 0.8) → 写真 → __game.cmd.kuPanel()
+   */
+  registerDebug('kuPanel', (phase?: 'pick' | 'furu', v = 0, swing = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof KuPanel);
+    if (open || !phase) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new KuPanel();
+    p.open = 1;
+    p.phase = phase;
+    if (phase === 'pick') {
+      p.cur = Number(v);
+      p.active = true;
+    } else {
+      p.sel = Number(v);
+      p.swing = Number(swing);
+    }
+    game.ui.push(p);
+    return phase;
   });
 
   registerDebug('kuState', () => {

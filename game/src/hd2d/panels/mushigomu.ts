@@ -119,7 +119,7 @@ registerPanel3d('mg_tarai', {
     // 前の ふち（低い：水の 中の タイヤが 見える ように 手前は 低く）
     k.box(L.x, R.x, fl, fl + 0.1, z1, z1 + 0.06, { front: rim, top: rim });
     // 水：上の 面と 前の 面（すける）
-    const wm = k.own(new THREE.MeshLambertMaterial({ color: '#3A6A8A', transparent: true, opacity: 0.55, depthWrite: false }));
+    const wm = k.own(new THREE.MeshLambertMaterial({ color: '#5A9ABA', transparent: true, opacity: 0.38, depthWrite: false }));
     const wg = k.own(new THREE.BoxGeometry(R.x - L.x, wy - fl, z1 - z0));
     const water = new THREE.Mesh(wg, wm);
     water.position.set((L.x + R.x) / 2, (wy + fl) / 2, (z0 + z1) / 2);
@@ -174,7 +174,11 @@ registerPanel3d('mg_pump', {
     k.box(p0.x, p0.x + 6 * u, fl, top, Z - 3 * u, Z + 3 * u, { front: red, left: red, right: red, top: metal('cap', '#2A2A30', '#2A2A30') });
     // 取っ手（押すと 下がる）
     const shaft = paint('mg:shaft', 4, 16, (p) => p.fill('#C8CCD8'));
-    const grip = metal('grip', '#2A2A30', '#3A3A40');
+    const grip = paint('mg:grip', 16, 4, (p) => {
+      p.fill('#2A2A30');
+      p.hline(0, 15, 0, '#7A7A88');
+      p.hline(0, 15, 3, '#18181E');
+    });
     const hg = new THREE.Group();
     const sm = k.own(new THREE.BoxGeometry(2 * u, 18 * u + 0.001, 2 * u));
     const shaftM = new THREE.Mesh(sm, k.material(k.tex(shaft)));

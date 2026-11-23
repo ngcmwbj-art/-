@@ -51,6 +51,7 @@ import { hStage, lanternOn, npc } from './common';
 import { choresOn } from './barn';
 import { HOWTO } from '../../data/text/howto';
 import { skipIntro } from '../../ui/closeup';
+import { drawPanel3d } from '../../ui/panel3d';
 import { widenInt } from '../../ui/closeup_wide';
 
 export const NF = {
@@ -422,11 +423,15 @@ export class YukaPanel implements Widget {
         const fy = oy + 22;
         const fw = 196;
         const fh = 84;
-        g.rect(SX, oy, RX - SX - 4, CH, '#2A2830');
+        // HD-2D：牛房の 床・柵・牛・灯り（hd2d/panels/neru.ts）。カーソル・フォークは 2D の まま 上に
+        const in3d = drawPanel3d(g, this, 'neru', SX, oy, RX - SX - 4, CH, {
+          state: { mode: this.mode, light: this.light, wet: flag(NF.wet), piles: this.mode === 'shiku' ? this.piles : null, spots: SPOTS },
+        });
+        if (!in3d) g.rect(SX, oy, RX - SX - 4, CH, '#2A2830');
         // the floor under the tomato's light: the lower the lantern, the plainer the wet shows
         const low = (3 - this.light) / 3;
-        g.rect(fx, fy, fw, fh, this.mode === 'shiku' ? '#C8B48C' : mix3('#B8A880', '#D8C8A0', low));
-        for (let i = 0; i < 160; i++) {
+        if (!in3d) g.rect(fx, fy, fw, fh, this.mode === 'shiku' ? '#C8B48C' : mix3('#B8A880', '#D8C8A0', low));
+        for (let i = 0; i < (in3d ? 0 : 160); i++) {
           const x = fx + ((i * 53) % fw);
           const y = fy + ((i * 29) % fh);
           g.px(x, y, (i % 3 === 0 ? '#F0E4C4' : '#A8946C'));
@@ -438,6 +443,7 @@ export class YukaPanel implements Widget {
             const x = fx + s.c * cw;
             const y = fy + s.r * rh;
             const gone = flag(NF.wet) & (1 << i);
+            if (in3d) return;
             if (s.wet && !gone) {
               const d = 0.15 + 0.75 * low;
               g.alpha(d, () => {
@@ -448,12 +454,14 @@ export class YukaPanel implements Widget {
             // scraped out down to the concrete (grey, a little damp), waiting for the new sawdust
             if (gone) g.alpha(0.8, () => g.rect(x + 10, y + 8, cw - 20, rh - 16, '#A8A8A0'));
           });
-          // the water cup on the west post (front left)
-          g.rect(fx - 6, fy - 6, 12, 10, '#9AA0A8');
-          g.rect(fx - 4, fy - 4, 8, 4, '#4AA8E0');
-          // the tomato's light pool (smaller and brighter as it comes down)
-          const r = 40 + this.light * 22;
-          for (let rr = r; rr > 0; rr -= 10) g.alpha(0.04 + 0.03 * low, () => g.circle(fx + fw / 2, fy + fh / 2, rr, '#F28A3A'));
+          if (!in3d) {
+            // the water cup on the west post (front left)
+            g.rect(fx - 6, fy - 6, 12, 10, '#9AA0A8');
+            g.rect(fx - 4, fy - 4, 8, 4, '#4AA8E0');
+            // the tomato's light pool (smaller and brighter as it comes down)
+            const r = 40 + this.light * 22;
+            for (let rr = r; rr > 0; rr -= 10) g.alpha(0.04 + 0.03 * low, () => g.circle(fx + fw / 2, fy + fh / 2, rr, '#F28A3A'));
+          }
           // the place pointed at
           if (this.active || this.scoop > 0) {
             const s = SPOTS[this.cur];
@@ -473,7 +481,7 @@ export class YukaPanel implements Widget {
         } else {
           // the new sawdust in heaps across the pen (5 strips)
           const sw = fw / COLS;
-          this.piles.forEach((n, i) => {
+          if (!in3d) this.piles.forEach((n, i) => {
             const x = fx + i * sw;
             for (let j = 0; j < n; j++) {
               const hh = 6 + j * 7;
@@ -487,11 +495,13 @@ export class YukaPanel implements Widget {
           }
         }
         // the rail along the top (the pen's aisle side), the cows' dark rumps beyond it at the rail
-        g.rect(SX, oy + 10, RX - SX - 4, 3, '#9AA0A8');
-        g.rect(SX, oy + 15, RX - SX - 4, 2, '#7A808A');
-        for (const x of [60, 110, 160]) {
-          g.circle(SX + x, oy + 6, 9, '#2B2A30');
-          g.rect(SX + x - 9, oy, 18, 6, '#2B2A30');
+        if (!in3d) {
+          g.rect(SX, oy + 10, RX - SX - 4, 3, '#9AA0A8');
+          g.rect(SX, oy + 15, RX - SX - 4, 2, '#7A808A');
+          for (const x of [60, 110, 160]) {
+            g.circle(SX + x, oy + 6, 9, '#2B2A30');
+            g.rect(SX + x - 9, oy, 18, 6, '#2B2A30');
+          }
         }
         // the right column: the lantern's height, the count, the keys
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
@@ -890,6 +900,18 @@ if (import.meta.env.DEV) {
     return atM4();
   });
 
+  /** QA（大写しの HD-2D の 写真）：牛房の 床の 大写しを 直接 開く／もう一度で 閉じる（mode：kaki・shiku、light：灯りの 高さ 0〜3）。 */
+  registerDebug('neruPanel', (mode: 'kaki' | 'shiku' = 'kaki', light: unknown = 3, cur: unknown = 0) => {
+    const old = game.ui.widgets.find((w) => w instanceof YukaPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new YukaPanel(mode);
+    p.open = 1;
+    p.active = true;
+    p.light = Number(light);
+    p.cur = Number(cur);
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('nrState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(NF)) flags[k] = flag(id);

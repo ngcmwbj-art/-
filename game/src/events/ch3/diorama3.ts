@@ -37,6 +37,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
@@ -185,7 +186,7 @@ const COAT_LT = '#45434C';
 const COAT_DK = '#1B1733';
 const INK = '#3A3F48';
 
-type Kagi = 'kagi' | 'nuita' | 'himo';
+export type Kagi = 'kagi' | 'nuita' | 'himo';
 
 export class MokeiPanel implements Widget {
   modal = true;
@@ -333,7 +334,17 @@ export class MokeiPanel implements Widget {
     const gy = oy + CH - HINT_H - 10;
     // a little bounce when it is put right
     const lift = this.anim > 0 ? Math.round(Math.sin(((420 - this.anim) / 420) * Math.PI) * 3) : 0;
-    if (s === 'ushi' || s === 'kagi') {
+    const st = {
+      s,
+      lift,
+      ushi: flag(DF.ushi) ? 'mae' : 'ushiro',
+      kagi: flag(DF.himo) ? 'himo' : flag(DF.kagi) ? 'nuita' : 'kagi',
+      on: !flag(DF.toudai),
+    };
+    const hd = drawPanel3d(g, this, 'diorama3', SX, oy, SW, CH, { state: st });
+    if (hd) {
+      if (s === 'ushi' && this.guso > 0) gusoLie(g, cx + 50, gy, this.guso);
+    } else if (s === 'ushi' || s === 'kagi') {
       // 星見台's model: the painted grass of the terrace, the barn's straw, the mountain road's dirt
       g.rect(SX, oy, SW, CH, '#4A7A42');
       for (let i = 0; i < 70; i++) g.rect(SX + ((i * 53) % SW), oy + ((i * 29) % (CH - HINT_H)), 2, 1, i % 3 ? '#3E6A38' : '#5A8A4A');
@@ -427,7 +438,7 @@ export class MokeiPanel implements Widget {
  * ushiro：うしろ足から 寝かけた（まちがい。おしりが 下がり、前足は のびた まま）。
  * mae：前の ひざから 寝かけた（正しい。前足を 折って ひざを つき、うしろ足は 立った まま）。
  */
-function cow(g: Gfx, cx: number, gy: number, pose: 'ushiro' | 'mae'): void {
+export function cow(g: Gfx, cx: number, gy: number, pose: 'ushiro' | 'mae'): void {
   const rx = 26;
   const ry = 11;
   const cy0 = gy - 29;
@@ -490,7 +501,7 @@ function cow(g: Gfx, cx: number, gy: number, pose: 'ushiro' | 'mae'): void {
  * kagi：エンジンの 横に 小さな 黄色い 鍵（まちがい）／nuita：鍵を ぬいて、箱の 底の 紐の 部品が 横に／
  * himo：エンジンの 横に リコイルの 丸い 箱と、白い 紐と 取っ手（正しい）。
  */
-function tiller(g: Gfx, cx: number, gy: number, st: Kagi): void {
+export function tiller(g: Gfx, cx: number, gy: number, st: Kagi): void {
   g.rect(cx - 36, gy, 96, 2, '#6A5A3A', 0.6);
   // the wheel (lugs round it)
   const wx = cx - 10;
@@ -543,7 +554,7 @@ function tiller(g: Gfx, cx: number, gy: number, st: Kagi): void {
 }
 
 /** 防波堤の 白い 灯台（昼の 模型）。on：豆電球が 光る（まちがい）／off：消えて いる（正しい）。 */
-function lighthouse(g: Gfx, cx: number, gy: number, on: boolean, t: number): void {
+export function lighthouse(g: Gfx, cx: number, gy: number, on: boolean, t: number): void {
   const top = gy - 46;
   for (let y = top; y < gy; y++) {
     const k = (y - top) / (gy - top);
@@ -574,7 +585,7 @@ function lighthouse(g: Gfx, cx: number, gy: number, on: boolean, t: number): voi
 }
 
 /** 食堂かもめの 看板『かもめ』（『か』が ある：模型は『か』が 落ちる 前の 町）と、赤い のれん。 */
-function shopSign(g: Gfx, cx: number, gy: number): void {
+export function shopSign(g: Gfx, cx: number, gy: number): void {
   g.rect(cx - 60, gy - 70, 120, 70, '#E8E4D8');
   g.rect(cx - 60, gy - 70, 120, 4, '#A8452E');
   // the board
@@ -900,6 +911,21 @@ if (import.meta.env.DEV) {
     return go(DIORAMA, 16, 7, 'up');
   });
 
+  /** QA：大写し「模型の 寄り」を 直接 開く（sel = 所の 番号）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('dmPanel', (sel = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof MokeiPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new MokeiPanel();
+    p.open = 1;
+    p.active = true;
+    p.sel = Number(sel);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return { spots: SPOT_ORDER };
+  });
   registerDebug('dmState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(DF)) flags[k] = flag(id);

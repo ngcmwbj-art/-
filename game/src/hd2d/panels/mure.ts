@@ -42,8 +42,8 @@ function seaTop(): HTMLCanvasElement {
 /** 小アジの 背中（上から：頭が 左、二つに 分かれた 尾）。 */
 function backImg(): HTMLCanvasElement {
   return pix('mr:back', 18, 6, (p) => {
-    p.ellipse(8, 3, 7, 1.6, '#1A3044');
-    p.hline(3, 10, 2, '#1C3448');
+    p.ellipse(8, 3, 7, 1.6, '#081828');
+    p.hline(3, 10, 2, '#12263A');
     p.set(15, 2, '#1C3248');
     p.set(16, 1, '#1C3248');
     p.set(15, 4, '#1C3248');
@@ -98,8 +98,8 @@ registerPanel3d('mure_ue', {
     k.sky(bandSky('mr:ueSky', [[0, '#2A4A62'], [1, '#1C3650']]));
     const SEA = -1.3;
     // 深い 所（暗い 青）と、鏡の 水面（すける：小アジの 背中が かすかに）
-    k.tiled(pix('mr:deep', 8, 8, (p) => p.fill('#16304A')), -40, 40, -60, 10, SEA - 4, 8, { unlit: true });
-    glassy(k, seaTop(), -40, 40, -60, 10, SEA, { texels: 10, opacity: 0.82, unlit: true });
+    k.tiled(pix('mr:deep', 8, 8, (p) => p.fill('#24445E')), -40, 40, -60, 10, SEA - 4, 8, { unlit: true });
+    glassy(k, seaTop(), -40, 40, -60, 10, SEA, { texels: 10, opacity: 0.5, unlit: true });
     // 小アジの 背中（2D と 同じ 並び）
     const img = backImg();
     for (const [fx, fy] of LAYOUT.oki) {
@@ -133,7 +133,7 @@ registerPanel3d('mure_shita', {
   tilt: 0.6,
   build(k) {
     k.sky(bandSky('mr:shitaSky', [[0, '#E2F0F6'], [1, '#B4D6E4']]));
-    const surf = k.tiled(surfaceUnder(), -60, 60, -60, 20, 0, 10, { unlit: true });
+    const surf = k.tiled(surfaceUnder(), -60, 60, -60, 20, 0, 10, { unlit: true, tint: '#9cbccc' });
     (surf.material as THREE.Material).side = THREE.DoubleSide;
     // 日：水面の まん中の 上（2D と 同じ 所）
     const sun = k.ground(W / 2, 4, -0.05);
@@ -145,7 +145,7 @@ registerPanel3d('mure_shita', {
       const d = sun.distanceTo(k.camera.position);
       flat(k, sunImg, sun, { px: k.pxAt(d) * 1.0, depth: 0, down: true, unlit: true, cast: false, emissive: 1 });
       // 光の すじ：日から 下へ 広がる
-      const mat = k.own(new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      const mat = k.own(new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.05, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
       for (let i = -4; i <= 4; i++) {
         const end = k.ground(W / 2 + i * 28, H + 4, -6.5);
         if (!end) continue;
@@ -184,9 +184,9 @@ function buildYoko(k: Kit, size: Size, one: boolean): void {
   const iwa = groundImg('c3_soko_iwa', 32, 32);
   for (let i = 0; i < 9; i++) {
     const x = -14 + i * 3.6 + rng.next() * 1.5;
-    const z = -9 - rng.next() * 10;
-    const w = 0.8 + rng.next() * 1.6;
-    const h = 0.4 + rng.next() * 1.0;
+    const z = -6 - rng.next() * 8;
+    const w = 0.6 + rng.next() * 1.1;
+    const h = 0.3 + rng.next() * 0.6;
     k.box(x, x + w, 0, h, z - w * 0.7, z, { front: iwa, top: iwa, left: iwa, right: iwa });
   }
   // 岸壁の 下（奥の 左：港の 石垣が 水の 中へ）
@@ -210,16 +210,16 @@ function buildYoko(k: Kit, size: Size, one: boolean): void {
     const px = k.pxAt(-Z);
     at.y -= (img.height / 2) * px;
     at.x += (img.width / 2 - (len + 2)) * px;
-    k.stand(img, at, { px, depth: one ? 4 : 2, cast: false });
+    k.stand(img, at, { px, depth: one ? 4 : 2, cast: false, unlit: true });
   };
   if (one) place(W / 2, H / 2, 34);
   else for (const [fx, fy] of LAYOUT[size]) place(fx * W, fy * H, 12);
 }
 
 const yokoDef = (one: boolean): Panel3dDef => ({
-  cam: { fov: 28, pitch: -9, pos: [0, 1.7, 0] as [number, number, number], far: 200 },
+  cam: { fov: 28, pitch: -4, pos: [0, 1.7, 0] as [number, number, number], far: 200 },
   light: UNDERWATER,
-  fog: [4, 34],
+  fog: [6, 46],
   shadow: null,
   focus: 0.5,
   tilt: 0.7,

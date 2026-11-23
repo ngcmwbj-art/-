@@ -66,7 +66,7 @@ export function bands(key: string, stops: [number, string][], H = 112, stars = 0
     let s = 7;
     for (let i = 0; i < stars; i++) {
       s = (s * 1103515245 + 12345) & 0x7fffffff;
-      const x = s % W;
+      const x = 2 + (s % Math.max(1, W - 4));
       s = (s * 1103515245 + 12345) & 0x7fffffff;
       const y = s % Math.floor(H * 0.6);
       p.set(x, y, i % 4 === 0 ? '#F4F1E8' : '#9AA4C8');

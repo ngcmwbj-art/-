@@ -19,7 +19,9 @@
 
 import type { Co } from '../../engine/co';
 import { game, type Widget } from '../../engine/game';
-import type { Gfx } from '../../engine/gfx';
+import { Gfx } from '../../engine/gfx';
+import { makeCanvas } from '../../engine/pixel';
+import { drawPanel3d } from '../../ui/panel3d';
 import type { Input } from '../../engine/input';
 import { measure } from '../../engine/font';
 import { markText } from '../../engine/textzones';
@@ -142,6 +144,13 @@ const ARI_MS = 1200;
 
 type Phase = 'idle' | 'near' | 'look';
 
+/** HD-2D の とき 花だけを 描く 下書きの キャンバス（1つを 使い回す）。 */
+let flowerCv: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+function flowerCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+  if (!flowerCv || flowerCv[0].width !== w || flowerCv[0].height !== h) flowerCv = makeCanvas(w, h);
+  return flowerCv;
+}
+
 export class NasuPanel implements Widget {
   modal = true;
   /** 大写し（engine/touch.ts：絵の 外の タッチも けってい）。 */
@@ -233,6 +242,30 @@ export class NasuPanel implements Widget {
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
     const L = Math.max(0, Math.min(1, this.lit / NEAR));
+    // HD-2D（hd2d/panels/akinasu.ts）：夜の 路地・ナスの 葉・茎・トマトの 灯りと その 光は 3D。
+    // 花（実）は 2D の まま 上に のせ、暗さは 花の 上だけに かける（3D の 暗さは 灯りの 強さで 出る）
+    if (drawPanel3d(g, this, 'akinasu', SX, oy, W, CH, { state: { L: Math.round(L * 12) / 12, kabu: this.kabu } })) {
+      const [cx, cy] = this.center(oy);
+      const ow = 112;
+      const oh = 84;
+      const [cv, ctx] = flowerCanvas(ow, oh);
+      ctx.clearRect(0, 0, ow, oh);
+      const fg = new Gfx(ctx, ow, oh);
+      const fx = cx - ow / 2;
+      const fy = cy - 30;
+      fg.translated(-fx, -fy, () => {
+        if (this.kabu === 2) this.drawFruit(fg, cx, cy);
+        else this.drawFlower(fg, cx, cy, L);
+      });
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.globalAlpha = 0.72 * (1 - L);
+      ctx.fillStyle = '#06080C';
+      ctx.fillRect(0, 0, ow, oh);
+      ctx.restore();
+      g.img(cv, fx, fy);
+      return;
+    }
     // the alley at night
     g.rect(SX, oy, W, CH, '#12161E');
     // the leaves round the flower (eggplant leaves: big, wavy, purple veins)
@@ -591,6 +624,24 @@ if (import.meta.env.DEV) {
     if (step === 'kucho') return go(SCHOOL, 3, 5, 'left');
     setFlag(NF.done, 1);
     return go(VILLAGE, 32, 34, 'right');
+  });
+
+  /** QA：大写し「ナスの 花」だけを すぐ 開く（kabu 0〜2、step 0〜3。もう一度 呼ぶと 閉じる）。 */
+  registerDebug('anPanel', (kabu = 0, step = 0) => {
+    const old = game.ui.widgets.find((w) => w instanceof NasuPanel);
+    if (old) {
+      game.ui.remove(old);
+      return 'closed';
+    }
+    const p = new NasuPanel();
+    p.howto = undefined as unknown as Howto;
+    p.kabu = Number(kabu);
+    p.step = p.lit = Number(step);
+    p.revealed = p.step >= NEAR;
+    p.phase = 'near';
+    p.open = 1;
+    game.ui.push(p);
+    return 'opened';
   });
 
   registerDebug('anAim', (s = NEAR) => {

@@ -43,6 +43,7 @@ import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { charSprite, poseFrame } from '../../art/chars/registry';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/c3_shiro';
 import { KAZARI_ORDER, SR_UI, type Kazari } from '../../data/text/c3_shiro';
@@ -398,12 +399,15 @@ export class SunaPanel implements Widget {
     const S = SR_SAND;
     const kind = this.kind;
     const base = kind === 'kawaki' ? S.lt : kind === 'doro' ? S.wet : S.wetLt;
-    g.rect(SX, oy, SW, CH, base);
-    // the grains (dry: many pale; wet: few, the water's sheen moving over them)
-    for (let i = 0; i < 70; i++) {
-      const x = SX + ((i * 47) % SW);
-      const y = oy + ((i * 31) % CH);
-      g.rect(x, y, 1, 1, kind === 'kawaki' ? (i % 3 ? S.sand : '#FFF6E0') : i % 2 ? S.wetDk : S.wet);
+    // HD-2D（2026-11-23、hd2d/panels/suna.ts）：砂（と まわりの 貝・小石）は 3D。水の 膜・手・跡は 2D の まま 上に
+    if (!drawPanel3d(g, this, `suna_${kind}`, SX, oy, SW, CH)) {
+      g.rect(SX, oy, SW, CH, base);
+      // the grains (dry: many pale; wet: few, the water's sheen moving over them)
+      for (let i = 0; i < 70; i++) {
+        const x = SX + ((i * 47) % SW);
+        const y = oy + ((i * 31) % CH);
+        g.rect(x, y, 1, 1, kind === 'kawaki' ? (i % 3 ? S.sand : '#FFF6E0') : i % 2 ? S.wetDk : S.wet);
+      }
     }
     if (kind === 'doro') {
       // a thin sheet of water over it, the foam's lace drifting (the beach's waves, 4 s)
@@ -504,16 +508,20 @@ export class SunaPanel implements Widget {
 
   private drawBeach(g: Gfx, oy: number): void {
     const S = SR_SAND;
-    // the noon sky, the sea's band (its crests and glints), the beach
-    g.rect(SX, oy, SW, 22, '#CFE6F2');
-    g.rect(SX, oy + 22, SW, SHORE - 22, '#5AA0C8');
-    for (let i = 0; i < 12; i++) {
-      const x = SX + ((i * 37 + Math.floor(this.t / 120)) % SW);
-      const y = oy + 25 + ((i * 7) % (SHORE - 26));
-      g.rect(x, y, 6, 1, '#A8D4F0');
+    // HD-2D（2026-11-23、hd2d/panels/suna.ts）：空・海・浜（監視台・パラソル）は 3D。波の 泡・城・バケツ・グソっ君は 2D の まま 上に
+    const hd = drawPanel3d(g, this, 'suna_hama', SX, oy, SW, CH);
+    if (!hd) {
+      // the noon sky, the sea's band (its crests and glints), the beach
+      g.rect(SX, oy, SW, 22, '#CFE6F2');
+      g.rect(SX, oy + 22, SW, SHORE - 22, '#5AA0C8');
+      for (let i = 0; i < 12; i++) {
+        const x = SX + ((i * 37 + Math.floor(this.t / 120)) % SW);
+        const y = oy + 25 + ((i * 7) % (SHORE - 26));
+        g.rect(x, y, 6, 1, '#A8D4F0');
+      }
+      g.rect(SX, oy + SHORE, SW, CH - SHORE, S.wetLt);
+      for (let i = 0; i < 40; i++) g.rect(SX + ((i * 53) % SW), oy + SHORE + 4 + ((i * 29) % (CH - SHORE - 4)), 2, 1, i % 2 ? S.wet : S.lt);
     }
-    g.rect(SX, oy + SHORE, SW, CH - SHORE, S.wetLt);
-    for (let i = 0; i < 40; i++) g.rect(SX + ((i * 53) % SW), oy + SHORE + 4 + ((i * 29) % (CH - SHORE - 4)), 2, 1, i % 2 ? S.wet : S.lt);
     // the beach's own waves (4 s: the foam running up and back), and the one that comes to the castle
     const ph = (this.t % 4000) / 4000;
     const run = 4 + Math.round(Math.sin(ph * Math.PI) * 6);

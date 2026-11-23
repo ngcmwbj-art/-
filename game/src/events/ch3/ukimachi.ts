@@ -36,6 +36,7 @@ import { faceToward } from '../../world/interact';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import { pgOn } from '../../world/postgame';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { closeupWide, isCloseupQuit, skipIntro, type Howto } from '../../ui/closeup';
 import * as T from '../../data/text/c3_ukimachi';
 import { UK_ORDER, UK_UI, type UkStep } from '../../data/text/c3_ukimachi';
@@ -296,8 +297,11 @@ export class UkiPanel implements Widget {
   // ---------------------------------------------------------------- 背浮き：砂の 上の しゅんを 上から
 
   private drawSeuki(g: Gfx, oy: number): void {
-    g.rect(SX, oy, SW, CH, SAND);
-    for (let i = 0; i < 90; i++) g.rect(SX + ((i * 47) % SW), oy + ((i * 29) % CH), 1, 1, i % 3 ? SAND_DK : SAND_LT);
+    // HD-2D（2026-11-23、hd2d/panels/seuki.ts）：浜の 砂は 3D。しゅん・水の 輪・合図・ゲージは 2D の まま 上に
+    if (!drawPanel3d(g, this, 'uki_seuki', SX, oy, SW, CH)) {
+      g.rect(SX, oy, SW, CH, SAND);
+      for (let i = 0; i < 90; i++) g.rect(SX + ((i * 47) % SW), oy + ((i * 29) % CH), 1, 1, i % 3 ? SAND_DK : SAND_LT);
+    }
     const cx = SX + Math.round(SW / 2) + 6;
     const cy = oy + BODY_Y;
     // "up to the ears in water" (pretend): a dotted ring round the body once the chin is up
@@ -373,12 +377,15 @@ export class UkiPanel implements Widget {
   // ---------------------------------------------------------------- 海：あおむけで 泳ぐ グソっ君
 
   private drawUmi(g: Gfx, oy: number): void {
-    for (let y = 0; y < CH; y++) g.rect(SX, oy + y, CW, 1, y < 18 ? '#BFE4F0' : y < 60 ? '#6AB4D4' : '#4A94B8');
-    // the surface: waves moving again (12:01)
-    for (let x = SX; x < SX + CW; x += 2) g.rect(x, oy + 17 + Math.round(Math.sin(x / 11 + this.t / 380) * 1.5), 2, 1, '#F4FAFC');
-    for (let i = 0; i < 20; i++) {
-      const x = SX + ((i * 53 + Math.floor(this.t / 30)) % CW);
-      g.rect(x, oy + 30 + ((i * 37) % 70), 4, 1, '#9AD0E4');
+    // HD-2D（2026-11-23、hd2d/panels/seuki.ts）：水の 中と 水面の 下は 3D。グソっ君・泡は 2D の まま 上に
+    if (!drawPanel3d(g, this, 'uki_umi', SX, oy, CW, CH)) {
+      for (let y = 0; y < CH; y++) g.rect(SX, oy + y, CW, 1, y < 18 ? '#BFE4F0' : y < 60 ? '#6AB4D4' : '#4A94B8');
+      // the surface: waves moving again (12:01)
+      for (let x = SX; x < SX + CW; x += 2) g.rect(x, oy + 17 + Math.round(Math.sin(x / 11 + this.t / 380) * 1.5), 2, 1, '#F4FAFC');
+      for (let i = 0; i < 20; i++) {
+        const x = SX + ((i * 53 + Math.floor(this.t / 30)) % CW);
+        g.rect(x, oy + 30 + ((i * 37) % 70), 4, 1, '#9AD0E4');
+      }
     }
     // グソっ君 swimming right to left, belly up (twice the size): the legs on top paddling. It comes in from the
     // right and stays in the middle a while (a slow glide), then goes on out to the left.

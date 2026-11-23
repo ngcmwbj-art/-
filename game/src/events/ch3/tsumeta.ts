@@ -42,6 +42,7 @@ import { actorAnchor, addMarkSource } from '../../world/marks';
 import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
 import * as T from '../../data/text/c3_tsumeta';
 import { CARD_ORDER, TM_UI, type Card } from '../../data/text/c3_tsumeta';
@@ -207,7 +208,7 @@ const INK = '#4A3A2E';
 export type Look = 'ana' | 'kake' | 'tsumeta' | 'chawan';
 type Mode = 'look' | 'cards';
 /** 「もし これなら」の 貝の 形。 */
-type Mark = 'ana' | 'nashi' | 'ware' | 'kake';
+export type Mark = 'ana' | 'nashi' | 'ware' | 'kake';
 const CARD_MARK: Record<Card, Mark> = { hasami: 'nashi', kuchibashi: 'ware', ishi: 'kake' };
 
 export class TsumePanel implements Widget {
@@ -316,20 +317,26 @@ export class TsumePanel implements Widget {
   }
 
   /** 12:01 の ぬれた 砂（細かい 粒と、ときどき 寄せる 泡の 線）。 */
-  private sand(g: Gfx, oy: number): void {
-    g.rect(SX, oy, SW, CH, SAND);
-    for (let i = 0; i < 80; i++) g.rect(SX + ((i * 47) % SW), oy + ((i * 31) % CH), 1, 1, i % 3 ? SAND_DK : SAND_LT);
+  private sand(g: Gfx, oy: number): boolean {
+    // HD-2D（2026-11-23、hd2d/panels/tsume.ts）：ぬれた 砂と 貝がらは 3D。泡・札・しるし・カードは 2D の まま 上に
+    const c = CARD_ORDER[this.sel];
+    const hd = drawPanel3d(g, this, `tsume_${this.mode}`, SX, oy, SW, CH, { state: { look: this.look, mark: CARD_MARK[c] } });
+    if (!hd) {
+      g.rect(SX, oy, SW, CH, SAND);
+      for (let i = 0; i < 80; i++) g.rect(SX + ((i * 47) % SW), oy + ((i * 31) % CH), 1, 1, i % 3 ? SAND_DK : SAND_LT);
+    }
     // the foam's lace drifting over the top edge (the waves move again: 4 s)
     const ph = (this.t % 4000) / 4000;
     const reach = 3 + Math.round(Math.sin(ph * Math.PI) * 5);
     g.alpha(0.4, () => g.rect(SX, oy, SW, reach, '#9AC8DC'));
     for (let x = SX; x < SX + SW; x += 2) g.rect(x, oy + reach + Math.round(Math.sin(x / 9 + this.t / 300)), 2, 1, '#F4F8F8');
+    return hd;
   }
 
   // ---------------------------------------------------------------- look：1つを 大きく
 
   private drawLook(g: Gfx, oy: number): void {
-    this.sand(g, oy);
+    if (this.sand(g, oy)) return;
     const cx = SX + Math.round(SW / 2);
     const cy = oy + 62;
     if (this.look === 'ana' || this.look === 'kake') bivalve(g, cx, cy, 38, 30, this.look);
@@ -340,14 +347,16 @@ export class TsumePanel implements Widget {
   // ---------------------------------------------------------------- cards：穴と くらべる
 
   private drawCards(g: Gfx, oy: number): void {
-    this.sand(g, oy);
+    const hd = this.sand(g, oy);
     const c = CARD_ORDER[this.sel];
     // the two shells: this hole (left), and what the selected one would leave (right)
     const lx = SX + SHELL_X;
     const rx = SX + SW - SHELL_X;
     const sy = oy + SHELL_Y;
-    bivalve(g, lx, sy, 24, 19, 'ana');
-    bivalve(g, rx, sy, 24, 19, CARD_MARK[c]);
+    if (!hd) {
+      bivalve(g, lx, sy, 24, 19, 'ana');
+      bivalve(g, rx, sy, 24, 19, CARD_MARK[c]);
+    }
     if (c === 'hasami') claw(g, rx + 26, sy, 1);
     // the labels over them, and the sign between (≠ once compared, ? before)
     for (const [x, l] of [
@@ -418,7 +427,7 @@ export class TsumePanel implements Widget {
  * 白い 二枚貝（上に 蝶番、すじが 放射に）。mark：ana まんまるの 小さな 穴・nashi 穴の ない 殻・
  * ware 割れ（ぎざぎざの すじと、欠けた かけら）・kake ふちが 欠けた。
  */
-function bivalve(g: Gfx, cx: number, cy: number, rx: number, ry: number, mark: Mark): void {
+export function bivalve(g: Gfx, cx: number, cy: number, rx: number, ry: number, mark: Mark): void {
   const top = cy - ry;
   const half = (d: number) => {
     const k = d / ry;
@@ -474,7 +483,7 @@ function bivalve(g: Gfx, cx: number, cy: number, rx: number, ry: number, mark: M
 }
 
 /** 丸い 巻貝の 殻（ツメタガイ：低い 巻き、大きな 体層、つるっと した ひかり。中は からっぽ）。 */
-function snail(g: Gfx, cx: number, cy: number, r: number): void {
+export function snail(g: Gfx, cx: number, cy: number, r: number): void {
   g.circle(cx + 3, cy + 3, r, '#B09C70');
   g.circle(cx, cy, r, '#B89A7A');
   g.circle(cx - 3, cy - 2, r - 5, '#CDB090');
@@ -490,7 +499,7 @@ function snail(g: Gfx, cx: number, cy: number, r: number): void {
 }
 
 /** 砂の お茶わん（ふせた お茶わんの ような 砂の 輪。真ん中は へこむ）。 */
-function chawan(g: Gfx, cx: number, cy: number, rx: number): void {
+export function chawan(g: Gfx, cx: number, cy: number, rx: number): void {
   const ry = Math.round(rx * 0.42);
   for (let d = -ry; d <= ry; d++) {
     const hw = Math.round(rx * Math.sqrt(Math.max(0, 1 - (d / (ry + 0.5)) ** 2)));

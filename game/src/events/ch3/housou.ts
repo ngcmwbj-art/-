@@ -30,6 +30,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import { getScript, type ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
@@ -295,25 +296,31 @@ export class ChimePanel implements Widget {
   /** 左：チャイムの 箱（横から 見た 寄り）、4つの ボタンと、下に 高さの 段と 字。 */
   private drawBox(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
-    g.rect(SX, oy, W, CH, '#2E343C');
-    // the box's face
-    g.rect(SX + 6, oy + 14, W - 12, 78, BOX_DK);
-    g.rect(SX + 8, oy + 16, W - 16, 74, BOX);
-    g.rect(SX + 8, oy + 16, W - 16, 1, '#D8D4C8');
     const mic = this.phase === 'mic' || this.phase === 'pause';
+    const down = this.pressK >= 0 && this.t - this.pressT < 220 ? this.pressK : -1;
+    const hd = drawPanel3d(g, this, 'housou', SX, oy, W, CH, { state: { mic, press: down } });
+    if (!hd) {
+      g.rect(SX, oy, W, CH, '#2E343C');
+      // the box's face
+      g.rect(SX + 6, oy + 14, W - 12, 78, BOX_DK);
+      g.rect(SX + 8, oy + 16, W - 16, 74, BOX);
+      g.rect(SX + 8, oy + 16, W - 16, 1, '#D8D4C8');
+    }
     for (let i = 0; i < 4; i++) {
       const h = HS_BTN[i];
       const bx = BX0 + i * BGAP;
       const pressed = this.pressK === i && this.t - this.pressT < 220;
       const by = oy + 24 + (pressed ? 3 : 0);
-      // the button: a round cap on a dark ring
-      g.rect(bx - 1, oy + 23, BW + 2, 18, '#5A564C');
-      g.rect(bx, by, BW, 14, mic ? '#8A867A' : BTN[i]);
-      g.rect(bx + 2, by + 1, BW - 4, 2, '#FFFFFF', mic ? 0.15 : 0.45);
-      // its steps under it: 1 to 4, rising (how high the note), and the word for the lowest and highest
       const sy = oy + 58;
-      for (let s = 0; s <= h; s++) g.rect(bx + 2 + s * 7, sy - s * 5, 6, 6 + s * 5, mic ? '#6A665C' : STEP);
-      g.rect(bx + 1, sy + 6, BW - 2, 1, INK);
+      if (!hd) {
+        // the button: a round cap on a dark ring
+        g.rect(bx - 1, oy + 23, BW + 2, 18, '#5A564C');
+        g.rect(bx, by, BW, 14, mic ? '#8A867A' : BTN[i]);
+        g.rect(bx + 2, by + 1, BW - 4, 2, '#FFFFFF', mic ? 0.15 : 0.45);
+        // its steps under it: 1 to 4, rising (how high the note), and the word for the lowest and highest
+        for (let s = 0; s <= h; s++) g.rect(bx + 2 + s * 7, sy - s * 5, 6, 6 + s * 5, mic ? '#6A665C' : STEP);
+        g.rect(bx + 1, sy + 6, BW - 2, 1, INK);
+      }
       if (h === 0 || h === 3) g.text(h === 0 ? HS_UI.low : HS_UI.high, bx + 1, oy + 67, { color: INK });
       // the cursor
       if (this.phase === 'select' && i === this.cur && Math.floor(this.t / 300) % 2 === 0) {
@@ -686,6 +693,21 @@ if (import.meta.env.DEV) {
     return go(IRIGUCHI, 12, 2, 'up');
   });
 
+  /** QA：大写し「チャイム」を 直接 開く（cur = 選ぶ ボタン、mic = マイクの 間）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('hsPanel', (cur = 1, mic = false) => {
+    const open = game.ui.widgets.find((w) => w instanceof ChimePanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new ChimePanel();
+    p.open = 1;
+    p.phase = mic ? 'mic' : 'select';
+    p.cur = Number(cur);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
+  });
   registerDebug('hsState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(HF)) flags[k] = flag(id);

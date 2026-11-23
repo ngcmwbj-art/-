@@ -35,6 +35,7 @@ import { field } from '../../world/field';
 import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/c3_okujou';
 import { OJ_UI } from '../../data/text/c3_okujou';
 import { OKUJOU } from '../../data/maps/c3_aq_okujou';
@@ -236,70 +237,76 @@ export class HaisuiPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        // the roof's concrete in the noon sun, the drain's square well seen from above, a little tilted
-        g.rect(SX, oy, RX - SX - 4, CH, '#C4C0B4');
-        for (let yy = 0; yy < CH; yy += 6) for (let xx = (yy * 7) % 11; xx < RX - SX - 4; xx += 11) g.px(SX + xx, oy + yy, '#B4B0A4');
-        // the black rings on the concrete round it
-        for (let r = 0; r < 3; r++) {
-          const rx = 76 + r * 14;
-          const ry = 44 + r * 6;
-          for (let t = 0; t < 360; t += 3) {
-            const th = (t * Math.PI) / 180;
-            g.px(Math.round(SX + 100 + Math.cos(th) * rx), Math.round(oy + 58 + Math.sin(th) * ry), '#6A6A64');
-          }
-        }
-        const wx = SX + 46;
-        const wy = oy + 10;
-        const ww = 108;
-        const wh = 92;
-        g.rect(wx - 4, wy - 4, ww + 8, wh + 8, '#7A766C');
-        g.rect(wx, wy, ww, wh, '#3A3A38');
-        // the net at the very bottom (always there; it is never taken off)
-        g.rect(wx + 6, wy + 6, ww - 12, wh - 12, '#2A2A28');
-        for (let x = wx + 8; x < wx + ww - 8; x += 6) g.rect(x, wy + 6, 2, wh - 12, '#8A8A84');
-        for (let y = wy + 10; y < wy + wh - 8; y += 8) g.rect(wx + 6, y, ww - 12, 1, '#7A7A74');
-        // what is heaped on it, bottom up: sand, the ball, the pine needles, the feather
-        const cx = wx + ww / 2;
-        const cy = wy + wh / 2;
-        const gone = (i: number) => i < this.n || (this.taking > 0 && i === this.n);
-        const lift = (i: number) => (this.taking > 0 && i === this.n ? (1 - this.taking / TAKE_MS) * 40 : 0);
-        const slipX = (i: number) => (this.slip > 0 && i === this.n ? Math.sin((1 - this.slip / SLIP_MS) * Math.PI) * 14 : 0);
-        const draw = (i: number, fn: (ox: number, oy2: number, al: number) => void) => {
-          if (i < this.n) return;
-          const al = gone(i) ? Math.max(0, this.taking / TAKE_MS) : 1;
-          g.alpha(al, () => fn(slipX(i), -lift(i), al));
-        };
-        // sand
-        draw(3, (ox, o) => {
-          for (let y = -30; y <= 30; y += 2)
-            for (let x = -44; x <= 44; x += 2) {
-              if ((x * x) / (44 * 44) + (y * y) / (30 * 30) > 1) continue;
-              g.rect(cx + x + ox, cy + y + o, 2, 2, (x * 3 + y * 5) % 7 === 0 ? '#C8B890' : (x + y) % 6 === 0 ? '#9A8A62' : '#B0A076');
+        // HD-2D（2026-11-23、hd2d/panels/haisui.ts）：屋上の コンクリート・排水口・つまった 物は 3D（取る・すべるも 3D で 動く）
+        const tk = this.taking > 0 ? Math.round((1 - this.taking / TAKE_MS) * 24) / 24 : 0;
+        const sl = this.slip > 0 ? Math.round(Math.sin((1 - this.slip / SLIP_MS) * Math.PI) * 14) : 0;
+        const hd = drawPanel3d(g, this, 'haisui', SX, oy, RX - SX - 4, CH, { state: { n: this.n, tk, sl } });
+        if (!hd) {
+          // the roof's concrete in the noon sun, the drain's square well seen from above, a little tilted
+          g.rect(SX, oy, RX - SX - 4, CH, '#C4C0B4');
+          for (let yy = 0; yy < CH; yy += 6) for (let xx = (yy * 7) % 11; xx < RX - SX - 4; xx += 11) g.px(SX + xx, oy + yy, '#B4B0A4');
+          // the black rings on the concrete round it
+          for (let r = 0; r < 3; r++) {
+            const rx = 76 + r * 14;
+            const ry = 44 + r * 6;
+            for (let t = 0; t < 360; t += 3) {
+              const th = (t * Math.PI) / 180;
+              g.px(Math.round(SX + 100 + Math.cos(th) * rx), Math.round(oy + 58 + Math.sin(th) * ry), '#6A6A64');
             }
-        });
-        // the child's rubber ball (a little soft)
-        draw(2, (ox, o) => {
-          for (let r = 13; r > 0; r--) g.circle(cx + 14 + ox, cy + 6 + o, r, r > 10 ? '#B8402E' : r > 4 ? '#D8503A' : '#F08A6A');
-          g.rect(cx + 6 + ox, cy + 2 + o, 16, 1, '#F4F1E8', 0.6);
-        });
-        // the town's black-pine needles in a clump
-        draw(1, (ox, o) => {
-          for (let i = 0; i < 26; i++) {
-            const x0 = cx - 34 + ((i * 13) % 52) + ox;
-            const y0 = cy - 18 + ((i * 7) % 26) + o;
-            g.line(x0, y0, x0 + 12 - (i % 3) * 6, y0 + 6 + (i % 4), i % 2 ? '#4A6A3A' : '#6A7A44');
           }
-        });
-        // the gull's feather on top
-        draw(0, (ox, o) => {
-          g.line(cx - 30 + ox, cy - 10 + o, cx + 26 + ox, cy - 28 + o, '#C8CDD4');
-          for (let i = 0; i < 26; i++) {
-            const x = cx - 26 + i * 2 + ox;
-            const y = Math.round(cy - 11 - i * 0.64) + o;
-            g.line(x, y, x - 3, y - 6 + (i % 2), '#F4F1E8');
-            g.line(x, y, x + 2, y + 5, '#E8ECEE');
-          }
-        });
+          const wx = SX + 46;
+          const wy = oy + 10;
+          const ww = 108;
+          const wh = 92;
+          g.rect(wx - 4, wy - 4, ww + 8, wh + 8, '#7A766C');
+          g.rect(wx, wy, ww, wh, '#3A3A38');
+          // the net at the very bottom (always there; it is never taken off)
+          g.rect(wx + 6, wy + 6, ww - 12, wh - 12, '#2A2A28');
+          for (let x = wx + 8; x < wx + ww - 8; x += 6) g.rect(x, wy + 6, 2, wh - 12, '#8A8A84');
+          for (let y = wy + 10; y < wy + wh - 8; y += 8) g.rect(wx + 6, y, ww - 12, 1, '#7A7A74');
+          // what is heaped on it, bottom up: sand, the ball, the pine needles, the feather
+          const cx = wx + ww / 2;
+          const cy = wy + wh / 2;
+          const gone = (i: number) => i < this.n || (this.taking > 0 && i === this.n);
+          const lift = (i: number) => (this.taking > 0 && i === this.n ? (1 - this.taking / TAKE_MS) * 40 : 0);
+          const slipX = (i: number) => (this.slip > 0 && i === this.n ? Math.sin((1 - this.slip / SLIP_MS) * Math.PI) * 14 : 0);
+          const draw = (i: number, fn: (ox: number, oy2: number, al: number) => void) => {
+            if (i < this.n) return;
+            const al = gone(i) ? Math.max(0, this.taking / TAKE_MS) : 1;
+            g.alpha(al, () => fn(slipX(i), -lift(i), al));
+          };
+          // sand
+          draw(3, (ox, o) => {
+            for (let y = -30; y <= 30; y += 2)
+              for (let x = -44; x <= 44; x += 2) {
+                if ((x * x) / (44 * 44) + (y * y) / (30 * 30) > 1) continue;
+                g.rect(cx + x + ox, cy + y + o, 2, 2, (x * 3 + y * 5) % 7 === 0 ? '#C8B890' : (x + y) % 6 === 0 ? '#9A8A62' : '#B0A076');
+              }
+          });
+          // the child's rubber ball (a little soft)
+          draw(2, (ox, o) => {
+            for (let r = 13; r > 0; r--) g.circle(cx + 14 + ox, cy + 6 + o, r, r > 10 ? '#B8402E' : r > 4 ? '#D8503A' : '#F08A6A');
+            g.rect(cx + 6 + ox, cy + 2 + o, 16, 1, '#F4F1E8', 0.6);
+          });
+          // the town's black-pine needles in a clump
+          draw(1, (ox, o) => {
+            for (let i = 0; i < 26; i++) {
+              const x0 = cx - 34 + ((i * 13) % 52) + ox;
+              const y0 = cy - 18 + ((i * 7) % 26) + o;
+              g.line(x0, y0, x0 + 12 - (i % 3) * 6, y0 + 6 + (i % 4), i % 2 ? '#4A6A3A' : '#6A7A44');
+            }
+          });
+          // the gull's feather on top
+          draw(0, (ox, o) => {
+            g.line(cx - 30 + ox, cy - 10 + o, cx + 26 + ox, cy - 28 + o, '#C8CDD4');
+            for (let i = 0; i < 26; i++) {
+              const x = cx - 26 + i * 2 + ox;
+              const y = Math.round(cy - 11 - i * 0.64) + o;
+              g.line(x, y, x - 3, y - 6 + (i % 2), '#F4F1E8');
+              g.line(x, y, x + 2, y + 5, '#E8ECEE');
+            }
+          });
+        }
         // the right column: the layers top to bottom, the cursor, the keys
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         const names = [...LAYERS, 'ami'] as string[];

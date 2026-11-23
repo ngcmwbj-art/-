@@ -44,6 +44,7 @@ import { se } from './compat';
 import { hStage, lanternOn } from './common';
 import { HOWTO } from '../../data/text/howto';
 import { skipIntro } from '../../ui/closeup';
+import { drawPanel3d } from '../../ui/panel3d';
 import { widenRange } from '../../ui/closeup_wide';
 
 export const SF = {
@@ -332,6 +333,13 @@ export class ShichirinPanel implements Widget {
 
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
+    // HD-2D：縁側・まな板・七輪・皿と シシトウ（hd2d/panels/shishito.ts）。串の 動き・矢印・煙・字は 2D の まま 上に
+    const burstK = this.loose ? Math.round(this.burst * 5) / 5 : 0;
+    const heat3 = Math.max(this.heat, this.sides[this.flips % 2] ?? 0);
+    if (drawPanel3d(g, this, 'shishito', SX, oy, W, CH, { state: { phase: this.phase, first: this.first, loose: this.loose, heat: Math.round(heat3 * 20) / 20, burst: burstK, sel: this.sel, active: this.active } })) {
+      this.drawOver(g, oy, W);
+      return;
+    }
     // the night: the 縁側's boards, the lantern-light from the house
     g.rect(SX, oy, W, CH, '#1E1A2A');
     g.rect(SX, oy + CH - 30, W, 30, '#3A2E26');
@@ -402,6 +410,35 @@ export class ShichirinPanel implements Widget {
     }
     if (this.loose) drawShishito(g, cx + 10, my + 6, 30, heatShown, this.burst);
     // smoke
+    for (let i = 0; i < 4; i++) {
+      const sx = cx - 30 + i * 20 + Math.round(Math.sin(this.t / 300 + i) * 4);
+      const sy = oy + 6 + ((this.t / 30 + i * 13) % 30);
+      g.alpha(0.25, () => g.circle(Math.round(sx), Math.round(sy), 3, '#C8C4D0'));
+    }
+    if (this.phase === 'pan' && this.burst > 0) g.text('パンッ！', cx - 24 + Math.round(Math.sin(this.t / 30)), oy + 4, { color: '#FFE7A3', outline: '#1E1612' });
+  }
+
+  /** HD-2D の 上に 乗せる 2D：串を さす 線・くじの 矢印・煙・「パンッ！」。 */
+  private drawOver(g: Gfx, oy: number, W: number): void {
+    const cx = SX + Math.round(W / 2);
+    if (this.phase === 'kushi') {
+      for (let r = 0; r < 2; r++) {
+        const y = oy + 32 + r * 30;
+        const done = r < this.kushi || (r === this.kushi && this.kushiT > 0);
+        if (!done) continue;
+        const u = r === this.kushi && this.kushiT > 0 ? 1 - this.kushiT / 500 : 1;
+        const x1 = SX + 22 + Math.round((W - 40) * u);
+        g.rect(SX + 22, y + 4, x1 - SX - 22, 1, '#E8D8A8');
+        g.rect(SX + 22, y + 5, x1 - SX - 22, 1, '#A8946A');
+      }
+      return;
+    }
+    if (this.phase === 'kuji') {
+      if (!this.active) return;
+      const ax = cx - 50 + this.sel * 52;
+      for (let k2 = 0; k2 < 4; k2++) g.rect(ax - 3 + k2, oy + 30 + k2, 7 - k2 * 2, 1, '#FFE7A3');
+      return;
+    }
     for (let i = 0; i < 4; i++) {
       const sx = cx - 30 + i * 20 + Math.round(Math.sin(this.t / 300 + i) * 4);
       const sy = oy + 6 + ((this.t / 30 + i * 13) % 30);
@@ -779,6 +816,20 @@ if (import.meta.env.DEV) {
     return go('map_hoshi_school', 6, 4, 'up');
   });
 
+  /** QA（大写しの HD-2D の 写真）：七輪の 大写しを 直接 開く／もう一度で 閉じる（phase：kushi・yaku・kuji、heat 0〜1）。 */
+  registerDebug('ssPanel', (phase: Phase = 'yaku', heat: unknown = 0.6, first: unknown = true) => {
+    const old = game.ui.widgets.find((w) => w instanceof ShichirinPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new ShichirinPanel(!!first);
+    p.open = 1;
+    p.phase = phase;
+    p.heat = Number(heat);
+    p.loose = phase !== 'kushi';
+    p.kushi = phase === 'kushi' ? 1 : 2;
+    p.active = phase === 'kuji';
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('ssState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(SF)) flags[k] = flag(id);

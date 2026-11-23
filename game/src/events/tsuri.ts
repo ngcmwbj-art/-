@@ -406,7 +406,8 @@ export class TsuriPanel implements Widget {
   }
 
   private drawScene(g: Gfx, ox: number, oy: number): void {
-    g.img(sceneBg(this.stage), ox, oy);
+    // HD-2D（hd2d/panels/tsuri.ts）：背景は 奥行きの ある 層。生き物・糸・水の 動きは 下の 2D を 重ねる
+    if (!drawPanel3d(g, this, 'tsuri', ox, oy, SCN_W, SCN_H, { state: { stage: this.stage } })) g.img(sceneBg(this.stage), ox, oy);
     const frozen = this.still1;
     const ne = this.stage === 2;
     const t = this.t;
@@ -1363,6 +1364,7 @@ export function tsuriGuideRows(): [string[], string][] {
 // ---------------------------------------------------------------- QA: the art at a glance
 
 import { registerDebug } from '../debug';
+import { drawPanel3d } from '../ui/panel3d';
 
 /** QA: every crayfish (sizes × poses), the boot, the can, the ruler — `scale`× as a PNG data URL. */
 registerDebug('tsuriSheet', (scale = 4) => {

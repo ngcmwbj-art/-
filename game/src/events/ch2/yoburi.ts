@@ -32,6 +32,7 @@ import { getScript } from '../../world/scripts';
 import { playCall } from '../../world/hoshi';
 import { sfx } from '../../audio';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import { CALL_NAMES, callLine } from '../../data/text/hoshi_npcs';
 import {
   SCN_H,
@@ -401,9 +402,12 @@ export class YoburiPanel implements Widget {
   }
 
   private drawScene(g: Gfx, ox: number, oy: number): void {
+    // HD-2D（hd2d/panels/yoburi.ts）：用水路（石垣・水口・泥・石・橋の 脚）と 灯りの 光は 3D、
+    // 生き物・泡・水の 糸・灯りの 輪の ふちと まん中・たも網は 上に 2D で
+    const hd = drawPanel3d(g, this, 'yoburi', ox, oy, SCN_W, SCN_H, { state: { st: this.stage >= 2 ? 2 : 1, rx: Math.round(this.ringX) } });
     const dark = yoburiBg(this.stage, false);
     const lit = yoburiBg(this.stage, true);
-    g.img(dark, ox, oy);
+    if (!hd) g.img(dark, ox, oy);
     const t = this.t;
     // the water falling from the inlet (a thin white thread, always)
     const [ix, iy] = YB_INLET;
@@ -413,7 +417,7 @@ export class YoburiPanel implements Widget {
     const breathe = Math.round(Math.sin(t / 200) * 1.2);
     const rr = R + breathe;
     const ctx = g.ctx;
-    for (let d = -rr; d <= rr; d++) {
+    for (let d = -rr; d <= rr && !hd; d++) {
       const yy = RING_Y + d;
       if (yy < WY - 18 || yy >= SCN_H) continue;
       const half = Math.floor(Math.sqrt(rr * rr - d * d) * 1.25);
@@ -1056,6 +1060,26 @@ registerDebug('yoburi', (step = 'go', st = 1, auto = false) => {
     }, 400);
   }
   return r;
+});
+
+/**
+ * QA：小窓を 直接 開く（stage 1 | 2、rx = 灯りの 輪の x）。生き物は ふつうに 動く。もう一度 呼ぶと 閉じる。
+ * __game.cmd.yoburi('go') → __game.cmd.yoburiPanel(1, 150) → 写真 → __game.cmd.yoburiPanel()
+ */
+registerDebug('yoburiPanel', (st?: number, rx = 150) => {
+  const open = game.ui.widgets.find((w) => w instanceof YoburiPanel);
+  if (open) {
+    game.ui.remove(open);
+    return 'closed';
+  }
+  const p = new YoburiPanel(Number(st ?? 1));
+  setFlag(`howto_${p.howto.id}`, 1);
+  p.crs = spawn();
+  for (const c of p.crs) if (c.state === 'hide') c.state = 'out';
+  p.ringX = Number(rx);
+  p.open = 1;
+  game.ui.push(p);
+  return { stage: p.stage, rx: p.ringX, crs: p.crs.length };
 });
 
 registerDebug('yoburiState', () => {

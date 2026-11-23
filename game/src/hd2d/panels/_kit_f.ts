@@ -182,3 +182,61 @@ export function disc(k: Kit, r: number, at: THREE.Vector3, o: { img?: HTMLCanvas
 
 /** 水の 中の 光（明るい 水色、上から の 光。霧は 水の 色）。 */
 export const UNDERWATER: PanelLight = { sun: '#e8f6ff', sky: '#a8dcf0', ground: '#2a5a72', fog: '#3C7694', sunI: 1.7, hemiI: 1.8, el: 72, az: 160 };
+
+/** 昼の 空（見本 miharashi.ts と 同じ 色：上が 濃く、水平線へ 白く）。 */
+export function noonSky(): HTMLCanvasElement {
+  return bandSky('noon', [[0, '#78B4E0'], [0.12, '#8EC0E0'], [0.22, '#A8D0EA'], [0.3, '#C8E2F2'], [1, '#D8EAF4']]);
+}
+
+/** 昼の 海（第3章の 海の 色）。`nami`：12:01 から 波が もどった 海（白い 波頭）。 */
+export function noonSea(nami: boolean): HTMLCanvasElement {
+  return pix(`sea:${nami}`, 64, 32, (p) => {
+    let s = nami ? 77 : 71;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    for (let y = 0; y < 32; y++)
+      for (let x = 0; x < 64; x++) {
+        const n = rnd();
+        const dk = nami ? 0.08 : 0.03;
+        const lt = nami ? 0.9 : 0.96;
+        p.set(x, y, n < dk ? '#2A5A82' : n > lt ? mix('#3A7EA8', '#5AA0C8', 0.6) : mix('#3A7EA8', '#5AA0C8', 0.35));
+      }
+    for (let k = 0; k < 10; k++) {
+      const y = (k * 7) % 32;
+      const x = (k * 23) % 64;
+      const l = 6 + ((k * 5) % 9);
+      for (let i = 0; i < l; i++) p.set((x + i) % 64, y, '#A8D4E8');
+    }
+    if (nami)
+      for (let k = 0; k < 8; k++) {
+        const y = (k * 11 + 3) % 32;
+        const x = (k * 17) % 64;
+        for (let i = 0; i < 5; i++) p.set((x + i) % 64, y, '#E8F4FA');
+        p.set((x + 1) % 64, (y + 1) % 32, '#C8E4F0');
+      }
+  });
+}
+
+/** 消波ブロック（テトラポッド）：4本の 足（コンクリート）。中心 at、足の 長さ len。 */
+export function tetrapod(k: Kit, at: THREE.Vector3, len: number, rotY = 0): THREE.Group {
+  const img = groundImg('c3_bouhatei', 16, 16);
+  const m = k.material(k.tex(img));
+  const geo = k.own(new THREE.CylinderGeometry(len * 0.22, len * 0.36, len, 8));
+  geo.translate(0, len / 2, 0);
+  const grp = new THREE.Group();
+  const dirs = [
+    [0, 1, 0],
+    [0.943, -0.333, 0],
+    [-0.471, -0.333, 0.816],
+    [-0.471, -0.333, -0.816],
+  ];
+  for (const d of dirs) {
+    const leg = new THREE.Mesh(geo, m);
+    leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(d[0], d[1], d[2]));
+    leg.castShadow = leg.receiveShadow = true;
+    grp.add(leg);
+  }
+  grp.position.copy(at);
+  grp.rotation.y = rotY;
+  k.scene.add(grp);
+  return grp;
+}
