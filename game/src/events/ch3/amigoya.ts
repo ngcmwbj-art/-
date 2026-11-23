@@ -345,7 +345,88 @@ export class AmiPanel implements Widget {
     const [h0x, h0y] = this.meAt(0, oy);
     const hd = drawPanel3d(g, this, 'amigoya', SX, oy, W, CH, { state: { k: this.k, n: this.meN, c0: [h0x - SX, h0y - oy] } });
     if (!hd) this.drawOld(g, oy, W);
-    this.drawWork(g, oy);
+    this.drawWork(g, oy, hd);
+  }
+
+  /** HD-2D：新しい 糸の 目（太さ 2 px、よりの 明暗、網に 落ちる 影）。 */
+  private twine(g: Gfx, cx: number, cy: number, h: number): void {
+    g.alpha(0.4, () => this.diamond(g, cx + 2, cy + 2, h, '#140C08'));
+    this.diamond(g, cx, cy + 1, h, '#6A9A62');
+    this.diamond(g, cx, cy, h, ITO_NEW);
+    for (let i = -h + 2; i < h; i += 3) {
+      g.px(cx + i, cy - (h - Math.abs(i)), '#F0FFE8');
+      g.px(cx + i, cy + (h - Math.abs(i)), '#F0FFE8');
+    }
+  }
+
+  /** HD-2D：目板（木の 板、木目、角の 丸み、網に 落ちる 影）。 */
+  private gaugeHd(g: Gfx, x: number, y: number, w: number, lit: boolean): void {
+    g.rect(x + 2, y + 3, w, 5, '#140C08', 0.4);
+    const base = lit ? '#F0D498' : '#CCA66C';
+    g.rect(x, y, w, 6, base);
+    for (let i = 0; i < w; i++) {
+      const gy = y + 2 + Math.round(Math.sin(i / 9) * 1.2 + Math.sin(i / 3.7) * 0.4);
+      if (i % 11 > 1) g.px(x + i, gy, lit ? '#D8B478' : '#B08A54');
+      if (i % 17 === 5) g.px(x + i, y + 4, '#9A7444');
+    }
+    g.rect(x + 1, y, w - 2, 1, '#FFF0C8');
+    g.rect(x, y + 5, w, 1, '#8A6A3A');
+    g.rect(x + 1, y + 6, w - 2, 1, '#5A4024');
+    for (const ex of [x, x + w - 2]) {
+      g.rect(ex, y + 1, 2, 4, '#A88250');
+      g.px(ex + (ex === x ? 0 : 1), y, '#3A2A20');
+    }
+    g.px(x + w - 1, y + 5, '#3A2A20');
+  }
+
+  /** HD-2D：網針（竹の 平たい 針、節・舌・巻いた 糸）と それを 持つ 手、糸、影。 */
+  private needleHd(g: Gfx, nx: number, tipY: number, mx: number, my: number): void {
+    const top = tipY - 26;
+    // the shadow on the net
+    g.rect(nx, top + 3, 5, 25, '#140C08', 0.38);
+    // the twine from the needle to the knot: 2 px, a darker underside, its shadow
+    g.alpha(0.35, () => g.line(nx + 2, tipY - 10, mx + 2, my - HALF + 2, '#140C08'));
+    g.line(nx, tipY - 11, mx, my - HALF + 1, '#6A9A62');
+    g.line(nx, tipY - 12, mx, my - HALF, ITO_NEW);
+    // the bamboo: rounded (light on the left), the node, the tongue cut in it, the point
+    const cols = ['#F2DCA8', '#E0C084', '#D0AC6C', '#B8945A', '#8A6A3A'];
+    for (let i = 0; i < 5; i++) g.rect(nx - 2 + i, top, 1, 24, cols[i]);
+    g.rect(nx - 2, top + 8, 5, 1, '#9A7848');
+    g.rect(nx - 2, top + 9, 5, 1, '#F4E4BC');
+    g.rect(nx, top + 2, 1, 6, '#6A4A28');
+    g.px(nx, top + 1, '#8A6A3A');
+    g.rect(nx - 1, tipY - 2, 3, 2, '#C8A464');
+    g.px(nx - 1, tipY - 2, '#E8CC90');
+    g.px(nx, tipY, '#6A4A28');
+    // the twine wound on it (fat, striped by its turns)
+    for (let r = 0; r < 7; r++) g.rect(nx - 3, tipY - 18 + r, 7, 1, r % 2 ? '#9AC88A' : ITO_NEW);
+    g.rect(nx + 3, tipY - 18, 1, 7, '#6A9A62');
+    // the hand holding its top (from the upper right): the sleeve and wrist going up and off, the back of the hand,
+    // three fingers curled round the bamboo, the thumb pressing it from the left; light from the upper left
+    const hy = top - 3;
+    for (let i = 0; i < 16; i++) {
+      const sx = nx + 4 + i;
+      const sy = hy - 9 - i;
+      g.rect(sx, sy, 7, 2, i % 4 === 0 ? '#2E4A78' : '#3A5A8A');
+      g.px(sx, sy, '#5A7AAA');
+    }
+    for (let i = 0; i < 5; i++) g.rect(nx + 2 + i, hy - 7 - i, 6, 2, '#E0AE86');
+    g.rect(nx - 4, hy - 7, 11, 8, '#E8B890');
+    g.rect(nx - 3, hy - 8, 9, 1, '#F2C8A0');
+    g.rect(nx - 4, hy - 6, 2, 6, '#F6D2B0');
+    g.rect(nx + 5, hy - 6, 2, 7, '#C8946E');
+    for (let f = 0; f < 3; f++) {
+      const fy = hy - 4 + f * 3;
+      g.rect(nx + 2, fy, 5, 2, '#F2C8A0');
+      g.px(nx + 2, fy, '#F8DCC0');
+      g.px(nx + 6, fy + 1, '#A87050');
+      g.px(nx + 2, fy + 2, '#B87C58');
+    }
+    g.rect(nx - 6, hy - 3, 4, 3, '#F2C8A0');
+    g.rect(nx - 6, hy, 3, 2, '#E8B890');
+    g.px(nx - 6, hy - 3, '#F8DCC0');
+    g.px(nx - 4, hy + 1, '#FFE8D8');
+    g.px(nx - 3, hy + 2, '#A87050');
   }
 
   /** 板壁と 古い 網（破れ・裂け目・魚の 骨）。 */
@@ -391,7 +472,8 @@ export class AmiPanel implements Widget {
   }
 
   /** 新しい 目、目板、結ぶ 絵、網針、グソっ君の はさみ、←→。 */
-  private drawWork(g: Gfx, oy: number): void {
+  /** hd：HD-2D の 上（糸に 太さと 影、目板は 木、網針は 竹で 手に 持つ）。 */
+  private drawWork(g: Gfx, oy: number, hd = false): void {
     const n = this.meN;
     const D = HALF * 2;
     const [c0x] = this.meAt(0, oy);
@@ -401,17 +483,22 @@ export class AmiPanel implements Widget {
     const made = flag(ME_F[this.k]);
     for (let i = 0; i < Math.min(n, made); i++) {
       const [x, y] = this.meAt(i, oy);
-      this.diamond(g, x, y, HALF, ITO_NEW);
+      if (hd) this.twine(g, x, y, HALF);
+      else this.diamond(g, x, y, HALF, ITO_NEW);
       g.rect(x - 1, y + HALF - 1, 3, 3, '#E8F6D8');
+      if (hd) g.rect(x - 1, y + HALF + 1, 3, 1, '#6A9A62');
     }
     const cur = Math.min(n - 1, made);
     const [mx, my] = this.meAt(cur, oy);
     // the gauge (目板): a flat board under the mesh being made
     const gy = my + HALF - 2;
     const lit = this.phase === 'kake' && this.hit === null && this.onGauge();
-    g.rect(hx0 - 10, gy, hx1 - hx0 + 20, 6, lit ? '#F4DCA8' : GAUGE);
-    g.rect(hx0 - 10, gy, hx1 - hx0 + 20, 1, '#FFF0C8');
-    g.rect(hx0 - 10, gy + 5, hx1 - hx0 + 20, 1, '#A8884A');
+    if (hd) this.gaugeHd(g, hx0 - 10, gy, hx1 - hx0 + 20, lit);
+    else {
+      g.rect(hx0 - 10, gy, hx1 - hx0 + 20, 6, lit ? '#F4DCA8' : GAUGE);
+      g.rect(hx0 - 10, gy, hx1 - hx0 + 20, 1, '#FFF0C8');
+      g.rect(hx0 - 10, gy + 5, hx1 - hx0 + 20, 1, '#A8884A');
+    }
     if (this.phase === 'ookii') {
       // a knot tied off the gauge: that one mesh comes out big (then it is untied)
       const u = Math.min(1, this.animT / 300);
@@ -431,6 +518,10 @@ export class AmiPanel implements Widget {
       const sw = this.phase === 'kake' ? this.swing() : 0;
       const tipY = Math.round(gy + 3 + sw * 22);
       const nx = mx + HALF - 2;
+      if (hd) {
+        this.needleHd(g, nx, tipY, mx, my);
+        return this.drawClaw(g, mx, my);
+      }
       g.rect(nx - 2, tipY - 26, 5, 24, HARI);
       g.rect(nx - 2, tipY - 26, 1, 24, '#F0DCA8');
       g.rect(nx - 1, tipY - 2, 3, 2, HARI);
@@ -439,6 +530,11 @@ export class AmiPanel implements Widget {
       g.rect(nx - 2, tipY - 18, 5, 6, ITO_NEW);
       g.line(nx, tipY - 12, mx, my - HALF, ITO_NEW);
     }
+    this.drawClaw(g, mx, my);
+  }
+
+  /** グソっ君の はさみと ←→（目の まわり）。 */
+  private drawClaw(g: Gfx, mx: number, my: number): void {
     // グソっ君's claw pressing the knot (each knot: the picture only)
     if (knWith() && (this.phase === 'mawasu' || this.phase === 'musubu')) {
       const cx = mx - 9;

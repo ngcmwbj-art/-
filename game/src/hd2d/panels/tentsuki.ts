@@ -115,6 +115,12 @@ registerPanel3d('tentsuki', {
     t.rotation.z = -(Number(s.ang) || 0);
     const pd = Number(s.pd) || 0;
     (k.bag.plunger as THREE.Object3D).position.y = pd * px;
+    // 持ち手：2D の 持ち手より 少し 上（pd + 24）、筒の ふちの 上で 止まる
+    const gy = Math.max(pd + 24, TUBE_L + 3);
+    (k.bag.grip as THREE.Object3D).position.y = gy * px;
+    const rod = k.bag.rod as THREE.Mesh;
+    rod.scale.y = (gy - pd) * px;
+    rod.position.y = ((gy + pd) / 2) * px;
     (k.bag.hand as THREE.Object3D).visible = !!s.hold;
     k.shadowDirty = true;
   },
@@ -206,15 +212,19 @@ function buildTube(k: Kit, zb: number): void {
   g.add(plunger);
   const rod = k.material(k.tex(rodWood()));
   box(hw * 2 - th * 2.2, 3 * px, hw * 2 - th * 2.2, k.material(null, { tint: '#7A5A3A' }), 0, 1.5 * px, 0, plunger);
-  box(2 * px, 32 * px, 2 * px, rod, 0, 17 * px, 0, plunger);
-  box(18 * px, 4 * px, 5 * px, k.material(null, { tint: '#9A7448' }), 0, 33 * px, 0, plunger);
+  // 棒（長さ 1px の 箱を 伸ばす）と 持ち手（筒の ふちより 下へは 入らない）
+  const rodM = box(2 * px, 1, 2 * px, rod, 0, 0, 0, g);
+  const grip = new THREE.Group();
+  g.add(grip);
+  box(18 * px, 4 * px, 5 * px, k.material(null, { tint: '#9A7448' }), 0, 0, 0, grip);
+  box(18 * px, 1 * px, 5 * px, k.material(null, { tint: '#C8A06A' }), 0, 2.2 * px, 0, grip);
   // 突く ときの 右手（持ち手を 上から 押さえる）と そで
   const hand = new THREE.Group();
-  plunger.add(hand);
+  grip.add(hand);
   const sk = k.material(k.tex(skin()));
   const sl = k.material(k.tex(sleeve()));
-  box(11 * px, 5 * px, 7 * px, sk, -1 * px, 37 * px, 0, hand);
-  box(16 * px, 6 * px, 8 * px, sl, 12 * px, 39 * px, 0, hand).rotation.z = 0.25;
+  box(11 * px, 5 * px, 7 * px, sk, -1 * px, 4 * px, 0, hand);
+  box(16 * px, 6 * px, 8 * px, sl, 12 * px, 6 * px, 0, hand).rotation.z = 0.25;
   // 筒を 支える 左手（筒の 左の 板を にぎる：指は 前へ 回る）
   const lh = new THREE.Group();
   g.add(lh);
@@ -223,6 +233,8 @@ function buildTube(k: Kit, zb: number): void {
   box(18 * px, 7 * px, 9 * px, sl, -hw - 12 * px, L * 0.48, -1 * px, lh).rotation.z = -0.35;
   k.bag.tube = g;
   k.bag.plunger = plunger;
+  k.bag.rod = rodM;
+  k.bag.grip = grip;
   k.bag.hand = hand;
   k.bag.px = px;
 }

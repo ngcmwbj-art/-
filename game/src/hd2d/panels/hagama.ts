@@ -99,8 +99,13 @@ function kamaArt(p: PixelCanvas, cx: number, top: number, bot: number, cut: bool
       // 中（切った 所）：鉄の 断面（明るい 縁）と、奥の 暗い 内側
       const hi = half(y) - 4;
       for (let x = cx - hi; x < cx + hi; x++) {
-        const v = 0.18 + ((y - top) / (bot - top)) * 0.12 + (soft(x, y, 7, 71) - 0.5) * 0.15;
-        p.set(x, y, ramp(['#0C0B0E', '#121116', '#18161C', '#201E26'], v * 2.4));
+        // 内側の 奥の 壁：まん中が 少し 明るい 丸み、上は 暗い、古い 水の 線の しみ
+        const u = (x - cx + 0.5) / hi;
+        let v = 0.42 - Math.abs(u) * 0.3 - (1 - (y - top) / (bot - top)) * 0.18 + (soft(x, y, 7, 71) - 0.5) * 0.18;
+        if (Math.abs(y - (top + 30)) < 1 || Math.abs(y - (top + 36)) < 1) v += 0.12;
+        let c = ramp(['#0C0B0E', '#141318', '#1C1A22', '#26242E', '#302E3A', '#3C3A46'], v * 1.6);
+        if (soft(x, y, 4, 73) > 0.8 && grain(x, y, 74) < 0.5) c = '#4A2A1C';
+        p.set(x, y, c);
       }
       for (const x of [cx - hi - 1, cx + hi]) p.set(x, y, grain(x, y, 72) < 0.25 ? '#8A4A28' : '#7A7A86');
       p.set(cx - hi - 2, y, '#5A5A66');
@@ -303,7 +308,7 @@ function waterImg(lv: number): HTMLCanvasElement {
 
 registerPanel3d('hg_mizu', {
   cam: { fov: 22, pitch: 0, pos: [0, 0, 0], near: 0.3, far: 100 },
-  light: { ...ROOM_LAMP, hemiI: 0.5, sunI: 0.3 },
+  light: { ...ROOM_LAMP, hemiI: 0.8, sunI: 0.5 },
   fog: null,
   shadow: null,
   grade: () => null,
@@ -328,7 +333,7 @@ registerPanel3d('hg_mizu', {
     k.bag.water = new Map<number, THREE.Mesh>();
     k.bag.px = px;
     // ランプの 暖かい 光（2D の 輪の 中心：釜の 上の 方）
-    lamp(k, '#ffc080', 18, k.atDepth(CX, 40, -D + 3)!, 0, 2);
+    lamp(k, '#ffd8a8', 34, k.atDepth(CX - 20, 30, -D + 3.2)!, 0, 2);
   },
   update(k: Kit, _t, s) {
     const lv = Math.max(0, Math.min(30, Number(s.lv)));

@@ -66,7 +66,7 @@ function shell(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, h: number
   const ww = img.width * px;
   const dd = img.height * px;
   const grp = new THREE.Group();
-  const sh = blob(k, at.x + ww * 0.04, 0, at.z + dd * 0.12, ww * 1.02, dd * 0.95, 0.3, '#6A5636');
+  const sh = blob(k, at.x + ww * 0.07, 0, at.z + dd * 0.2, ww * 1.02, dd * 0.95, 0.5, '#5A4626');
   // （絵の まん中から 少し 沈めて、ふちが 砂に うまる）
   const m = dome(k, img, new THREE.Vector3(at.x, -h * px * 0.12, at.z), ww * 1.04, dd * 1.04, h * px, { tint });
   grp.add(sh, m);

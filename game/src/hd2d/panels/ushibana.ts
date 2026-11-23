@@ -25,7 +25,7 @@ const LIGHT: PanelLight = {
   ground: '#9a8c70',
   fog: '#3a4050',
   sunI: 1.8,
-  hemiI: 1.9,
+  hemiI: 1.5,
   el: 48,
   az: 330,
 };

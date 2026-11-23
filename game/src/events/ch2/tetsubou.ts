@@ -50,6 +50,7 @@ import { DF } from './dome';
 import { HOWTO } from '../../data/text/howto';
 import { closeupWide } from '../../ui/closeup_wide';
 import { drawPanel3d } from '../../ui/panel3d';
+import { tetsuAt, TETSU_S } from './tetsubou_at';
 
 export const TF = {
   /** 鉄棒を 2回 調べた あとの グソっ君。 */
@@ -494,8 +495,10 @@ export class TetsuPanel implements Widget {
     const by = BAR_Y + dy;
     const gy = GROUND_Y + dy;
     // HD-2D：夜の 校庭と 3段の 鉄棒（hd2d/panels/tetsubou.ts）。人・手の あと・数・ゲージは 2D の まま 上に
-    if (drawPanel3d(g, this, 'tetsubou', SX, SY + dy, RX - SX - 4, CH, { state: { dark: this.dark } })) {
-      this.drawPeople(g, by, gy, dy);
+    const shake = this.mode === 'ikkai' && this.step === 'hiku' && Math.floor(this.t / 90) % 2 === 0;
+    const frame = this.shun === 'hang' ? 'hang' : shake ? 'shake' : 'pull';
+    if (drawPanel3d(g, this, 'tetsubou', SX, SY + dy, RX - SX - 4, CH, { state: { dark: this.dark, shun: this.shun, frame, lift: this.lift, kane: this.kane, fumi: this.fumi } })) {
+      this.drawOver3d(g, dy);
       return;
     }
     g.rect(SX, SY + dy, RX - SX - 4, CH, this.dark ? '#141826' : '#1E2440');
@@ -521,7 +524,39 @@ export class TetsuPanel implements Widget {
     this.drawPeople(g, by, gy, dy);
   }
 
-  /** 棒の 手の あと・しゅん・グソっ君・まつ先生・数・暗さ・ゲージ（2D でも HD-2D でも 上に）。 */
+  /**
+   * HD-2D の 上に 乗せる 2D（人物は 3D：場面を tetsuAt() で 引いて ある）：棒の 手の あと・数・暗さ・
+   * 息の 印（しゅんの 横）・肩の 印・ゲージ。
+   */
+  private drawOver3d(g: Gfx, dy: number): void {
+    const at = (x: number, y: number): [number, number] => {
+      const [px, py] = tetsuAt(x - SX, y - SY);
+      return [Math.round(SX + px), Math.round(SY + py + dy)];
+    };
+    if (!this.dark) {
+      const metal = '#C8CCD8';
+      const by = at(0, BAR_Y)[1];
+      const hw = (w: number) => Math.max(1, Math.round(w * TETSU_S));
+      for (const hx of [SHUN_X - 24, SHUN_X - 14]) g.rect(at(hx, 0)[0], by, hw(7), 1, metal);
+      if (flag(TF.done) || this.shun === 'over') for (const hx of [SHUN_X - 7, SHUN_X + 3]) g.rect(at(hx, 0)[0], by, hw(4), 1, metal);
+      if (flag(TF.kane) || this.kane) for (let i = 0; i < 4; i++) g.rect(at(KANE_X - 6 + i * 3, 0)[0], by + (i % 2), 1, 1, metal);
+    }
+    if ((this.mode === 'hang' || this.mode === 'solo' || this.mode === 'watch') && this.count > 0 && (this.hanging || this.mode === 'watch' || this.result)) {
+      const word = KAZU[Math.min(this.count, HANG_MAX) - 1];
+      const cx = at(this.fumi ? FUMI_X : SHUN_X + 30, 0)[0];
+      const cy = SY + dy + 2;
+      const w = measure(word) + 10;
+      g.rect(cx - w / 2, cy, w, 18, '#F4EEDC');
+      g.frame(cx - w / 2, cy, w, 18, '#3A3040');
+      g.text(word, cx, cy + 1, { color: this.count >= HANG_PASS ? '#C8402E' : '#3A3040', align: 'center' });
+    }
+    if (this.dark) g.rect(SX, SY + dy, RX - SX - 4, CH, '#000010', 0.25);
+    // 息の 印は しゅんの 左（引いた 所：グソっ君に 重ならない）に
+    const [bx, byy] = at(SHUN_X - 8, BAR_Y + 14);
+    this.drawMeters(g, BAR_Y + dy, GROUND_Y + dy, [bx - 40, byy]);
+  }
+
+  /** 棒の 手の あと・しゅん・グソっ君・まつ先生・数・暗さ・ゲージ（2D の 絵）。 */
   private drawPeople(g: Gfx, by: number, gy: number, dy: number): void {
     if (!this.dark) {
       // まつ先生's two big hands (left of the middle), and しゅん's two small ones after the 1回
@@ -582,7 +617,7 @@ export class TetsuPanel implements Widget {
   }
 
   /** ゲージ・肩の 印・息の 印。 */
-  private drawMeters(g: Gfx, by: number, gy: number): void {
+  private drawMeters(g: Gfx, by: number, gy: number, breathAt?: [number, number]): void {
     const m = this.mode;
     const showGrip = ((m === 'hang' || m === 'solo') && this.hanging) || (m === 'ikkai' && this.step === 'hiku');
     if (m === 'hang' || m === 'solo' || m === 'ikkai') {
@@ -602,8 +637,8 @@ export class TetsuPanel implements Widget {
     // the breath (すう／はく)
     if (((m === 'hang' || m === 'solo') && this.hanging) || (m === 'ikkai' && this.step === 'iki')) {
       const haku = this.haku();
-      const x = SHUN_X + 22;
-      const y = by + 18;
+      const x = breathAt ? breathAt[0] : SHUN_X + 22;
+      const y = breathAt ? breathAt[1] : by + 18;
       g.rect(x, y, 36, 18, haku ? '#3A5A78' : '#2A2236');
       g.frame(x, y, 36, 18, haku ? '#BDEFFA' : UI.bg2);
       g.text(haku ? T.TETSU_UI.haku : T.TETSU_UI.suu, x + 18, y + 1, { color: haku ? '#FFFFFF' : UI.bg2, align: 'center' });
@@ -959,7 +994,7 @@ if (import.meta.env.DEV) {
   });
 
   /** QA（大写しの HD-2D の 写真）：鉄棒の 大写しを 直接 開く／もう一度で 閉じる（shun：stand・hang・pull、mode）。 */
-  registerDebug('tetsuPanel', (shun: Shun = 'hang', mode: Mode = 'hang', kane: unknown = false) => {
+  registerDebug('tetsuPanel', (shun: Shun = 'hang', mode: Mode = 'hang', kane: unknown = false, lift: unknown = 0) => {
     const old = game.ui.widgets.find((w) => w instanceof TetsuPanel);
     if (old) return void game.ui.remove(old);
     const p = new TetsuPanel();
@@ -968,6 +1003,7 @@ if (import.meta.env.DEV) {
     p.mode = mode;
     p.hanging = shun !== 'stand';
     p.kane = !!kane;
+    p.lift = Number(lift);
     game.ui.push(p);
     return true;
   });

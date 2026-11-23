@@ -438,8 +438,8 @@ export class SunaPanel implements Widget {
       if (hd) {
         // HD-2D：陰影の ある 少し 小さな 手と、砂に 落ちる やわらかい 影（浮いて いる ほど 離れて うすい）
         const img = handHd();
-        const sh = silhouette(img, '#5A4A2A');
-        g.alpha(0.34 - off * 0.02, () => g.img(sh, hx - HAND_OX + 2 + off, hy - HAND_OY + 3 + off));
+        const sh = silhouette(img, '#2A2010');
+        g.alpha(0.4 - off * 0.015, () => g.img(sh, hx - HAND_OX + 2 + off, hy - HAND_OY + 3 + off));
         g.img(img, hx - HAND_OX - off, hy - HAND_OY - off * 2);
       } else {
         if (off > 0) g.alpha(0.25, () => this.hand(g, hx + 3, hy + 4, '#6A5A3A', '#6A5A3A'));
