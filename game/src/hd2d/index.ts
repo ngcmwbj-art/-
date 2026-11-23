@@ -47,6 +47,9 @@ import { nudging } from './tune';
 import { roomMap } from './room';
 import { nidaiMap } from './nidai';
 import { installBattlePlaces } from './battle';
+// 大写しの 絵（ミニゲームの パネル）の HD-2D（2026-11-23）
+import { installPanel3d } from './panel3d';
+import './panels/miharashi';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 /**
@@ -276,6 +279,8 @@ function freeCam(f: FieldScene): boolean {
 setFieldDrawer(drawField, project, freeCam);
 // chapter 1's battles: the place they started in, in 3D, behind them (battle.ts)
 installBattlePlaces(() => (hd2dOn() ? getView() : null), hd2dField);
+// the close-ups' pictures (panel3d.ts): while HD-2D is on, at the field's quality
+installPanel3d(hd2dOn, () => quality);
 // the WebGL side is made while the title is up (main.ts loads this then), not on the first field's frame
 if (hd2dOn()) setTimeout(() => hd2dOn() && getView(), 0);
 

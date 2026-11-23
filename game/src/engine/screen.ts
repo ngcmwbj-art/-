@@ -6,6 +6,17 @@
 export const W = 384;
 export const H = 216;
 
+/** A picture laid under the buffer for one frame (Screen.inlays). */
+export interface Inlay {
+  img: HTMLCanvasElement;
+  /** Game px (fractions allowed: a panel sliding in). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  alpha: number;
+}
+
 export class Screen {
   readonly display: HTMLCanvasElement;
   readonly dctx: CanvasRenderingContext2D;
@@ -28,6 +39,13 @@ export class Screen {
    * transparent where the town shows — on top. Cleared after each present.
    */
   underlay: HTMLCanvasElement | null = null;
+  /**
+   * Pictures laid between the underlay and the buffer for this one frame, at
+   * the display's resolution (a close-up panel's HD-2D picture, src/hd2d/panel3d.ts
+   * via ui/panel3d.ts): `x, y, w, h` in game px; the buffer is left transparent
+   * there by whoever adds one. Cleared after each present.
+   */
+  inlays: Inlay[] = [];
 
   constructor(display: HTMLCanvasElement) {
     this.display = display;
@@ -88,6 +106,15 @@ export class Screen {
       d.imageSmoothingEnabled = u.width < this.display.width;
       d.drawImage(u, 0, 0, u.width, u.height, x, y, W * s, H * s);
       this.underlay = null;
+    }
+    for (const il of this.inlays) {
+      d.globalAlpha = il.alpha;
+      d.imageSmoothingEnabled = il.img.width !== Math.round(il.w * s);
+      d.drawImage(il.img, 0, 0, il.img.width, il.img.height, x + il.x * s, y + il.y * s, il.w * s, il.h * s);
+    }
+    if (this.inlays.length) {
+      d.globalAlpha = 1;
+      this.inlays = [];
     }
     d.imageSmoothingEnabled = false;
     d.drawImage(this.buffer, x, y, W * s, H * s);

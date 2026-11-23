@@ -30,6 +30,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { addItem, flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { despawn, registerScript, spawn, walk } from '../../world/api';
 import { fxAt, registerWorldFx } from '../../world/fx';
 import { getMapDef, registerMap } from '../../world/maps';
@@ -513,7 +514,10 @@ export class MiharashiPanel implements Widget {
     drawWindow(g, PX, PY + dy, PW, PH, UI, a, { curl: false });
     g.alpha(a, () => {
       const oy = SY + dy;
-      g.clip(SX, oy, CW, CH, () => this.drawScene(g, oy));
+      // HD-2D（2026-11-23、hd2d/panels/miharashi.ts）：使えない とき（?hd2d=0・WebGL なし）は 2D の 絵
+      g.clip(SX, oy, CW, CH, () => {
+        if (!drawPanel3d(g, this, 'miharashi', SX, oy, CW, CH, { state: { nami: c3Stage() >= 2, kn: knWith() } })) this.drawScene(g, oy);
+      });
       const tw = g.measure(MK_UI.miharashi) + 16;
       drawTape(g, SX + 8, PY + dy - 5, tw, 16, MK_UI.miharashi, { seed: 61 });
       markText(SX + 8, PY + dy - 5, tw, 16);
@@ -846,6 +850,23 @@ if (import.meta.env.DEV) {
     return go(UMIZOI, 52, 2, 'up');
   });
 
+  /**
+   * QA：大写し「上の 段から」を 直接 開く（stage = 1 | 2：段階2 は 海に 波、kn = グソっ君も）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.mkMiharashi(1) → 写真 → __game.cmd.mkMiharashi()
+   */
+  registerDebug('mkMiharashi', (stage?: number, kn = true) => {
+    const open = game.ui.widgets.find((w) => w instanceof MiharashiPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    if (stage) setFlag('flag_ch3_stage', stage);
+    if (kn) setFlag('flag_ch3_kids', 1);
+    const p = new MiharashiPanel();
+    p.open = 1;
+    game.ui.push(p);
+    return { stage: c3Stage(), kn: knWith() };
+  });
   registerDebug('mkState', () => {
     const flags: Record<string, number> = {};
     for (const [k, id] of Object.entries(MKF)) flags[k] = flag(id);
