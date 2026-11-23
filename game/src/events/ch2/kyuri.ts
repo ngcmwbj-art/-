@@ -35,6 +35,7 @@ import { runMsg } from '../../world/msg';
 import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_kyuri';
 import { KY_UI } from '../../data/text/hoshi_kyuri';
 import { getKeyItem } from '../lib';
@@ -265,7 +266,12 @@ export class KyPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, RX - SX - 4, CH, () => this.drawScene(g, oy, dy));
+        g.clip(SX, oy, RX - SX - 4, CH, () => {
+          // HD-2D（hd2d/panels/kyuri.ts）：棚・葉・実・灯りの 光は 3D、灯りの 輪と はさみは 2D で 上に
+          const st = { lx: Math.round(this.lx - SX), ly: Math.round(this.ly - SY), got: flag(KF.got) };
+          if (drawPanel3d(g, this, 'kyuri', SX, oy, RX - SX - 4, CH, { state: st })) this.drawCursor(g, Math.round(this.lx), Math.round(this.ly + dy));
+          else this.drawScene(g, oy, dy);
+        });
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         // the ones cut so far, small, and the count
         const n = kyGotN();
@@ -319,6 +325,11 @@ export class KyPanel implements Widget {
     }
     // the tomato's light: a big, soft ring (easy to follow on a small screen)
     for (let rr = LIGHT_R; rr > 0; rr -= 6) g.alpha(0.06, () => g.circle(lx, ly, rr, '#F28A3A'));
+    this.drawCursor(g, lx, ly);
+  }
+
+  /** 灯りの 輪と 切る はさみ（HD-2D の 絵の 上にも 乗る）。 */
+  private drawCursor(g: Gfx, lx: number, ly: number): void {
     if (this.active) g.ring(lx, ly, LIGHT_R + Math.round(Math.sin(this.t / 220)), '#FFE7A3');
     // the scissors going in
     if (this.snip > 0) {
@@ -506,6 +517,27 @@ if (import.meta.env.DEV) {
     if (!p) return 'no panel';
     p.c = Number(c);
     p.r = Number(r);
+    return [p.c, p.r];
+  });
+
+  /**
+   * QA：大写し「葉の かげ」を 直接 開く（灯りの 目 c, r。got：切った 実の ビット）。もう一度 呼ぶと 閉じる。
+   * __game.cmd.kyPanel(1, 1) → 写真 → __game.cmd.kyPanel()
+   */
+  registerDebug('kyPanel', (c?: number, r = 0, got?: number) => {
+    const open = game.ui.widgets.find((w) => w instanceof KyPanel);
+    if (open || c === undefined) {
+      if (open) game.ui.remove(open);
+      return 'closed';
+    }
+    if (got !== undefined) setFlag(KF.got, Number(got));
+    const p = new KyPanel();
+    p.c = Number(c);
+    p.r = Number(r);
+    [p.lx, p.ly] = cellXY(p.c, p.r, SY);
+    p.open = 1;
+    p.active = true;
+    game.ui.push(p);
     return [p.c, p.r];
   });
 

@@ -550,6 +550,24 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  * グソっ君は 合流させる（'solo'：合流 なしで 'zure'）。
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（sel = 選んで いる 光）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('nnPanel', (sel = 0) => {
+    const o = game.ui.widgets.find((w) => w instanceof NightSeaPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new NightSeaPanel();
+    p.sel = sel;
+    p.open = 1;
+    p.active = true;
+    game.ui.push(p);
+    return { sel };
+  });
+
   registerDebug('nn', (step = 'zure', auto = false) => {
     if (!pgOn()) cmd().jump?.('ch3:clear', true);
     for (const id of Object.values(NF)) setFlag(id, 0);

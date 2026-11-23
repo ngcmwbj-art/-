@@ -24,6 +24,7 @@ import { markText } from '../../engine/textzones';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
+import { drawPanel3d } from '../../ui/panel3d';
 import { registerScript } from '../../world/api';
 import type { ScriptCtx } from '../../world/scripts';
 import { field } from '../../world/field';
@@ -141,6 +142,7 @@ export class ShioPanel implements Widget {
       const SX = PX + 4;
       const SY = PY + 4 + dy;
       g.clip(SX, SY, PW - 8, PH - 8, () => {
+        if (drawPanel3d(g, this, 'aq_shio', SX, SY, PW - 8, PH - 8)) return;
         // the back room's grey light, the empty little tank seen close
         g.rect(SX, SY, PW - 8, PH - 8, '#3A3E3A');
         g.rect(SX, SY + PH - 26, PW - 8, 18, '#5A6070');

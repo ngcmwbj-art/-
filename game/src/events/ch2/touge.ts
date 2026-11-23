@@ -40,6 +40,7 @@ import { pgOn } from '../../world/postgame';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import { drawTape, drawWindow, UI } from '../../ui/window';
 import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/hoshi_touge';
 import { KS_MEMO, KS_UI } from '../../data/text/hoshi_touge';
 import { HOSHI_OBJ } from '../../data/text/hoshi_objects';
@@ -320,7 +321,11 @@ export class KumoPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, SW, CH, () => this.drawScene(g, oy));
+        g.clip(SX, oy, SW, CH, () => {
+          // HD-2D（hd2d/panels/touge_kumo.ts）：空・尾根・雲・目印・ガードレールは 3D、県道の 線・札・手紙・カーソルは 上に 2D で
+          if (drawPanel3d(g, this, 'touge_kumo', SX, oy, SW, CH)) this.drawMarks(g, oy, true);
+          else this.drawScene(g, oy);
+        });
         this.drawSide(g, oy);
       });
       const tw = g.measure(KS_UI.place) + 16;
@@ -351,6 +356,18 @@ export class KumoPanel implements Widget {
         g.rect(X + x, y + b, 3, 5, col);
       }
     }
+    this.drawMarks(g, oy, false);
+    // the guardrail in front (dark, its top lit by the stars) and the tomato low at the left
+    g.rect(X, oy + CH - 6, SW, 2, '#6A7088');
+    g.rect(X, oy + CH - 4, SW, 1, '#3A3E50');
+    for (let x = 10; x < SW; x += 26) g.rect(X + x, oy + CH - 6, 2, 6, '#3A3E50');
+    g.circle(X + 12, oy + CH - 12, 4, '#E23B2E');
+    g.rect(X + 11, oy + CH - 17, 2, 2, '#4E7A34');
+  }
+
+  /** 県道の 線・札・島（hd：3D の 目印の 上の 光る 輪だけ）・手紙と 番号・カーソル。 */
+  private drawMarks(g: Gfx, oy: number, hd: boolean): void {
+    const X = SX;
     // the road: hidden under the cloud (faint dots), out of it beside each island (a bold line)
     for (let k = 0; k + 1 < ROAD.length; k++) {
       const [x0, y0] = ROAD[k];
@@ -374,7 +391,10 @@ export class KumoPanel implements Widget {
     g.text(KS_UI.road, X + 37, oy + 87, { color: '#FFE7A3' });
     // the islands
     const jun = flag(KF.jun);
-    for (let i = 0; i < 3; i++) this.drawIsle(g, i, X + ISLE[i].x, oy + ISLE[i].y, ISLE[i].s);
+    for (let i = 0; i < 3; i++) {
+      if (!hd) this.drawIsle(g, i, X + ISLE[i].x, oy + ISLE[i].y, ISLE[i].s);
+      else if (this.glowI === i && this.glow > 0) g.alpha(this.glow * 0.5, () => g.ring(X + ISLE[i].x, oy + ISLE[i].y - Math.round(10 * ISLE[i].s), Math.round(18 * ISLE[i].s), '#FFE7A3'));
+    }
     // a letter on each island whose destination is known; its number once in the road's order
     for (let k = 0; k < 3; k++) {
       if (!(flag(KF.ate) & (1 << k))) continue;
@@ -405,12 +425,6 @@ export class KumoPanel implements Widget {
       g.rect(x - 2, top + 4 + b, 5, 2, '#FFE7A3');
       g.rect(x - 1, top + 6 + b, 3, 2, '#FFE7A3');
     }
-    // the guardrail in front (dark, its top lit by the stars) and the tomato low at the left
-    g.rect(X, oy + CH - 6, SW, 2, '#6A7088');
-    g.rect(X, oy + CH - 4, SW, 1, '#3A3E50');
-    for (let x = 10; x < SW; x += 26) g.rect(X + x, oy + CH - 6, 2, 6, '#3A3E50');
-    g.circle(X + 12, oy + CH - 12, 4, '#E23B2E');
-    g.rect(X + 11, oy + CH - 17, 2, 2, '#4E7A34');
   }
 
   /** 雲から 出た 目印（0 お寺の 屋根・1 大杉・2 鉄塔の 頭）。 */

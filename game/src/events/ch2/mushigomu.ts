@@ -40,6 +40,7 @@ import { DF } from './dome';
 import { deliveryOn, deliveryOpen } from './tsugao';
 import { HOWTO } from '../../data/text/howto';
 import { widenRange } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 
 export const MF = {
   start: 'flag_mg_start',
@@ -401,6 +402,12 @@ export class TaraiPanel extends Panel {
 
   scene(g: Gfx, dy: number): void {
     const oy = dy;
+    // HD-2D：たらいと タイヤ（hd2d/panels/mushigomu.ts）。泡・字・暗さは 2D の まま 上に
+    const wy0 = WATER_Y + oy;
+    if (drawPanel3d(g, this, 'mg_tarai', SX, SY + oy, RX - SX - 4, CH, { state: { ang: Math.round(this.ang * 100) / 100, small: this.small } })) {
+      this.over(g, oy, wy0);
+      return;
+    }
     // the night by the school's door: the tap's light
     g.rect(SX, SY + oy, RX - SX - 4, CH, this.dark ? '#161A28' : '#283048');
     g.alpha(this.dark ? 0.03 : 0.12, () => g.circle(SX + 104, SY + oy + 40, 70, '#FFB070'));
@@ -423,7 +430,11 @@ export class TaraiPanel extends Panel {
     g.rect(tubL, wy, tubR - tubL, 1, '#BDEFFA');
     for (let i = 0; i < 6; i++) g.rect(tubL + 8 + ((i * 23 + Math.floor(this.t / 300) * 3) % (tubR - tubL - 16)), wy + 4 + (i % 3) * 6, 4, 1, '#6A9AB8');
     g.rect(tubL - 2, wy + 25, tubR - tubL + 4, 3, '#A8ACB4');
-    // the bubbles, rising straight up from the valve (and the word)
+    this.over(g, oy, wy);
+  }
+
+  /** 泡（口から まっすぐ 上へ）と「ぷく」、暗さ：2D でも HD-2D でも 上に。 */
+  private over(g: Gfx, oy: number, wy: number): void {
     for (const b of this.bubbles) {
       g.ring(b.x, Math.round(b.y) + oy, b.r + 1, '#DDF6FF');
       g.px(b.x, Math.round(b.y) + oy - 1, '#FFFFFF');
@@ -518,6 +529,10 @@ export class PumpPanel extends Panel {
 
   scene(g: Gfx, dy: number): void {
     const oy = SY + dy;
+    const flat0 = Math.max(0, 1 - this.v / GOOD_LO);
+    const push0 = this.pushT > 0 ? Math.sin((1 - this.pushT / 220) * Math.PI) : 0;
+    // HD-2D：空気入れと タイヤ（hd2d/panels/mushigomu.ts）
+    if (drawPanel3d(g, this, 'mg_pump', SX, oy, RX - SX - 4, CH, { state: { push: Math.round(push0 * 10) / 10, flat: Math.round(flat0 * 10) / 10 } })) return;
     g.rect(SX, oy, RX - SX - 4, CH, '#283048');
     g.alpha(0.1, () => g.circle(SX + 110, oy + 40, 70, '#FFB070'));
     g.rect(SX, oy + 96, RX - SX - 4, CH - 96, '#4A3E32');
@@ -1020,6 +1035,24 @@ if (import.meta.env.DEV) {
     setFlag(MF.done, 1);
     giveKey('item_mg_furui');
     return go('map_hoshimidai', 30, 29, 'up');
+  });
+
+  /** QA（大写しの HD-2D の 写真）：大写しを 直接 開く／もう一度で 閉じる。kind 'tarai'（ang：向き）／'pump'（v：かたさ）。 */
+  registerDebug('mgPanel', (kind = 'tarai', n: unknown = 0, small: unknown = false) => {
+    const old = game.ui.widgets.find((w) => w instanceof TaraiPanel || w instanceof PumpPanel);
+    if (old) return void game.ui.remove(old);
+    const p = kind === 'pump' ? new PumpPanel() : new TaraiPanel();
+    p.open = 1;
+    if (p instanceof PumpPanel) {
+      p.v = Number(n) || 0.08;
+      p.active = true;
+    } else {
+      p.mode = 'search';
+      p.ang = p.target = Number(n) || 0;
+      p.small = !!small;
+    }
+    game.ui.push(p);
+    return true;
   });
 
   registerDebug('mgState', () => {

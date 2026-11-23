@@ -598,6 +598,28 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'oki2'    段階2、沖の 入口 (12,1)
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（phase、mizu = 入れた 水、stirs = 回した 回数）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('ydPanel', (phase: 'pour' | 'mawasu' = 'pour', mizu = 0.5, stirs = 0) => {
+    const o = game.ui.widgets.find((w) => w instanceof NabePanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new NabePanel();
+    p.open = 1;
+    p.active = true;
+    p.phase = phase;
+    p.mizu = mizu;
+    p.stirs = stirs;
+    p.cloud = stirs ? 1 : 0;
+    p.tilt = phase === 'pour' ? 0.6 : 0;
+    game.ui.push(p);
+    return { phase, mizu, stirs };
+  });
+
   registerDebug('yose', (step = 'kuma', auto = false) => {
     cmd().jump?.('ch3:moguri', true);
     for (const id of Object.values(YF)) setFlag(id, 0);

@@ -814,6 +814,24 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   sr = true で 波に 見せる 城を 済ませて いる（もどす ときの かくし）
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（mode = 'look' | 'cards'、look = 'ana' | 'kake' | 'tsumeta' | 'chawan'、sel = カード）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('tmPanel', (mode: Mode = 'look', look: Look = 'ana', sel = 0) => {
+    const o = game.ui.widgets.find((w) => w instanceof TsumePanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new TsumePanel(mode, look);
+    p.open = 1;
+    p.active = true;
+    p.sel = sel;
+    game.ui.push(p);
+    return { mode, look, sel };
+  });
+
   registerDebug('tsumeta', (step = 'start', auto = false, sr = false) => {
     cmd().jump?.('ch3:trap', true);
     for (const id of Object.values(TF)) setFlag(id, 0);

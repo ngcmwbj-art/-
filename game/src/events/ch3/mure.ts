@@ -44,6 +44,7 @@ import { pgOn } from '../../world/postgame';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
 import { pickRows, type Howto, type TouchPick } from '../../ui/closeup';
+import { drawPanel3d } from '../../ui/panel3d';
 import * as T from '../../data/text/c3_mure';
 import { MR_UI, VIEW_ORDER, type Size, type View } from '../../data/text/c3_mure';
 import { addMp } from '../lib';
@@ -186,7 +187,7 @@ function tabBox(i: number, oy: number): [number, number, number, number] {
 }
 
 /** 群れの 魚の 並び（scene の 中の 割合 0〜1）。大きさで 数が ちがう（数は 言わない）。 */
-const LAYOUT: Record<Size, [number, number][]> = {
+export const LAYOUT: Record<Size, [number, number][]> = {
   oki: [[0.18, 0.3], [0.42, 0.24], [0.66, 0.3], [0.3, 0.48], [0.54, 0.46], [0.78, 0.5], [0.2, 0.66], [0.44, 0.68], [0.68, 0.7]],
   naka: [[0.3, 0.32], [0.56, 0.3], [0.42, 0.52], [0.68, 0.54], [0.28, 0.7]],
   chii: [[0.4, 0.42], [0.6, 0.56]],
@@ -272,7 +273,11 @@ export class MurePanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, SW, CH, () => this.drawScene(g, oy));
+        // HD-2D（2026-11-23、hd2d/panels/mure.ts）：見た 見え方の 絵だけ（まだの 字の カードは 2D）。使えない ときは 2D の 絵
+        g.clip(SX, oy, SW, CH, () => {
+          const id = !flag(VIEW_F[this.view]) ? '' : this.view === 'yoko' ? (this.one ? 'mure_one' : 'mure_yoko') : `mure_${this.view}`;
+          if (!id || !drawPanel3d(g, this, id, SX, oy, SW, CH, { state: { size: this.size } })) this.drawScene(g, oy);
+        });
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, INK);
         this.drawSide(g, oy);
         markText(RX - 4, oy, SX + CW - RX + 4, CH);
@@ -397,7 +402,7 @@ export class MurePanel implements Widget {
 }
 
 /** 横向きの 小アジ（頭が 左）。len は 体の 長さの 半分（px）。背は 青黒く、横は 銀、腹は 白っぽい 銀、尾は 二つに 分かれる。 */
-function fishSide(g: Gfx, cx: number, cy: number, len: number): void {
+export function fishSide(g: Gfx, cx: number, cy: number, len: number): void {
   const h = Math.max(2, Math.round(len * 0.3));
   for (let x = -len; x <= len; x++) {
     const k = x / len;
@@ -592,6 +597,25 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   's2'     段階2（S13 の あと）。ふちの 前 (26,31) 上向き（1回だけ 地の文）
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（view = 'ue' | 'shita' | 'yoko'、size = 'oki' | 'naka' | 'chii'、one = 1ぴきの 寄り）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('mrPanel', (view: View = 'ue', size: Size = 'oki', one = false) => {
+    const o = game.ui.widgets.find((w) => w instanceof MurePanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    setFlag(VIEW_F[view], 1);
+    const p = new MurePanel(view, size);
+    p.one = one;
+    p.open = 1;
+    p.active = true;
+    game.ui.push(p);
+    return { view, size, one };
+  });
+
   registerDebug('mure', (step = 'start', auto = false, opi = false, zukan = false) => {
     const s2 = step === 's2';
     cmd().jump?.(s2 ? 'ch3:trap' : 'ch3:itadaki', true);

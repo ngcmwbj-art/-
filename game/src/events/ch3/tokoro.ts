@@ -693,6 +693,26 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'kuma'     ところてんを 持って、くま吉の 前 (27,4) 上向き
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（tilt = 筒の 傾き、push = 突いた ぐあい）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('tkPanel', (tilt = 0.4, push = 0) => {
+    const o = game.ui.widgets.find((w) => w instanceof TentsukiPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new TentsukiPanel();
+    p.open = 1;
+    p.active = true;
+    p.tilt = tilt;
+    p.push = push;
+    if (push > 0) p.phase = 'push';
+    game.ui.push(p);
+    return { tilt, push };
+  });
+
   registerDebug('tokoro', (step = 'obaa', auto = false) => {
     cmd().jump?.('ch3:kaisui', true);
     for (const id of Object.values(TF)) setFlag(id, 0);

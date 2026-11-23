@@ -50,6 +50,7 @@ import { MUSHI_DONE } from './mushi';
 import { HOWTO } from '../../data/text/howto';
 import { isCloseupQuit } from '../../ui/closeup';
 import { closeupWide } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 
 export const MF = {
   /** 片目だけ（ページが できた）。 */
@@ -324,11 +325,14 @@ export class MimiPanel implements Widget {
     drawWindow(g, PX, PY + dy, PW, PH, UI, a, { curl: false });
     g.alpha(a, () => {
       g.clip(SX, oy, CW, CH, () => {
-        g.rect(SX, oy, CW, CH, '#3E3A5E');
-        // the dog (left) and グソっ君 (right), 2×
-        g.img(dogFace(this.dogEar, this.wink ? 'wink' : 'open'), DX, FY + dy, { scale: 2 });
         const mood = this.phase === 'ok' ? 'happy' : this.phase === 'miss' ? 'sad' : 'normal';
-        g.img(kaneHead(this.kaneEar, mood), KX, oy + 6, { scale: 2 });
+        // HD-2D：牛舎の 前で 2人の 顔（hd2d/panels/mimi.ts）。無い ときは 2D の 絵
+        if (!drawPanel3d(g, this, 'mimi', SX, oy, CW, CH, { state: { dog: this.dogEar, wink: this.wink, kane: this.kaneEar, mood } })) {
+          g.rect(SX, oy, CW, CH, '#3E3A5E');
+          // the dog (left) and グソっ君 (right), 2×
+          g.img(dogFace(this.dogEar, this.wink ? 'wink' : 'open'), DX, FY + dy, { scale: 2 });
+          g.img(kaneHead(this.kaneEar, mood), KX, oy + 6, { scale: 2 });
+        }
         // the middle: the round, what to do, the keys
         const mx = SX + CW / 2;
         let y = oy + 3;

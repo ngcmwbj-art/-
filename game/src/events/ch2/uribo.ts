@@ -23,6 +23,7 @@ import { touchControlsOn } from '../../engine/touch';
 import { animate, ease } from '../../engine/tween';
 import { registerDebug } from '../../debug';
 import { field } from '../../world/field';
+import { setFlag } from '../../game/state';
 import { playCall } from '../../world/hoshi';
 import { sfx } from '../../audio';
 import { drawTape, drawWindow, UI } from '../../ui/window';
@@ -41,6 +42,7 @@ import {
 } from '../../art/props/ashiato_art';
 import { HOWTO } from '../../data/text/howto';
 import { widenRange } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 
 const PX = 24;
 const PY = 4;
@@ -234,6 +236,8 @@ export class UriboPanel implements Widget {
     g.alpha(a, () => {
       g.clip(SX, sy, UB_W, UB_H, () => {
         if (this.phase === 'card') this.drawCard(g, SX, sy);
+        // HD-2D（hd2d/panels/uribo.ts）：夜の 畑・クズ・柵・親子・灯りは 3D、はしの 印・鼻息・放送の 声は 上に 2D で
+        else if (drawPanel3d(g, this, 'uribo', SX, sy, UB_W, UB_H, { state: this.state3d() })) this.drawOver(g, SX, sy);
         else this.drawScene(g, SX, sy);
       });
       this.drawTail(g, PY + dy + PH);
@@ -266,6 +270,36 @@ export class UriboPanel implements Widget {
     for (let i = 0; i < 5; i++) {
       g.rect(x - 4 + i, bottom - 1 + i, 9 - i * 2, 1, UI.border);
       if (i < 4) g.rect(x - 3 + i, bottom - 2 + i, 7 - i * 2, 1, UI.bg);
+    }
+  }
+
+  /** HD-2D の 絵に 渡す 状態：段階、親子の 位置（x・奥へ・こま・見え方・向き）、耳、向きを 変えた。 */
+  private state3d(): Record<string, unknown> {
+    const r = (v: number) => Math.round(v * 2) / 2;
+    const w = (v: Walker) => [r(v.x), Math.round(v.back * 40) / 40, v.f, Math.round(v.alpha * 20) / 20, v.face];
+    return { st: Math.min(2, Math.max(1, this.stage)), m: w(this.mother), k: this.kids.map(w), ears: this.ears, turned: this.turned };
+  }
+
+  /** HD-2D の 上に 重ねる 2D：数える はしの 印（歩く 間）、親の 鼻息、段階2の 放送の 声。 */
+  private drawOver(g: Gfx, ox: number, oy: number): void {
+    const t = this.t;
+    if (this.phase === 'walk')
+      for (let y = UB_GROUND_Y - 6; y < UB_GROUND_Y + 4; y += 3) g.px(ox + EDGE_X, oy + y, Math.floor(t / 300) % 2 ? '#FFE7A3' : '#F2B070');
+    if (this.snort > 0) {
+      const m = this.mother;
+      const k = 1 - this.snort / 600;
+      const nx = Math.round(m.x - 16 - k * 6);
+      const ny = UB_GROUND_Y - 5 - Math.round(k * 3);
+      g.alpha(1 - k, () => {
+        g.rect(ox + nx, oy + ny, 2, 1, '#E8E4D8');
+        g.rect(ox + nx - 2, oy + ny + 2, 2, 1, '#E8E4D8');
+      });
+    }
+    if (this.callOn > 0) {
+      const hx = UB_W - 26;
+      g.rect(ox + hx, oy + 8, 4, 3, '#8E88B8');
+      g.rect(ox + hx + 4, oy + 6, 2, 7, '#8E88B8');
+      for (let i = 0; i < 3; i++) if (Math.floor(t / 180 + i) % 3 === 0) g.rect(ox + hx + 8 + i * 3, oy + 7 - i, 1, 5 + i * 2, '#FFE7A3');
     }
   }
 
@@ -542,5 +576,32 @@ if (import.meta.env.DEV) {
       band: BAND,
       call: p.callOn > 0,
     };
+  });
+
+  /**
+   * QA：小窓を 直接 開く（stage 1 | 2、mx = 親の x、phase 'wait'（止まった まま）| 'walk'、ears・turned）。
+   * もう一度 呼ぶと 閉じる。__game.cmd.ashiato('gen', 1) → __game.cmd.uriboPanel(1, 120) → 写真 → __game.cmd.uriboPanel()
+   */
+  registerDebug('uriboPanel', (stage?: number, mx = 120, phase: Phase = 'wait', ears = false, turned = false) => {
+    const open = game.ui.widgets.find((w) => w instanceof UriboPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new UriboPanel(stage ?? 1);
+    setFlag(`howto_${p.howto.id}`, 1);
+    p.mother.x = mx;
+    p.mother.alpha = 1;
+    p.kids.forEach((k, i) => {
+      k.x = mx + 24 + i * GAP;
+      k.alpha = 1;
+      k.f = i % 2;
+    });
+    p.ears = ears;
+    p.turned = turned;
+    p.phase = phase;
+    p.open = 1;
+    game.ui.push(p);
+    return { stage: p.stage, mx, phase };
   });
 }

@@ -955,6 +955,27 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'c2'       済んだ あと 段階2、防波堤の やおちゃん (34,32) の 前 (34,31) 下向き
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（mode = 'press' | 'build' | 'wave'、kind = 'kawaki' | 'doro' | 'shittori'、built = 立った 段）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('srPanel', (mode: Mode = 'press', kind: Suna = 'shittori', built = 0, wave = 0) => {
+    const o = game.ui.widgets.find((w) => w instanceof SunaPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new SunaPanel(mode, kind);
+    p.open = 1;
+    p.active = true;
+    p.built = built;
+    p.kn = true;
+    p.wave = wave;
+    if (mode === 'build') p.startTier(Math.min(2, built));
+    game.ui.push(p);
+    return { mode, kind, built };
+  });
+
   registerDebug('shiro', (step = 'umi', auto = false) => {
     const s2 = step === 'c2';
     cmd().jump?.(s2 ? 'ch3:trap' : 'ch3:itadaki', true);

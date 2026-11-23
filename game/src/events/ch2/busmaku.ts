@@ -43,6 +43,7 @@ import { se } from './compat';
 import { hStage, npc, routeTiles } from './common';
 import { HOWTO } from '../../data/text/howto';
 import { closeupWide } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 
 export const BF = {
   look: 'flag_bm_look',
@@ -325,6 +326,20 @@ export class MakuPanel implements Widget {
   private drawScene(g: Gfx, oy: number): void {
     const ox = SX;
     // the cab at night: the ceiling, the windshield (the turning circle's sky and the mountains), the dash
+    // HD-2D（hd2d/panels/maku.ts）：運転席・窓の 外・幕の 箱は 3D。幕・ハンドル・字は 下の 2D を 上に 重ねる
+    const hd = drawPanel3d(g, this, 'maku', ox, oy, CW, CH, { state: { st: hStage() } });
+    if (!hd) this.drawCab(g, ox, oy);
+    const dx = ox + 196;
+    if (this.guu > 0) g.text('ぐう', dx + 40, oy + 62 - Math.round(this.guu * 4), { color: '#C8C4D8', alpha: Math.min(1, this.guu * 2) });
+    if (!hd) {
+      g.rect(ox + WIN.x - 14, oy + WIN.y - 8, WIN.w + 28, WIN.h + 16, '#2A2836');
+      g.frame(ox + WIN.x - 14, oy + WIN.y - 8, WIN.w + 28, WIN.h + 16, '#4A4458');
+    }
+    this.drawRoll(g, ox, oy);
+  }
+
+  /** 2D の 運転席（HD-2D が ない とき）。 */
+  private drawCab(g: Gfx, ox: number, oy: number): void {
     g.rect(ox, oy, CW, CH, '#16141F');
     const wy0 = oy + 60;
     const wy1 = oy + 108;
@@ -350,10 +365,11 @@ export class MakuPanel implements Widget {
     g.rect(dx + 12, oy + 76, 20, 16, '#1A1820');
     g.rect(dx + 10, oy + 72, 24, 7, '#22284A');
     g.rect(dx + 30, oy + 70, 8, 3, '#22284A');
-    if (this.guu > 0) g.text('ぐう', dx + 40, oy + 62 - Math.round(this.guu * 4), { color: '#C8C4D8', alpha: Math.min(1, this.guu * 2) });
+  }
+
+  /** 幕の 窓・ハンドル・手・字（2D：HD-2D の 上にも 重ねる）。 */
+  private drawRoll(g: Gfx, ox: number, oy: number): void {
     // the destination box above the windshield, the window in it and the roll behind it
-    g.rect(ox + WIN.x - 14, oy + WIN.y - 8, WIN.w + 28, WIN.h + 16, '#2A2836');
-    g.frame(ox + WIN.x - 14, oy + WIN.y - 8, WIN.w + 28, WIN.h + 16, '#4A4458');
     g.clip(ox + WIN.x, oy + WIN.y, WIN.w, WIN.h, () => {
       g.rect(ox + WIN.x, oy + WIN.y, WIN.w, WIN.h, '#1C1C22');
       for (let i = 0; i < BM_MAKU.length; i++) {
@@ -645,6 +661,22 @@ if (import.meta.env.DEV) {
     setFlag(BF.done, 1);
     setFlag(BF.pos, 2);
     return go(35, 43, 'up');
+  });
+
+  /** QA：大写し「幕」だけを すぐ 開く（もう一度 呼ぶと 閉じる）。mode：show / lock1 / free。 */
+  registerDebug('bmPanel', (mode = 'free', pos = 1) => {
+    const old = game.ui.widgets.find((w) => w instanceof MakuPanel);
+    if (old) {
+      game.ui.remove(old);
+      return 'closed';
+    }
+    const p = new MakuPanel();
+    p.howto = undefined as unknown as typeof p.howto;
+    p.mode = mode as MakuMode;
+    p.pos = Number(pos);
+    p.open = 1;
+    game.ui.push(p);
+    return 'opened';
   });
 
   registerDebug('bmState', () => {

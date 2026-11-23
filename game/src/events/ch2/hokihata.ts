@@ -41,6 +41,7 @@ import { pgOn } from '../../world/postgame';
 import { actorAnchor, addMarkSource } from '../../world/marks';
 import type { MapObj } from '../../world/types';
 import { drawTape, drawWindow, UI } from '../../ui/window';
+import { drawPanel3d } from '../../ui/panel3d';
 import type { Howto } from '../../ui/closeup';
 import * as T from '../../data/text/hoshi_hokihata';
 import { HB_UI } from '../../data/text/hoshi_hokihata';
@@ -190,9 +191,81 @@ const CH = PH - 8;
 const RX = SX + 222;
 const KEYS_Y = 94;
 /** 切る 所（大写しの 中の 高さ、上から）：穂首の すぐ下・1つ 下の 節・2つ 下の 節。 */
-const CUT_Y = [36, 62, 90];
-const NECK_Y = 32;
-const GROUND_Y = 106;
+export const CUT_Y = [36, 62, 90];
+export const NECK_Y = 32;
+export const GROUND_Y = 106;
+
+/**
+ * 株の 絵（2D の 大写しと HD-2D の 共通：hd2d/panels/hokihata.ts は これを キャンバスに 描いて 立てる）。
+ * part 'body'：茎・節・下の 葉・2つ目の 節の 葉・穂、'flag'：1つ目の 節の 止め葉（切った あと 取る）。
+ * Y：絵の 中の 高さ（上から）→ 描く y。cutAt：切った 所（-1 まだ）。
+ */
+export function hbPlant(g: Gfx, cx: number, Y: (y: number) => number, cutAt: number, part: 'body' | 'flag'): void {
+  if (part === 'flag') {
+    // its sheath up the neck, its blade out to the left
+    g.rect(cx - 3, Y(44), 6, CUT_Y[1] - 44, HB_LEAF);
+    g.rect(cx - 3, Y(44), 1, CUT_Y[1] - 44, HB_LEAF_LT);
+    hbLeaf(g, cx - 2, Y(44), -1, 46, 16, 1);
+    return;
+  }
+  const cutY = cutAt >= 0 ? CUT_Y[cutAt] : -1;
+  // the stalk (two pieces once cut)
+  const stem = (y0: number, y1: number) => {
+    g.rect(cx - 2, Y(y0), 2, y1 - y0, HB_STEM);
+    g.rect(cx, Y(y0), 2, y1 - y0, HB_STEM_DK);
+  };
+  if (cutY >= 0) {
+    stem(NECK_Y, cutY);
+    stem(cutY, GROUND_Y);
+    // the two cut faces, pale
+    g.rect(cx - 2, Y(cutY - 1), 4, 1, '#E8E0B0');
+    g.rect(cx - 2, Y(cutY), 4, 1, '#E8E0B0');
+  } else stem(NECK_Y, GROUND_Y);
+  // the nodes: the one at the head's neck, and the two below (darker rings)
+  for (const ny of [NECK_Y + 2, CUT_Y[1], CUT_Y[2]]) g.rect(cx - 3, Y(ny) - 1, 6, 2, HB_NODE);
+  // the low leaf (stays on the plant)
+  hbLeaf(g, cx - 2, Y(GROUND_Y - 4), -1, 34, 6, 1);
+  // the leaf of the second node: its sheath up the stem, its blade out to the right
+  g.rect(cx - 3, Y(74), 6, CUT_Y[2] - 74, HB_LEAF);
+  hbLeaf(g, cx + 2, Y(74), 1, 50, 18, 1);
+  // the head: a heavy spray of reddish-brown strands from the neck, up and over, drooping to the right
+  const hx = cx;
+  const hy = Y(NECK_Y);
+  // (a fountain: each strand up from the neck, then over and down, the right side longer — the weight of it)
+  for (let s = -6; s <= 6; s++) {
+    let px = hx;
+    let py = hy;
+    const ex = hx + s * 4 + (s >= 0 ? 10 : 2);
+    const ey = hy - 4 + Math.abs(s) * 2 + (s > 0 ? s : 0);
+    const tx = hx + s * 1.5;
+    const ty = hy - 26 + Math.abs(s);
+    for (let t = 1; t <= 12; t++) {
+      const u = t / 12;
+      const x = Math.round((1 - u) * (1 - u) * hx + 2 * (1 - u) * u * tx + u * u * ex);
+      const y = Math.round((1 - u) * (1 - u) * hy + 2 * (1 - u) * u * ty + u * u * ey);
+      g.line(px, py, x, y, (s + t) % 3 === 0 ? HB_HO_LT : (s + t) % 3 === 1 ? HB_HO : HB_HO_DK);
+      px = x;
+      py = y;
+    }
+    // the seeds at the tip
+    g.rect(px - 1, py, 2, 2, HB_HO_DK);
+  }
+}
+
+/** 1枚の 葉：もとから 外へ 弧を 描いて たれる（dir -1 左・1 右）。 */
+function hbLeaf(g: Gfx, x: number, y: number, dir: number, len: number, drop: number, w: number): void {
+  let px = x;
+  let py = y;
+  for (let t = 1; t <= 12; t++) {
+    const u = t / 12;
+    const nx = x + dir * Math.round(len * u);
+    const ny = y - Math.round(8 * u) + Math.round((drop + 8) * u * u);
+    g.line(px, py, nx, ny, t < 6 ? HB_LEAF_LT : HB_LEAF);
+    g.line(px, py + w, nx, ny + w, HB_LEAF);
+    px = nx;
+    py = ny;
+  }
+}
 
 type Phase = 'idle' | 'erabu' | 'ha';
 
@@ -280,9 +353,18 @@ export class FushiPanel implements Widget {
 
   private drawScene(g: Gfx, oy: number): void {
     const W = RX - SX - 4;
+    const cx = SX + 104;
+    const cutY = this.cutAt >= 0 ? CUT_Y[this.cutAt] : -1;
+    const lift = cutY >= 0 ? Math.round(ease.cubicOut(this.cut) * 9) : 0;
+    const sa = this.cutAt === 1 ? 1 - this.strip : 1;
+    const sd = this.cutAt === 1 ? Math.round(this.strip * 14) : 0;
+    // HD-2D（hd2d/panels/hokihata.ts）：夜の 畑・株・灯りは 3D、名前と 鎌は 2D で 上に
+    if (drawPanel3d(g, this, 'hokihata', SX, oy, W, CH, { state: { cutAt: this.cutAt, lift, sd, sa: Math.round(sa * 10) / 10 } })) {
+      this.drawOver(g, oy, cx, cutY, lift);
+      return;
+    }
     // the night, the lantern's warm pool round the plant
     g.rect(SX, oy, W, CH, '#26324A');
-    const cx = SX + 104;
     for (let r = 84; r > 0; r -= 12) g.alpha(0.07, () => g.circle(cx, oy + 58, r, '#FFD8A8'));
     // the ground, the neighbours' stalks dark at the sides
     g.rect(SX, oy + GROUND_Y, W, CH - GROUND_Y, '#3A2A20');
@@ -291,61 +373,17 @@ export class FushiPanel implements Widget {
       g.rect(nx, oy + 10, 2, GROUND_Y - 10, '#2E3E28');
       g.alpha(0.6, () => g.line(nx + 1, oy + 10, nx + 10, oy + 26, '#5A3428'));
     }
-    const cutY = this.cutAt >= 0 ? CUT_Y[this.cutAt] : -1;
-    const lift = cutY >= 0 ? Math.round(ease.cubicOut(this.cut) * 9) : 0;
     /** 切った 所より 上は 持ち上がる。 */
     const Y = (y: number) => oy + (cutY >= 0 && y < cutY ? y - lift : y);
-    // the stalk (two pieces once cut)
-    const stem = (y0: number, y1: number) => {
-      g.rect(cx - 2, Y(y0), 2, y1 - y0, HB_STEM);
-      g.rect(cx, Y(y0), 2, y1 - y0, HB_STEM_DK);
-    };
-    if (cutY >= 0) {
-      stem(NECK_Y, cutY);
-      stem(cutY, GROUND_Y);
-      // the two cut faces, pale
-      g.rect(cx - 2, Y(cutY - 1), 4, 1, '#E8E0B0');
-      g.rect(cx - 2, oy + cutY, 4, 1, '#E8E0B0');
-    } else stem(NECK_Y, GROUND_Y);
-    // the nodes: the one at the head's neck, and the two below (darker rings)
-    for (const ny of [NECK_Y + 2, CUT_Y[1], CUT_Y[2]]) g.rect(cx - 3, Y(ny) - 1, 6, 2, HB_NODE);
-    // the low leaf (stays on the plant)
-    this.leaf(g, cx - 2, oy + GROUND_Y - 4, -1, 34, 6, 1);
-    // the leaf of the second node: its sheath up the stem, its blade out to the right
-    g.rect(cx - 3, Y(74), 6, CUT_Y[2] - 74, HB_LEAF);
-    this.leaf(g, cx + 2, Y(74), 1, 50, 18, 1);
-    // the flag leaf from the first node: its sheath up the neck, its blade out to the left (stripped off after the cut)
-    const sa = this.cutAt === 1 ? 1 - this.strip : 1;
-    const sd = this.cutAt === 1 ? Math.round(this.strip * 14) : 0;
-    if (sa > 0) {
-      g.alpha(sa, () => {
-        g.rect(cx - 3, Y(44) + sd, 6, CUT_Y[1] - 44, HB_LEAF);
-        g.rect(cx - 3, Y(44) + sd, 1, CUT_Y[1] - 44, HB_LEAF_LT);
-        this.leaf(g, cx - 2, Y(44) + sd, -1, 46, 16, 1);
-      });
-    }
-    // the head: a heavy spray of reddish-brown strands from the neck, up and over, drooping to the right
-    const hx = cx;
-    const hy = Y(NECK_Y);
-    // (a fountain: each strand up from the neck, then over and down, the right side longer — the weight of it)
-    for (let s = -6; s <= 6; s++) {
-      let px = hx;
-      let py = hy;
-      const ex = hx + s * 4 + (s >= 0 ? 10 : 2);
-      const ey = hy - 4 + Math.abs(s) * 2 + (s > 0 ? s : 0);
-      const tx = hx + s * 1.5;
-      const ty = hy - 26 + Math.abs(s);
-      for (let t = 1; t <= 12; t++) {
-        const u = t / 12;
-        const x = Math.round((1 - u) * (1 - u) * hx + 2 * (1 - u) * u * tx + u * u * ex);
-        const y = Math.round((1 - u) * (1 - u) * hy + 2 * (1 - u) * u * ty + u * u * ey);
-        g.line(px, py, x, y, (s + t) % 3 === 0 ? HB_HO_LT : (s + t) % 3 === 1 ? HB_HO : HB_HO_DK);
-        px = x;
-        py = y;
-      }
-      // the seeds at the tip
-      g.rect(px - 1, py, 2, 2, HB_HO_DK);
-    }
+    hbPlant(g, cx, Y, this.cutAt, 'body');
+    // the flag leaf from the first node (stripped off after the cut)
+    if (sa > 0) g.alpha(sa, () => hbPlant(g, cx, (y) => Y(y) + sd, this.cutAt, 'flag'));
+    this.drawOver(g, oy, cx, cutY, lift);
+  }
+
+  /** 名前（穂・穂首・節）と 鎌（HD-2D の 絵の 上にも 乗る）。 */
+  private drawOver(g: Gfx, oy: number, cx: number, cutY: number, lift: number): void {
+    const Y = (y: number) => oy + (cutY >= 0 && y < cutY ? y - lift : y);
     // the names, small, on the left (the 穂, the 穂首, the 節)
     g.text(HB_UI.ho, cx + 44, Y(NECK_Y - 16), { color: '#F4D8B0' });
     g.text(HB_UI.hokubi, cx - 44, Y(CUT_Y[0] + 2), { color: '#D8E0C8' });
@@ -361,21 +399,6 @@ export class FushiPanel implements Widget {
       g.rect(kx + 12, sy - 1, 14, 1, '#AA8A58');
       for (let i = 0; i < 10; i++) g.px(kx + 12 - i, sy - Math.round(Math.sin((i / 10) * Math.PI) * 4), '#D8D8E0');
       for (let i = 0; i < 9; i++) g.px(kx + 12 - i, sy + 1 - Math.round(Math.sin((i / 10) * Math.PI) * 3), '#A8A8B8');
-    }
-  }
-
-  /** 1枚の 葉：もとから 外へ 弧を 描いて たれる（dir -1 左・1 右）。 */
-  private leaf(g: Gfx, x: number, y: number, dir: number, len: number, drop: number, w: number): void {
-    let px = x;
-    let py = y;
-    for (let t = 1; t <= 12; t++) {
-      const u = t / 12;
-      const nx = x + dir * Math.round(len * u);
-      const ny = y - Math.round(8 * u) + Math.round((drop + 8) * u * u);
-      g.line(px, py, nx, ny, t < 6 ? HB_LEAF_LT : HB_LEAF);
-      g.line(px, py + w, nx, ny + w, HB_LEAF);
-      px = nx;
-      py = ny;
     }
   }
 

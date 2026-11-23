@@ -607,6 +607,24 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'pg'      クリア後、ボールを 持って 旧水族館の 前（岬）の ぶろこりの 前
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（n = 取った 数 0〜4）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('ojPanel', (n = 0, taking = 0) => {
+    const o = game.ui.widgets.find((w) => w instanceof HaisuiPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new HaisuiPanel(n);
+    p.open = 1;
+    p.active = true;
+    p.taking = taking;
+    game.ui.push(p);
+    return { n };
+  });
+
   registerDebug('okujou', (step = 'to', auto = false) => {
     if (step === 'pg') {
       // (as iso.ts's QA: after the clear, the noon 11:30, グソっ君 along)

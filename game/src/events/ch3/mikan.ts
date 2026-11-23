@@ -347,7 +347,11 @@ export class EdaPanel implements Widget {
     g.alpha(a, () => {
       const oy = SY + dy;
       g.clip(SX, oy, CW, CH, () => {
-        g.clip(SX, oy, RX - SX - 4, CH, () => this.drawScene(g, oy));
+        g.clip(SX, oy, RX - SX - 4, CH, () => {
+          const inK = cutN() - (this.cut >= 0 && this.cutT < 900 ? 1 : 0);
+          if (drawPanel3d(g, this, 'mikan_eda', SX, oy, RX - SX - 4, CH, { state: { k: this.k, cut: this.cut, inK } })) this.drawOver(g, oy, true);
+          else this.drawScene(g, oy);
+        });
         g.rect(RX - 4, oy, SX + CW - RX + 4, CH, '#2A2236');
         g.text(MK_UI.dan[this.k], RX, oy + 2, { color: '#F4ECD8' });
         g.text(MK_UI.kago(cutN()), RX, oy + 20, { color: '#8A84A0' });
@@ -393,12 +397,8 @@ export class EdaPanel implements Widget {
       const [bx, by] = this.branchAt(i, oy);
       let [x, y] = this.miAt(i, oy);
       const r = kind === 'chiisai' ? 4 : kind === 'ue' ? 10 : 8;
-      if (i === this.cut) {
-        const u = this.cutT / 1000;
-        y += Math.round(u * u * 260);
-        x += Math.round(((SX + W / 2) - x) * Math.min(1, u * 1.6));
-        if (y > oy + CH + 10) continue;
-      } else if (kind === 'ue') g.rect(x - 1, y + r - 1, 3, by - (y + r) + 2, '#5A6A3A');
+      if (i === this.cut) continue;
+      if (kind === 'ue') g.rect(x - 1, y + r - 1, 3, by - (y + r) + 2, '#5A6A3A');
       else g.rect(x - 1, by + 2, 2, y - r - by - 1, '#5A6A3A');
       g.circle(x, y, r, '#6AA04A');
       g.circle(x + Math.round(r / 4), y + Math.round(r / 4), Math.round(r * 0.7), '#5A9040');
@@ -420,6 +420,26 @@ export class EdaPanel implements Widget {
     for (let x = kx + 3; x < kx + 44; x += 4) g.rect(x, ky + 2, 1, 9, '#A8804A');
     const inK = cutN() - (this.cut >= 0 && this.cutT < 900 ? 1 : 0);
     for (let i = 0; i < inK; i++) g.circle(kx + 10 + i * 12, ky - 1, 4, '#6AA04A');
+    this.drawOver(g, oy, false);
+  }
+
+  /** 絵の 上に 乗る 物：落ちる 実（切った 実）、選ぶ しるしと はさみ（HD-2D の ときも 2D で 上に）。 */
+  private drawOver(g: Gfx, oy: number, hd: boolean): void {
+    const W = RX - SX - 4;
+    if (this.cut >= 0) {
+      const kind = EDA_MI[this.k][this.cut];
+      let [x, y] = this.miAt(this.cut, oy);
+      const r = kind === 'chiisai' ? 4 : kind === 'ue' ? 10 : 8;
+      const u = this.cutT / 1000;
+      y += Math.round(u * u * 260);
+      x += Math.round((SX + W / 2 - x) * Math.min(1, u * 1.6));
+      if (y <= oy + CH + 10) {
+        if (hd) g.circle(x, y, r + 1, '#3A5A2A');
+        g.circle(x, y, r, '#6AA04A');
+        g.circle(x + Math.round(r / 4), y + Math.round(r / 4), Math.round(r * 0.7), '#5A9040');
+        g.circle(x - Math.round(r / 3), y - Math.round(r / 3), Math.max(1, Math.round(r / 3)), '#9BCB6B');
+      }
+    }
     // the cursor: a pale ring round the chosen fruit and the shears' red grips over it
     if (this.active && this.picked === null && this.cut < 0) {
       const [x, y] = this.miAt(this.sel, oy);
@@ -866,6 +886,21 @@ if (import.meta.env.DEV) {
     p.open = 1;
     game.ui.push(p);
     return { stage: c3Stage(), kn: knWith() };
+  });
+  /** QA：大写し「枝」を 直接 開く（k = 段 0〜2、sel = 選ぶ 実）。もう一度 呼ぶと 閉じる。 */
+  registerDebug('mkEda', (k = 0, sel = 0) => {
+    const open = game.ui.widgets.find((w) => w instanceof EdaPanel);
+    if (open) {
+      game.ui.remove(open);
+      return 'closed';
+    }
+    const p = new EdaPanel(Number(k));
+    p.open = 1;
+    p.active = true;
+    p.sel = Number(sel);
+    setFlag(`howto_${p.howto.id}`, 1);
+    game.ui.push(p);
+    return 'open';
   });
   registerDebug('mkState', () => {
     const flags: Record<string, number> = {};

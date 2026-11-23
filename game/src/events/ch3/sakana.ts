@@ -719,6 +719,25 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   opi = true で おぴぃが 来ている
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（caught = 'aji' | 'fugu' | 'hari' で 上がった ところ）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('skPanel', (caught?: UkiCatch) => {
+    const o = game.ui.widgets.find((w) => w instanceof UkiPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new UkiPanel();
+    p.open = 1;
+    p.floatOn = true;
+    p.phase = caught ? 'up' : 'wait';
+    p.caught = caught ?? null;
+    game.ui.push(p);
+    return { caught: p.caught };
+  });
+
   registerDebug('sakana', (step = 'start', auto = false, opi = false) => {
     const s1 = step === 'c1';
     cmd().jump?.(s1 ? 'ch3:umizoi' : 'ch3:trap', true);

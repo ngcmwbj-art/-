@@ -766,6 +766,24 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   extra = true で ワイスタ巡査が 来て いて、潜りの 落とし物 4つ（かくし 2つ）
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（mode = 'seuki' | 'umi'、step = 'suu' | 'ago' | 'nuku'）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('ukPanel', (mode: Mode = 'seuki', step: UkStep = 'suu') => {
+    const o = game.ui.widgets.find((w) => w instanceof UkiPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new UkiPanel(mode);
+    p.open = 1;
+    p.active = true;
+    p.step = step;
+    game.ui.push(p);
+    return { mode, step };
+  });
+
   registerDebug('ukimachi', (step = 'start', auto = false, extra = false) => {
     for (const id of Object.values(UF)) setFlag(id, 0);
     for (const s of UK_ORDER) setFlag(stepF(s), 0);

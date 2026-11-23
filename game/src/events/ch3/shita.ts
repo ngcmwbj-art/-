@@ -446,6 +446,24 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'esa'      S19：えさの 部屋、ポコシャの 前（鍵の 場面。つづりは こすった）
  */
 if (import.meta.env.DEV) {
+  /**
+   * QA：大写しを 直接 開く（second = 2枚目、rubs = こすった 回数）。HD-2D の 写真（2026-11-23）用。
+   * もう一度 呼ぶと 閉じる。
+   */
+  registerDebug('shPanel', (second = false, rubs = 2) => {
+    const o = game.ui.widgets.find((w) => w instanceof RubPanel);
+    if (o) {
+      game.ui.remove(o);
+      return 'closed';
+    }
+    const p = new RubPanel(!!second);
+    p.open = 1;
+    p.active = true;
+    p.rubs = rubs;
+    game.ui.push(p);
+    return { second, rubs };
+  });
+
   registerDebug('shita', (step = 'deko', auto = false) => {
     if (step === 'esa') {
       const r = cmd().jump?.('ch3:esa', true);
