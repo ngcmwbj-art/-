@@ -240,3 +240,23 @@ export function tetrapod(k: Kit, at: THREE.Vector3, len: number, rotY = 0): THRE
   k.scene.add(grp);
   return grp;
 }
+
+/**
+ * 絵を ふくらんだ 形で 寝かせる（真上から 見る 大写しの 貝・手のひら）：半分の 楕円体に 上から 絵を 投影。
+ * 透明な ドットは 抜ける。center = 絵の まん中（地面の 点）、w × d = 絵の 幅・奥行き（単位）、h = 高さ。
+ */
+export function dome(k: Kit, img: HTMLCanvasElement, center: THREE.Vector3, w: number, d: number, h: number, o: { tint?: string; seg?: number } = {}): THREE.Mesh {
+  const g = k.own(new THREE.SphereGeometry(1, o.seg ?? 40, 16, 0, Math.PI * 2, 0, Math.PI / 2));
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) * 0.5 + 0.5, 0.5 - pos.getZ(i) * 0.5);
+  uv.needsUpdate = true;
+  const m = k.material(k.tex(img), { tint: o.tint, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.scale.set(w / 2, h, d / 2);
+  mesh.position.copy(center);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  k.scene.add(mesh);
+  return mesh;
+}

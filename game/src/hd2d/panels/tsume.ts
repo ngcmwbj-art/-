@@ -10,7 +10,7 @@ import { mix } from '../../engine/pixel';
 import { Rng } from '../../engine/rng';
 import { bivalve, chawan, snail, type Look, type Mark } from '../../events/ch3/tsumeta';
 import { registerPanel3d, type Kit } from '../panel3d';
-import { flat, groundImg, paint, pix } from './_kit_f';
+import { dome, flat, groundImg, paint, pix } from './_kit_f';
 
 /** 絵の 大きさ（TsumePanel の 左：SW × CH）。 */
 const W = 202;
@@ -57,6 +57,15 @@ function lay(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, depth: numb
   return flat(k, img, at, { px: k.pxAt(8), depth, tint });
 }
 
+/** ふくらんだ 殻（2D の 絵を 上から 投影した 半分の 楕円体：厚みと 陰、砂に 落ちる 影）。h = 高さ（px）。 */
+function shell(k: Kit, img: HTMLCanvasElement, cx: number, cy: number, h: number, tint?: string): THREE.Mesh | null {
+  const at = k.ground(cx, cy, 0);
+  if (!at) return null;
+  const px = k.pxAt(8);
+  // （絵の まん中から 少し 沈めて、ふちが 砂に うまる）
+  return dome(k, img, new THREE.Vector3(at.x, -h * px * 0.12, at.z), img.width * px * 1.04, img.height * px * 1.04, h * px, { tint });
+}
+
 /** まわりの 小さな 物（砂つぶの 小石・貝の かけら）。 */
 function bits(k: Kit, keep: [number, number, number][]): void {
   const rng = new Rng(2811);
@@ -91,9 +100,9 @@ registerPanel3d('tsume_look', {
     const cx = W / 2;
     const cy = 62;
     const list: Record<string, THREE.Mesh | null> = {
-      ana: lay(k, shellImg('ana', 38, 30), cx, cy, 4, WHITE),
-      kake: lay(k, shellImg('kake', 38, 30), cx, cy, 4, WHITE),
-      tsumeta: lay(k, noShadow(paint('tm:snail', 72, 72, (g) => snail(g, 34, 34, 30))), cx, cy, 9),
+      ana: shell(k, shellImg('ana', 38, 30), cx, cy, 12, WHITE),
+      kake: shell(k, shellImg('kake', 38, 30), cx, cy, 12, WHITE),
+      tsumeta: shell(k, noShadow(paint('tm:snail', 72, 72, (g) => snail(g, 34, 34, 30))), cx, cy, 26),
       chawan: lay(k, paint('tm:chawan', 100, 48, (g) => chawan(g, 50, 22, 46)), cx, cy + 6, 5),
     };
     k.bag.list = list;
@@ -115,9 +124,9 @@ registerPanel3d('tsume_cards', {
   tilt: 0.4,
   build(k) {
     base(k);
-    lay(k, shellImg('ana', 24, 19), SHELL_X, SHELL_Y, 3, WHITE);
+    shell(k, shellImg('ana', 24, 19), SHELL_X, SHELL_Y, 8, WHITE);
     const right: Record<string, THREE.Mesh | null> = {};
-    for (const m of ['ana', 'nashi', 'ware', 'kake'] as const) right[m] = lay(k, shellImg(m, 24, 19), W - SHELL_X, SHELL_Y, 3, WHITE);
+    for (const m of ['ana', 'nashi', 'ware', 'kake'] as const) right[m] = shell(k, shellImg(m, 24, 19), W - SHELL_X, SHELL_Y, 8, WHITE);
     k.bag.right = right;
     bits(k, [[SHELL_X, SHELL_Y, 34], [W - SHELL_X, SHELL_Y, 44], [W / 2, SHELL_Y, 14]]);
   },

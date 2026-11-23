@@ -48,6 +48,7 @@ import { hStage, lanternOn } from './common';
 import { WF } from './wakime';
 import { HOWTO } from '../../data/text/howto';
 import { closeupWide } from '../../ui/closeup_wide';
+import { drawPanel3d } from '../../ui/panel3d';
 
 export const TH = {
   /** 張り紙の あとの グソっ君（1回）。 */
@@ -346,10 +347,16 @@ export class TaihiPanel implements Widget {
   /** The heap cut open: dry crust on top, dark settled compost, the steaming core at the bottom middle. */
   private drawDig(g: Gfx, dy: number): void {
     const oy = HY + dy;
-    // the barn floor under the heap
-    g.rect(SX, oy + HEAP_H, CW, CH, '#3A3040');
-    g.rect(HX - 4, oy + HEAP_H, HEAP_W + 8, 2, '#5A4636');
     const lit = (c: number, r: number) => this.phase !== 'done' && this.phase !== 'talk' && Math.abs(c - this.cx) <= 1 && Math.abs(r - this.cy) <= 1;
+    // HD-2D：堆肥舎と 山の 断面（hd2d/panels/taihi.ts）。穴・つぶつぶ・湯気・カーソル・幼虫・字は 2D の まま 上に
+    const in3d = drawPanel3d(g, this, 'taihi', SX, SY + dy, RX - SX - 4, CH, {
+      state: { mode: 'dig', cx: this.cx, cy: this.cy, lit: this.phase === 'aim' || this.phase === 'dig' },
+    });
+    if (!in3d) {
+      // the barn floor under the heap
+      g.rect(SX, oy + HEAP_H, CW, CH, '#3A3040');
+      g.rect(HX - 4, oy + HEAP_H, HEAP_W + 8, 2, '#5A4636');
+    }
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
         const kind = cellKind(c, r);
@@ -360,9 +367,9 @@ export class TaihiPanel implements Widget {
         const on = lit(c, r);
         // in the lantern's light the compost shows its colour (and the frass on it)
         const base = kind === 'dry' ? (on ? '#B0926A' : '#7A6046') : kind === 'hot' ? (on ? '#A4553A' : '#7A3A26') : on ? (r <= 1 ? '#8A6A4E' : '#7A5A40') : r <= 1 ? '#4E3828' : '#423024';
-        g.rect(x, y, CEL_W, CEL_H, base);
+        if (!in3d) g.rect(x, y, CEL_W, CEL_H, base);
         // a little texture: sawdust flecks
-        if ((c * 7 + r * 3) % 3 === 0) g.rect(x + 3 + ((c + r) % 4) * 3, y + 4 + ((c * 5) % 3) * 2, 2, 1, kind === 'dry' ? '#C8AC84' : on ? '#A88A64' : '#5A4434');
+        if (!in3d && (c * 7 + r * 3) % 3 === 0) g.rect(x + 3 + ((c + r) % 4) * 3, y + 4 + ((c * 5) % 3) * 2, 2, 1, kind === 'dry' ? '#C8AC84' : on ? '#A88A64' : '#5A4434');
         if (kind === 'hot') {
           // the core: a warm glow
           const s = Math.sin(this.t / 300 + c) * 0.5 + 0.5;
@@ -384,10 +391,11 @@ export class TaihiPanel implements Widget {
         }
       }
     // cut the steps off along the mound's round top (the panel's back colour over the corners)
-    for (let x = 0; x < HEAP_W; x += 2) {
-      const top = Math.round(moundTop(x + 1));
-      if (top > 0) g.rect(HX + x, oy, 2, top, '#2A2236');
-    }
+    if (!in3d)
+      for (let x = 0; x < HEAP_W; x += 2) {
+        const top = Math.round(moundTop(x + 1));
+        if (top > 0) g.rect(HX + x, oy, 2, top, '#2A2236');
+      }
     // steam over the core
     for (let j = 0; j < 3; j++) {
       const p = (this.t / 1400 + j / 3) % 1;
@@ -399,7 +407,7 @@ export class TaihiPanel implements Widget {
     if (this.phase === 'aim' || this.phase === 'dig') {
       const x = HX + this.cx * CEL_W;
       const y = oy + this.cy * CEL_H;
-      g.alpha(0.12, () => g.circle(x + CEL_W / 2, y + CEL_H / 2, 30, '#FFB070'));
+      if (!in3d) g.alpha(0.12, () => g.circle(x + CEL_W / 2, y + CEL_H / 2, 30, '#FFB070'));
       const blink = Math.floor(this.t / 300) % 2 === 0;
       g.frame(x - 1, y - 1, CEL_W + 2, CEL_H + 2, blink ? '#FFE7A3' : '#F2894B');
       if (this.phase === 'dig') {
@@ -436,9 +444,13 @@ export class TaihiPanel implements Widget {
   private drawKaeshi(g: Gfx, dy: number): void {
     const oy = SY + dy;
     const base = oy + CH - 18;
-    g.rect(SX, base, CW, CH, '#3A3040');
-    g.rect(SX, base, CW, 2, '#5A4636');
     const done = this.scoops.length;
+    // HD-2D：堆肥舎と 山（hd2d/panels/taihi.ts）。温度計・湯気・フォーク・字は 2D の まま 上に
+    const in3d = drawPanel3d(g, this, 'taihi', SX, oy, RX - SX - 4, CH, { state: { mode: 'kaeshi', done } });
+    if (!in3d) {
+      g.rect(SX, base, CW, CH, '#3A3040');
+      g.rect(SX, base, CW, 2, '#5A4636');
+    }
     // a heap as a half ellipse, drawn in 2px strips: the crust, the dark body, the hot heart
     const heap = (cx: number, rx: number, ry: number, col: string) => {
       for (let x = -rx; x < rx; x += 2) {
@@ -450,13 +462,15 @@ export class TaihiPanel implements Widget {
     const hx = HX + 70;
     const rx = 66 - done * 6;
     const ry = 58 - done * 6;
-    heap(hx, rx, ry, '#6E5440');
-    heap(hx, rx - 3, ry - 3, '#4A3426');
-    const glow = 0.55 + Math.sin(this.t / 260) * 0.15;
-    g.alpha(glow, () => heap(hx, Math.round(rx * 0.55), Math.round(ry * 0.55), '#A8502E'));
-    g.alpha(glow * 0.8, () => heap(hx, Math.round(rx * 0.3), Math.round(ry * 0.3), '#E07A3A'));
+    if (!in3d) {
+      heap(hx, rx, ry, '#6E5440');
+      heap(hx, rx - 3, ry - 3, '#4A3426');
+      const glow = 0.55 + Math.sin(this.t / 260) * 0.15;
+      g.alpha(glow, () => heap(hx, Math.round(rx * 0.55), Math.round(ry * 0.55), '#A8502E'));
+      g.alpha(glow * 0.8, () => heap(hx, Math.round(rx * 0.3), Math.round(ry * 0.3), '#E07A3A'));
+    }
     // the turned pile on the right, a little bigger each scoop
-    if (done) {
+    if (done && !in3d) {
       heap(HX + 168, 10 + done * 6, 6 + done * 5, '#6E5440');
       heap(HX + 168, 8 + done * 6, 4 + done * 5, '#5A4030');
     }

@@ -38,7 +38,7 @@ function rubberImg(): HTMLCanvasElement {
 
 registerPanel3d('dome_eye', {
   cam: { fov: 40, pitch: 0, pos: [0, 0, 0], near: 0.05, far: 50 },
-  light: RED_ROOM,
+  light: { ...RED_ROOM, hemiI: 1.1 },
   fog: null,
   shadow: null,
   grade: () => null,
@@ -65,7 +65,7 @@ registerPanel3d('dome_eye', {
     ring.position.set(c.x, c.y, -far);
     k.scene.add(ring);
     // 天文台の 赤い 明かり（左下の 箱から）と、星の 光の 返し
-    lamp(k, '#ff3a2a', 1.6, new THREE.Vector3(c.x - r * 1.6, c.y - r * 1.4, -1.2), 0, 2);
+    lamp(k, '#ff3a2a', 5, new THREE.Vector3(c.x - r * 1.6, c.y - r * 1.4, -1.2), 0, 2);
     lamp(k, '#a8b8ff', 0.6, new THREE.Vector3(c.x, c.y, -far + 0.5), 0, 2);
   },
 });

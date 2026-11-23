@@ -67,14 +67,21 @@ registerPanel3d('nanori', {
       k.stand(toudai, foot, { px, depth: 8, rows: [0, ROWS] });
     }
     // 沖の 島（水平線の 上の 低い 影）
-    const islA = k.atDepth(124, HORIZON, -1400);
-    const islB = k.atDepth(154, HORIZON, -1400);
-    const islT = k.atDepth(140, HORIZON - 7, -1400);
+    // （霧に とけない 近さに：山の 稜線が 夜空より 少し 明るく 見える）
+    const IZ = -520;
+    const islA = k.atDepth(124, HORIZON, IZ);
+    const islB = k.atDepth(154, HORIZON, IZ);
+    const islT = k.atDepth(140, HORIZON - 7, IZ);
     if (islA && islB && islT) {
-      const dark = pix('nn:isl', 8, 8, (p) => p.fill('#06081A'));
+      const body = pix('nn:isl', 16, 16, (p) => {
+        p.fill('#1A2244');
+        p.hline(0, 15, 0, '#34406E');
+        for (let x = 0; x < 16; x += 5) p.set(x, 3 + (x % 3), '#222A52');
+      });
       const h = islT.y;
-      k.box(islA.x, islB.x, 0, h * 0.55, -1420, -1400, { front: dark, top: dark });
-      k.box(islA.x + (islB.x - islA.x) * 0.27, islB.x - (islB.x - islA.x) * 0.25, 0, h, -1430, -1405, { front: dark, top: dark });
+      const w = islB.x - islA.x;
+      k.box(islA.x, islB.x, -1, h * 0.55, IZ - 20, IZ, { front: body, top: body });
+      k.box(islA.x + w * 0.27, islB.x - w * 0.25, -1, h, IZ - 30, IZ - 5, { front: body, top: body });
     }
     // 港の 口の ブイ（緑の 灯が 上）
     const buoy = pix('nn:buoy', 9, 16, (p) => {
