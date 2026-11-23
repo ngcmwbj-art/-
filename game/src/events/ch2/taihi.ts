@@ -874,6 +874,20 @@ if (import.meta.env.DEV) {
     return room(3, 4);
   });
 
+  /** QA（大写しの HD-2D の 写真）：大写しを 直接 開く／もう一度で 閉じる（mode：dig・kaeshi、n：掘った 数／返した 数）。 */
+  registerDebug('taihiPanel', (mode: 'dig' | 'kaeshi' = 'dig', n: unknown = 2) => {
+    const old = game.ui.widgets.find((w) => w instanceof TaihiPanel);
+    if (old) return void game.ui.remove(old);
+    const p = new TaihiPanel(mode);
+    p.open = 1;
+    if (mode === 'dig') {
+      p.phase = 'aim';
+      [...p.larvae].slice(0, Number(n)).forEach((i) => (p.dug.add(i), p.back.add(i)));
+      p.found = Math.min(Number(n), p.larvae.size);
+    } else p.scoops = Array.from({ length: Number(n) }, () => true);
+    game.ui.push(p);
+    return true;
+  });
   registerDebug('taihiState', () => {
     const p = game.ui.widgets.find((w) => w instanceof TaihiPanel) as TaihiPanel | undefined;
     const flags: Record<string, number> = {};
