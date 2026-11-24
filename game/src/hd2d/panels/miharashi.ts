@@ -37,7 +37,8 @@ function propImg(id: string, opts: Record<string, unknown> = {}): HTMLCanvasElem
   const a = getProp(id, opts);
   if (!a) return null;
   const f = field();
-  const env: PropEnv = { t: 0, stage: 1, grade: f!.grade, motion: 0, mt: 0, flag: (k) => (k === 'flag_ch3_stage' ? 1 : flag(k)), seed: 0, near: 999, px: 0, py: 0 };
+  if (!f) return null;
+  const env: PropEnv = { t: 0, stage: 1, grade: f.grade, motion: 0, mt: 0, flag: (k) => (k === 'flag_ch3_stage' ? 1 : flag(k)), seed: 0, near: 999, px: 0, py: 0 };
   return a.img(env);
 }
 

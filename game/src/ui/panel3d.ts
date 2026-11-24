@@ -42,6 +42,8 @@ export interface Panel3dImpl {
 }
 
 let impl: Panel3dImpl | null = null;
+/** 描くのに しくじった 絵の id（その 絵だけ 2D に もどす）。 */
+const failed = new Set<string>();
 
 /** src/hd2d/panel3d.ts が つなぐ（HD-2D の 層が 読み込まれた とき）。 */
 export function setPanel3dImpl(i: Panel3dImpl | null): void {
@@ -54,12 +56,18 @@ export function setPanel3dImpl(i: Panel3dImpl | null): void {
  * （2D の 絵を 描く）。毎フレーム 呼ぶ（呼ばれなく なると 片づく）。
  */
 export function drawPanel3d(g: Gfx, owner: object, id: string, x: number, y: number, w: number, h: number, o: Panel3dDrawOpts = {}): boolean {
-  if (!impl || !impl.has(id)) return false;
+  if (!impl || !impl.has(id) || failed.has(id)) return false;
   try {
     return impl.draw(g, owner, id, x, y, w, h, o);
   } catch (e) {
-    console.error('[panel3d] draw failed, 2D from now on', e);
-    impl = null;
+    // その 絵だけ 2D に もどす（前は 1枚 こけると 全部の 大写しが 2D に なった）
+    console.error(`[panel3d] draw failed: ${id} is 2D from now on`, e);
+    failed.add(id);
+    try {
+      impl.dispose(owner);
+    } catch {
+      /* ignore */
+    }
     return false;
   }
 }
