@@ -44,6 +44,106 @@ import type { TouchPick } from './closeup';
 const PANEL_Y = 6;
 const PANEL_H = 140;
 
+// ---------------------------------------------------------------- HD-2D の グソっ君（陰影・つや・厚み・影）
+// HD-2D の 交番の 場面の 上では、平たい 立ち絵の ままだと 浮いて 見える（2026-11-24 依頼主「足して」）。
+// 絵の 形・大きさ・位置は 変えずに、丸みの 陰影（左上が 明るく 右下が 暗い）、殻の つや、右下へ 1段の
+// 厚み、足もとの 影を つける。2D の まま（?hd2d=0）の ときは 今の 絵。
+
+const solidCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+/** 陰影と つやを つけた 写し（src と 同じ 大きさ）。dst を わたすと そこへ 描く（毎フレーム 変わる 絵）。 */
+function shadeSprite(src: HTMLCanvasElement, dst?: HTMLCanvasElement): HTMLCanvasElement {
+  const w = src.width;
+  const h = src.height;
+  let out = dst;
+  if (!out) {
+    out = makeCanvas(w, h)[0];
+  }
+  const ctx = out.getContext('2d', { willReadFrequently: true })!;
+  if (out !== src) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(src, 0, 0);
+  }
+  let img: ImageData;
+  try {
+    img = ctx.getImageData(0, 0, w, h);
+  } catch {
+    return out;
+  }
+  const d = img.data;
+  const op = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] > 0;
+  let x0 = w;
+  let y0 = h;
+  let x1 = 0;
+  let y1 = 0;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (op(x, y)) {
+        x0 = Math.min(x0, x);
+        y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x);
+        y1 = Math.max(y1, y);
+      }
+  if (x1 < x0) return out;
+  const bw = Math.max(1, x1 - x0);
+  const bh = Math.max(1, y1 - y0);
+  const src2 = new Uint8ClampedArray(d);
+  const a2 = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && src2[(y * w + x) * 4 + 3] > 0;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (src2[i + 3] === 0) continue;
+      const r = src2[i];
+      const g = src2[i + 1];
+      const b = src2[i + 2];
+      const lum = r * 0.3 + g * 0.59 + b * 0.11;
+      if (lum < 70) continue; // 輪郭・目は そのまま
+      const nx = (x - x0) / bw;
+      const ny = (y - y0) / bh;
+      // 丸み：左上 → 右下
+      const t = nx * 0.55 + ny * 0.45;
+      let k = t < 0.42 ? (0.42 - t) * 0.75 : -(t - 0.42) * 1.15;
+      // ふち：左上の ふちは 光、右下の ふちは 陰
+      if (!a2(x - 1, y - 1) || !a2(x - 1, y) || !a2(x, y - 1)) k += 0.22;
+      if (!a2(x + 1, y + 1) || !a2(x + 1, y)) k -= 0.28;
+      // 殻の つや（左上の 小さな 光）
+      const gx = (nx - 0.33) / 0.16;
+      const gy = (ny - 0.22) / 0.08;
+      if (gx * gx + gy * gy < 1) k += 0.42;
+      const f = (c: number) => (k >= 0 ? c + (255 - c) * Math.min(0.8, k) : c * (1 + Math.max(-0.6, k)));
+      d[i] = f(r);
+      d[i + 1] = f(g);
+      d[i + 2] = f(b);
+    }
+  ctx.putImageData(img, 0, 0);
+  return out;
+}
+
+function solidOf(src: HTMLCanvasElement): HTMLCanvasElement {
+  let c = solidCache.get(src);
+  if (!c) solidCache.set(src, (c = shadeSprite(src)));
+  return c;
+}
+
+/** 床の 上の だ円の 影（中心 cx・cy、横 rx、縦 ry）。 */
+function floorShadow(g: Gfx, cx: number, cy: number, rx: number, ry: number, a: number): void {
+  g.alpha(a, () => {
+    for (let yy = -ry; yy <= ry; yy++) {
+      const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - (yy * yy) / (ry * ry))));
+      if (half > 0) g.rect(Math.round(cx - half), Math.round(cy + yy), half * 2, 1, '#2A1E1A');
+    }
+  });
+}
+
+/** 立ち絵を HD-2D の 場面の 上に：厚み（右下へ 1段）＋ 陰影と つや。 */
+function drawSolid(g: Gfx, img: HTMLCanvasElement, x: number, y: number, scale: number): void {
+  g.img(img, x + scale, y + scale, { scale, tint: '#4A2A18', tintAmount: 1 });
+  g.img(solidOf(img), x, y, { scale });
+}
+
+let bellyCv: HTMLCanvasElement | null = null;
+let bellyShade: HTMLCanvasElement | null = null;
+
 abstract class Panel implements Widget {
   modal = true;
   /** 大写し：タッチの けっていが 画面の どこでも（engine/touch.ts）。 */
@@ -208,7 +308,8 @@ export class SizeGame extends Panel {
     const fy = y + this.floorY;
     // 床と 身長計の 柱（目盛り 10cm ごと）。HD-2D では 交番の 壁・床・台・柱は 3D（目盛りから 上は 2D）
     const poleX = x + 70;
-    if (!this.scene3d(g, 'hk_size', x, y, { fy: this.floorY - 22, pole: 66, b0: 36, b1: 186 })) {
+    const hd = this.scene3d(g, 'hk_size', x, y, { fy: this.floorY - 22, pole: 66, b0: 36, b1: 186, ppc: Math.round(this.ppc * 1000) / 1000 });
+    if (!hd) {
       g.rect(x + 40, fy, 150, 4, '#C8A06A');
       g.rect(x + 40, fy + 4, 150, 1, '#8A5A3A');
       g.rect(poleX, y + 10, 4, fy - y - 10, '#E8E4D8');
@@ -229,7 +330,12 @@ export class SizeGame extends Panel {
       g.rect(gx + Math.round(fr.width * this.sc * 0.32), gy + fr.height * this.sc - 2, 2, lift + 2, '#A8693A');
       g.rect(gx + Math.round(fr.width * this.sc * 0.62), gy + fr.height * this.sc - 2, 2, lift + 2, '#A8693A');
     }
-    g.img(fr, gx, gy + (this.shockT >= 0 && this.shockT < 120 ? 2 : 0), { scale: this.sc });
+    if (hd) {
+      // 台の 上の 影（つま先 立ちで 小さく うすく）と、厚み・陰影の ある グソっ君
+      const lk = Math.max(0, 1 - lift / 30);
+      floorShadow(g, gx + (fr.width * this.sc) / 2 + 6, fy + 2, Math.round(fr.width * this.sc * 0.5 * (0.7 + 0.3 * lk)), 4, 0.4 * (0.6 + 0.4 * lk));
+      drawSolid(g, fr, gx, gy + (this.shockT >= 0 && this.shockT < 120 ? 2 : 0), this.sc);
+    } else g.img(fr, gx, gy + (this.shockT >= 0 && this.shockT < 120 ? 2 : 0), { scale: this.sc });
     // バー（柱から 右へ）
     const by = Math.round(y + 30 + Math.min(this.bar, this.headY() - 30));
     g.rect(poleX - 2, by - 1, 64, 3, '#5A5F6E');
@@ -309,12 +415,13 @@ export class LegsGame extends Panel {
       g.text(HK_LEGS_WORD.look, x + this.w - 12 - g.measure(HK_LEGS_WORD.look), y + 6, { color: UI.pencil });
     }
     // HD-2D：上から 見た 交番の 机（グソっ君は 2D の まま のる）
-    this.scene3d(g, 'hk_legs', x, y);
+    const hd = this.scene3d(g, 'hk_legs', x, y);
     if (this.phase === 'look') {
       const k = Math.max(0, 1 - this.t / this.lookMs);
       g.rect(x + 10, y + 24, Math.round((this.w - 20) * k), 2, UI.accent);
     }
-    this.drawBelly(g, x + Math.round(this.w / 2), y + 78, this.phase === 'look' ? 1 : 0.35);
+    if (hd) this.drawBellySolid(g, x + Math.round(this.w / 2), y + 78, this.phase === 'look' ? 1 : 0.35);
+    else this.drawBelly(g, x + Math.round(this.w / 2), y + 78, this.phase === 'look' ? 1 : 0.35);
     if (this.phase === 'ask') {
       const cy = y + 100;
       const q = HK_LEGS_WORD.ask;
@@ -331,6 +438,28 @@ export class LegsGame extends Panel {
         g.rect(nx + 16 - i, cy + 26 - i, i * 2 + 1, 1, UI.pencil);
       }
     }
+  }
+
+  /** HD-2D の 机の 上：同じ 絵を 下書きに 描いて、机に 落ちる 影・厚み・陰影と つやを つける。 */
+  private drawBellySolid(g: Gfx, cx: number, cy: number, a: number): void {
+    const BW = 104;
+    const BH = 88;
+    const ox = 52;
+    const oy = 40;
+    if (!bellyCv) {
+      bellyCv = makeCanvas(BW, BH)[0];
+      bellyShade = makeCanvas(BW, BH)[0];
+    }
+    const ctx = bellyCv.getContext('2d')!;
+    ctx.clearRect(0, 0, BW, BH);
+    this.drawBelly(new Gfx(ctx, BW, BH), ox, oy, 1);
+    const sh = shadeSprite(bellyCv, bellyShade!);
+    g.alpha(a, () => {
+      // 机に 落ちる 影（右下へ）と 殻の 厚み
+      g.img(bellyCv!, cx - ox + 4, cy - oy + 5, { tint: '#10201A', tintAmount: 1, alpha: 0.35 });
+      g.img(bellyCv!, cx - ox + 1, cy - oy + 2, { tint: '#4A2A18', tintAmount: 1 });
+      g.img(sh, cx - ox, cy - oy);
+    });
   }
 
   /** あおむけの グソっ君（腹の 側）。足 7対、口の 下の 2本、扇の しっぽ。 */
@@ -539,7 +668,10 @@ export class FoodGame extends Panel {
     const hop = food === '焼きそば' && this.moveT > 250 && Math.floor(this.t / 700) % 3 === 0 ? -1 : 0;
     const gx = cx - fr.width;
     const gy = y + 66 - fr.height * 2 + back + hop;
-    g.img(fr, gx, gy, { scale: 2 });
+    if (hd) {
+      floorShadow(g, gx + fr.width + 3, y + 66, Math.round(fr.width * 0.8), 2, 0.3);
+      drawSolid(g, fr, gx, gy, 2);
+    } else g.img(fr, gx, gy, { scale: 2 });
     if (food === '焼きそば' && this.moveT > 250) {
       // よだれの しずくと 目の きらり（こっそり）
       const ph = (this.t % 900) / 900;

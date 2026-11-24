@@ -624,7 +624,7 @@ export class KatanukiGame implements Widget {
     const sh = this.sh;
     const n = sh.pts.length;
     // HD-2D（hd2d/panels/katanuki.ts）：駄菓子屋の 木の 台と 厚みの ある 板は 3D。線・針・ひびは 下の 2D を 重ねる
-    const hd = drawPanel3d(g, this, 'katanuki', px + BX - 8, py + BY - 6, BOARD_W + 16, BOARD_H + 10, { state: { ne: this.o.ne } });
+    const hd = drawPanel3d(g, this, 'katanuki', px + BX - 8, py + BY - 6, BOARD_W + 16, BOARD_H + 10, { state: { ne: this.o.ne, kata: this.kata } });
     // the board's shadow and the board
     if (!hd) g.rect(bx + 2, by + 3, BOARD_W, BOARD_H, C.shadow, 0.35);
     if (this.endT >= 0) {
@@ -701,10 +701,27 @@ export class KatanukiGame implements Widget {
         const dip = this.v > 0 ? 1 : 0;
         const tx = bx + nx;
         const ty = by + ny + dip;
-        g.line(tx, ty, tx + 9, ty - 13, C.needleDk);
-        g.line(tx + 1, ty, tx + 10, ty - 13, C.needle);
-        g.circle(tx + 11, ty - 15, 2, C.head);
-        g.px(tx + 10, ty - 16, '#FF9A8A');
+        if (hd) {
+          // HD-2D：板に 落ちる 針の 影（右下へ）と、金属の つや（暗い ふち・中の 灰・光の すじ）、玉の 光と 陰
+          g.alpha(0.3, () => {
+            g.line(tx + 1, ty + 1, tx + 12, ty - 9, '#5A2A30');
+            g.circle(tx + 14, ty - 10, 2, '#5A2A30');
+          });
+          g.line(tx, ty, tx + 9, ty - 13, C.needleDk);
+          g.line(tx + 1, ty, tx + 10, ty - 13, '#A8B0BC');
+          g.line(tx + 1, ty - 1, tx + 6, ty - 8, '#FFFFFF');
+          g.px(tx, ty, '#3A3F48');
+          g.circle(tx + 11, ty - 15, 2, C.head);
+          g.px(tx + 12, ty - 14, '#9A1E18');
+          g.px(tx + 13, ty - 15, '#9A1E18');
+          g.px(tx + 10, ty - 16, '#FFC8C0');
+          g.px(tx + 10, ty - 17, '#FFFFFF');
+        } else {
+          g.line(tx, ty, tx + 9, ty - 13, C.needleDk);
+          g.line(tx + 1, ty, tx + 10, ty - 13, C.needle);
+          g.circle(tx + 11, ty - 15, 2, C.head);
+          g.px(tx + 10, ty - 16, '#FF9A8A');
+        }
       }
       // なんばるわんの コツ：負けない！
       if (this.makenaiT >= 0) {
